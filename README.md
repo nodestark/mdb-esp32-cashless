@@ -1,4 +1,4 @@
-# MDB Protocol Implementation for Cashless Vending Machines with ESP32 and KiCad
+# MDB Protocol Implementation for Cashless Vending Machine with ESP32 and KiCad
 This is an open source project dedicated to implementing the MDB (Multi-Drop Bus) protocol for cashless vending machines, using ESP32 as the main platform and KiCad for PCB design. The MDB protocol is widely used in vending machines for communication between devices, enabling integration with cashless payment systems.
 
 # Key Features:
