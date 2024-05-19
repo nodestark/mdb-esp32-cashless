@@ -5039,12 +5039,6 @@
 		(uuid "4b6a9648-cebe-4119-9479-bdd5412e8f36")
 	)
 	(junction
-		(at 251.46 33.02)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "726fd62e-7e43-4b96-8efb-1a4227a5bbd1")
-	)
-	(junction
 		(at 96.52 147.32)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5446,16 +5440,6 @@
 	)
 	(wire
 		(pts
-			(xy 251.46 33.02) (xy 257.81 33.02)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2779920d-9ebb-4f61-9a02-b34af85fabfd")
-	)
-	(wire
-		(pts
 			(xy 80.01 229.87) (xy 83.82 229.87)
 		)
 		(stroke
@@ -5493,16 +5477,6 @@
 			(type default)
 		)
 		(uuid "326d30fb-ef61-4fce-b287-a2386cea0c3f")
-	)
-	(wire
-		(pts
-			(xy 147.32 35.56) (xy 161.29 35.56)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "327be573-7de9-477d-9ba7-bd6e3af07ed0")
 	)
 	(wire
 		(pts
@@ -5563,16 +5537,6 @@
 			(type default)
 		)
 		(uuid "3f3d0bf2-17f2-4e5e-997c-64f570280261")
-	)
-	(wire
-		(pts
-			(xy 168.91 35.56) (xy 171.45 35.56)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4048bcda-ac2c-4cc9-9383-bd4c4d06df85")
 	)
 	(wire
 		(pts
@@ -5786,16 +5750,6 @@
 	)
 	(wire
 		(pts
-			(xy 179.07 35.56) (xy 191.77 35.56)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5dc86aa9-28ab-4269-9140-db5cf7f5a641")
-	)
-	(wire
-		(pts
 			(xy 262.89 177.8) (xy 269.24 177.8)
 		)
 		(stroke
@@ -5973,16 +5927,6 @@
 			(type default)
 		)
 		(uuid "722c894a-b5a9-45c9-b72c-32bc6abbc7c2")
-	)
-	(wire
-		(pts
-			(xy 265.43 33.02) (xy 269.24 33.02)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7d2f2c58-34d2-4141-94db-7b93d0d5704f")
 	)
 	(wire
 		(pts
@@ -6166,7 +6110,7 @@
 	)
 	(wire
 		(pts
-			(xy 251.46 27.94) (xy 251.46 33.02)
+			(xy 251.46 27.94) (xy 251.46 36.83)
 		)
 		(stroke
 			(width 0)
@@ -6466,16 +6410,6 @@
 	)
 	(wire
 		(pts
-			(xy 251.46 33.02) (xy 251.46 36.83)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ee32f73d-d560-4e73-83a6-790c77c5cd4f")
-	)
-	(wire
-		(pts
 			(xy 290.83 173.99) (xy 290.83 177.8)
 		)
 		(stroke
@@ -6666,17 +6600,6 @@
 			(justify left bottom)
 		)
 		(uuid "1625f952-c75f-4ffb-b7d2-d83d657c2dc5")
-	)
-	(label "spics0"
-		(at 147.32 35.56 0)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "18d77f84-7ecf-4ee9-9d42-8db8322b9b25")
 	)
 	(label "vdd_spi"
 		(at 134.62 118.11 90)
@@ -6963,17 +6886,6 @@
 			(justify left bottom)
 		)
 		(uuid "7e419eba-39b0-46e0-ada5-0cc10c1179c9")
-	)
-	(label "vdd_spi"
-		(at 191.77 35.56 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "7fd3e200-6f22-47c6-adf1-ade367dcb529")
 	)
 	(label "io12"
 		(at 177.8 175.26 0)
@@ -8666,74 +8578,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:LED")
-		(at 175.26 35.56 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "3a5360aa-a4df-4ed1-8628-167f895f31ab")
-		(property "Reference" "D2"
-			(at 173.6725 29.21 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "LED"
-			(at 173.6725 31.75 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
-			(at 175.26 35.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 175.26 35.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 175.26 35.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "b879f104-71b4-47db-b254-e89ea8479e1a")
-		)
-		(pin "2"
-			(uuid "e0881fbe-03c6-4050-9554-efd1878a78d7")
-		)
-		(instances
-			(project "mdb-esp32s3"
-				(path "/b11d8793-85d6-499e-ae1d-ef78b0f8944d"
-					(reference "D2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Connector:USB_C_Plug_USB2.0")
 		(at 247.65 175.26 0)
 		(unit 1)
@@ -8829,74 +8673,6 @@
 			(project "mdb-esp32s3"
 				(path "/b11d8793-85d6-499e-ae1d-ef78b0f8944d"
 					(reference "P1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C")
-		(at 261.62 33.02 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "3f662c29-012f-410d-9704-2918ebf16d3e")
-		(property "Reference" "C8"
-			(at 261.62 25.4 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "C"
-			(at 261.62 27.94 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 265.43 32.0548 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 261.62 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 261.62 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "3c879466-f77b-422d-b794-2a251c08cba0")
-		)
-		(pin "2"
-			(uuid "83f94e22-3269-475c-b254-82b38deb4bad")
-		)
-		(instances
-			(project "mdb-esp32s3"
-				(path "/b11d8793-85d6-499e-ae1d-ef78b0f8944d"
-					(reference "C8")
 					(unit 1)
 				)
 			)
@@ -9974,74 +9750,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R")
-		(at 165.1 35.56 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "6ec8770e-d990-4a0d-a43b-60a9a83fba6a")
-		(property "Reference" "R7"
-			(at 165.1 29.21 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "R"
-			(at 165.1 31.75 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 165.1 37.338 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 165.1 35.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 165.1 35.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "fb92c4c1-077d-4f3a-983a-6d336a2fe268")
-		)
-		(pin "2"
-			(uuid "fca79e6c-e6b0-4e25-a72e-6d6a2bb659cf")
-		)
-		(instances
-			(project "mdb-esp32s3"
-				(path "/b11d8793-85d6-499e-ae1d-ef78b0f8944d"
-					(reference "R7")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Memory_Flash:W25Q32JVSS")
 		(at 251.46 49.53 0)
 		(unit 1)
@@ -10806,73 +10514,6 @@
 			(project "mdb-esp32s3"
 				(path "/b11d8793-85d6-499e-ae1d-ef78b0f8944d"
 					(reference "#PWR038")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 269.24 33.02 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "9cbf69f4-3494-434f-b04b-8a33a2f853a5")
-		(property "Reference" "#PWR030"
-			(at 275.59 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "GND"
-			(at 273.05 33.02 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 269.24 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 269.24 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 269.24 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "697e4917-93ce-4b15-a37d-11d010995e10")
-		)
-		(instances
-			(project "mdb-esp32s3"
-				(path "/b11d8793-85d6-499e-ae1d-ef78b0f8944d"
-					(reference "#PWR030")
 					(unit 1)
 				)
 			)
