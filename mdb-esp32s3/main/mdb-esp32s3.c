@@ -1,10 +1,25 @@
 #include <stdio.h>
-#include <stdint.h>
+#include <string.h>
+
+#include <driver/uart.h>
+#include <driver/gpio.h>
+#include "esp_littlefs.h"
+
+#include "tinyusb.h"
+#include "tusb_cdc_acm.h"
+#include "tusb_console.h"
+
+#include "hal/cpu_hal.h"
 
 #include "apps/your_app/your_app.h"
 
-#define WAIT_9600______BIT { for ( unsigned long x = ESP.getCycleCount() + (ESP.getCpuFreqMHz() * 1000000UL) / 9600; x > ESP.getCycleCount();); }
-#define WAIT_9600_HALF_BIT { for ( unsigned long x = ESP.getCycleCount() + (ESP.getCpuFreqMHz() * 1000000UL) / 19200; x > ESP.getCycleCount();); }
+#define ACK 0x00  // Acknowledgment / Checksum correct;
+#define RET 0xAA  // Retransmit the previously sent data. Only the VMC can transmit this byte;
+#define NAK 0xFF  // Negative acknowledge.
+
+#define BIT_MODE_SET  0b100000000
+#define BIT_ADD_SET   0b011111000
+#define BIT_CMD_SET   0b000000111
 
 enum MDB_COMMAND {
 	RESET = 0x00,
@@ -36,79 +51,93 @@ enum MDB_EXPANSION_DATA {
 	REQUEST_ID = 0x00
 };
 
-enum MACHINE_STATE {
+typedef enum RISCV_PRIVILEGES {
+	USER = 0x00, SUPERVISOR = 0x01, MACHINE = 0x03
+} privelege_t;
+
+typedef enum MACHINE_STATE {
 	/*MDB...*/ENABLED_STATE,
 	INACTIVE_STATE,
 	DISABLED_STATE,
 	IDLE_STATE,
 	VEND_STATE /*...MDB*/
-};
+} machine_state_t;
 
-MACHINE_STATE machine_state;
+machine_state_t machine_state;
 
-boolean mIsPayloading;
-byte checksum;
+uint8_t reset_cashless_todo;
 
-byte mMdb_payload[36];
-int available_rx;
-int available_tx;
+uint8_t session_begin_todo;
+uint8_t session_end_todo;
+uint8_t session_cancel_todo;
 
-boolean reset_cashless_todo;
+uint8_t vend_request_todo;
+uint8_t vend_approved_todo;
+uint8_t vend_denied_todo;
+uint8_t vend_fail_todo;
 
-boolean session_begin_todo;
-boolean session_end_todo;
-boolean session_cancel_todo;
+uint8_t outsequence_todo;
 
-boolean vend_request_todo;
-boolean vend_approved_todo;
-boolean vend_denied_todo;
-boolean vend_fail_todo;
+uint8_t mMdb_payload[36];
+uint8_t available_rx;
+uint8_t available_tx;
 
-boolean outsequence_todo;
+void WAIT_9600______BIT(){
+	for (unsigned long x = cpu_hal_get_cycle_count() + (240000000 /*240MHz*/) / 9600; x > cpu_hal_get_cycle_count(); )
+		;
+}
 
-void transmitByteByUSART(int nth9) {
+void WAIT_9600_HALF_BIT(){
+	for ( unsigned long x = cpu_hal_get_cycle_count() + (240000000 /*240MHz*/) / 19200; x > cpu_hal_get_cycle_count();)
+		;
+}
+
+void transmitByteByUSART(uint16_t nth9) {
 
 	nth9 <<= 1;
 	nth9 |= 0b10000000000; // Start bit | nth9 | Stop bit
 
 	for (int x = 0; x < 11; x++) {
-		digitalWrite(pin_mdb_tx, (nth9 >> x) & 1);
-		WAIT_9600______BIT
-			;
+
+		gpio_set_level(GPIO_NUM_5, (nth9 >> x) & 1);
+		WAIT_9600______BIT();
 	}
 }
 
 void transmitPayloadByUSART() {
 
-	byte chk = 0;
+	uint8_t chk = 0;
 	for (int x = 0; x < available_tx; x++) {
 
 		chk += mMdb_payload[x];
 		transmitByteByUSART(mMdb_payload[x]);
 	}
-	// CHK* ACK*
 
+	// CHK* ACK*
 	transmitByteByUSART(0b100000000 | chk);
 }
 
 void mdb_loop(void *pvParameters) {
 
+	uint8_t mIsPayloading= 0x00;
+	uint8_t checksum= 0x00;
+
 	for (;;) {
 
 		// --- MDB binary reader -----------------------------
-		int coming_read = 0;
-		while (digitalRead(pin_mdb_rx) != LOW)
+		uint16_t coming_read = 0;
+
+		while (gpio_get_level(GPIO_NUM_4))
 			;
 
-		WAIT_9600_HALF_BIT
-			;
+		WAIT_9600_HALF_BIT();
+
 		for (int x = 0; x < 10; x++) {
 
 			coming_read >>= 1;
-			coming_read |= digitalRead(pin_mdb_rx) << 8;
+			coming_read |= gpio_get_level(GPIO_NUM_4) << 8;
 
-			WAIT_9600______BIT
-				;
+			WAIT_9600______BIT();
 		}
 		// ---------------------------------------------------
 
@@ -126,16 +155,14 @@ void mdb_loop(void *pvParameters) {
 
 			mMdb_payload[available_rx++] = coming_read;
 
-			if (checksum == byte(coming_read)) {
+			if (checksum == (uint8_t) coming_read ) {
 				// CHK
 
 				mIsPayloading = false;
 
 				if ((mMdb_payload[0] & BIT_ADD_SET) == 0x10) {
 
-					timein_mdbPayload = millis();
-
-					byte mdb_cmd = mMdb_payload[0] & BIT_CMD_SET;
+					uint8_t mdb_cmd = mMdb_payload[0] & BIT_CMD_SET;
 
 					if (mdb_cmd == RESET) {
 
@@ -191,8 +218,8 @@ void mdb_loop(void *pvParameters) {
 							vend_approved_todo = false;
 
 							mMdb_payload[0] = 0x05;             // Vend Approved
-							mMdb_payload[1] = mMdbCredit >> 8;  // Vend Amount
-							mMdb_payload[2] = mMdbCredit;
+//							mMdb_payload[1] = mMdbCredit >> 8;  // Vend Amount
+//							mMdb_payload[2] = mMdbCredit;
 							available_tx = 3;
 
 						} else if (vend_denied_todo) {
@@ -219,7 +246,7 @@ void mdb_loop(void *pvParameters) {
 
 							machine_state = IDLE_STATE;
 
-							word fundsAvailable = settings.funds_available;
+							uint8_t fundsAvailable = 0x00;
 
 							//Set credits
 							mMdb_payload[0] = 0x03; // Begin Session
@@ -243,12 +270,12 @@ void mdb_loop(void *pvParameters) {
 
 							machine_state = VEND_STATE;
 
-							word itemPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
-							word itemNumber = (mMdb_payload[4] << 8) | mMdb_payload[5];
+							uint16_t itemPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
+							uint16_t itemNumber = (mMdb_payload[4] << 8) | mMdb_payload[5];
 
 						} else if (mMdb_payload[1] == VEND_CANCEL) {
 
-							vend_denied_todo = true;
+							vend_denied_todo = 1;
 
 						} else if (mMdb_payload[1] == VEND_SUCCESS) {
 
@@ -266,8 +293,8 @@ void mdb_loop(void *pvParameters) {
 
 						} else if (mMdb_payload[1] == CASH_SALE) {
 
-							word itemPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
-							word itemNumber = (mMdb_payload[4] << 8) | mMdb_payload[5];
+							uint16_t itemPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
+							uint16_t itemNumber = (mMdb_payload[4] << 8) | mMdb_payload[5];
 
 							// No Data *
 						}
@@ -351,9 +378,25 @@ void mdb_loop(void *pvParameters) {
 			// NAK
 		}
 	}
-
 }
 
+char calc_crc_16(uint8_t *pCrc, uint8_t uData) {
+
+	uint8_t oldData = uData;
+	for (uint8_t iBit = 0; iBit < 8; iBit++, uData >>= 1) {
+
+		if ((uData ^ *pCrc) & 0x01) {
+
+			*pCrc >>= 1;
+			*pCrc ^= 0xA001;
+
+		} else *pCrc >>= 1;
+	}
+
+	return oldData;
+}
+
+/*
 void readTelemetryDex() {
 
 	HardwareSerial serial1 = HardwareSerial(1);
@@ -468,27 +511,9 @@ void readTelemetryDex() {
 
 	fileEva_dts.close();
 }
+*/
 
-char calc_crc_16(unsigned int *pCrc, unsigned char uData) {
-
-	char oldData = uData;
-
-	int iBit;
-
-	for (iBit = 0; iBit < 8; iBit++, uData >>= 1) {
-
-		if ((uData ^ *pCrc) & 0x01) {
-
-			*pCrc >>= 1;
-			*pCrc ^= 0xA001;
-
-		} else
-			*pCrc >>= 1;
-	}
-
-	return oldData;
-}
-
+/*
 void readTelemetryDdcmp() {
 
 	HardwareSerial serial1 = HardwareSerial(1);
@@ -719,9 +744,48 @@ void readTelemetryDdcmp() {
 	} while (true);
 
 	fileEva_dts.close();
-}
+}*/
 
 void app_main(void) {
+
+	esp_vfs_littlefs_conf_t littlefs_conf = {
+			.base_path = "/data",
+			.partition_label = "data",
+			.format_if_mount_failed = true,
+			.dont_mount = false, };
+
+	ESP_ERROR_CHECK(esp_vfs_littlefs_register(&littlefs_conf));
+
+	// ################################################################
+	const tinyusb_config_t tusb_cfg = {
+			.device_descriptor = (void*) 0,
+			.string_descriptor = (void*) 0,
+			.external_phy = false,
+			.configuration_descriptor = (void*) 0,
+	};
+	ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
+
+	tinyusb_config_cdcacm_t acm_cfg = { 0 };
+	ESP_ERROR_CHECK(tusb_cdc_acm_init(&acm_cfg));
+
+    esp_tusb_init_console(TINYUSB_CDC_ACM_0);
+
+    // ################################################################
+	gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
+	gpio_set_direction(GPIO_NUM_5, GPIO_MODE_OUTPUT);
+
+    // ################################################################
+	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
+	ESP_ERROR_CHECK (uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1));
+
+	uart_config_t uart_config_1 = {
+			.baud_rate = 115200,
+			.data_bits = UART_DATA_8_BITS,
+			.parity = UART_PARITY_DISABLE,
+			.stop_bits = UART_STOP_BITS_1,
+			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
+
+	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
 
 	xTaskCreate(mdb_loop, "mdb_loop", 10946, (void*) 0, 1, (void*) 0);
 }
