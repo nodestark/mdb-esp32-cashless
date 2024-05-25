@@ -13,5 +13,4 @@ Before submitting a pull request, make sure the code complies with the style and
 Help us improve documentation by adding usage examples, installation instructions, and any other relevant information.
 
 ![MDB Cashless](1411051686640.jpg)
-![MDB Cashless](mdb-esp32s3_sch.png)
-![MDB Cashless](mdb-esp32s3_pcb.png)
+![MDB Cashless](mdb-slave-esp32s3_pcb.png)

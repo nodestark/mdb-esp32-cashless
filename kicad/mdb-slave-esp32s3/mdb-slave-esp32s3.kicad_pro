@@ -178,7 +178,7 @@
       ],
       "track_widths": [
         0.0,
-        0.33,
+        0.3,
         0.5
       ],
       "tuning_pattern_settings": {
@@ -445,7 +445,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "mdb-esp32s3.kicad_pro",
+    "filename": "mdb-slave-esp32s3.kicad_pro",
     "version": 1
   },
   "net_settings": {
@@ -589,7 +589,7 @@
   },
   "sheets": [
     [
-      "b11d8793-85d6-499e-ae1d-ef78b0f8944d",
+      "95980b25-0707-441d-ba83-7f6c6e1d1aaa",
       "Root"
     ]
   ],
