@@ -6479,17 +6479,6 @@
 		)
 		(uuid "89761230-3f30-47ce-b2c7-7967341e13c1")
 	)
-	(text "ESP32-S3FH4R2"
-		(exclude_from_sim no)
-		(at 153.67 138.43 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "c0528706-a164-42d0-b855-d5dc965e812a")
-	)
 	(label "io4"
 		(at 314.96 82.55 0)
 		(fields_autoplaced yes)
@@ -8184,7 +8173,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "ESP32-S3"
+		(property "Value" "ESP32-S3FH4R2"
 			(at 138.0841 222.25 0)
 			(effects
 				(font

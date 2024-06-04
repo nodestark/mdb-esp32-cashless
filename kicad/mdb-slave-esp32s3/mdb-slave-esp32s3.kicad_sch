@@ -6295,17 +6295,6 @@
 		)
 		(uuid "baff5c60-9526-4c18-9e98-ed5148593099")
 	)
-	(text "ESP32-S3R8"
-		(exclude_from_sim no)
-		(at 137.16 110.49 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "27760f1a-2c1a-41b6-8e20-bc0865442a92")
-	)
 	(label "io5"
 		(at 356.87 110.49 0)
 		(fields_autoplaced yes)
@@ -7959,7 +7948,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "ESP32-S3"
+		(property "Value" "ESP32-S3FH4R2"
 			(at 121.5741 194.31 0)
 			(effects
 				(font
