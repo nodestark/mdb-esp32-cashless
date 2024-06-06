@@ -74,9 +74,9 @@
 			(subtractmaskfromsilk no)
 			(outputformat 1)
 			(mirror no)
-			(drillshape 1)
+			(drillshape 0)
 			(scaleselection 1)
-			(outputdirectory "")
+			(outputdirectory "../../../../Downloads/mdb-slave/")
 		)
 	)
 	(net 0 "")
@@ -10551,6 +10551,18 @@
 		(fill none)
 		(layer "Edge.Cuts")
 		(uuid "ffcd5486-d1b4-41fc-a0d2-8d5b10469e13")
+	)
+	(gr_text "8		gnd\n9		tx\n10 		rx\n11		1\n12		2\n13		4\n14		5\n+3v3	6\ngnd		7\ngnd		17\nvin		18"
+		(at 108.585 123.571 0)
+		(layer "B.SilkS")
+		(uuid "f6c8e2b3-6f32-4c0f-a769-5b83f8046016")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom mirror)
+		)
 	)
 	(segment
 		(start 102.95 100.825)
