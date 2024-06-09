@@ -3,13 +3,12 @@
 
 #include <driver/uart.h>
 #include <driver/gpio.h>
-#include "esp_littlefs.h"
 
 #include "tinyusb.h"
 #include "tusb_cdc_acm.h"
 #include "tusb_console.h"
 
-#include "hal/cpu_hal.h"
+#include <rom/ets_sys.h>
 
 #include "apps/your_app/your_app.h"
 
@@ -51,16 +50,14 @@ enum MDB_EXPANSION_DATA {
 	REQUEST_ID = 0x00
 };
 
-typedef enum RISCV_PRIVILEGES {
-	USER = 0x00, SUPERVISOR = 0x01, MACHINE = 0x03
-} privelege_t;
-
 typedef enum MACHINE_STATE {
-	/*MDB...*/ENABLED_STATE,
+	/*MDB...*/
+	ENABLED_STATE,
 	INACTIVE_STATE,
 	DISABLED_STATE,
 	IDLE_STATE,
-	VEND_STATE /*...MDB*/
+	VEND_STATE
+	/*...MDB*/
 } machine_state_t;
 
 machine_state_t machine_state;
@@ -82,26 +79,36 @@ uint8_t mMdb_payload[36];
 uint8_t available_rx;
 uint8_t available_tx;
 
-void WAIT_9600______BIT(){
-	for (unsigned long x = cpu_hal_get_cycle_count() + (240000000 /*240MHz*/) / 9600; x > cpu_hal_get_cycle_count(); )
+uint16_t read_9() {
+
+	uint16_t coming_read = 0;
+
+	while (gpio_get_level(GPIO_NUM_4))
 		;
+
+	ets_delay_us(156);
+	for(uint8_t x= 0; x < 9; x++){
+
+		coming_read |= (gpio_get_level(GPIO_NUM_4) << x);
+		ets_delay_us(104); // 9600bps
+	}
+
+	return coming_read;
 }
 
-void WAIT_9600_HALF_BIT(){
-	for ( unsigned long x = cpu_hal_get_cycle_count() + (240000000 /*240MHz*/) / 19200; x > cpu_hal_get_cycle_count();)
-		;
-}
+void write_9( uint16_t nth9 ) {
 
-void transmitByteByUSART(uint16_t nth9) {
+	gpio_set_level(GPIO_NUM_5, 0); // start
+	ets_delay_us(104);
 
-	nth9 <<= 1;
-	nth9 |= 0b10000000000; // Start bit | nth9 | Stop bit
-
-	for (int x = 0; x < 11; x++) {
+	for(uint8_t x= 0; x < 9; x++){
 
 		gpio_set_level(GPIO_NUM_5, (nth9 >> x) & 1);
-		WAIT_9600______BIT();
+		ets_delay_us(104); // 9600bps
 	}
+
+	gpio_set_level(GPIO_NUM_5, 1); // stop
+	ets_delay_us(104);
 }
 
 void transmitPayloadByUSART() {
@@ -110,11 +117,11 @@ void transmitPayloadByUSART() {
 	for (int x = 0; x < available_tx; x++) {
 
 		chk += mMdb_payload[x];
-		transmitByteByUSART(mMdb_payload[x]);
+		write_9(mMdb_payload[x]);
 	}
 
 	// CHK* ACK*
-	transmitByteByUSART(0b100000000 | chk);
+	write_9(0b100000000 | chk);
 }
 
 void mdb_loop(void *pvParameters) {
@@ -124,22 +131,7 @@ void mdb_loop(void *pvParameters) {
 
 	for (;;) {
 
-		// --- MDB binary reader -----------------------------
-		uint16_t coming_read = 0;
-
-		while (gpio_get_level(GPIO_NUM_4))
-			;
-
-		WAIT_9600_HALF_BIT();
-
-		for (int x = 0; x < 10; x++) {
-
-			coming_read >>= 1;
-			coming_read |= gpio_get_level(GPIO_NUM_4) << 8;
-
-			WAIT_9600______BIT();
-		}
-		// ---------------------------------------------------
+		uint16_t coming_read = read_9();
 
 		if (coming_read & BIT_MODE_SET) {
 
@@ -161,6 +153,8 @@ void mdb_loop(void *pvParameters) {
 				mIsPayloading = false;
 
 				if ((mMdb_payload[0] & BIT_ADD_SET) == 0x10) {
+
+					gpio_set_level(GPIO_NUM_21, 1);
 
 					uint8_t mdb_cmd = mMdb_payload[0] & BIT_CMD_SET;
 
@@ -362,6 +356,8 @@ void mdb_loop(void *pvParameters) {
 				} else {
 
 					// If not my address
+
+					gpio_set_level(GPIO_NUM_21, 0);
 				}
 
 			} else {
@@ -380,6 +376,7 @@ void mdb_loop(void *pvParameters) {
 	}
 }
 
+/*
 char calc_crc_16(uint8_t *pCrc, uint8_t uData) {
 
 	uint8_t oldData = uData;
@@ -395,6 +392,7 @@ char calc_crc_16(uint8_t *pCrc, uint8_t uData) {
 
 	return oldData;
 }
+*/
 
 /*
 void readTelemetryDex() {
@@ -748,15 +746,6 @@ void readTelemetryDdcmp() {
 
 void app_main(void) {
 
-	esp_vfs_littlefs_conf_t littlefs_conf = {
-			.base_path = "/data",
-			.partition_label = "data",
-			.format_if_mount_failed = true,
-			.dont_mount = false, };
-
-	ESP_ERROR_CHECK(esp_vfs_littlefs_register(&littlefs_conf));
-
-	// ################################################################
 	const tinyusb_config_t tusb_cfg = {
 			.device_descriptor = (void*) 0,
 			.string_descriptor = (void*) 0,
@@ -773,6 +762,9 @@ void app_main(void) {
     // ################################################################
 	gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
 	gpio_set_direction(GPIO_NUM_5, GPIO_MODE_OUTPUT);
+
+	// led...
+	gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
 
     // ################################################################
 	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
