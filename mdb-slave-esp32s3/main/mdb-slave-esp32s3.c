@@ -75,7 +75,7 @@ uint8_t vend_fail_todo;
 
 uint8_t outsequence_todo;
 
-uint8_t mMdb_payload[36];
+uint8_t mMdb_payload[256];
 uint8_t available_rx;
 uint8_t available_tx;
 
@@ -111,7 +111,7 @@ void write_9( uint16_t nth9 ) {
 	ets_delay_us(104);
 }
 
-void transmitPayloadByUSART() {
+void transmitPayloadByUART9() {
 
 	uint8_t chk = 0;
 	for (int x = 0; x < available_tx; x++) {
@@ -186,8 +186,8 @@ void mdb_loop(void *pvParameters) {
 
 						} else if (mMdb_payload[1] == MAX_MIN_PRICES) {
 
-							// word minPrice = (mMdb_payload[4] << 8) | mMdb_payload[5];
-							// word maxPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
+							 uint16_t minPrice = (mMdb_payload[4] << 8) | mMdb_payload[5];
+							 uint16_t maxPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
 
 							// No Data *
 						}
@@ -351,7 +351,7 @@ void mdb_loop(void *pvParameters) {
 						}
 					}
 
-					transmitPayloadByUSART();
+					transmitPayloadByUART9();
 
 				} else {
 
