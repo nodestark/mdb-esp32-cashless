@@ -114,20 +114,20 @@ void write_9( uint16_t nth9 ) {
 
 void transmitPayloadByUART9() {
 
-	uint8_t chk = 0;
+	uint8_t checksum = 0;
 	for (int x = 0; x < available_tx; x++) {
 
-		chk += mMdb_payload[x];
+		checksum += mMdb_payload[x];
 		write_9(mMdb_payload[x]);
 	}
 
 	// CHK* ACK*
-	write_9(0b100000000 | chk);
+	write_9(0b100000000 | checksum);
 }
 
 void mdb_loop(void *pvParameters) {
 
-	uint8_t mIsPayloading= false;
+	uint8_t isPayloading= false;
 	uint8_t checksum= 0x00;
 
 	for (;;) {
@@ -137,21 +137,21 @@ void mdb_loop(void *pvParameters) {
 		if (coming_read & BIT_MODE_SET) {
 
 			// ADD*
-			mIsPayloading = true;
+			isPayloading = true;
 			checksum = 0;
 
 			available_rx = 0;
 			available_tx = 0;
 		}
 
-		if (mIsPayloading) {
+		if (isPayloading) {
 
 			mMdb_payload[available_rx++] = coming_read;
 
 			if (checksum == (uint8_t) coming_read ) {
 				// CHK
 
-				mIsPayloading = false;
+				isPayloading = false;
 
 				if ((mMdb_payload[0] & BIT_ADD_SET) == 0x10) {
 
