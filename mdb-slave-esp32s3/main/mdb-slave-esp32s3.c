@@ -62,22 +62,23 @@ typedef enum MACHINE_STATE {
 
 machine_state_t machine_state;
 
-uint8_t reset_cashless_todo;
+uint8_t reset_cashless_todo= false;
 
-uint8_t session_begin_todo;
-uint8_t session_end_todo;
-uint8_t session_cancel_todo;
+uint8_t session_begin_todo= false;
+uint8_t session_end_todo= false;
+uint8_t session_cancel_todo= false;
 
-uint8_t vend_request_todo;
-uint8_t vend_approved_todo;
-uint8_t vend_denied_todo;
-uint8_t vend_fail_todo;
+uint8_t vend_request_todo= false;
+uint8_t vend_approved_todo= false;
+uint8_t vend_denied_todo= false;
+uint8_t vend_fail_todo= false;
 
-uint8_t outsequence_todo;
+uint8_t outsequence_todo= false;
 
+// ---
 uint8_t mMdb_payload[256];
-uint8_t available_rx;
-uint8_t available_tx;
+uint8_t available_rx= 0;
+uint8_t available_tx= 0;
 
 uint16_t read_9() {
 
@@ -126,7 +127,7 @@ void transmitPayloadByUART9() {
 
 void mdb_loop(void *pvParameters) {
 
-	uint8_t mIsPayloading= 0x00;
+	uint8_t mIsPayloading= false;
 	uint8_t checksum= 0x00;
 
 	for (;;) {
@@ -154,6 +155,7 @@ void mdb_loop(void *pvParameters) {
 
 				if ((mMdb_payload[0] & BIT_ADD_SET) == 0x10) {
 
+					// status led...
 					gpio_set_level(GPIO_NUM_21, 1);
 
 					uint8_t mdb_cmd = mMdb_payload[0] & BIT_CMD_SET;
@@ -194,21 +196,18 @@ void mdb_loop(void *pvParameters) {
 					} else if (mdb_cmd == POLL) {
 
 						if (outsequence_todo) {
-
 							outsequence_todo = false;
 
 							mMdb_payload[0] = 0x0b; // Command Out of Sequence
 							available_tx = 1;
 
 						} else if (reset_cashless_todo) {
-
 							reset_cashless_todo = false;
 
 							mMdb_payload[0] = 0x00; // Just Reset
 							available_tx = 1;
 
 						} else if (vend_approved_todo) {
-
 							vend_approved_todo = false;
 
 							mMdb_payload[0] = 0x05;             // Vend Approved
@@ -217,7 +216,6 @@ void mdb_loop(void *pvParameters) {
 							available_tx = 3;
 
 						} else if (vend_denied_todo) {
-
 							vend_denied_todo = false;
 
 							mMdb_payload[0] = 0x06; // Vend Denied
@@ -226,7 +224,6 @@ void mdb_loop(void *pvParameters) {
 							machine_state = IDLE_STATE;
 
 						} else if (session_end_todo) {
-
 							session_end_todo = false;
 
 							mMdb_payload[0] = 0x07; // End Session
@@ -235,7 +232,6 @@ void mdb_loop(void *pvParameters) {
 							machine_state = ENABLED_STATE;
 
 						} else if (session_begin_todo) {
-
 							session_begin_todo = vend_approved_todo = false;
 
 							machine_state = IDLE_STATE;
@@ -250,7 +246,6 @@ void mdb_loop(void *pvParameters) {
 							available_tx = 3;
 
 						} else if (session_cancel_todo) {
-
 							session_cancel_todo = false;
 
 							mMdb_payload[0] = 0x04; // Session Cancel Request
@@ -269,7 +264,7 @@ void mdb_loop(void *pvParameters) {
 
 						} else if (mMdb_payload[1] == VEND_CANCEL) {
 
-							vend_denied_todo = 1;
+							vend_denied_todo = true;
 
 						} else if (mMdb_payload[1] == VEND_SUCCESS) {
 
@@ -357,6 +352,7 @@ void mdb_loop(void *pvParameters) {
 
 					// If not my address
 
+					// status led...
 					gpio_set_level(GPIO_NUM_21, 0);
 				}
 
