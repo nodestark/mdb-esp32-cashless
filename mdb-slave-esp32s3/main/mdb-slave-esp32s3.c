@@ -232,7 +232,7 @@ void mdb_loop(void *pvParameters) {
 							machine_state = ENABLED_STATE;
 
 						} else if (session_begin_todo) {
-							session_begin_todo = vend_approved_todo = false;
+							session_begin_todo = false;
 
 							machine_state = IDLE_STATE;
 
