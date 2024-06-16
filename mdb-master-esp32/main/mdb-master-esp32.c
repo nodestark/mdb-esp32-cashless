@@ -145,11 +145,9 @@ void mdb_loop(void *pvParameters) {
 					mdb_length= 2;
 
 					writePayload_ttl9(&mdb_payload, mdb_length);
-					if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
-						// No Data *
+					xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS);
 
-						machine_state = ENABLED_STATE;
-					}
+					machine_state = ENABLED_STATE;
 				}
 			}
 
@@ -199,6 +197,86 @@ void mdb_loop(void *pvParameters) {
 
 			struct flow_payload_msg_t msg;
 			if ( xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS) ){
+
+				if(1 == 0) {
+					// IDLE_STATE
+
+					uint16_t itemPrice = 100;
+					uint16_t itemNumber = 0;
+
+					if(machine_state == IDLE_STATE){
+
+						machine_state = VEND_STATE;
+
+						mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
+						mdb_payload[1] = 0x00; // Vend Request
+						mdb_payload[2] = itemPrice >> 8;
+						mdb_payload[3] = itemPrice;
+
+						mdb_payload[4] = itemNumber >> 8;
+						mdb_payload[5] = itemNumber;
+						mdb_length= 6;
+
+						writePayload_ttl9(&mdb_payload, mdb_length);
+						xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS);
+
+					} else {
+
+						mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
+						mdb_payload[1] = 0x05; // Cash Sale
+						mdb_payload[2] = itemPrice >> 8;
+						mdb_payload[3] = itemPrice;
+
+						mdb_payload[4] = itemNumber >> 8;
+						mdb_payload[5] = itemNumber;
+						mdb_length= 6;
+
+						writePayload_ttl9(&mdb_payload, mdb_length);
+						xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS);
+					}
+				}
+
+				if(msg.payload[0] == 0x07 /*End Session*/){
+
+					machine_state = ENABLED_STATE;
+				}
+
+				if(msg.payload[0] == 0x05 /*Vend Approved*/){
+					// VEND_STATE
+
+					uint16_t vendAmount = (mdb_payload[1] << 8) | mdb_payload[2];
+
+					// --
+					uint16_t itemNumber = 0;
+
+					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
+					mdb_payload[1] = 0x02; // Vend Success
+					mdb_payload[2] = itemNumber >> 8;
+					mdb_payload[3] = itemNumber;
+					mdb_length= 4;
+
+					writePayload_ttl9(&mdb_payload, mdb_length);
+					xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS);
+
+					machine_state = IDLE_STATE;
+
+					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
+					mdb_payload[1] = 0x04; // Session Complete
+					mdb_length= 2;
+
+					writePayload_ttl9(&mdb_payload, mdb_length);
+					if ( xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS) ){
+						//
+					}
+				}
+
+				if(msg.payload[0] == 0x03 /*Begin Session*/){
+					// ENABLED_STATE
+
+					machine_state = IDLE_STATE;
+
+					uint16_t fundsAvailable = (mdb_payload[1] << 8) | mdb_payload[2];
+				}
 			}
 		}
 
