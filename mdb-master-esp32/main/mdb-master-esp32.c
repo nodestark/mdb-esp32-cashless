@@ -220,7 +220,9 @@ void mdb_loop(void *pvParameters) {
 						writePayload_ttl9(&mdb_payload, mdb_length);
 						xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS);
 
-					} else {
+					}
+
+					if(machine_state == ENABLED_STATE){
 
 						mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 						mdb_payload[1] = 0x05; // Cash Sale
@@ -277,7 +279,8 @@ void mdb_loop(void *pvParameters) {
 
 					uint16_t fundsAvailable = (mdb_payload[1] << 8) | mdb_payload[2];
 				}
-			}
+			} else
+				machine_state = INACTIVE_STATE;
 		}
 
 		{
