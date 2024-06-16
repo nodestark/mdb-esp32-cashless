@@ -169,14 +169,14 @@ void mdb_loop(void *pvParameters) {
 
 							machine_state = DISABLED_STATE;
 
-							mdb_payload[0] = 0x01;       // Reader Config Data
-							mdb_payload[1] = 1; // Reader Feature Level. 1, 2, 3
-							mdb_payload[2] = 0xff;       // Country Code High;
+							mdb_payload[0] = 0x01;       	// Reader Config Data
+							mdb_payload[1] = 1; 			// Reader Feature Level. 1, 2, 3
+							mdb_payload[2] = 0xff;       	// Country Code High;
 							mdb_payload[3] = 0xff;       	// Country Code Low;
 							mdb_payload[4] = 1;       		// Scale Factor
 							mdb_payload[5] = 2;       		// Decimal Places
-							mdb_payload[6] = 5; // Application Maximum Response Time (5s)
-							mdb_payload[7] = 0b00001001; // Miscellaneous Options
+							mdb_payload[6] = 5; 			// Application Maximum Response Time (5s)
+							mdb_payload[7] = 0b00001001; 	// Miscellaneous Options
 
 							available_tx = 8;
 

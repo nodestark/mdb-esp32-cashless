@@ -23,6 +23,12 @@ enum MDB_COMMAND {
 	EXPANSION = 0x07
 };
 
+typedef enum MACHINE_STATE {
+	INACTIVE_STATE, DISABLED_STATE, ENABLED_STATE, IDLE_STATE, VEND_STATE
+} machine_state_t;
+
+machine_state_t machine_state = INACTIVE_STATE;
+
 void write_9( uint16_t nth9 ) {
 
 	gpio_set_level(GPIO_NUM_22, 0); // start
@@ -77,10 +83,7 @@ void readPayload_loop(void *pvParameters) {
 
 		if(coming_read & BIT_MODE_SET) {
 
-			if(checksum == (uint8_t) coming_read){
-
-				xQueueSend(payload_receive_queue, &msg, 0);
-			}
+			xQueueSend(payload_receive_queue, &msg, 0);
 
 			checksum = msg.length = 0;
 		}
@@ -107,27 +110,99 @@ void mdb_loop(void *pvParameters) {
 
 	for (;;) {
 
-		{
-			uint8_t mdb_payload[256];
-			uint8_t mdb_length= 0;
+		uint8_t mdb_payload[256];
+		uint8_t mdb_length= 0;
+
+		struct flow_payload_msg_t msg;
+
+		if(machine_state == DISABLED_STATE) {
+
+			uint16_t maxPrice = 200;
+			uint16_t minPrice = 100;
+
+			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
+			mdb_payload[1] = 0x01; // Max/Min Prices
+			mdb_payload[2] = maxPrice >> 8;
+			mdb_payload[3] = maxPrice;
+			mdb_payload[4] = minPrice >> 8;
+			mdb_payload[5] = minPrice;
+			mdb_length= 6;
+
+			writePayload_ttl9(&mdb_payload, mdb_length);
+			if (xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS)) {
+				// No Data *
+
+				mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (EXPANSION & BIT_CMD_SET);
+				mdb_payload[1] = 0x00; // Request ID
+				mdb_length= 2;
+
+				writePayload_ttl9(&mdb_payload, mdb_length);
+				if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
+					// Peripheral ID
+
+					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (READER & BIT_CMD_SET);
+					mdb_payload[1] = 0x01; // Reader Enable
+					mdb_length= 2;
+
+					writePayload_ttl9(&mdb_payload, mdb_length);
+					if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
+						// No Data *
+
+						machine_state = ENABLED_STATE;
+					}
+				}
+			}
+
+		} else if ( machine_state == INACTIVE_STATE ){
 
 			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
 			mdb_length= 1;
 
 			writePayload_ttl9(&mdb_payload, mdb_length);
+			if ( xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS) ){
+				// No Data *
+
+				machine_state = INACTIVE_STATE;
+
+				mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
+				mdb_length= 1;
+
+				writePayload_ttl9(&mdb_payload, mdb_length);
+				if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
+
+					if(msg.payload[0] == 0x00 /*Just Reset*/){
+
+						mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
+						mdb_payload[1] = 0x00; 			// Config Data
+						mdb_payload[2] = 1; 			// VMC Feature Level
+						mdb_payload[3] = 0; 			// Columns on Display
+						mdb_payload[4] = 0; 			// Rows on Display
+						mdb_payload[5] = 0b00000001; 	// Display Information
+						mdb_length= 6;
+
+						writePayload_ttl9(&mdb_payload, mdb_length);
+						if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
+							// Reader Config
+
+							machine_state = DISABLED_STATE;
+						}
+					}
+				}
+			}
+
+		} else {
+
+			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
+			mdb_length= 1;
+
+			writePayload_ttl9(&mdb_payload, mdb_length);
 
 			struct flow_payload_msg_t msg;
-			if ( xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS) ){
-				if(msg.payload[0] == ACK){
-
-				}
+			if ( xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS) ){
 			}
 		}
 
 		{
-			uint8_t mdb_payload[256];
-			uint8_t mdb_length= 0;
-
 			mdb_payload[0] = (0x60 /*Cashless Device #2*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
 			mdb_length= 1;
 
