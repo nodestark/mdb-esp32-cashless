@@ -51,34 +51,28 @@ enum MDB_EXPANSION_DATA {
 };
 
 typedef enum MACHINE_STATE {
-	/*MDB...*/
-	ENABLED_STATE,
-	INACTIVE_STATE,
-	DISABLED_STATE,
-	IDLE_STATE,
-	VEND_STATE
-	/*...MDB*/
+	INACTIVE_STATE, DISABLED_STATE, ENABLED_STATE, IDLE_STATE, VEND_STATE
 } machine_state_t;
 
-machine_state_t machine_state;
+machine_state_t machine_state = INACTIVE_STATE;
 
-uint8_t reset_cashless_todo= false;
+uint8_t reset_cashless_todo = false;
 
-uint8_t session_begin_todo= false;
-uint8_t session_end_todo= false;
-uint8_t session_cancel_todo= false;
+uint8_t session_begin_todo = false;
+uint8_t session_end_todo = false;
+uint8_t session_cancel_todo = false;
 
-uint8_t vend_request_todo= false;
-uint8_t vend_approved_todo= false;
-uint8_t vend_denied_todo= false;
-uint8_t vend_fail_todo= false;
+uint8_t vend_request_todo = false;
+uint8_t vend_approved_todo = false;
+uint8_t vend_denied_todo = false;
+uint8_t vend_fail_todo = false;
 
-uint8_t outsequence_todo= false;
+uint8_t outsequence_todo = false;
 
 // ---
-uint8_t mMdb_payload[256];
-uint8_t available_rx= 0;
-uint8_t available_tx= 0;
+uint8_t mdb_payload[256];
+uint8_t available_rx = 0;
+uint8_t available_tx = 0;
 
 uint16_t read_9() {
 
@@ -88,7 +82,7 @@ uint16_t read_9() {
 		;
 
 	ets_delay_us(156);
-	for(uint8_t x= 0; x < 9; x++){
+	for (uint8_t x = 0; x < 9; x++) {
 
 		coming_read |= (gpio_get_level(GPIO_NUM_4) << x);
 		ets_delay_us(104); // 9600bps
@@ -97,12 +91,12 @@ uint16_t read_9() {
 	return coming_read;
 }
 
-void write_9( uint16_t nth9 ) {
+void write_9(uint16_t nth9) {
 
 	gpio_set_level(GPIO_NUM_5, 0); // start
 	ets_delay_us(104);
 
-	for(uint8_t x= 0; x < 9; x++){
+	for (uint8_t x = 0; x < 9; x++) {
 
 		gpio_set_level(GPIO_NUM_5, (nth9 >> x) & 1);
 		ets_delay_us(104); // 9600bps
@@ -117,8 +111,8 @@ void transmitPayloadByUART9() {
 	uint8_t checksum = 0;
 	for (int x = 0; x < available_tx; x++) {
 
-		checksum += mMdb_payload[x];
-		write_9(mMdb_payload[x]);
+		checksum += mdb_payload[x];
+		write_9(mdb_payload[x]);
 	}
 
 	// CHK* ACK*
@@ -127,8 +121,8 @@ void transmitPayloadByUART9() {
 
 void mdb_loop(void *pvParameters) {
 
-	uint8_t isPayloading= false;
-	uint8_t checksum= 0x00;
+	uint8_t isPayloading = false;
+	uint8_t checksum = 0x00;
 
 	for (;;) {
 
@@ -146,19 +140,19 @@ void mdb_loop(void *pvParameters) {
 
 		if (isPayloading) {
 
-			mMdb_payload[available_rx++] = coming_read;
+			mdb_payload[available_rx++] = coming_read;
 
-			if (checksum == (uint8_t) coming_read ) {
+			if (checksum == (uint8_t) coming_read) {
 				// CHK
 
 				isPayloading = false;
 
-				if ((mMdb_payload[0] & BIT_ADD_SET) == 0x10) {
+				if ((mdb_payload[0] & BIT_ADD_SET) == 0x10) {
 
 					// status led...
 					gpio_set_level(GPIO_NUM_21, 1);
 
-					uint8_t mdb_cmd = mMdb_payload[0] & BIT_CMD_SET;
+					uint8_t mdb_cmd = mdb_payload[0] & BIT_CMD_SET;
 
 					if (mdb_cmd == RESET) {
 
@@ -171,25 +165,25 @@ void mdb_loop(void *pvParameters) {
 
 					} else if (mdb_cmd == SETUP) {
 
-						if (mMdb_payload[1] == CONFIG_DATA) {
+						if (mdb_payload[1] == CONFIG_DATA) {
 
 							machine_state = DISABLED_STATE;
 
-							mMdb_payload[0] = 0x01;       	// Reader Config Data
-							mMdb_payload[1] = 0x01; 		// Reader Feature Level. 1, 2, 3
-							mMdb_payload[2] = 0xff;       	// Country Code High;
-							mMdb_payload[3] = 0xff;       	// Country Code Low;
-							mMdb_payload[4] = 0x01;       	// Scale Factor
-							mMdb_payload[5] = 0x02;       	// Decimal Places
-							mMdb_payload[6] = 120; 			// Application Maximum Response Time (90s)
-							mMdb_payload[7] = 0b00001001; 	// Miscellaneous Options
+							mdb_payload[0] = 0x01;       // Reader Config Data
+							mdb_payload[1] = 1; // Reader Feature Level. 1, 2, 3
+							mdb_payload[2] = 0xff;       // Country Code High;
+							mdb_payload[3] = 0xff;       	// Country Code Low;
+							mdb_payload[4] = 1;       		// Scale Factor
+							mdb_payload[5] = 2;       		// Decimal Places
+							mdb_payload[6] = 5; // Application Maximum Response Time (5s)
+							mdb_payload[7] = 0b00001001; // Miscellaneous Options
 
 							available_tx = 8;
 
-						} else if (mMdb_payload[1] == MAX_MIN_PRICES) {
+						} else if (mdb_payload[1] == MAX_MIN_PRICES) {
 
-							 uint16_t minPrice = (mMdb_payload[4] << 8) | mMdb_payload[5];
-							 uint16_t maxPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
+							uint16_t maxPrice = (mdb_payload[2] << 8) | mdb_payload[3];
+							uint16_t minPrice = (mdb_payload[4] << 8) | mdb_payload[5];
 
 							// No Data *
 						}
@@ -198,27 +192,27 @@ void mdb_loop(void *pvParameters) {
 						if (outsequence_todo) {
 							outsequence_todo = false;
 
-							mMdb_payload[0] = 0x0b; // Command Out of Sequence
+							mdb_payload[0] = 0x0b; // Command Out of Sequence
 							available_tx = 1;
 
 						} else if (reset_cashless_todo) {
 							reset_cashless_todo = false;
 
-							mMdb_payload[0] = 0x00; // Just Reset
+							mdb_payload[0] = 0x00; // Just Reset
 							available_tx = 1;
 
 						} else if (vend_approved_todo) {
 							vend_approved_todo = false;
 
-							mMdb_payload[0] = 0x05;             // Vend Approved
-//							mMdb_payload[1] = mMdbCredit >> 8;  // Vend Amount
-//							mMdb_payload[2] = mMdbCredit;
+							mdb_payload[0] = 0x05;             // Vend Approved
+//							mdb_payload[1] = mMdbCredit >> 8;  // Vend Amount
+//							mdb_payload[2] = mMdbCredit;
 							available_tx = 3;
 
 						} else if (vend_denied_todo) {
 							vend_denied_todo = false;
 
-							mMdb_payload[0] = 0x06; // Vend Denied
+							mdb_payload[0] = 0x06; // Vend Denied
 							available_tx = 1;
 
 							machine_state = IDLE_STATE;
@@ -226,7 +220,7 @@ void mdb_loop(void *pvParameters) {
 						} else if (session_end_todo) {
 							session_end_todo = false;
 
-							mMdb_payload[0] = 0x07; // End Session
+							mdb_payload[0] = 0x07; // End Session
 							available_tx = 1;
 
 							machine_state = ENABLED_STATE;
@@ -239,108 +233,108 @@ void mdb_loop(void *pvParameters) {
 							uint8_t fundsAvailable = 0x00;
 
 							//Set credits
-							mMdb_payload[0] = 0x03; // Begin Session
-							mMdb_payload[1] = fundsAvailable >> 8;
-							mMdb_payload[2] = fundsAvailable;
+							mdb_payload[0] = 0x03; // Begin Session
+							mdb_payload[1] = fundsAvailable >> 8;
+							mdb_payload[2] = fundsAvailable;
 
 							available_tx = 3;
 
 						} else if (session_cancel_todo) {
 							session_cancel_todo = false;
 
-							mMdb_payload[0] = 0x04; // Session Cancel Request
+							mdb_payload[0] = 0x04; // Session Cancel Request
 
 							available_tx = 1;
 						}
 
 					} else if (mdb_cmd == VEND) {
 
-						if (mMdb_payload[1] == VEND_REQUEST) {
+						if (mdb_payload[1] == VEND_REQUEST) {
 
 							machine_state = VEND_STATE;
 
-							uint16_t itemPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
-							uint16_t itemNumber = (mMdb_payload[4] << 8) | mMdb_payload[5];
+							uint16_t itemPrice = (mdb_payload[2] << 8) | mdb_payload[3];
+							uint16_t itemNumber = (mdb_payload[4] << 8) | mdb_payload[5];
 
-						} else if (mMdb_payload[1] == VEND_CANCEL) {
+						} else if (mdb_payload[1] == VEND_CANCEL) {
 
 							vend_denied_todo = true;
 
-						} else if (mMdb_payload[1] == VEND_SUCCESS) {
+						} else if (mdb_payload[1] == VEND_SUCCESS) {
 
 							machine_state = IDLE_STATE;
 
 							//No Data *
-						} else if (mMdb_payload[1] == VEND_FAILURE) {
+						} else if (mdb_payload[1] == VEND_FAILURE) {
 
 							machine_state = IDLE_STATE;
 
 							// No Data *
-						} else if (mMdb_payload[1] == SESSION_COMPLETE) {
+						} else if (mdb_payload[1] == SESSION_COMPLETE) {
 
 							session_end_todo = true;
 
-						} else if (mMdb_payload[1] == CASH_SALE) {
+						} else if (mdb_payload[1] == CASH_SALE) {
 
-							uint16_t itemPrice = (mMdb_payload[2] << 8) | mMdb_payload[3];
-							uint16_t itemNumber = (mMdb_payload[4] << 8) | mMdb_payload[5];
+							uint16_t itemPrice = (mdb_payload[2] << 8) | mdb_payload[3];
+							uint16_t itemNumber = (mdb_payload[4] << 8) | mdb_payload[5];
 
 							// No Data *
 						}
 
 					} else if (mdb_cmd == READER) {
 
-						if (mMdb_payload[1] == READER_DISABLE) {
+						if (mdb_payload[1] == READER_DISABLE) {
 
 							machine_state = DISABLED_STATE;
 
-						} else if (mMdb_payload[1] == READER_ENABLE) {
+						} else if (mdb_payload[1] == READER_ENABLE) {
 
 							machine_state = ENABLED_STATE;
 
-						} else if (mMdb_payload[1] == READER_CANCEL) {
+						} else if (mdb_payload[1] == READER_CANCEL) {
 
-							mMdb_payload[0] = 0x08; //Canceled
+							mdb_payload[0] = 0x08; //Canceled
 							available_tx = 1;
 						}
 					} else if (mdb_cmd == EXPANSION) {
 
-						if (mMdb_payload[1] == REQUEST_ID) {
+						if (mdb_payload[1] == REQUEST_ID) {
 
-							mMdb_payload[0] = 0x09; // Peripheral ID
+							mdb_payload[0] = 0x09; // Peripheral ID
 
-							mMdb_payload[1] = ' '; // Manufacture code
-							mMdb_payload[2] = ' ';
-							mMdb_payload[3] = ' ';
+							mdb_payload[1] = ' '; // Manufacture code
+							mdb_payload[2] = ' ';
+							mdb_payload[3] = ' ';
 
-							mMdb_payload[4] = ' '; // Serial number
-							mMdb_payload[5] = ' ';
-							mMdb_payload[6] = ' ';
-							mMdb_payload[7] = ' ';
-							mMdb_payload[8] = ' ';
-							mMdb_payload[9] = ' ';
-							mMdb_payload[10] = ' ';
-							mMdb_payload[11] = ' ';
-							mMdb_payload[12] = ' ';
-							mMdb_payload[13] = ' ';
-							mMdb_payload[14] = ' ';
-							mMdb_payload[15] = ' ';
+							mdb_payload[4] = ' '; // Serial number
+							mdb_payload[5] = ' ';
+							mdb_payload[6] = ' ';
+							mdb_payload[7] = ' ';
+							mdb_payload[8] = ' ';
+							mdb_payload[9] = ' ';
+							mdb_payload[10] = ' ';
+							mdb_payload[11] = ' ';
+							mdb_payload[12] = ' ';
+							mdb_payload[13] = ' ';
+							mdb_payload[14] = ' ';
+							mdb_payload[15] = ' ';
 
-							mMdb_payload[16] = ' '; // Model number
-							mMdb_payload[17] = ' ';
-							mMdb_payload[18] = ' ';
-							mMdb_payload[19] = ' ';
-							mMdb_payload[20] = ' ';
-							mMdb_payload[21] = ' ';
-							mMdb_payload[22] = ' ';
-							mMdb_payload[23] = ' ';
-							mMdb_payload[24] = ' ';
-							mMdb_payload[25] = ' ';
-							mMdb_payload[26] = ' ';
-							mMdb_payload[27] = ' ';
+							mdb_payload[16] = ' '; // Model number
+							mdb_payload[17] = ' ';
+							mdb_payload[18] = ' ';
+							mdb_payload[19] = ' ';
+							mdb_payload[20] = ' ';
+							mdb_payload[21] = ' ';
+							mdb_payload[22] = ' ';
+							mdb_payload[23] = ' ';
+							mdb_payload[24] = ' ';
+							mdb_payload[25] = ' ';
+							mdb_payload[26] = ' ';
+							mdb_payload[27] = ' ';
 
-							mMdb_payload[28] = ' '; // Software version
-							mMdb_payload[29] = ' ';
+							mdb_payload[28] = ' '; // Software version
+							mdb_payload[29] = ' ';
 
 							available_tx = 30;
 						}
