@@ -62,17 +62,10 @@ uint8_t session_begin_todo = false;
 uint8_t session_end_todo = false;
 uint8_t session_cancel_todo = false;
 
-uint8_t vend_request_todo = false;
 uint8_t vend_approved_todo = false;
 uint8_t vend_denied_todo = false;
-uint8_t vend_fail_todo = false;
 
 uint8_t outsequence_todo = false;
-
-// ---
-uint8_t mdb_payload[256];
-uint8_t available_rx = 0;
-uint8_t available_tx = 0;
 
 uint16_t read_9() {
 
@@ -106,10 +99,10 @@ void write_9(uint16_t nth9) {
 	ets_delay_us(104);
 }
 
-void transmitPayloadByUART9() {
+void transmitPayloadByUART9(uint8_t *mdb_payload, uint8_t length) {
 
 	uint8_t checksum = 0;
-	for (int x = 0; x < available_tx; x++) {
+	for (int x = 0; x < length; x++) {
 
 		checksum += mdb_payload[x];
 		write_9(mdb_payload[x]);
@@ -121,7 +114,12 @@ void transmitPayloadByUART9() {
 
 void mdb_loop(void *pvParameters) {
 
+	uint8_t available_rx = 0;
+	uint8_t available_tx = 0;
+
 	uint8_t isPayloading = false;
+	uint8_t mdb_payload[256];
+
 	uint8_t checksum = 0x00;
 
 	for (;;) {
@@ -205,8 +203,8 @@ void mdb_loop(void *pvParameters) {
 							vend_approved_todo = false;
 
 							mdb_payload[0] = 0x05;             // Vend Approved
-//							mdb_payload[1] = mMdbCredit >> 8;  // Vend Amount
-//							mdb_payload[2] = mMdbCredit;
+//							mdb_payload[1] = vendAmount >> 8;  // Vend Amount
+//							mdb_payload[2] = vendAmount;
 							available_tx = 3;
 
 						} else if (vend_denied_todo) {
@@ -340,7 +338,7 @@ void mdb_loop(void *pvParameters) {
 						}
 					}
 
-					transmitPayloadByUART9();
+					transmitPayloadByUART9(&mdb_payload, available_tx);
 
 				} else {
 

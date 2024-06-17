@@ -6,6 +6,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "esp_timer.h"
+
 #define ACK 0x00  // Acknowledgment / Checksum correct;
 #define RET 0xAA  // Retransmit the previously sent data. Only the VMC can transmit this byte;
 #define NAK 0xFF  // Negative acknowledge.
@@ -61,6 +63,27 @@ uint16_t read_9() {
 	return coming_read;
 }
 
+static QueueHandle_t button_receive_queue = NULL;
+
+void button_loop(void *pvParameters) {
+
+	gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(GPIO_NUM_0, GPIO_PULLUP_ONLY);
+
+	for(;;){
+
+		if( gpio_get_level(GPIO_NUM_0) == 0 ){
+
+			while(gpio_get_level(GPIO_NUM_0) == 0);
+
+			uint32_t time= esp_timer_get_time();
+			xQueueSend(button_receive_queue, &time, 0);
+		}
+
+		vTaskDelay(34 / portTICK_PERIOD_MS);
+	}
+}
+
 struct flow_payload_msg_t {
 	uint8_t payload[256];
 	uint8_t length;
@@ -68,7 +91,7 @@ struct flow_payload_msg_t {
 
 static QueueHandle_t payload_receive_queue = NULL;
 
-void readPayload_loop(void *pvParameters) {
+void payload_loop(void *pvParameters) {
 
 	struct flow_payload_msg_t msg = {.length = 0};
 
@@ -106,6 +129,7 @@ void writePayload_ttl9(uint8_t *mdb_payload, uint8_t mdb_length) {
 
 void mdb_loop(void *pvParameters) {
 
+	gpio_set_direction(GPIO_NUM_21, GPIO_MODE_INPUT);
 	gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT);
 
 	for (;;) {
@@ -160,8 +184,6 @@ void mdb_loop(void *pvParameters) {
 			if ( xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS) ){
 				// No Data *
 
-				machine_state = INACTIVE_STATE;
-
 				mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
 				mdb_length= 1;
 
@@ -198,7 +220,8 @@ void mdb_loop(void *pvParameters) {
 			struct flow_payload_msg_t msg;
 			if ( xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS) ){
 
-				if(1 == 0) {
+				uint32_t button_time;
+				if (xQueueReceive(button_receive_queue, &button_time, 0)){
 					// IDLE_STATE
 
 					uint16_t itemPrice = 100;
@@ -220,9 +243,7 @@ void mdb_loop(void *pvParameters) {
 						writePayload_ttl9(&mdb_payload, mdb_length);
 						xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS);
 
-					}
-
-					if(machine_state == ENABLED_STATE){
+					} else if(machine_state == ENABLED_STATE){
 
 						mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 						mdb_payload[1] = 0x05; // Cash Sale
@@ -236,14 +257,10 @@ void mdb_loop(void *pvParameters) {
 						writePayload_ttl9(&mdb_payload, mdb_length);
 						xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS);
 					}
-				}
-
-				if(msg.payload[0] == 0x07 /*End Session*/){
+				} else  if(msg.payload[0] == 0x07 /*End Session*/){
 
 					machine_state = ENABLED_STATE;
-				}
-
-				if(msg.payload[0] == 0x05 /*Vend Approved*/){
+				} else if(msg.payload[0] == 0x05 /*Vend Approved*/){
 					// VEND_STATE
 
 					uint16_t vendAmount = (mdb_payload[1] << 8) | mdb_payload[2];
@@ -262,25 +279,27 @@ void mdb_loop(void *pvParameters) {
 
 					machine_state = IDLE_STATE;
 
+					// Not multivend...
 					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload[1] = 0x04; // Session Complete
 					mdb_length= 2;
 
 					writePayload_ttl9(&mdb_payload, mdb_length);
-					if ( xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS) ){
-						//
-					}
-				}
+					xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS);
 
-				if(msg.payload[0] == 0x03 /*Begin Session*/){
+				} else if(msg.payload[0] == 0x03 /*Begin Session*/){
 					// ENABLED_STATE
 
 					machine_state = IDLE_STATE;
 
 					uint16_t fundsAvailable = (mdb_payload[1] << 8) | mdb_payload[2];
+
+				} else if(msg.payload[0] == 0x0b /*Command Out of Sequence*/) {
+
+					machine_state = INACTIVE_STATE;
 				}
-			} else
-				machine_state = INACTIVE_STATE;
+
+			} else machine_state = INACTIVE_STATE;
 		}
 
 		{
@@ -301,8 +320,11 @@ void mdb_loop(void *pvParameters) {
 
 void app_main(void) {
 
-	payload_receive_queue = xQueueCreate(1 /*queue-length*/, sizeof(struct flow_payload_msg_t));
-	xTaskCreate(readPayload_loop, "readPayload_loop", 10946, (void*) 0, 1, (void*) 0);
+	button_receive_queue = xQueueCreate(1 /*queue-length*/, sizeof(uint32_t));
+	xTaskCreate(button_loop, "button_loop", 6765, (void*) 0, 1, (void*) 0);
 
-	xTaskCreate(mdb_loop, "mdb_loop", 10946, (void*) 0, 1, (void*) 0);
+	payload_receive_queue = xQueueCreate(1 /*queue-length*/, sizeof(struct flow_payload_msg_t));
+	xTaskCreate(payload_loop, "payload_loop", 6765, (void*) 0, 1, (void*) 0);
+
+	xTaskCreate(mdb_loop, "mdb_loop", 6765, (void*) 0, 1, (void*) 0);
 }
