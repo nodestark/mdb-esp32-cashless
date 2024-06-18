@@ -111,7 +111,7 @@ void transmitPayloadByUART9(uint8_t *mdb_payload, uint8_t length) {
 	}
 
 	// CHK* ACK*
-	write_9(0b100000000 | checksum);
+	write_9(BIT_MODE_SET | checksum);
 }
 
 void button_loop(void *pvParameters) {
@@ -148,15 +148,17 @@ void mdb_loop(void *pvParameters) {
 
 		if( coming_read & BIT_MODE_SET ){
 
-			if( (coming_read & ~BIT_MODE_SET) == ACK ){
+			if( (uint8_t) coming_read == ACK ){
 				// ACK
-			} else if( (coming_read & ~BIT_MODE_SET) == RET ){
+
+			} else if( (uint8_t) coming_read == RET ){
 				// RET
 
 				transmitPayloadByUART9(&mdb_payload, available_tx);
 
-			} else if( (coming_read & ~BIT_MODE_SET) == NAK ){
+			} else if( (uint8_t) coming_read == NAK ){
 				// NAK
+
 			} else if((coming_read & BIT_ADD_SET) == 0x10){
 
 				gpio_set_level(GPIO_NUM_21, 1);
@@ -410,7 +412,7 @@ void mdb_loop(void *pvParameters) {
 						vmcSoftwareVersion[1]= read_9(&checksum);
 
 						read_9((uint8_t*) 0);
-
+//
 						mdb_payload[0] = 0x09; // Peripheral ID
 
 						mdb_payload[1] = ' '; // Peripheral Manufacturer code

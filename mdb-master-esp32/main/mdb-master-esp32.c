@@ -117,7 +117,7 @@ void writePayload_ttl9(uint8_t *mdb_payload, uint8_t mdb_length) {
 
 	uint8_t checksum= 0;
 
-	write_9((checksum = mdb_payload[0]) | 0b100000000);
+	write_9((checksum = mdb_payload[0]) | BIT_MODE_SET);
 	for (uint8_t x = 1; x < mdb_length; x++) {
 		write_9(mdb_payload[x]);
 
@@ -327,6 +327,8 @@ void mdb_loop(void *pvParameters) {
 					machine_state = IDLE_STATE;
 
 					uint16_t fundsAvailable = (mdb_payload[1] << 8) | mdb_payload[2];
+
+					write_9(ACK | BIT_MODE_SET);
 
 				} else if(msg.payload[0] == 0x0b /*Command Out of Sequence*/) {
 
