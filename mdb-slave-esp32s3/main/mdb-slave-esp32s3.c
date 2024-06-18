@@ -378,18 +378,18 @@ void mdb_loop(void *pvParameters) {
 						vmcManufacturerCode[2]= read_9(&checksum);
 
 						char vmcSerialNumber[12];
-						vmcManufacturerCode[0]= read_9(&checksum);
-						vmcManufacturerCode[1]= read_9(&checksum);
-						vmcManufacturerCode[2]= read_9(&checksum);
-						vmcManufacturerCode[3]= read_9(&checksum);
-						vmcManufacturerCode[4]= read_9(&checksum);
-						vmcManufacturerCode[5]= read_9(&checksum);
-						vmcManufacturerCode[6]= read_9(&checksum);
-						vmcManufacturerCode[7]= read_9(&checksum);
-						vmcManufacturerCode[8]= read_9(&checksum);
-						vmcManufacturerCode[9]= read_9(&checksum);
-						vmcManufacturerCode[10]= read_9(&checksum);
-						vmcManufacturerCode[11]= read_9(&checksum);
+						vmcSerialNumber[0]= read_9(&checksum);
+						vmcSerialNumber[1]= read_9(&checksum);
+						vmcSerialNumber[2]= read_9(&checksum);
+						vmcSerialNumber[3]= read_9(&checksum);
+						vmcSerialNumber[4]= read_9(&checksum);
+						vmcSerialNumber[5]= read_9(&checksum);
+						vmcSerialNumber[6]= read_9(&checksum);
+						vmcSerialNumber[7]= read_9(&checksum);
+						vmcSerialNumber[8]= read_9(&checksum);
+						vmcSerialNumber[9]= read_9(&checksum);
+						vmcSerialNumber[10]= read_9(&checksum);
+						vmcSerialNumber[11]= read_9(&checksum);
 
 						char vmcModelNumber[12];
 						vmcModelNumber[0]= read_9(&checksum);
@@ -413,11 +413,11 @@ void mdb_loop(void *pvParameters) {
 
 						mdb_payload[0] = 0x09; // Peripheral ID
 
-						mdb_payload[1] = ' '; // Manufacturer code
+						mdb_payload[1] = ' '; // Peripheral Manufacturer code
 						mdb_payload[2] = ' ';
 						mdb_payload[3] = ' ';
 
-						mdb_payload[4] = ' '; // Serial number
+						mdb_payload[4] = ' '; // Peripheral Serial number
 						mdb_payload[5] = ' ';
 						mdb_payload[6] = ' ';
 						mdb_payload[7] = ' ';
@@ -430,7 +430,7 @@ void mdb_loop(void *pvParameters) {
 						mdb_payload[14] = ' ';
 						mdb_payload[15] = ' ';
 
-						mdb_payload[16] = ' '; // Model number
+						mdb_payload[16] = ' '; // Peripheral Model number
 						mdb_payload[17] = ' ';
 						mdb_payload[18] = ' ';
 						mdb_payload[19] = ' ';
@@ -443,7 +443,7 @@ void mdb_loop(void *pvParameters) {
 						mdb_payload[26] = ' ';
 						mdb_payload[27] = ' ';
 
-						mdb_payload[28] = ' '; // Software version
+						mdb_payload[28] = ' '; // Peripheral Software version
 						mdb_payload[29] = ' ';
 
 						available_tx = 30;
