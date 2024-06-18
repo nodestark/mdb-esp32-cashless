@@ -67,7 +67,7 @@ uint8_t vend_denied_todo = false;
 
 uint8_t outsequence_todo = false;
 
-uint16_t read_9() {
+uint16_t read_9(uint8_t *checksum) {
 
 	uint16_t coming_read = 0;
 
@@ -80,6 +80,8 @@ uint16_t read_9() {
 		coming_read |= (gpio_get_level(GPIO_NUM_4) << x);
 		ets_delay_us(104); // 9600bps
 	}
+
+	if(checksum) *checksum += coming_read;
 
 	return coming_read;
 }
@@ -112,254 +114,353 @@ void transmitPayloadByUART9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(0b100000000 | checksum);
 }
 
+void button_loop(void *pvParameters) {
+
+	gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(GPIO_NUM_0, GPIO_PULLUP_ONLY);
+
+	for(;;){
+
+		if( gpio_get_level(GPIO_NUM_0) == 0 ){
+			while(gpio_get_level(GPIO_NUM_0) == 0);
+
+			if(machine_state == ENABLED_STATE)
+				session_begin_todo = true;
+
+			if(machine_state == VEND_STATE)
+				vend_approved_todo = true;
+		}
+
+		vTaskDelay(34 / portTICK_PERIOD_MS);
+	}
+}
+
 void mdb_loop(void *pvParameters) {
 
-	uint8_t available_rx = 0;
-	uint8_t available_tx = 0;
-
-	uint8_t isPayloading = false;
 	uint8_t mdb_payload[256];
-
-	uint8_t checksum = 0x00;
+	uint8_t available_tx = 0;
 
 	for (;;) {
 
-		uint16_t coming_read = read_9();
+		uint8_t checksum = 0x00;
 
-		if (coming_read & BIT_MODE_SET) {
+		uint16_t coming_read = read_9(&checksum);
 
-			// ADD*
-			isPayloading = true;
-			checksum = 0;
+		if( coming_read & BIT_MODE_SET ){
 
-			available_rx = 0;
-			available_tx = 0;
-		}
+			if( (coming_read & ~BIT_MODE_SET) == ACK ){
+				// ACK
+			} else if( (coming_read & ~BIT_MODE_SET) == RET ){
+				// RET
 
-		if (isPayloading) {
+				transmitPayloadByUART9(&mdb_payload, available_tx);
 
-			mdb_payload[available_rx++] = coming_read;
+			} else if( (coming_read & ~BIT_MODE_SET) == NAK ){
+				// NAK
+			} else if((coming_read & BIT_ADD_SET) == 0x10){
 
-			if (checksum == (uint8_t) coming_read) {
-				// CHK
+				gpio_set_level(GPIO_NUM_21, 1);
 
-				isPayloading = false;
+				available_tx = 0;
 
-				if ((mdb_payload[0] & BIT_ADD_SET) == 0x10) {
+				switch (coming_read & BIT_CMD_SET) {
+				case RESET: {
 
-					// status led...
-					gpio_set_level(GPIO_NUM_21, 1);
+					read_9((uint8_t*) 0);
 
-					uint8_t mdb_cmd = mdb_payload[0] & BIT_CMD_SET;
-
-					if (mdb_cmd == RESET) {
-
-						if (machine_state == VEND_STATE) {
-							// A reset between VEND APPROVED and VEND SUCCESS shall be interbreted as a VEND SUCCESS...
-						}
-
-						machine_state = INACTIVE_STATE;
-						reset_cashless_todo = true;
-
-					} else if (mdb_cmd == SETUP) {
-
-						if (mdb_payload[1] == CONFIG_DATA) {
-
-							machine_state = DISABLED_STATE;
-
-							mdb_payload[0] = 0x01;       	// Reader Config Data
-							mdb_payload[1] = 1; 			// Reader Feature Level. 1, 2, 3
-							mdb_payload[2] = 0xff;       	// Country Code High;
-							mdb_payload[3] = 0xff;       	// Country Code Low;
-							mdb_payload[4] = 1;       		// Scale Factor
-							mdb_payload[5] = 2;       		// Decimal Places
-							mdb_payload[6] = 5; 			// Application Maximum Response Time (5s)
-							mdb_payload[7] = 0b00001001; 	// Miscellaneous Options
-
-							available_tx = 8;
-
-						} else if (mdb_payload[1] == MAX_MIN_PRICES) {
-
-							uint16_t maxPrice = (mdb_payload[2] << 8) | mdb_payload[3];
-							uint16_t minPrice = (mdb_payload[4] << 8) | mdb_payload[5];
-
-							// No Data *
-						}
-					} else if (mdb_cmd == POLL) {
-
-						if (outsequence_todo) {
-							outsequence_todo = false;
-
-							mdb_payload[0] = 0x0b; // Command Out of Sequence
-							available_tx = 1;
-
-						} else if (reset_cashless_todo) {
-							reset_cashless_todo = false;
-
-							mdb_payload[0] = 0x00; // Just Reset
-							available_tx = 1;
-
-						} else if (vend_approved_todo) {
-							vend_approved_todo = false;
-
-							mdb_payload[0] = 0x05;             // Vend Approved
-//							mdb_payload[1] = vendAmount >> 8;  // Vend Amount
-//							mdb_payload[2] = vendAmount;
-							available_tx = 3;
-
-						} else if (vend_denied_todo) {
-							vend_denied_todo = false;
-
-							mdb_payload[0] = 0x06; // Vend Denied
-							available_tx = 1;
-
-							machine_state = IDLE_STATE;
-
-						} else if (session_end_todo) {
-							session_end_todo = false;
-
-							mdb_payload[0] = 0x07; // End Session
-							available_tx = 1;
-
-							machine_state = ENABLED_STATE;
-
-						} else if (session_begin_todo) {
-							session_begin_todo = false;
-
-							machine_state = IDLE_STATE;
-
-							uint8_t fundsAvailable = 0x00;
-
-							//Set credits
-							mdb_payload[0] = 0x03; // Begin Session
-							mdb_payload[1] = fundsAvailable >> 8;
-							mdb_payload[2] = fundsAvailable;
-
-							available_tx = 3;
-
-						} else if (session_cancel_todo) {
-							session_cancel_todo = false;
-
-							mdb_payload[0] = 0x04; // Session Cancel Request
-
-							available_tx = 1;
-						}
-
-					} else if (mdb_cmd == VEND) {
-
-						if (mdb_payload[1] == VEND_REQUEST) {
-
-							machine_state = VEND_STATE;
-
-							uint16_t itemPrice = (mdb_payload[2] << 8) | mdb_payload[3];
-							uint16_t itemNumber = (mdb_payload[4] << 8) | mdb_payload[5];
-
-						} else if (mdb_payload[1] == VEND_CANCEL) {
-
-							vend_denied_todo = true;
-
-						} else if (mdb_payload[1] == VEND_SUCCESS) {
-
-							machine_state = IDLE_STATE;
-
-							//No Data *
-						} else if (mdb_payload[1] == VEND_FAILURE) {
-
-							machine_state = IDLE_STATE;
-
-							// No Data *
-						} else if (mdb_payload[1] == SESSION_COMPLETE) {
-
-							session_end_todo = true;
-
-						} else if (mdb_payload[1] == CASH_SALE) {
-
-							uint16_t itemPrice = (mdb_payload[2] << 8) | mdb_payload[3];
-							uint16_t itemNumber = (mdb_payload[4] << 8) | mdb_payload[5];
-
-							// No Data *
-						}
-
-					} else if (mdb_cmd == READER) {
-
-						if (mdb_payload[1] == READER_DISABLE) {
-
-							machine_state = DISABLED_STATE;
-
-						} else if (mdb_payload[1] == READER_ENABLE) {
-
-							machine_state = ENABLED_STATE;
-
-						} else if (mdb_payload[1] == READER_CANCEL) {
-
-							mdb_payload[0] = 0x08; //Canceled
-							available_tx = 1;
-						}
-					} else if (mdb_cmd == EXPANSION) {
-
-						if (mdb_payload[1] == REQUEST_ID) {
-
-							mdb_payload[0] = 0x09; // Peripheral ID
-
-							mdb_payload[1] = ' '; // Manufacture code
-							mdb_payload[2] = ' ';
-							mdb_payload[3] = ' ';
-
-							mdb_payload[4] = ' '; // Serial number
-							mdb_payload[5] = ' ';
-							mdb_payload[6] = ' ';
-							mdb_payload[7] = ' ';
-							mdb_payload[8] = ' ';
-							mdb_payload[9] = ' ';
-							mdb_payload[10] = ' ';
-							mdb_payload[11] = ' ';
-							mdb_payload[12] = ' ';
-							mdb_payload[13] = ' ';
-							mdb_payload[14] = ' ';
-							mdb_payload[15] = ' ';
-
-							mdb_payload[16] = ' '; // Model number
-							mdb_payload[17] = ' ';
-							mdb_payload[18] = ' ';
-							mdb_payload[19] = ' ';
-							mdb_payload[20] = ' ';
-							mdb_payload[21] = ' ';
-							mdb_payload[22] = ' ';
-							mdb_payload[23] = ' ';
-							mdb_payload[24] = ' ';
-							mdb_payload[25] = ' ';
-							mdb_payload[26] = ' ';
-							mdb_payload[27] = ' ';
-
-							mdb_payload[28] = ' '; // Software version
-							mdb_payload[29] = ' ';
-
-							available_tx = 30;
-						}
+					if (machine_state == VEND_STATE) {
+						// A reset between VEND APPROVED and VEND SUCCESS shall be interbreted as a VEND SUCCESS...
 					}
 
-					transmitPayloadByUART9(&mdb_payload, available_tx);
+					machine_state = INACTIVE_STATE;
+					reset_cashless_todo = true;
+					break;
+				}
+				case SETUP: {
 
-				} else {
+					switch (read_9(&checksum)) {
+					case CONFIG_DATA: {
 
-					// If not my address
+						uint8_t vmcFeatureLevel = read_9(&checksum);
+						uint8_t vmcColumnsOnDisplay= read_9(&checksum);
+						uint8_t vmcRowsOnDisplay= read_9(&checksum);
+						uint8_t vmcDisplayInfo= read_9(&checksum);
 
-					// status led...
-					gpio_set_level(GPIO_NUM_21, 0);
+						read_9((uint8_t*) 0);
+
+						machine_state = DISABLED_STATE;
+
+						mdb_payload[0] = 0x01;       	// Reader Config Data
+						mdb_payload[1] = 1; 			// Reader Feature Level. 1, 2, 3
+						mdb_payload[2] = 0xff;       	// Country Code High;
+						mdb_payload[3] = 0xff;       	// Country Code Low;
+						mdb_payload[4] = 1;       		// Scale Factor
+						mdb_payload[5] = 2;       		// Decimal Places
+						mdb_payload[6] = 5; 			// Application Maximum Response Time (5s)
+						mdb_payload[7] = 0b00001001; 	// Miscellaneous Options
+
+						available_tx = 8;
+
+						break;
+					}
+					case MAX_MIN_PRICES: {
+
+						uint16_t maxPrice = (read_9(&checksum) /*2*/ << 8) | read_9(&checksum) /*3*/;
+						uint16_t minPrice = (read_9(&checksum) /*4*/ << 8) | read_9(&checksum) /*5*/;
+
+						read_9((uint8_t*) 0);
+
+						break;
+					}
+					}
+
+					break;
+				}
+				case POLL: {
+
+					read_9((uint8_t*) 0);
+
+					if (outsequence_todo) {
+						outsequence_todo = false;
+
+						mdb_payload[0] = 0x0b; // Command Out of Sequence
+						available_tx = 1;
+
+					} else if (reset_cashless_todo) {
+						reset_cashless_todo = false;
+
+						mdb_payload[0] = 0x00; // Just Reset
+						available_tx = 1;
+
+					} else if (vend_approved_todo) {
+						vend_approved_todo = false;
+
+						uint16_t vendAmount= 0x0000;
+
+						mdb_payload[0] = 0x05; 				// Vend Approved
+						mdb_payload[1] = vendAmount >> 8;  	// Vend Amount
+						mdb_payload[2] = vendAmount;
+						available_tx = 3;
+
+					} else if (vend_denied_todo) {
+						vend_denied_todo = false;
+
+						mdb_payload[0] = 0x06; // Vend Denied
+						available_tx = 1;
+
+						machine_state = IDLE_STATE;
+
+					} else if (session_end_todo) {
+						session_end_todo = false;
+
+						mdb_payload[0] = 0x07; // End Session
+						available_tx = 1;
+
+						machine_state = ENABLED_STATE;
+
+					} else if (session_begin_todo) {
+						session_begin_todo = false;
+
+						machine_state = IDLE_STATE;
+
+						uint8_t fundsAvailable = 0x00;
+
+						mdb_payload[0] = 0x03; // Begin Session
+						mdb_payload[1] = fundsAvailable >> 8;
+						mdb_payload[2] = fundsAvailable;
+						available_tx = 3;
+
+					} else if (session_cancel_todo) {
+						session_cancel_todo = false;
+
+						mdb_payload[0] = 0x04; // Session Cancel Request
+						available_tx = 1;
+					}
+
+					break;
+				}
+				case VEND: {
+
+					switch(read_9(&checksum)){
+					case VEND_REQUEST:{
+
+						uint16_t itemPrice = (read_9(&checksum) /*2*/ << 8) | read_9(&checksum) /*3*/;
+						uint16_t itemNumber = (read_9(&checksum) /*4*/ << 8) | read_9(&checksum) /*5*/;
+
+						read_9((uint8_t*) 0);
+
+						machine_state = VEND_STATE;
+
+						break;
+					}
+					case VEND_CANCEL:{
+
+						read_9((uint8_t*) 0);
+
+						vend_denied_todo = true;
+
+						break;
+					}
+					case VEND_SUCCESS:{
+
+						read_9((uint8_t*) 0);
+
+						machine_state = IDLE_STATE;
+						//No Data *
+
+						break;
+					}
+					case VEND_FAILURE:{
+
+						read_9((uint8_t*) 0);
+
+						machine_state = IDLE_STATE;
+
+						// No Data *
+						break;
+					}
+					case SESSION_COMPLETE:{
+
+						read_9((uint8_t*) 0);
+
+						session_end_todo = true;
+
+						break;
+					}
+					case CASH_SALE:{
+
+						uint16_t itemPrice = (read_9(&checksum) /*2*/ << 8) | read_9(&checksum) /*3*/;
+						uint16_t itemNumber = (read_9(&checksum) /*4*/ << 8) | read_9(&checksum) /*5*/;
+
+						read_9((uint8_t*) 0);
+
+						// No Data *
+						break;
+					}
+					}
+
+					break;
+				}
+				case READER: {
+					switch(read_9(&checksum)){
+					case READER_DISABLE:{
+
+						read_9((uint8_t*) 0);
+
+						machine_state = DISABLED_STATE;
+						break;
+					}
+					case READER_ENABLE:{
+
+						read_9((uint8_t*) 0);
+
+						machine_state = ENABLED_STATE;
+						break;
+					}
+					case READER_CANCEL:{
+
+						read_9((uint8_t*) 0);
+
+						mdb_payload[0] = 0x08; 	//Canceled
+						available_tx = 1;
+						break;
+					}
+					}
+					break;
+				}
+				case EXPANSION: {
+					switch(read_9(&checksum)){
+					case REQUEST_ID:{
+
+						char vmcManufacturerCode[3];
+						vmcManufacturerCode[0]= read_9(&checksum);
+						vmcManufacturerCode[1]= read_9(&checksum);
+						vmcManufacturerCode[2]= read_9(&checksum);
+
+						char vmcSerialNumber[12];
+						vmcManufacturerCode[0]= read_9(&checksum);
+						vmcManufacturerCode[1]= read_9(&checksum);
+						vmcManufacturerCode[2]= read_9(&checksum);
+						vmcManufacturerCode[3]= read_9(&checksum);
+						vmcManufacturerCode[4]= read_9(&checksum);
+						vmcManufacturerCode[5]= read_9(&checksum);
+						vmcManufacturerCode[6]= read_9(&checksum);
+						vmcManufacturerCode[7]= read_9(&checksum);
+						vmcManufacturerCode[8]= read_9(&checksum);
+						vmcManufacturerCode[9]= read_9(&checksum);
+						vmcManufacturerCode[10]= read_9(&checksum);
+						vmcManufacturerCode[11]= read_9(&checksum);
+
+						char vmcModelNumber[12];
+						vmcModelNumber[0]= read_9(&checksum);
+						vmcModelNumber[1]= read_9(&checksum);
+						vmcModelNumber[2]= read_9(&checksum);
+						vmcModelNumber[3]= read_9(&checksum);
+						vmcModelNumber[4]= read_9(&checksum);
+						vmcModelNumber[5]= read_9(&checksum);
+						vmcModelNumber[6]= read_9(&checksum);
+						vmcModelNumber[7]= read_9(&checksum);
+						vmcModelNumber[8]= read_9(&checksum);
+						vmcModelNumber[9]= read_9(&checksum);
+						vmcModelNumber[10]= read_9(&checksum);
+						vmcModelNumber[11]= read_9(&checksum);
+
+						char vmcSoftwareVersion[2];
+						vmcSoftwareVersion[0]= read_9(&checksum);
+						vmcSoftwareVersion[1]= read_9(&checksum);
+
+						read_9((uint8_t*) 0);
+
+						mdb_payload[0] = 0x09; // Peripheral ID
+
+						mdb_payload[1] = ' '; // Manufacturer code
+						mdb_payload[2] = ' ';
+						mdb_payload[3] = ' ';
+
+						mdb_payload[4] = ' '; // Serial number
+						mdb_payload[5] = ' ';
+						mdb_payload[6] = ' ';
+						mdb_payload[7] = ' ';
+						mdb_payload[8] = ' ';
+						mdb_payload[9] = ' ';
+						mdb_payload[10] = ' ';
+						mdb_payload[11] = ' ';
+						mdb_payload[12] = ' ';
+						mdb_payload[13] = ' ';
+						mdb_payload[14] = ' ';
+						mdb_payload[15] = ' ';
+
+						mdb_payload[16] = ' '; // Model number
+						mdb_payload[17] = ' ';
+						mdb_payload[18] = ' ';
+						mdb_payload[19] = ' ';
+						mdb_payload[20] = ' ';
+						mdb_payload[21] = ' ';
+						mdb_payload[22] = ' ';
+						mdb_payload[23] = ' ';
+						mdb_payload[24] = ' ';
+						mdb_payload[25] = ' ';
+						mdb_payload[26] = ' ';
+						mdb_payload[27] = ' ';
+
+						mdb_payload[28] = ' '; // Software version
+						mdb_payload[29] = ' ';
+
+						available_tx = 30;
+						break;
+					}
+					}
+					break;
+				}
 				}
 
+				transmitPayloadByUART9(&mdb_payload, available_tx);
+
 			} else {
+				// If not my address
 
-				checksum += coming_read;
+				gpio_set_level(GPIO_NUM_21, 0);
 			}
-		} else if (coming_read == ACK) {
-
-			// ACK
-		} else if (coming_read == RET) {
-
-			// RET
-		} else if (coming_read == NAK) {
-			// NAK
 		}
 	}
 }
@@ -768,4 +869,6 @@ void app_main(void) {
 	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
 
 	xTaskCreate(mdb_loop, "mdb_loop", 10946, (void*) 0, 1, (void*) 0);
+
+	xTaskCreate(button_loop, "button_loop", 6765, (void*) 0, 1, (void*) 0);
 }

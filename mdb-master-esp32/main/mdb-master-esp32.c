@@ -158,7 +158,41 @@ void mdb_loop(void *pvParameters) {
 
 				mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (EXPANSION & BIT_CMD_SET);
 				mdb_payload[1] = 0x00; // Request ID
-				mdb_length= 2;
+
+				mdb_payload[2] = ' '; // Manufacturer code
+				mdb_payload[3] = ' ';
+				mdb_payload[4] = ' ';
+
+				mdb_payload[5] = ' '; // Serial Number
+				mdb_payload[6] = ' ';
+				mdb_payload[7] = ' ';
+				mdb_payload[8] = ' ';
+				mdb_payload[9] = ' ';
+				mdb_payload[10] = ' ';
+				mdb_payload[11] = ' ';
+				mdb_payload[12] = ' ';
+				mdb_payload[13] = ' ';
+				mdb_payload[14] = ' ';
+				mdb_payload[15] = ' ';
+				mdb_payload[16] = ' ';
+
+				mdb_payload[17] = ' '; // Model Number
+				mdb_payload[18] = ' ';
+				mdb_payload[19] = ' ';
+				mdb_payload[20] = ' ';
+				mdb_payload[21] = ' ';
+				mdb_payload[22] = ' ';
+				mdb_payload[23] = ' ';
+				mdb_payload[24] = ' ';
+				mdb_payload[25] = ' ';
+				mdb_payload[26] = ' ';
+				mdb_payload[27] = ' ';
+				mdb_payload[28] = ' ';
+
+				mdb_payload[29] = ' '; // Software Version
+				mdb_payload[30] = ' ';
+
+				mdb_length= 31;
 
 				writePayload_ttl9(&mdb_payload, mdb_length);
 				if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
@@ -224,7 +258,7 @@ void mdb_loop(void *pvParameters) {
 				if (xQueueReceive(button_receive_queue, &button_time, 0)){
 					// IDLE_STATE
 
-					uint16_t itemPrice = 100;
+					uint16_t itemPrice = 5000;
 					uint16_t itemNumber = 0;
 
 					if(machine_state == IDLE_STATE){
