@@ -150,15 +150,10 @@ void mdb_loop(void *pvParameters) {
 
 			if( (uint8_t) coming_read == ACK ){
 				// ACK
-
 			} else if( (uint8_t) coming_read == RET ){
 				// RET
-
-				transmitPayloadByUART9(&mdb_payload, available_tx);
-
 			} else if( (uint8_t) coming_read == NAK ){
 				// NAK
-
 			} else if((coming_read & BIT_ADD_SET) == 0x10){
 
 				gpio_set_level(GPIO_NUM_21, 1);
@@ -305,10 +300,11 @@ void mdb_loop(void *pvParameters) {
 					}
 					case VEND_SUCCESS:{
 
+						uint16_t itemNumber = (read_9(&checksum) /*1*/ << 8) | read_9(&checksum) /*2*/;
+
 						read_9((uint8_t*) 0);
 
 						machine_state = IDLE_STATE;
-						//No Data *
 
 						break;
 					}
@@ -318,7 +314,6 @@ void mdb_loop(void *pvParameters) {
 
 						machine_state = IDLE_STATE;
 
-						// No Data *
 						break;
 					}
 					case SESSION_COMPLETE:{
@@ -336,7 +331,6 @@ void mdb_loop(void *pvParameters) {
 
 						read_9((uint8_t*) 0);
 
-						// No Data *
 						break;
 					}
 					}
