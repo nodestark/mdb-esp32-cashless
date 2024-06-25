@@ -97,7 +97,9 @@ void payload_loop(void *pvParameters) {
 
 	for (;;) {
 
-		uint16_t coming_read = msg.payload[msg.length++] = read_9();
+		uint16_t coming_read = read_9();
+
+		msg.payload[msg.length++] = coming_read;
 
 		if(coming_read & BIT_MODE_SET) {
 
@@ -132,7 +134,41 @@ void mdb_loop(void *pvParameters) {
 
 		struct flow_payload_msg_t msg;
 
-		if(machine_state == DISABLED_STATE) {
+		if ( machine_state == INACTIVE_STATE ){
+
+			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
+			writePayload_ttl9(&mdb_payload, 1);
+
+			xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS); // ACK*
+
+			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
+
+			writePayload_ttl9(&mdb_payload, 1);
+
+			if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
+
+				if(msg.payload[0] == 0x00 /*Just Reset*/){
+
+					write_9(ACK | BIT_MODE_SET);
+
+					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
+					mdb_payload[1] = 0x00; 			// Config Data
+					mdb_payload[2] = 1; 			// VMC Feature Level
+					mdb_payload[3] = 0; 			// Columns on Display
+					mdb_payload[4] = 0; 			// Rows on Display
+					mdb_payload[5] = 0b00000001; 	// Display Information
+
+					writePayload_ttl9(&mdb_payload, 6);
+
+					if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
+						// Reader Config
+
+						machine_state = DISABLED_STATE;
+					}
+				}
+			}
+
+		} else if(machine_state == DISABLED_STATE) {
 
 			uint16_t maxPrice = 200;
 			uint16_t minPrice = 100;
@@ -199,38 +235,6 @@ void mdb_loop(void *pvParameters) {
 				xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS); // ACK*
 
 				machine_state = ENABLED_STATE;
-			}
-
-		} else if ( machine_state == INACTIVE_STATE ){
-
-			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
-			writePayload_ttl9(&mdb_payload, 1);
-
-			xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS); // ACK*
-
-			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
-
-			writePayload_ttl9(&mdb_payload, 1);
-
-			if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
-
-				if(msg.payload[0] == 0x00 /*Just Reset*/){
-
-					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
-					mdb_payload[1] = 0x00; 			// Config Data
-					mdb_payload[2] = 1; 			// VMC Feature Level
-					mdb_payload[3] = 0; 			// Columns on Display
-					mdb_payload[4] = 0; 			// Rows on Display
-					mdb_payload[5] = 0b00000001; 	// Display Information
-
-					writePayload_ttl9(&mdb_payload, 6);
-
-					if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
-						// Reader Config
-
-						machine_state = DISABLED_STATE;
-					}
-				}
 			}
 
 		} else {
