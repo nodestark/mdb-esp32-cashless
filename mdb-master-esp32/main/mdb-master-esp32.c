@@ -1,12 +1,15 @@
 #include <stdio.h>
-#include "driver/gpio.h"
+#include <math.h>
 
+#include "driver/gpio.h"
 #include <rom/ets_sys.h>
+#include "esp_timer.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "esp_timer.h"
+#define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))
+#define from_scale_factor(p, x, y) (p * x * pow(10, -(y) ))
 
 #define ACK 0x00  // Acknowledgment / Checksum correct;
 #define RET 0xAA  // Retransmit the previously sent data. Only the VMC can transmit this byte;
@@ -369,4 +372,6 @@ void app_main(void) {
 	xTaskCreate(payload_loop, "payload_loop", 6765, (void*) 0, 1, (void*) 0);
 
 	xTaskCreate(mdb_loop, "mdb_loop", 6765, (void*) 0, 1, (void*) 0);
+
+	printf(".-> %d\n", (uint16_t) to_scale_factor(1.50, 1, 2));
 }

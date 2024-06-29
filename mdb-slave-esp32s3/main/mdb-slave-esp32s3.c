@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include <driver/uart.h>
 #include <driver/gpio.h>
@@ -11,6 +12,9 @@
 #include <rom/ets_sys.h>
 
 #include "apps/your_app/your_app.h"
+
+#define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))
+#define from_scale_factor(p, x, y) (p * x * pow(10, -(y) ))
 
 #define ACK 0x00  // Acknowledgment / Checksum correct;
 #define RET 0xAA  // Retransmit the previously sent data. Only the VMC can transmit this byte;
@@ -232,7 +236,7 @@ void mdb_loop(void *pvParameters) {
 					} else if (vend_approved_todo) {
 						vend_approved_todo = false;
 
-						uint16_t vendAmount= 0x0000;
+						uint16_t vendAmount= to_scale_factor(0.00, 1, 2);
 
 						mdb_payload[0] = 0x05; 				// Vend Approved
 						mdb_payload[1] = vendAmount >> 8;  	// Vend Amount
@@ -260,7 +264,7 @@ void mdb_loop(void *pvParameters) {
 
 						machine_state = IDLE_STATE;
 
-						uint8_t fundsAvailable = 0x00;
+						uint16_t fundsAvailable = to_scale_factor(0.00, 1, 2);
 
 						mdb_payload[0] = 0x03; // Begin Session
 						mdb_payload[1] = fundsAvailable >> 8;
