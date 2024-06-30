@@ -34,6 +34,15 @@ typedef enum MACHINE_STATE {
 
 machine_state_t machine_state = INACTIVE_STATE;
 
+struct reader_t {
+	uint8_t scaleFactor;
+	uint8_t decimalPlaces;
+	uint8_t responseTimeSec;
+	uint8_t miscellaneous;
+};
+
+struct reader_t reader0x10;
+
 void write_9( uint16_t nth9 ) {
 
 	gpio_set_level(GPIO_NUM_22, 0); // start
@@ -166,6 +175,11 @@ void mdb_loop(void *pvParameters) {
 					if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
 						// Reader Config
 
+						reader0x10.scaleFactor = mdb_payload[4];
+						reader0x10.decimalPlaces = mdb_payload[5];
+						reader0x10.responseTimeSec = mdb_payload[6];
+						reader0x10.miscellaneous = mdb_payload[7];
+
 						machine_state = DISABLED_STATE;
 					}
 				}
@@ -173,8 +187,8 @@ void mdb_loop(void *pvParameters) {
 
 		} else if(machine_state == DISABLED_STATE) {
 
-			uint16_t maxPrice = 200;
-			uint16_t minPrice = 100;
+			uint16_t maxPrice = to_scale_factor(2.00, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+			uint16_t minPrice = to_scale_factor(1.00, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 
 			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
 			mdb_payload[1] = 0x01; // Max/Min Prices
@@ -312,7 +326,7 @@ void mdb_loop(void *pvParameters) {
 
 				} else if (xQueueReceive(button_receive_queue, &button_time, 0)){
 
-					uint16_t itemPrice = 5000;
+					uint16_t itemPrice = to_scale_factor(1.30, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 					uint16_t itemNumber = 0;
 
 					/*Vend Cancel (Vend Request)*/
@@ -372,6 +386,4 @@ void app_main(void) {
 	xTaskCreate(payload_loop, "payload_loop", 6765, (void*) 0, 1, (void*) 0);
 
 	xTaskCreate(mdb_loop, "mdb_loop", 6765, (void*) 0, 1, (void*) 0);
-
-	printf(".-> %d\n", (uint16_t) to_scale_factor(1.50, 1, 2));
 }
