@@ -236,7 +236,7 @@ void mdb_loop(void *pvParameters) {
 					} else if (vend_approved_todo) {
 						vend_approved_todo = false;
 
-						uint16_t vendAmount= to_scale_factor(0.00, 1, 2);
+						uint16_t vendAmount= to_scale_factor(0.00 /*vend request itemPrice*/, 1, 2);
 
 						mdb_payload[0] = 0x05; 				// Vend Approved
 						mdb_payload[1] = vendAmount >> 8;  	// Vend Amount
