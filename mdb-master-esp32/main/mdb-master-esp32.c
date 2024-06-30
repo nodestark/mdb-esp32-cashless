@@ -1,3 +1,10 @@
+/*
+ * mdb-master-esp32.c - Vending machine controller
+ *
+ * Written by Leonardo Soares <leonardobsi@gmail.com>
+ *
+ */
+
 #include <stdio.h>
 #include <math.h>
 

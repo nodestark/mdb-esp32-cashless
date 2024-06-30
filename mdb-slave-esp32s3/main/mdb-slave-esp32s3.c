@@ -1,3 +1,10 @@
+/*
+ * mdb-slave-esp32.c - Vending machine peripheral
+ *
+ * Written by Leonardo Soares <leonardobsi@gmail.com>
+ *
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
