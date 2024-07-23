@@ -15,6 +15,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#define pin_mdb_rx 	GPIO_NUM_4
+#define pin_mdb_tx 	GPIO_NUM_5
+
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))
 #define from_scale_factor(p, x, y) (p * x * pow(10, -(y) ))
 
@@ -52,16 +55,16 @@ struct reader_t reader0x10;
 
 void write_9( uint16_t nth9 ) {
 
-	gpio_set_level(GPIO_NUM_22, 0); // start
+	gpio_set_level(pin_mdb_tx, 0); // start
 	ets_delay_us(104);
 
 	for(uint8_t x= 0; x < 9; x++){
 
-		gpio_set_level(GPIO_NUM_22, (nth9 >> x) & 1);
+		gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
 		ets_delay_us(104); // 9600bps
 	}
 
-	gpio_set_level(GPIO_NUM_22, 1); // stop
+	gpio_set_level(pin_mdb_tx, 1); // stop
 	ets_delay_us(104);
 }
 
@@ -69,13 +72,13 @@ uint16_t read_9() {
 
 	uint16_t coming_read = 0;
 
-	while (gpio_get_level(GPIO_NUM_21))
+	while (gpio_get_level(pin_mdb_rx))
 		;
 
 	ets_delay_us(156);
 	for(uint8_t x= 0; x < 9; x++){
 
-		coming_read |= (gpio_get_level(GPIO_NUM_21) << x);
+		coming_read |= (gpio_get_level(pin_mdb_rx) << x);
 		ets_delay_us(104); // 9600bps
 	}
 
@@ -144,8 +147,8 @@ void writePayload_ttl9(uint8_t *mdb_payload, uint8_t mdb_length) {
 
 void mdb_loop(void *pvParameters) {
 
-	gpio_set_direction(GPIO_NUM_21, GPIO_MODE_INPUT);
-	gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT);
+	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
+	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 
 	for (;;) {
 

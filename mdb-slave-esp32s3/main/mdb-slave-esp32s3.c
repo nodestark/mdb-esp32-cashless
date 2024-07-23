@@ -9,16 +9,23 @@
 #include <string.h>
 #include <math.h>
 
-#include <driver/uart.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include <driver/gpio.h>
-
-#include "tinyusb.h"
-#include "tusb_cdc_acm.h"
-#include "tusb_console.h"
-
 #include <rom/ets_sys.h>
 
 #include "apps/your_app/your_app.h"
+
+//#define pin_mdb_rx  GPIO_NUM_4
+//#define pin_mdb_tx  GPIO_NUM_5
+//
+//#define pin_mdb_led  GPIO_NUM_21
+
+#define pin_mdb_rx  GPIO_NUM_14
+#define pin_mdb_tx  GPIO_NUM_27
+
+#define pin_mdb_led  GPIO_NUM_25
 
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))
 #define from_scale_factor(p, x, y) (p * x * pow(10, -(y) ))
@@ -82,13 +89,13 @@ uint16_t read_9(uint8_t *checksum) {
 
 	uint16_t coming_read = 0;
 
-	while (gpio_get_level(GPIO_NUM_4))
+	while (gpio_get_level(pin_mdb_rx))
 		;
 
 	ets_delay_us(156);
 	for (uint8_t x = 0; x < 9; x++) {
 
-		coming_read |= (gpio_get_level(GPIO_NUM_4) << x);
+		coming_read |= (gpio_get_level(pin_mdb_rx) << x);
 		ets_delay_us(104); // 9600bps
 	}
 
@@ -99,16 +106,16 @@ uint16_t read_9(uint8_t *checksum) {
 
 void write_9(uint16_t nth9) {
 
-	gpio_set_level(GPIO_NUM_5, 0); // start
+	gpio_set_level(pin_mdb_tx, 0); // start
 	ets_delay_us(104);
 
 	for (uint8_t x = 0; x < 9; x++) {
 
-		gpio_set_level(GPIO_NUM_5, (nth9 >> x) & 1);
+		gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
 		ets_delay_us(104); // 9600bps
 	}
 
-	gpio_set_level(GPIO_NUM_5, 1); // stop
+	gpio_set_level(pin_mdb_tx, 1); // stop
 	ets_delay_us(104);
 }
 
@@ -167,7 +174,7 @@ void mdb_loop(void *pvParameters) {
 				// NAK
 			} else if((coming_read & BIT_ADD_SET) == 0x10){
 
-				gpio_set_level(GPIO_NUM_21, 1);
+				gpio_set_level(pin_mdb_led, 1);
 
 				available_tx = 0;
 
@@ -466,7 +473,7 @@ void mdb_loop(void *pvParameters) {
 			} else {
 				// If not my address
 
-				gpio_set_level(GPIO_NUM_21, 0);
+				gpio_set_level(pin_mdb_led, 0);
 			}
 		}
 	}
@@ -842,39 +849,13 @@ void readTelemetryDdcmp() {
 
 void app_main(void) {
 
-	const tinyusb_config_t tusb_cfg = {
-			.device_descriptor = (void*) 0,
-			.string_descriptor = (void*) 0,
-			.external_phy = false,
-			.configuration_descriptor = (void*) 0,
-	};
-	ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
-
-	tinyusb_config_cdcacm_t acm_cfg = { 0 };
-	ESP_ERROR_CHECK(tusb_cdc_acm_init(&acm_cfg));
-
-    esp_tusb_init_console(TINYUSB_CDC_ACM_0);
-
-    // ################################################################
-	gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
-	gpio_set_direction(GPIO_NUM_5, GPIO_MODE_OUTPUT);
+	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
+	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 
 	// led...
-	gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
+	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
-    // ################################################################
-	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
-	ESP_ERROR_CHECK (uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1));
-
-	uart_config_t uart_config_1 = {
-			.baud_rate = 115200,
-			.data_bits = UART_DATA_8_BITS,
-			.parity = UART_PARITY_DISABLE,
-			.stop_bits = UART_STOP_BITS_1,
-			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
-
-	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
-
+//	################################################################
 	xTaskCreate(mdb_loop, "mdb_loop", 10946, (void*) 0, 1, (void*) 0);
 
 	xTaskCreate(button_loop, "button_loop", 6765, (void*) 0, 1, (void*) 0);
