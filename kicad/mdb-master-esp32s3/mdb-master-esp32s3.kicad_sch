@@ -7081,7 +7081,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "47nH"
+		(property "Value" "2.4nh"
 			(at 41.91 149.86 0)
 			(effects
 				(font
@@ -7560,7 +7560,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "240ohm"
 			(at 158.75 57.15 90)
 			(effects
 				(font
@@ -7763,7 +7763,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 193.04 214.63 0)
 			(effects
 				(font
@@ -7839,6 +7839,7 @@
 					(size 1.27 1.27)
 				)
 				(justify right)
+				(hide yes)
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
@@ -7967,7 +7968,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 63.5 147.32 90)
 			(effects
 				(font
@@ -8103,7 +8104,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "C_Polarized"
+		(property "Value" "22uf"
 			(at 270.51 93.0909 0)
 			(effects
 				(font
@@ -8620,7 +8621,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 246.38 227.33 90)
 			(effects
 				(font
@@ -8688,7 +8689,7 @@
 				)
 			)
 		)
-		(property "Value" "C"
+		(property "Value" "1.8pf"
 			(at 46.99 138.43 90)
 			(effects
 				(font
@@ -8764,6 +8765,7 @@
 					(size 1.27 1.27)
 				)
 				(justify right)
+				(hide yes)
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
@@ -8895,7 +8897,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "Crystal"
+		(property "Value" "40000hz"
 			(at 93.98 166.37 90)
 			(effects
 				(font
@@ -8963,7 +8965,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 287.02 198.12 90)
 			(effects
 				(font
@@ -9031,7 +9033,7 @@
 				)
 			)
 		)
-		(property "Value" "240"
+		(property "Value" "240ohm"
 			(at 254 95.25 90)
 			(effects
 				(font
@@ -9502,7 +9504,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 346.71 120.65 90)
 			(effects
 				(font
@@ -9738,7 +9740,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 182.88 217.17 0)
 			(effects
 				(font
@@ -9807,7 +9809,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "240ohm"
 			(at 158.75 44.45 90)
 			(effects
 				(font
@@ -9941,7 +9943,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 196.85 154.94 90)
 			(effects
 				(font
@@ -10075,7 +10077,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "390ohm"
 			(at 238.76 95.25 90)
 			(effects
 				(font
@@ -10274,7 +10276,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 297.18 196.85 90)
 			(effects
 				(font
@@ -10343,7 +10345,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "3.3k"
 			(at 326.39 90.1699 0)
 			(effects
 				(font
@@ -10412,7 +10414,7 @@
 				)
 			)
 		)
-		(property "Value" "D"
+		(property "Value" "1N5819HWQ"
 			(at 283.21 182.88 0)
 			(effects
 				(font
@@ -10970,6 +10972,7 @@
 					(size 1.27 1.27)
 				)
 				(justify right)
+				(hide yes)
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
@@ -11032,7 +11035,7 @@
 				)
 			)
 		)
-		(property "Value" "LM317_SOT-223"
+		(property "Value" "TS1117B"
 			(at 246.38 82.55 0)
 			(effects
 				(font
@@ -11435,7 +11438,7 @@
 				)
 			)
 		)
-		(property "Value" "C"
+		(property "Value" "22pf"
 			(at 82.55 154.94 90)
 			(effects
 				(font
@@ -11971,7 +11974,7 @@
 				)
 			)
 		)
-		(property "Value" "C"
+		(property "Value" "22pf"
 			(at 82.55 166.37 90)
 			(effects
 				(font
@@ -12172,7 +12175,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "180ohm"
 			(at 360.68 110.4899 0)
 			(effects
 				(font
