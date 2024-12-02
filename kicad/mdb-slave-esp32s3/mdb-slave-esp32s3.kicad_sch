@@ -4707,6 +4707,18 @@
 		(uuid "0e820f1d-e9cc-472f-83e5-62e5ca26ef4c")
 	)
 	(junction
+		(at 160.02 114.3)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "1cbed5cf-5558-47c3-b00a-3e110d187a3a")
+	)
+	(junction
+		(at 86.36 106.68)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "25304777-3ffa-408a-a097-6bec03178c2d")
+	)
+	(junction
 		(at 168.91 114.3)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5194,7 +5206,7 @@
 	)
 	(wire
 		(pts
-			(xy 62.23 106.68) (xy 91.44 106.68)
+			(xy 62.23 106.68) (xy 86.36 106.68)
 		)
 		(stroke
 			(width 0)
@@ -5244,13 +5256,23 @@
 	)
 	(wire
 		(pts
-			(xy 157.48 114.3) (xy 168.91 114.3)
+			(xy 157.48 114.3) (xy 160.02 114.3)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "4a9d10ca-9f57-4e2f-8334-d03620cabc70")
+	)
+	(wire
+		(pts
+			(xy 160.02 113.03) (xy 160.02 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4ae9e72f-c782-40ad-a702-5e35ac41a5b0")
 	)
 	(wire
 		(pts
@@ -5491,6 +5513,16 @@
 			(type default)
 		)
 		(uuid "79744d59-d338-4712-8f9d-c0755ec24159")
+	)
+	(wire
+		(pts
+			(xy 86.36 106.68) (xy 91.44 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "79cd3f53-db1c-410c-a5cc-afb7469aae43")
 	)
 	(wire
 		(pts
@@ -5751,6 +5783,16 @@
 			(type default)
 		)
 		(uuid "af7d9ff3-fb71-40f6-9a58-e4d3b2d65470")
+	)
+	(wire
+		(pts
+			(xy 160.02 114.3) (xy 168.91 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b1abeb68-8653-40c1-9111-e94bddc1b204")
 	)
 	(wire
 		(pts
@@ -6084,6 +6126,16 @@
 	)
 	(wire
 		(pts
+			(xy 86.36 105.41) (xy 86.36 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ecb98c35-ec5b-4350-9d14-274ae5bdbef6")
+	)
+	(wire
+		(pts
 			(xy 55.88 106.68) (xy 62.23 106.68)
 		)
 		(stroke
@@ -6273,6 +6325,17 @@
 		)
 		(uuid "008df875-a617-44d5-8c74-1193cd8b662b")
 	)
+	(label "reset"
+		(at 86.36 105.41 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "033232f2-8b78-4e29-a3e8-2e4629f64e19")
+	)
 	(label "io18"
 		(at 50.8 246.38 0)
 		(fields_autoplaced yes)
@@ -6350,7 +6413,7 @@
 		)
 		(uuid "1d5699b9-65c2-4b0b-95c0-40f17f4f9483")
 	)
-	(label "boot"
+	(label "reset"
 		(at 73.66 241.3 0)
 		(fields_autoplaced yes)
 		(effects
@@ -6359,10 +6422,10 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "240fb1a8-1663-435a-a6a7-c6111e98b34d")
+		(uuid "20d50619-9bf0-474a-83ca-8474abb4b0ed")
 	)
 	(label "boot"
-		(at 160.02 114.3 0)
+		(at 160.02 113.03 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
