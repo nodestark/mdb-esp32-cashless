@@ -16,6 +16,12 @@ dependencies:
   #   public: true
 
   ## IDF Component Manager Manifest File
-  joltwallet/littlefs: "~=1.14.1"
-  
-  espressif/esp_tinyusb: "^1"
+  joltwallet/littlefs: 
+    version: "~=1.16.4"
+    rules:
+      - if: "target in [esp32s3]"
+      
+  espressif/esp_tinyusb: 
+    version: "~=1.7.2"
+    rules:
+      - if: "target in [esp32s3]" 

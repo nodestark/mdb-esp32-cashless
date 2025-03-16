@@ -4,24 +4,28 @@
  * Written by Leonardo Soares <leonardobsi@gmail.com>
  *
  */
-
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include <esp_private/wifi.h>
+#include <nvs_flash.h>
+#include "mqtt_client.h"
+#include "esp_timer.h"
 
 #include <driver/gpio.h>
 #include <rom/ets_sys.h>
 
-#include "apps/your_app/your_app.h"
+esp_mqtt_client_handle_t mqttClient = (void*) 0;
 
-//#define pin_mdb_rx  GPIO_NUM_4
-//#define pin_mdb_tx  GPIO_NUM_5
-//
-//#define pin_mdb_led  GPIO_NUM_21
+struct flow_cash_sale_msg_t {
+	uint16_t itemPrice;
+	uint16_t itemNumber;
+};
+static QueueHandle_t cash_sale_queue = (void*) 0;
 
+//	################################################################
 #define pin_mdb_rx  GPIO_NUM_14
 #define pin_mdb_tx  GPIO_NUM_27
 
@@ -74,15 +78,14 @@ typedef enum MACHINE_STATE {
 
 machine_state_t machine_state = INACTIVE_STATE;
 
-uint8_t reset_cashless_todo = false;
-
 uint8_t session_begin_todo = false;
-uint8_t session_end_todo = false;
 uint8_t session_cancel_todo = false;
-
+uint8_t session_end_todo = false;
+//
 uint8_t vend_approved_todo = false;
 uint8_t vend_denied_todo = false;
-
+//
+uint8_t cashless_reset_todo = false;
 uint8_t outsequence_todo = false;
 
 uint16_t read_9(uint8_t *checksum) {
@@ -93,7 +96,7 @@ uint16_t read_9(uint8_t *checksum) {
 		;
 
 	ets_delay_us(156);
-	for (uint8_t x = 0; x < 9; x++) {
+	for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
 
 		coming_read |= (gpio_get_level(pin_mdb_rx) << x);
 		ets_delay_us(104); // 9600bps
@@ -109,7 +112,7 @@ void write_9(uint16_t nth9) {
 	gpio_set_level(pin_mdb_tx, 0); // start
 	ets_delay_us(104);
 
-	for (uint8_t x = 0; x < 9; x++) {
+	for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
 
 		gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
 		ets_delay_us(104); // 9600bps
@@ -132,28 +135,10 @@ void transmitPayloadByUART9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(BIT_MODE_SET | checksum);
 }
 
-void button_loop(void *pvParameters) {
-
-	gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
-	gpio_set_pull_mode(GPIO_NUM_0, GPIO_PULLUP_ONLY);
-
-	for(;;){
-
-		if( gpio_get_level(GPIO_NUM_0) == 0 ){
-			while(gpio_get_level(GPIO_NUM_0) == 0);
-
-			if(machine_state == ENABLED_STATE)
-				session_begin_todo = true;
-
-			if(machine_state == VEND_STATE)
-				vend_approved_todo = true;
-		}
-
-		vTaskDelay(34 / portTICK_PERIOD_MS);
-	}
-}
-
 void mdb_loop(void *pvParameters) {
+
+	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
+	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 
 	uint8_t mdb_payload[256];
 	uint8_t available_tx = 0;
@@ -188,7 +173,7 @@ void mdb_loop(void *pvParameters) {
 					}
 
 					machine_state = INACTIVE_STATE;
-					reset_cashless_todo = true;
+					cashless_reset_todo = true;
 					break;
 				}
 				case SETUP: {
@@ -241,8 +226,8 @@ void mdb_loop(void *pvParameters) {
 						mdb_payload[0] = 0x0b; // Command Out of Sequence
 						available_tx = 1;
 
-					} else if (reset_cashless_todo) {
-						reset_cashless_todo = false;
+					} else if (cashless_reset_todo) {
+						cashless_reset_todo = false;
 
 						mdb_payload[0] = 0x00; // Just Reset
 						available_tx = 1;
@@ -297,7 +282,7 @@ void mdb_loop(void *pvParameters) {
 				case VEND: {
 
 					switch(read_9(&checksum)){
-					case VEND_REQUEST:{
+					case VEND_REQUEST: {
 
 						uint16_t itemPrice = (read_9(&checksum) /*2*/ << 8) | read_9(&checksum) /*3*/;
 						uint16_t itemNumber = (read_9(&checksum) /*4*/ << 8) | read_9(&checksum) /*5*/;
@@ -308,7 +293,7 @@ void mdb_loop(void *pvParameters) {
 
 						break;
 					}
-					case VEND_CANCEL:{
+					case VEND_CANCEL: {
 
 						read_9((uint8_t*) 0);
 
@@ -316,7 +301,7 @@ void mdb_loop(void *pvParameters) {
 
 						break;
 					}
-					case VEND_SUCCESS:{
+					case VEND_SUCCESS: {
 
 						uint16_t itemNumber = (read_9(&checksum) /*1*/ << 8) | read_9(&checksum) /*2*/;
 
@@ -326,7 +311,7 @@ void mdb_loop(void *pvParameters) {
 
 						break;
 					}
-					case VEND_FAILURE:{
+					case VEND_FAILURE: {
 
 						read_9((uint8_t*) 0);
 
@@ -334,7 +319,7 @@ void mdb_loop(void *pvParameters) {
 
 						break;
 					}
-					case SESSION_COMPLETE:{
+					case SESSION_COMPLETE: {
 
 						read_9((uint8_t*) 0);
 
@@ -342,12 +327,16 @@ void mdb_loop(void *pvParameters) {
 
 						break;
 					}
-					case CASH_SALE:{
+					case CASH_SALE: {
 
 						uint16_t itemPrice = (read_9(&checksum) /*2*/ << 8) | read_9(&checksum) /*3*/;
 						uint16_t itemNumber = (read_9(&checksum) /*4*/ << 8) | read_9(&checksum) /*5*/;
 
-						read_9((uint8_t*) 0);
+						read_9((uint8_t*) 0); // read_9((uint8_t*) 0) == checksum
+
+						//
+						struct flow_cash_sale_msg_t msg= { .itemPrice= itemPrice, .itemNumber= itemNumber};
+						xQueueSend(cash_sale_queue, &msg, 0 /*if full, do not wait*/ );
 
 						break;
 					}
@@ -357,21 +346,21 @@ void mdb_loop(void *pvParameters) {
 				}
 				case READER: {
 					switch(read_9(&checksum)){
-					case READER_DISABLE:{
+					case READER_DISABLE: {
 
 						read_9((uint8_t*) 0);
 
 						machine_state = DISABLED_STATE;
 						break;
 					}
-					case READER_ENABLE:{
+					case READER_ENABLE: {
 
 						read_9((uint8_t*) 0);
 
 						machine_state = ENABLED_STATE;
 						break;
 					}
-					case READER_CANCEL:{
+					case READER_CANCEL: {
 
 						read_9((uint8_t*) 0);
 
@@ -384,7 +373,7 @@ void mdb_loop(void *pvParameters) {
 				}
 				case EXPANSION: {
 					switch(read_9(&checksum)){
-					case REQUEST_ID:{
+					case REQUEST_ID: {
 
 						char vmcManufacturerCode[3];
 						vmcManufacturerCode[0]= read_9(&checksum);
@@ -468,7 +457,7 @@ void mdb_loop(void *pvParameters) {
 				}
 				}
 
-				transmitPayloadByUART9(&mdb_payload, available_tx);
+				transmitPayloadByUART9((uint8_t*) &mdb_payload, available_tx);
 
 			} else {
 				// If not my address
@@ -847,16 +836,139 @@ void readTelemetryDdcmp() {
 	fileEva_dts.close();
 }*/
 
+void cash_sale_loop(void *pvParameters) {
+
+	struct flow_cash_sale_msg_t msg;
+
+	while(1){
+
+		if (xQueueReceive(cash_sale_queue, &msg, portMAX_DELAY) ){
+
+			char payload[100];
+			sprintf(payload, "item_number=%d,item_price=%d", msg.itemNumber, msg.itemPrice);
+
+			esp_mqtt_client_publish(mqttClient, "/application/sale/machine00000", (char*) &payload, 0, 1, 0);
+		}
+	}
+}
+
+void ping_callback(void *arg) {
+
+	esp_mqtt_client_publish(mqttClient, "/application/ping/machine00000", "ping", 0, 1, 0);
+}
+
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data){
+
+	esp_mqtt_event_handle_t event = event_data;
+	esp_mqtt_client_handle_t client = event->client;
+
+	switch ((esp_mqtt_event_id_t) event_id) {
+	case MQTT_EVENT_CONNECTED:
+
+		esp_mqtt_client_subscribe(client, "/iot/machine00000/#", 0);
+
+		esp_mqtt_client_publish(client, "/application/poweron/machine00000", "poweron", 0, 1, 0);
+
+		break;
+	case MQTT_EVENT_DISCONNECTED:
+		break;
+	case MQTT_EVENT_SUBSCRIBED:
+		break;
+	case MQTT_EVENT_UNSUBSCRIBED:
+		break;
+	case MQTT_EVENT_PUBLISHED:
+		break;
+	case MQTT_EVENT_DATA:
+
+		printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+		printf("DATA=%.*s\r\n", event->data_len, event->data);
+
+        if (strncmp(event->topic, "/iot/machine00000/restart", 25) == 0) {
+        	if( strncmp(event->data, "restart", 7) == 0 ) {
+        		esp_restart();
+        	}
+        }
+
+		break;
+	case MQTT_EVENT_ERROR:
+		break;
+	default:
+		printf("Other event id:%d\n", event->event_id);
+		break;
+	}
+}
+
+static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+
+	switch (event_id) {
+	case WIFI_EVENT_STA_START:
+		esp_wifi_connect();
+		break;
+	case WIFI_EVENT_STA_CONNECTED:
+		break;
+	case WIFI_EVENT_STA_DISCONNECTED:
+		esp_wifi_connect();
+		break;
+	}
+}
+
 void app_main(void) {
 
-	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
-	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
-
-	// led...
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+	gpio_set_level(pin_mdb_led, 1);
 
 //	################################################################
-	xTaskCreate(mdb_loop, "mdb_loop", 10946, (void*) 0, 1, (void*) 0);
+	nvs_flash_init();
 
-	xTaskCreate(button_loop, "button_loop", 6765, (void*) 0, 1, (void*) 0);
+	esp_netif_init();
+
+	esp_event_loop_create_default();
+	esp_netif_create_default_wifi_sta();
+
+	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+	esp_wifi_init(&cfg);
+
+	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
+
+	wifi_config_t wifi_config = {
+			.sta = {
+					.ssid = "ALLREDE-SOARES-2G",
+					.password = "julia2012",
+					.threshold.authmode = WIFI_AUTH_WPA2_PSK,
+			},
+	};
+
+	esp_wifi_set_mode(WIFI_MODE_STA);
+	esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+	esp_wifi_start();
+
+//	################################################################
+	cash_sale_queue= xQueueCreate(16 /*queue-length*/, sizeof(struct flow_cash_sale_msg_t));
+
+//	################################################################
+	const esp_mqtt_client_config_t mqttCfg = {
+			.broker.address.uri = "mqtt://mqtt.eclipseprojects.io",
+	};
+
+	mqttClient = esp_mqtt_client_init(&mqttCfg);
+
+	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+	esp_mqtt_client_start(mqttClient);
+
+//	################################################################
+	const esp_timer_create_args_t timer_args = {
+			.callback = &ping_callback,
+			.arg = (void*) 0,
+			.name = "ping_timer"
+	};
+	esp_timer_handle_t periodic_timer;
+	esp_timer_create(&timer_args, &periodic_timer);
+
+	esp_timer_start_periodic(periodic_timer, 300000000 /*useconds = 5min*/);
+
+//	################################################################
+
+	xTaskCreate(mdb_loop, "mdb_loop", 1024, (void*) 0, 1, (void*) 0);
+
+	xTaskCreate(cash_sale_loop, "cash_sale_loop", 1024, (void*) 0, 1, (void*) 0);
 }
