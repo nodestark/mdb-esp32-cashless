@@ -8,14 +8,17 @@
 #include <string.h>
 #include <math.h>
 
-#include "freertos/FreeRTOS.h"
+#include <freertos/FreeRTOS.h>
 #include <esp_private/wifi.h>
 #include <nvs_flash.h>
-#include "mqtt_client.h"
-#include "esp_timer.h"
+#include <mqtt_client.h>
+#include <esp_timer.h>
 
 #include <driver/gpio.h>
 #include <rom/ets_sys.h>
+
+#include "bleprph.h"
+#include "nimble.h"
 
 esp_mqtt_client_handle_t mqttClient = (void*) 0;
 
@@ -857,6 +860,10 @@ void ping_callback(void *arg) {
 	esp_mqtt_client_publish(mqttClient, "/application/ping/machine00000", "ping", 0, 1, 0);
 }
 
+void ble_event_handler(char *event_data){
+	printf(">_ %s\n", event_data);
+}
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data){
 
 	esp_mqtt_event_handle_t event = event_data;
@@ -943,9 +950,6 @@ void app_main(void) {
 	esp_wifi_start();
 
 //	################################################################
-	cash_sale_queue= xQueueCreate(16 /*queue-length*/, sizeof(struct flow_cash_sale_msg_t));
-
-//	################################################################
 	const esp_mqtt_client_config_t mqttCfg = {
 			.broker.address.uri = "mqtt://mqtt.eclipseprojects.io",
 	};
@@ -967,8 +971,10 @@ void app_main(void) {
 	esp_timer_start_periodic(periodic_timer, 300000000 /*useconds = 5min*/);
 
 //	################################################################
+	startBle("machine00000", ble_event_handler);
 
 	xTaskCreate(mdb_loop, "mdb_loop", 1024, (void*) 0, 1, (void*) 0);
 
+	cash_sale_queue= xQueueCreate(16 /*queue-length*/, sizeof(struct flow_cash_sale_msg_t));
 	xTaskCreate(cash_sale_loop, "cash_sale_loop", 1024, (void*) 0, 1, (void*) 0);
 }
