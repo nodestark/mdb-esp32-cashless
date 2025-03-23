@@ -323,10 +323,10 @@ void mdb_main_loop(void *pvParameters) {
 						//
 						esp_fill_random(&mdbCurrentSession.sessionOwner.sequential, sizeof(uint16_t));
 
-						struct flow_engine_sale_msg_t msg = {
-								.mdbCurrentFlow = VEND_REQUEST,
-								.itemPrice = itemPrice,
-								.itemNumber = itemNumber };
+						struct flow_engine_sale_msg_t msg = { .mdbCurrentFlow = VEND_REQUEST };
+
+						mdbSessionOwner->itemPrice = msg.itemPrice = itemPrice;
+						mdbSessionOwner->itemNumber = msg.itemNumber = itemNumber;
 
 						xQueueSend(mdbEngineSaleQueue, &msg, 0 /*if full, do not wait*/ );
 
@@ -894,6 +894,24 @@ void readTelemetryDdcmp() {
 	fileEva_dts.close();
 }*/
 
+uint8_t crc8_le(uint8_t *data, uint16_t data_length) {
+
+	uint8_t crc = 0x00;
+	for (uint16_t x = 0; x < data_length; x++) {
+
+		uint8_t uData = *(uint8_t*) (data + x);
+		for (uint8_t iBit = 0; iBit < 8; iBit++, uData >>= 1) {
+
+			if ((uData ^ crc) & 0x01) {
+
+				crc >>= 1;
+				crc ^= 0x48;
+
+			} else crc >>= 1;
+		}
+	}
+	return crc;
+}
 
 void mdb_engine_loop(void *pvParameters) {
 
@@ -945,7 +963,8 @@ void mdb_engine_loop(void *pvParameters) {
 				ble_payload[5] = currentSequential >> 8;
 				ble_payload[6] = currentSequential;
 
-//				ble_payload[15] = crc-8; TODO
+				uint8_t crc = crc8_le( (uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+				ble_payload[sizeof(ble_payload) - 1] = crc;
 
 				sendBleNotification(&ble_payload, sizeof(ble_payload));
 
@@ -964,9 +983,6 @@ void mdb_engine_loop(void *pvParameters) {
 				break;
 			}
 			case VEND_REQUEST: {
-
-				mdbSessionOwner->itemPrice = msg.itemPrice;
-				mdbSessionOwner->itemNumber = msg.itemNumber;
 
 				if(mdbSessionOwner->pipe == PIPE_MQTT){
 
@@ -994,7 +1010,8 @@ void mdb_engine_loop(void *pvParameters) {
 				ble_payload[5] = currentSequential >> 8;
 				ble_payload[6] = currentSequential;
 
-//				ble_payload[15] = crc-8; TODO
+				uint8_t crc = crc8_le( (uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+				ble_payload[sizeof(ble_payload) - 1] = crc;
 
 				sendBleNotification(&ble_payload, sizeof(ble_payload));
 
@@ -1028,7 +1045,10 @@ void ble_event_handler(char *event_data){
     	char ble_payload[16];
         memcpy(ble_payload, event_data, sizeof(ble_payload));
 
-        // uint16_t currentSequential = (ble_payload[5] << 8) | ble_payload[6];
+        uint8_t crc = crc8_le( (uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+//        assert(ble_payload[sizeof(ble_payload) - 1] == crc);
+
+        uint16_t sequential = (ble_payload[5] << 8) | ble_payload[6];
 
     	vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
 
