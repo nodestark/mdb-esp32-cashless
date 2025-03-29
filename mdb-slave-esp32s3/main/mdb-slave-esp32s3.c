@@ -292,6 +292,7 @@ void mdb_main_loop(void *pvParameters) {
 					if (outsequence_todo) {
 						// Command out of sequence
 						outsequence_todo = false;
+
 						mdb_payload[0] = 0x0b;
 						available_tx = 1;
 
@@ -304,6 +305,7 @@ void mdb_main_loop(void *pvParameters) {
 					} else if (vend_approved_todo) {
 						// Vend approved
 						vend_approved_todo = false;
+
 						uint16_t vendAmount = to_scale_factor(0.00, 1, 2);
 						mdb_payload[0] = 0x05;
 						mdb_payload[1] = vendAmount >> 8;
@@ -313,6 +315,7 @@ void mdb_main_loop(void *pvParameters) {
 					} else if (vend_denied_todo) {
 						// Vend denied
 						vend_denied_todo = false;
+
 						mdb_payload[0] = 0x06;
 						available_tx = 1;
 						machine_state = IDLE_STATE;
@@ -320,6 +323,7 @@ void mdb_main_loop(void *pvParameters) {
 					} else if (session_end_todo) {
 						// End session
 						session_end_todo = false;
+
 						mdb_payload[0] = 0x07;
 						available_tx = 1;
 						machine_state = ENABLED_STATE;
@@ -327,6 +331,7 @@ void mdb_main_loop(void *pvParameters) {
 					} else if (machine_state == ENABLED_STATE && xQueueReceive(mdbSessionQueue, &mdbCurrentSession, 0)) {
 						// Begin session
 						session_begin_todo = false;
+
 						machine_state = IDLE_STATE;
 						mdbSessionOwner = &mdbCurrentSession.sessionOwner;
 
@@ -780,6 +785,15 @@ uint8_t crc8_le(uint8_t *data, uint16_t data_length) {
 	return crc;
 }
 
+// a <= VEND_REQUEST
+// b <= VEND_SUCCESS
+// c <= VEND_FAILURE
+// d <= SESSION_COMPLETE
+//
+// e => session_begin_todo
+// f => vend_approved_todo
+// g => session_cancel_todo/vend_denied_todo
+
 void mdb_engine_loop(void *pvParameters) {
 
 	struct flow_engine_sale_msg_t msg;
@@ -923,14 +937,14 @@ void ping_callback(void *arg) {
 void ble_event_handler(char *event_data) {
 	printf(">_ %s\n", event_data);
 
-	if (strncmp(event_data, "a", 1) == 0) {
+	if (strncmp(event_data, "e", 1) == 0) {
 //    	Starting a vending session...
 
 		struct flow_mdb_session_msg_t msg = { .sessionOwner.pipe = PIPE_BLE, .sessionOwner.fundsAvailable = 0xffff };
 
 		xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
 
-	} else if (strncmp(event_data, "b", 1) == 0) {
+	} else if (strncmp(event_data, "f", 1) == 0) {
 //    	Approve the vending session...
 
 		char ble_payload[BLE_PAYLOAD_SIZE];
@@ -944,7 +958,7 @@ void ble_event_handler(char *event_data) {
 
 		vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
 
-	} else if (strncmp(event_data, "c", 1) == 0) {
+	} else if (strncmp(event_data, "g", 1) == 0) {
 //    	Close the vending session...
 
 		session_cancel_todo = (machine_state == IDLE_STATE) ? true : false;
