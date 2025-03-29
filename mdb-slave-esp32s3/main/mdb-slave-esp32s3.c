@@ -21,6 +21,8 @@
 #include "bleprph.h"
 #include "nimble.h"
 
+#include "rsacipher.h"
+
 // Pin definitions for MDB communication
 #define pin_mdb_rx  GPIO_NUM_14  // Pin to receive data from MDB
 #define pin_mdb_tx  GPIO_NUM_27  // Pin to transmit data to MDB
@@ -95,6 +97,8 @@ uint8_t outsequence_todo = false;
 
 // MQTT client handle
 esp_mqtt_client_handle_t mqttClient = (void*) 0;
+
+#define BLE_PAYLOAD_SIZE 10
 
 // Defining session pipes for different communication types
 enum MDB_SESSION_PIPE {
@@ -798,20 +802,31 @@ void mdb_engine_loop(void *pvParameters) {
 			case VEND_SUCCESS: {
 
 				/* PIPE_BLE */
-				char ble_payload[16];
-				esp_fill_random(&ble_payload, sizeof(ble_payload));
+				char ble_payload[BLE_PAYLOAD_SIZE];
 
 				ble_payload[0] = 'b';
 
-				sendBleNotification(&ble_payload, sizeof(ble_payload));
+				ble_payload[1] = 0x00;
+				ble_payload[2] = 0x00;
+				ble_payload[3] = 0x00;
+				ble_payload[4] = 0x00;
+
+				ble_payload[5] = 0x00;
+				ble_payload[6] = 0x00;
+				ble_payload[7] = 0x00;
+				ble_payload[8] = 0x00;
+
+				uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+				ble_payload[sizeof(ble_payload) - 1] = crc;
+
+				sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 
 				break;
 			}
 			case VEND_FAILURE: {
 
 				/* PIPE_BLE */
-				char ble_payload[16];
-				esp_fill_random(&ble_payload, sizeof(ble_payload));
+				char ble_payload[BLE_PAYLOAD_SIZE];
 
 				ble_payload[0] = 'c';
 
@@ -826,22 +841,37 @@ void mdb_engine_loop(void *pvParameters) {
 				ble_payload[5] = currentSequential >> 8;
 				ble_payload[6] = currentSequential;
 
+				ble_payload[7] = 0x00;
+				ble_payload[8] = 0x00;
+
 				uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
 				ble_payload[sizeof(ble_payload) - 1] = crc;
 
-				sendBleNotification(&ble_payload, sizeof(ble_payload));
+				sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 
 				break;
 			}
 			case SESSION_COMPLETE: {
 
 				/* PIPE_BLE */
-				char ble_payload[16];
-				esp_fill_random(&ble_payload, sizeof(ble_payload));
+				char ble_payload[BLE_PAYLOAD_SIZE];
 
 				ble_payload[0] = 'd';
 
-				sendBleNotification(&ble_payload, sizeof(ble_payload));
+				ble_payload[1] = 0x00;
+				ble_payload[2] = 0x00;
+				ble_payload[3] = 0x00;
+				ble_payload[4] = 0x00;
+
+				ble_payload[5] = 0x00;
+				ble_payload[6] = 0x00;
+				ble_payload[7] = 0x00;
+				ble_payload[8] = 0x00;
+
+				uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+				ble_payload[sizeof(ble_payload) - 1] = crc;
+
+				sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 
 				break;
 			}
@@ -857,8 +887,7 @@ void mdb_engine_loop(void *pvParameters) {
 				}
 
 				/* PIPE_BLE */
-				char ble_payload[16];
-				esp_fill_random(&ble_payload, sizeof(ble_payload));
+				char ble_payload[BLE_PAYLOAD_SIZE];
 
 				ble_payload[0] = 'a';
 
@@ -869,14 +898,16 @@ void mdb_engine_loop(void *pvParameters) {
 				ble_payload[4] = msg.itemNumber;
 
 				uint16_t currentSequential = mdbSessionOwner->sequential;
-
 				ble_payload[5] = currentSequential >> 8;
 				ble_payload[6] = currentSequential;
+
+				ble_payload[7] = 0x00;
+				ble_payload[8] = 0x00;
 
 				uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
 				ble_payload[sizeof(ble_payload) - 1] = crc;
 
-				sendBleNotification(&ble_payload, sizeof(ble_payload));
+				sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 
 				break;
 			}
@@ -902,7 +933,7 @@ void ble_event_handler(char *event_data) {
 	} else if (strncmp(event_data, "b", 1) == 0) {
 //    	Approve the vending session...
 
-		char ble_payload[16];
+		char ble_payload[BLE_PAYLOAD_SIZE];
 		memcpy(ble_payload, event_data, sizeof(ble_payload));
 
 		uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
