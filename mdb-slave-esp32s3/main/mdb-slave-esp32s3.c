@@ -105,30 +105,17 @@ enum MDB_SESSION_PIPE {
 	PIPE_BLE = 0x00, PIPE_MQTT = 0x01
 };
 
-// Structure for MDB session owner
-typedef struct {
+// Structure for MDB flow (reading data, controlling machine state)
+struct flow_mdb_session_msg_t {
 	uint8_t pipe;
 	char uuid[36];
 	uint16_t sequential;
 	uint16_t fundsAvailable;
 	uint16_t itemPrice;
 	uint16_t itemNumber;
-} MDBSessionOwner_t;
-
-// Structure for flow engine sale message
-struct flow_engine_sale_msg_t {
-	uint16_t itemPrice;
-	uint16_t itemNumber;
-	uint16_t mdbCurrentFlow;
-};
-
-// Structure for MDB flow (reading data, controlling machine state)
-struct flow_mdb_session_msg_t {
-	MDBSessionOwner_t sessionOwner;
 };
 
 // Message queues for communication
-static QueueHandle_t mdbEngineSaleQueue = (void*) 0;
 static QueueHandle_t mdbSessionQueue = (void*) 0;
 
 // Function to read 9 bits from MDB (one byte at a time)
@@ -185,8 +172,25 @@ void transmitPayloadByUART9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(BIT_MODE_SET | checksum);
 }
 
-// Global variable holding the reference to the MDB session owner
-MDBSessionOwner_t *mdbSessionOwner;
+uint8_t crc8_le(uint8_t *data, uint16_t data_length) {
+
+	uint8_t crc = 0x00;
+	for (uint16_t x = 0; x < data_length; x++) {
+
+		uint8_t uData = *(uint8_t*) (data + x);
+		for (uint8_t iBit = 0; iBit < 8; iBit++, uData >>= 1) {
+
+			if ((uData ^ crc) & 0x01) {
+
+				crc >>= 1;
+				crc ^= 0x48;
+
+			} else
+				crc >>= 1;
+		}
+	}
+	return crc;
+}
 
 // Main MDB loop function
 void mdb_main_loop(void *pvParameters) {
@@ -221,9 +225,6 @@ void mdb_main_loop(void *pvParameters) {
 				// NAK (Negative Acknowledgement)
 			} else if ((coming_read & BIT_ADD_SET) == 0x10) {
 
-				// Activate the MDB LED
-				gpio_set_level(pin_mdb_led, 1);
-
 				// Reset transmission availability
 				available_tx = 0;
 
@@ -232,7 +233,7 @@ void mdb_main_loop(void *pvParameters) {
 
 				case RESET: {
 					// Handle RESET command
-					read_9((uint8_t*) 0);
+					uint8_t checksum_ = read_9((uint8_t*) 0);
 
 					// Reset during VEND_STATE is interpreted as VEND_SUCCESS
 					if (machine_state == VEND_STATE) {
@@ -243,7 +244,6 @@ void mdb_main_loop(void *pvParameters) {
 					cashless_reset_todo = true;
 					break;
 				}
-
 				case SETUP: {
 					// Handle SETUP command
 					switch (read_9(&checksum)) {
@@ -255,7 +255,7 @@ void mdb_main_loop(void *pvParameters) {
 						uint8_t vmcRowsOnDisplay = read_9(&checksum);
 						uint8_t vmcDisplayInfo = read_9(&checksum);
 
-						read_9((uint8_t*) 0); // Consume checksum
+						uint8_t checksum_ = read_9((uint8_t*) 0);
 
 						machine_state = DISABLED_STATE;
 
@@ -268,8 +268,8 @@ void mdb_main_loop(void *pvParameters) {
 						mdb_payload[5] = 2;           	// Decimal Places
 						mdb_payload[6] = 5; 			// Maximum Response Time (5s)
 						mdb_payload[7] = 0b00001001;  	// Miscellaneous Options
-
 						available_tx = 8;
+
 						break;
 					}
 
@@ -278,16 +278,15 @@ void mdb_main_loop(void *pvParameters) {
 						uint16_t maxPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 
-						read_9((uint8_t*) 0); // Consume checksum
+						uint8_t checksum_ = read_9((uint8_t*) 0);
 						break;
 					}
 					}
 					break;
 				}
-
 				case POLL: {
 					// Handle POLL command
-					read_9((uint8_t*) 0);
+					uint8_t checksum_ = read_9((uint8_t*) 0);
 
 					if (outsequence_todo) {
 						// Command out of sequence
@@ -306,7 +305,7 @@ void mdb_main_loop(void *pvParameters) {
 						// Vend approved
 						vend_approved_todo = false;
 
-						uint16_t vendAmount = to_scale_factor(0.00, 1, 2);
+						uint16_t vendAmount = to_scale_factor(mdbCurrentSession.itemPrice, 1, 2);
 						mdb_payload[0] = 0x05;
 						mdb_payload[1] = vendAmount >> 8;
 						mdb_payload[2] = vendAmount;
@@ -333,9 +332,8 @@ void mdb_main_loop(void *pvParameters) {
 						session_begin_todo = false;
 
 						machine_state = IDLE_STATE;
-						mdbSessionOwner = &mdbCurrentSession.sessionOwner;
 
-						uint16_t fundsAvailable = to_scale_factor( mdbSessionOwner->fundsAvailable, 1, 2);
+						uint16_t fundsAvailable = to_scale_factor(mdbCurrentSession.fundsAvailable, 1, 2);
 						mdb_payload[0] = 0x03;
 						mdb_payload[1] = fundsAvailable >> 8;
 						mdb_payload[2] = fundsAvailable;
@@ -343,7 +341,6 @@ void mdb_main_loop(void *pvParameters) {
 					}
 					break;
 				}
-
 				case VEND: {
 					// Handle VEND command
 					switch (read_9(&checksum)) {
@@ -351,34 +348,181 @@ void mdb_main_loop(void *pvParameters) {
 						// Handling a vend request
 						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
-						read_9((uint8_t*) 0);
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
 
 						machine_state = VEND_STATE;
 
-						// Prepare the message for processing
-						struct flow_engine_sale_msg_t msg = { .mdbCurrentFlow = VEND_REQUEST };
-						msg.itemPrice = itemPrice;
-						msg.itemNumber = itemNumber;
-						xQueueSend(mdbEngineSaleQueue, &msg, 0);
+						mdbCurrentSession.itemNumber= itemNumber;
+						mdbCurrentSession.itemPrice= itemPrice;
+
+						if (mdbCurrentSession.pipe == PIPE_MQTT) {
+
+							if (itemPrice < mdbCurrentSession.fundsAvailable) {
+								vend_approved_todo = true;
+							} else {
+								vend_denied_todo = true;
+							}
+						}
+
+						/* PIPE_BLE */
+						char ble_payload[BLE_PAYLOAD_SIZE];
+
+						ble_payload[0] = 'a';
+
+						ble_payload[1] = itemPrice >> 8;
+						ble_payload[2] = itemPrice;
+
+						ble_payload[3] = itemNumber >> 8;
+						ble_payload[4] = itemNumber;
+
+						uint16_t currentSequential = mdbCurrentSession.sequential;
+						ble_payload[5] = currentSequential >> 8;
+						ble_payload[6] = currentSequential;
+
+						ble_payload[7] = 0x00;
+						ble_payload[8] = 0x00;
+
+						uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+						ble_payload[sizeof(ble_payload) - 1] = crc;
+
+						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+						break;
+					}
+					case VEND_CANCEL: {
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
+
+						vend_denied_todo = true;
+
+						break;
+					}
+					case VEND_SUCCESS: {
+
+						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
+
+						machine_state = IDLE_STATE;
+
+						/* PIPE_BLE */
+						char ble_payload[BLE_PAYLOAD_SIZE];
+
+						ble_payload[0] = 'b';
+
+						ble_payload[1] = 0x00;
+						ble_payload[2] = 0x00;
+						ble_payload[3] = itemNumber >> 8;
+						ble_payload[4] = itemNumber;
+
+						ble_payload[5] = 0x00;
+						ble_payload[6] = 0x00;
+						ble_payload[7] = 0x00;
+						ble_payload[8] = 0x00;
+
+						uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+						ble_payload[sizeof(ble_payload) - 1] = crc;
+
+						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+
+						break;
+					}
+					case VEND_FAILURE: {
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
+
+						machine_state = IDLE_STATE;
+
+						/* PIPE_BLE */
+						char ble_payload[BLE_PAYLOAD_SIZE];
+
+						ble_payload[0] = 'c';
+
+						ble_payload[1] = mdbCurrentSession.itemPrice >> 8;
+						ble_payload[2] = mdbCurrentSession.itemPrice;
+
+						ble_payload[3] = mdbCurrentSession.itemNumber >> 8;
+						ble_payload[4] = mdbCurrentSession.itemNumber;
+
+						uint16_t currentSequential = mdbCurrentSession.sequential - 1;
+
+						ble_payload[5] = currentSequential >> 8;
+						ble_payload[6] = currentSequential;
+
+						ble_payload[7] = 0x00;
+						ble_payload[8] = 0x00;
+
+						uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+						ble_payload[sizeof(ble_payload) - 1] = crc;
+
+						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+
+						break;
+					}
+					case SESSION_COMPLETE: {
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
+
+						session_end_todo = true;
+
+						/* PIPE_BLE */
+						char ble_payload[BLE_PAYLOAD_SIZE];
+
+						ble_payload[0] = 'd';
+
+						ble_payload[1] = 0x00;
+						ble_payload[2] = 0x00;
+						ble_payload[3] = 0x00;
+						ble_payload[4] = 0x00;
+
+						ble_payload[5] = 0x00;
+						ble_payload[6] = 0x00;
+						ble_payload[7] = 0x00;
+						ble_payload[8] = 0x00;
+
+						uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
+						ble_payload[sizeof(ble_payload) - 1] = crc;
+
+						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+
+						break;
+					}
+					case CASH_SALE: {
+
+						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
+
+						if(checksum_ == checksum){
+
+							char payload[100];
+							sprintf(payload, "item_number=%d,item_price=%d", itemNumber, itemPrice);
+							esp_mqtt_client_publish(mqttClient, "/application/sale/machine00000", (char*) &payload, 0, 1, 0);
+						}
+
 						break;
 					}
 					}
 					break;
 				}
-
 				case READER: {
 					// Handle READER command
 					switch (read_9(&checksum)) {
 					case READER_DISABLE: {
 						// Disable reader
-						read_9((uint8_t*) 0);
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
 						machine_state = DISABLED_STATE;
+
 						break;
 					}
 					case READER_ENABLE: {
 						// Enable reader
-						read_9((uint8_t*) 0);
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
 						machine_state = ENABLED_STATE;
+
 						break;
 					}
 					}
@@ -389,7 +533,11 @@ void mdb_main_loop(void *pvParameters) {
 				// Transmit the prepared payload via UART
 				transmitPayloadByUART9((uint8_t*) &mdb_payload, available_tx);
 
+				// Intended address
+				gpio_set_level(pin_mdb_led, 1);
+
 			} else {
+
 				// Not the intended address
 				gpio_set_level(pin_mdb_led, 0);
 			}
@@ -765,171 +913,6 @@ void mdb_main_loop(void *pvParameters) {
  fileEva_dts.close();
  }*/
 
-uint8_t crc8_le(uint8_t *data, uint16_t data_length) {
-
-	uint8_t crc = 0x00;
-	for (uint16_t x = 0; x < data_length; x++) {
-
-		uint8_t uData = *(uint8_t*) (data + x);
-		for (uint8_t iBit = 0; iBit < 8; iBit++, uData >>= 1) {
-
-			if ((uData ^ crc) & 0x01) {
-
-				crc >>= 1;
-				crc ^= 0x48;
-
-			} else
-				crc >>= 1;
-		}
-	}
-	return crc;
-}
-
-// a <= VEND_REQUEST
-// b <= VEND_SUCCESS
-// c <= VEND_FAILURE
-// d <= SESSION_COMPLETE
-//
-// e => session_begin_todo
-// f => vend_approved_todo
-// g => session_cancel_todo/vend_denied_todo
-
-void mdb_engine_loop(void *pvParameters) {
-
-	struct flow_engine_sale_msg_t msg;
-
-	while (1) {
-
-		if (xQueueReceive(mdbEngineSaleQueue, &msg, portMAX_DELAY)) {
-
-			switch (msg.mdbCurrentFlow) {
-
-			case CASH_SALE: {
-
-				char payload[100];
-
-				sprintf(payload, "item_number=%d,item_price=%d", msg.itemNumber, msg.itemPrice);
-				esp_mqtt_client_publish(mqttClient, "/application/sale/machine00000", (char*) &payload, 0, 1, 0);
-
-				break;
-			}
-			case VEND_SUCCESS: {
-
-				/* PIPE_BLE */
-				char ble_payload[BLE_PAYLOAD_SIZE];
-
-				ble_payload[0] = 'b';
-
-				ble_payload[1] = 0x00;
-				ble_payload[2] = 0x00;
-				ble_payload[3] = 0x00;
-				ble_payload[4] = 0x00;
-
-				ble_payload[5] = 0x00;
-				ble_payload[6] = 0x00;
-				ble_payload[7] = 0x00;
-				ble_payload[8] = 0x00;
-
-				uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-				ble_payload[sizeof(ble_payload) - 1] = crc;
-
-				sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
-
-				break;
-			}
-			case VEND_FAILURE: {
-
-				/* PIPE_BLE */
-				char ble_payload[BLE_PAYLOAD_SIZE];
-
-				ble_payload[0] = 'c';
-
-				ble_payload[1] = mdbSessionOwner->itemPrice >> 8;
-				ble_payload[2] = mdbSessionOwner->itemPrice;
-
-				ble_payload[3] = mdbSessionOwner->itemNumber >> 8;
-				ble_payload[4] = mdbSessionOwner->itemNumber;
-
-				uint16_t currentSequential = mdbSessionOwner->sequential - 1;
-
-				ble_payload[5] = currentSequential >> 8;
-				ble_payload[6] = currentSequential;
-
-				ble_payload[7] = 0x00;
-				ble_payload[8] = 0x00;
-
-				uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-				ble_payload[sizeof(ble_payload) - 1] = crc;
-
-				sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
-
-				break;
-			}
-			case SESSION_COMPLETE: {
-
-				/* PIPE_BLE */
-				char ble_payload[BLE_PAYLOAD_SIZE];
-
-				ble_payload[0] = 'd';
-
-				ble_payload[1] = 0x00;
-				ble_payload[2] = 0x00;
-				ble_payload[3] = 0x00;
-				ble_payload[4] = 0x00;
-
-				ble_payload[5] = 0x00;
-				ble_payload[6] = 0x00;
-				ble_payload[7] = 0x00;
-				ble_payload[8] = 0x00;
-
-				uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-				ble_payload[sizeof(ble_payload) - 1] = crc;
-
-				sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
-
-				break;
-			}
-			case VEND_REQUEST: {
-
-				if (mdbSessionOwner->pipe == PIPE_MQTT) {
-
-					if (msg.itemPrice < mdbSessionOwner->fundsAvailable) {
-						vend_approved_todo = true;
-					} else {
-						vend_denied_todo = true;
-					}
-				}
-
-				/* PIPE_BLE */
-				char ble_payload[BLE_PAYLOAD_SIZE];
-
-				ble_payload[0] = 'a';
-
-				ble_payload[1] = msg.itemPrice >> 8;
-				ble_payload[2] = msg.itemPrice;
-
-				ble_payload[3] = msg.itemNumber >> 8;
-				ble_payload[4] = msg.itemNumber;
-
-				uint16_t currentSequential = mdbSessionOwner->sequential;
-				ble_payload[5] = currentSequential >> 8;
-				ble_payload[6] = currentSequential;
-
-				ble_payload[7] = 0x00;
-				ble_payload[8] = 0x00;
-
-				uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-				ble_payload[sizeof(ble_payload) - 1] = crc;
-
-				sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
-
-				break;
-			}
-			}
-		}
-	}
-}
-
 void ping_callback(void *arg) {
 	esp_mqtt_client_publish(mqttClient, "/application/ping/machine00000", "ping", 0, 1, 0);
 }
@@ -940,7 +923,7 @@ void ble_event_handler(char *event_data) {
 	if (strncmp(event_data, "e", 1) == 0) {
 //    	Starting a vending session...
 
-		struct flow_mdb_session_msg_t msg = { .sessionOwner.pipe = PIPE_BLE, .sessionOwner.fundsAvailable = 0xffff };
+		struct flow_mdb_session_msg_t msg = { .pipe = PIPE_BLE, .fundsAvailable = 0xffff };
 
 		xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
 
@@ -1002,10 +985,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		if (strncmp(event->topic, "/iot/machine00000/session", 25) == 0) {
 			if (strncmp(event->data, "a", 1) == 0) {
 
-				struct flow_mdb_session_msg_t msg = { .sessionOwner.pipe = PIPE_MQTT };
+				struct flow_mdb_session_msg_t msg = { .pipe = PIPE_MQTT };
 
 				// a,150,87dfae4b-f021-40cd-a1dd-89c68d53ecb1
-				sscanf(event->data, "%*1s,%hu,%36s", (uint16_t*) &msg.sessionOwner.fundsAvailable, (char*) &msg.sessionOwner.uuid);
+				sscanf(event->data, "%*1s,%hu,%36s", (uint16_t*) &msg.fundsAvailable, (char*) &msg.uuid);
 
 				xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
 			}
@@ -1093,9 +1076,5 @@ void app_main(void) {
 
 	// Creation of the queue for MDB sessions and the main MDB task
 	mdbSessionQueue = xQueueCreate(16 /*queue-length*/, sizeof(struct flow_mdb_session_msg_t));
-	xTaskCreate(mdb_main_loop, "main_loop", 1024, (void*) 0, 1, (void*) 0);
-
-	// Creation of the queue for MDB engine sales and the processing task
-	mdbEngineSaleQueue = xQueueCreate(16 /*queue-length*/, sizeof(struct flow_engine_sale_msg_t));
-	xTaskCreate(mdb_engine_loop, "engine_loop", 1024, (void*) 0, 1, (void*) 0);
+	xTaskCreate(mdb_main_loop, "main_loop", 4096, (void*) 0, 1, (void*) 0);
 }

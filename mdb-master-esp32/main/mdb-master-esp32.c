@@ -96,10 +96,10 @@ void button_loop(void *pvParameters) {
 
 		if( gpio_get_level(GPIO_NUM_0) == 0 ){
 
-			while(gpio_get_level(GPIO_NUM_0) == 0);
-
 			uint32_t time= esp_timer_get_time();
 			xQueueSend(button_receive_queue, &time, 0);
+
+			while(gpio_get_level(GPIO_NUM_0) == 0);
 		}
 
 		vTaskDelay(34 / portTICK_PERIOD_MS);
@@ -159,13 +159,13 @@ void mdb_loop(void *pvParameters) {
 		if ( machine_state == INACTIVE_STATE ){
 
 			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
-			writePayload_ttl9(&mdb_payload, 1);
+			writePayload_ttl9((uint8_t*) &mdb_payload, 1);
 
 			xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS); // ACK*
 
 			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
 
-			writePayload_ttl9(&mdb_payload, 1);
+			writePayload_ttl9((uint8_t*) &mdb_payload, 1);
 
 			if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
 
@@ -180,15 +180,15 @@ void mdb_loop(void *pvParameters) {
 					mdb_payload[4] = 0; 			// Rows on Display
 					mdb_payload[5] = 0b00000001; 	// Display Information
 
-					writePayload_ttl9(&mdb_payload, 6);
+					writePayload_ttl9((uint8_t*) &mdb_payload, 6);
 
 					if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
 						// Reader Config
 
-						reader0x10.scaleFactor = mdb_payload[4];
-						reader0x10.decimalPlaces = mdb_payload[5];
-						reader0x10.responseTimeSec = mdb_payload[6];
-						reader0x10.miscellaneous = mdb_payload[7];
+						reader0x10.scaleFactor = msg.payload[4];
+						reader0x10.decimalPlaces = msg.payload[5];
+						reader0x10.responseTimeSec = msg.payload[6];
+						reader0x10.miscellaneous = msg.payload[7];
 
 						machine_state = DISABLED_STATE;
 					}
@@ -207,7 +207,7 @@ void mdb_loop(void *pvParameters) {
 			mdb_payload[4] = minPrice >> 8;
 			mdb_payload[5] = minPrice;
 
-			writePayload_ttl9(&mdb_payload, 6);
+			writePayload_ttl9((uint8_t*) &mdb_payload, 6);
 
 			xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK*
 
@@ -247,7 +247,7 @@ void mdb_loop(void *pvParameters) {
 			mdb_payload[29] = ' '; // Software Version
 			mdb_payload[30] = ' ';
 
-			writePayload_ttl9(&mdb_payload, 31);
+			writePayload_ttl9((uint8_t*) &mdb_payload, 31);
 
 			if (xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS)) {
 				// Peripheral ID
@@ -257,7 +257,7 @@ void mdb_loop(void *pvParameters) {
 				mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (READER & BIT_CMD_SET);
 				mdb_payload[1] = 0x01; // Reader Enable
 
-				writePayload_ttl9(&mdb_payload, 2);
+				writePayload_ttl9((uint8_t*) &mdb_payload, 2);
 
 				xQueueReceive(payload_receive_queue, &msg, 200 / portTICK_PERIOD_MS); // ACK*
 
@@ -267,7 +267,7 @@ void mdb_loop(void *pvParameters) {
 		} else {
 
 			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
-			writePayload_ttl9(&mdb_payload, 1);
+			writePayload_ttl9((uint8_t*) &mdb_payload, 1);
 
 			struct flow_payload_msg_t msg;
 			if ( xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS) ){
@@ -282,7 +282,7 @@ void mdb_loop(void *pvParameters) {
 					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload[1] = 0x04; // Session Complete
 
-					writePayload_ttl9(&mdb_payload, 2);
+					writePayload_ttl9((uint8_t*) &mdb_payload, 2);
 
 					xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK*
 					machine_state = IDLE_STATE;
@@ -298,7 +298,7 @@ void mdb_loop(void *pvParameters) {
 					mdb_payload[2] = itemNumber >> 8;
 					mdb_payload[3] = itemNumber;
 
-					writePayload_ttl9(&mdb_payload, 4);
+					writePayload_ttl9((uint8_t*) &mdb_payload, 4);
 
 					xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK*
 
@@ -307,7 +307,7 @@ void mdb_loop(void *pvParameters) {
 					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload[1] = 0x04; // Session Complete
 
-					writePayload_ttl9(&mdb_payload, 2);
+					writePayload_ttl9((uint8_t*) &mdb_payload, 2);
 
 					xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK*
 
@@ -317,7 +317,7 @@ void mdb_loop(void *pvParameters) {
 					mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload[1] = 0x04; // Session Complete
 
-					writePayload_ttl9(&mdb_payload, 2);
+					writePayload_ttl9((uint8_t*) &mdb_payload, 2);
 
 					xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK*
 
@@ -351,7 +351,7 @@ void mdb_loop(void *pvParameters) {
 						mdb_payload[4] = itemNumber >> 8;
 						mdb_payload[5] = itemNumber;
 
-						writePayload_ttl9(&mdb_payload, 6);
+						writePayload_ttl9((uint8_t*) &mdb_payload, 6);
 
 						xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK*
 
@@ -367,7 +367,7 @@ void mdb_loop(void *pvParameters) {
 						mdb_payload[4] = itemNumber >> 8;
 						mdb_payload[5] = itemNumber;
 
-						writePayload_ttl9(&mdb_payload, 6);
+						writePayload_ttl9((uint8_t*) &mdb_payload, 6);
 
 						xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK*
 					}
@@ -379,7 +379,7 @@ void mdb_loop(void *pvParameters) {
 		{
 			mdb_payload[0] = (0x60 /*Cashless Device #2*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
 
-			writePayload_ttl9(&mdb_payload, 1);
+			writePayload_ttl9((uint8_t*) &mdb_payload, 1);
 
 			struct flow_payload_msg_t msg;
 			xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK
