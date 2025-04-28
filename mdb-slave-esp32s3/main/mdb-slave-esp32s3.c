@@ -172,26 +172,6 @@ void transmitPayloadByUART9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(BIT_MODE_SET | checksum);
 }
 
-uint8_t crc8_le(uint8_t *data, uint16_t data_length) {
-
-	uint8_t crc = 0x00;
-	for (uint16_t x = 0; x < data_length; x++) {
-
-		uint8_t uData = *(uint8_t*) (data + x);
-		for (uint8_t iBit = 0; iBit < 8; iBit++, uData >>= 1) {
-
-			if ((uData ^ crc) & 0x01) {
-
-				crc >>= 1;
-				crc ^= 0x48;
-
-			} else
-				crc >>= 1;
-		}
-	}
-	return crc;
-}
-
 // Main MDB loop function
 void mdb_main_loop(void *pvParameters) {
 
@@ -366,25 +346,22 @@ void mdb_main_loop(void *pvParameters) {
 						}
 
 						/* PIPE_BLE */
+						uint16_t currentSequential = mdbCurrentSession.sequential;
+
 						char ble_payload[BLE_PAYLOAD_SIZE];
 
-						ble_payload[0] = 'a';
+						uint8_t chk= 0x00;
 
-						ble_payload[1] = itemPrice >> 8;
-						ble_payload[2] = itemPrice;
-
-						ble_payload[3] = itemNumber >> 8;
-						ble_payload[4] = itemNumber;
-
-						uint16_t currentSequential = mdbCurrentSession.sequential;
-						ble_payload[5] = currentSequential >> 8;
-						ble_payload[6] = currentSequential;
-
-						ble_payload[7] = 0x00;
-						ble_payload[8] = 0x00;
-
-						uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-						ble_payload[sizeof(ble_payload) - 1] = crc;
+						chk ^= ble_payload[0] = 'a';
+						chk ^= ble_payload[1] = itemPrice >> 8;
+						chk ^= ble_payload[2] = itemPrice;
+						chk ^= ble_payload[3] = itemNumber >> 8;
+						chk ^= ble_payload[4] = itemNumber;
+						chk ^= ble_payload[5] = currentSequential >> 8;
+						chk ^= ble_payload[6] = currentSequential;
+						chk ^= ble_payload[7] = 0x00;
+						chk ^= ble_payload[8] = 0x00;
+						ble_payload[9] = chk;
 
 						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 						break;
@@ -408,20 +385,18 @@ void mdb_main_loop(void *pvParameters) {
 						/* PIPE_BLE */
 						char ble_payload[BLE_PAYLOAD_SIZE];
 
-						ble_payload[0] = 'b';
+						uint8_t chk= 0x00;
 
-						ble_payload[1] = 0x00;
-						ble_payload[2] = 0x00;
-						ble_payload[3] = itemNumber >> 8;
-						ble_payload[4] = itemNumber;
-
-						ble_payload[5] = 0x00;
-						ble_payload[6] = 0x00;
-						ble_payload[7] = 0x00;
-						ble_payload[8] = 0x00;
-
-						uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-						ble_payload[sizeof(ble_payload) - 1] = crc;
+						chk ^= ble_payload[0] = 'b';
+						chk ^= ble_payload[1] = 0x00;
+						chk ^= ble_payload[2] = 0x00;
+						chk ^= ble_payload[3] = itemNumber >> 8;
+						chk ^= ble_payload[4] = itemNumber;
+						chk ^= ble_payload[5] = 0x00;
+						chk ^= ble_payload[6] = 0x00;
+						chk ^= ble_payload[7] = 0x00;
+						chk ^= ble_payload[8] = 0x00;
+						ble_payload[9] = chk;
 
 						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 
@@ -434,26 +409,22 @@ void mdb_main_loop(void *pvParameters) {
 						machine_state = IDLE_STATE;
 
 						/* PIPE_BLE */
-						char ble_payload[BLE_PAYLOAD_SIZE];
-
-						ble_payload[0] = 'c';
-
-						ble_payload[1] = mdbCurrentSession.itemPrice >> 8;
-						ble_payload[2] = mdbCurrentSession.itemPrice;
-
-						ble_payload[3] = mdbCurrentSession.itemNumber >> 8;
-						ble_payload[4] = mdbCurrentSession.itemNumber;
-
 						uint16_t currentSequential = mdbCurrentSession.sequential - 1;
 
-						ble_payload[5] = currentSequential >> 8;
-						ble_payload[6] = currentSequential;
+						char ble_payload[BLE_PAYLOAD_SIZE];
 
-						ble_payload[7] = 0x00;
-						ble_payload[8] = 0x00;
+						uint8_t chk= 0x00;
 
-						uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-						ble_payload[sizeof(ble_payload) - 1] = crc;
+						chk ^= ble_payload[0] = 'c';
+						chk ^= ble_payload[1] = mdbCurrentSession.itemPrice >> 8;
+						chk ^= ble_payload[2] = mdbCurrentSession.itemPrice;
+						chk ^= ble_payload[3] = mdbCurrentSession.itemNumber >> 8;
+						chk ^= ble_payload[4] = mdbCurrentSession.itemNumber;
+						chk ^= ble_payload[5] = currentSequential >> 8;
+						chk ^= ble_payload[6] = currentSequential;
+						chk ^= ble_payload[7] = 0x00;
+						chk ^= ble_payload[8] = 0x00;
+						ble_payload[9] = chk;
 
 						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 
@@ -468,20 +439,18 @@ void mdb_main_loop(void *pvParameters) {
 						/* PIPE_BLE */
 						char ble_payload[BLE_PAYLOAD_SIZE];
 
-						ble_payload[0] = 'd';
+						uint8_t chk= 0x00;
 
-						ble_payload[1] = 0x00;
-						ble_payload[2] = 0x00;
-						ble_payload[3] = 0x00;
-						ble_payload[4] = 0x00;
-
-						ble_payload[5] = 0x00;
-						ble_payload[6] = 0x00;
-						ble_payload[7] = 0x00;
-						ble_payload[8] = 0x00;
-
-						uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-						ble_payload[sizeof(ble_payload) - 1] = crc;
+						chk ^= ble_payload[0] = 'd';
+						chk ^= ble_payload[1] = 0x00;
+						chk ^= ble_payload[2] = 0x00;
+						chk ^= ble_payload[3] = 0x00;
+						chk ^= ble_payload[4] = 0x00;
+						chk ^= ble_payload[5] = 0x00;
+						chk ^= ble_payload[6] = 0x00;
+						chk ^= ble_payload[7] = 0x00;
+						chk ^= ble_payload[8] = 0x00;
+						ble_payload[9] = chk;
 
 						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 
@@ -933,8 +902,18 @@ void ble_event_handler(char *event_data) {
 		char ble_payload[BLE_PAYLOAD_SIZE];
 		memcpy(ble_payload, event_data, sizeof(ble_payload));
 
-		uint8_t crc = crc8_le((uint8_t*) &ble_payload, sizeof(ble_payload) - 1);
-//        assert(ble_payload[sizeof(ble_payload) - 1] == crc);
+		uint8_t chk= 0x00;
+
+		chk ^= ble_payload[0];
+		chk ^= ble_payload[1];
+		chk ^= ble_payload[2];
+		chk ^= ble_payload[3];
+		chk ^= ble_payload[4];
+		chk ^= ble_payload[5];
+		chk ^= ble_payload[6];
+		chk ^= ble_payload[7];
+		chk ^= ble_payload[8];
+//		assert(ble_payload[9] == chk);
 
 		uint16_t sequential = (ble_payload[5] << 8) | ble_payload[6];
 //        assert(sequential == (mdbSessionOwner->sequential + 1) );
