@@ -23,7 +23,6 @@
 
 #include "rsacipher.h"
 
-// Pin definitions for MDB communication
 #define pin_mdb_rx  GPIO_NUM_14  // Pin to receive data from MDB
 #define pin_mdb_tx  GPIO_NUM_27  // Pin to transmit data to MDB
 #define pin_mdb_led GPIO_NUM_25  // LED to indicate MDB state
@@ -32,7 +31,6 @@
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))  // Converts to scale factor
 #define from_scale_factor(p, x, y) (p * x * pow(10, -(y) )) // Converts from scale factor
 
-// MDB command definitions
 #define ACK 0x00  // Acknowledgment / Checksum correct
 #define RET 0xAA  // Retransmit previously sent data. Only VMC can send this
 #define NAK 0xFF  // Negative acknowledgment
@@ -97,8 +95,6 @@ uint8_t outsequence_todo = false;
 
 // MQTT client handle
 esp_mqtt_client_handle_t mqttClient = (void*) 0;
-
-#define BLE_PAYLOAD_SIZE 10
 
 // Defining session pipes for different communication types
 enum MDB_SESSION_PIPE {
@@ -196,13 +192,13 @@ void mdb_main_loop(void *pvParameters) {
 
 		if (coming_read & BIT_MODE_SET) {
 
-			// Check for common MDB responses (ACK, RET, NAK)
 			if ((uint8_t) coming_read == ACK) {
-				// ACK (Acknowledgement)
+				// ACK
 			} else if ((uint8_t) coming_read == RET) {
-				// RET (Return)
+				// RET
 			} else if ((uint8_t) coming_read == NAK) {
-				// NAK (Negative Acknowledgement)
+				// NAK
+
 			} else if ((coming_read & BIT_ADD_SET) == 0x10) {
 
 				// Reset transmission availability
@@ -214,7 +210,6 @@ void mdb_main_loop(void *pvParameters) {
 				case RESET: {
 					// Handle RESET command
 					uint8_t checksum_ = read_9((uint8_t*) 0);
-
 					// Reset during VEND_STATE is interpreted as VEND_SUCCESS
 					if (machine_state == VEND_STATE) {
 						// VEND_SUCCESS interpretation
@@ -222,6 +217,7 @@ void mdb_main_loop(void *pvParameters) {
 
 					machine_state = INACTIVE_STATE;
 					cashless_reset_todo = true;
+
 					break;
 				}
 				case SETUP: {
@@ -234,7 +230,6 @@ void mdb_main_loop(void *pvParameters) {
 						uint8_t vmcColumnsOnDisplay = read_9(&checksum);
 						uint8_t vmcRowsOnDisplay = read_9(&checksum);
 						uint8_t vmcDisplayInfo = read_9(&checksum);
-
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 
 						machine_state = DISABLED_STATE;
@@ -285,7 +280,7 @@ void mdb_main_loop(void *pvParameters) {
 						// Vend approved
 						vend_approved_todo = false;
 
-						uint16_t vendAmount = to_scale_factor(mdbCurrentSession.itemPrice, 1, 2);
+						uint16_t vendAmount = mdbCurrentSession.itemPrice;
 						mdb_payload[0] = 0x05;
 						mdb_payload[1] = vendAmount >> 8;
 						mdb_payload[2] = vendAmount;
@@ -313,7 +308,7 @@ void mdb_main_loop(void *pvParameters) {
 
 						machine_state = IDLE_STATE;
 
-						uint16_t fundsAvailable = to_scale_factor(mdbCurrentSession.fundsAvailable, 1, 2);
+						uint16_t fundsAvailable = mdbCurrentSession.fundsAvailable;
 						mdb_payload[0] = 0x03;
 						mdb_payload[1] = fundsAvailable >> 8;
 						mdb_payload[2] = fundsAvailable;
@@ -348,7 +343,7 @@ void mdb_main_loop(void *pvParameters) {
 						/* PIPE_BLE */
 						uint16_t currentSequential = mdbCurrentSession.sequential;
 
-						char ble_payload[BLE_PAYLOAD_SIZE];
+						char ble_payload[10];
 
 						uint8_t chk= 0x00;
 
@@ -383,7 +378,7 @@ void mdb_main_loop(void *pvParameters) {
 						machine_state = IDLE_STATE;
 
 						/* PIPE_BLE */
-						char ble_payload[BLE_PAYLOAD_SIZE];
+						char ble_payload[10];
 
 						uint8_t chk= 0x00;
 
@@ -411,7 +406,7 @@ void mdb_main_loop(void *pvParameters) {
 						/* PIPE_BLE */
 						uint16_t currentSequential = mdbCurrentSession.sequential - 1;
 
-						char ble_payload[BLE_PAYLOAD_SIZE];
+						char ble_payload[10];
 
 						uint8_t chk= 0x00;
 
@@ -437,7 +432,7 @@ void mdb_main_loop(void *pvParameters) {
 						session_end_todo = true;
 
 						/* PIPE_BLE */
-						char ble_payload[BLE_PAYLOAD_SIZE];
+						char ble_payload[10];
 
 						uint8_t chk= 0x00;
 
@@ -899,7 +894,7 @@ void ble_event_handler(char *event_data) {
 	} else if (strncmp(event_data, "f", 1) == 0) {
 //    	Approve the vending session...
 
-		char ble_payload[BLE_PAYLOAD_SIZE];
+		char ble_payload[10];
 		memcpy(ble_payload, event_data, sizeof(ble_payload));
 
 		uint8_t chk= 0x00;
