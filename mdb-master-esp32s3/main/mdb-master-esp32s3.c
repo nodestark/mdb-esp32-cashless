@@ -50,7 +50,6 @@ struct reader_t {
 	uint8_t responseTimeSec;
 	uint8_t miscellaneous;
 };
-
 struct reader_t reader0x10;
 
 void write_9( uint16_t nth9 ) {
@@ -108,25 +107,25 @@ void button_loop(void *pvParameters) {
 
 struct flow_payload_msg_t {
 	uint8_t payload[256];
-	uint8_t length;
 };
 
 static QueueHandle_t payload_receive_queue = NULL;
 
 void payload_loop(void *pvParameters) {
 
-	struct flow_payload_msg_t msg = {.length = 0};
+	struct flow_payload_msg_t msg;
 
+	uint8_t idx= 0;
 	for (;;) {
 
 		uint16_t coming_read = read_9();
 
-		msg.payload[msg.length++] = coming_read;
+		msg.payload[idx++] = coming_read;
 
 		if(coming_read & BIT_MODE_SET) {
 
 			xQueueSend(payload_receive_queue, &msg, 0);
-			msg.length = 0;
+			idx = 0;
 		}
 	}
 }
@@ -269,7 +268,6 @@ void mdb_loop(void *pvParameters) {
 			mdb_payload[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
 			writePayload_ttl9((uint8_t*) &mdb_payload, 1);
 
-			struct flow_payload_msg_t msg;
 			if ( xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS) ){
 
 				uint32_t button_time;
@@ -381,7 +379,6 @@ void mdb_loop(void *pvParameters) {
 
 			writePayload_ttl9((uint8_t*) &mdb_payload, 1);
 
-			struct flow_payload_msg_t msg;
 			xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK
 		}
 	}
