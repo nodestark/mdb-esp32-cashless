@@ -90,6 +90,10 @@ uint8_t vend_denied_todo = false;
 uint8_t cashless_reset_todo = false;
 uint8_t outsequence_todo = false;
 
+#define TIMEOUT_IDLE_US  (90 * 1000000ULL)  // 90 segundos em microssegundos
+
+static int64_t state_start_time_us = 0;
+
 // MQTT client handle
 esp_mqtt_client_handle_t mqttClient = (void*) 0;
 
@@ -325,12 +329,32 @@ void mdb_main_loop(void *pvParameters) {
 
 						machine_state = IDLE_STATE;
 
+						state_start_time_us = esp_timer_get_time();
+
 						uint16_t fundsAvailable = mdbCurrentSession.fundsAvailable;
 						mdb_payload[0] = 0x03;
 						mdb_payload[1] = fundsAvailable >> 8;
 						mdb_payload[2] = fundsAvailable;
 						available_tx = 3;
+
+					} else if ( session_cancel_todo ) {
+						// Cancel session
+			            session_cancel_todo = false;
+
+			            mdb_payload[ 0 ] = 0x04;
+			            available_tx = 1;
+
+					} else {
+
+					    int64_t now = esp_timer_get_time();
+					    int64_t elapsed = now - state_start_time_us;
+
+					    if( machine_state >= IDLE_STATE && elapsed > TIMEOUT_IDLE_US ){
+					    	session_cancel_todo = true;
+					    }
+
 					}
+
 					break;
 				}
 				case VEND: {
@@ -878,8 +902,7 @@ void ble_event_handler(char *event_data) {
 	} else if (strncmp(event_data, "g", 1) == 0) {
 //    	Close the vending session...
 
-		session_cancel_todo = (machine_state == IDLE_STATE) ? true : false;
-		vend_denied_todo = (machine_state == VEND_STATE) ? true : false;
+		session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
 	}
 }
 
