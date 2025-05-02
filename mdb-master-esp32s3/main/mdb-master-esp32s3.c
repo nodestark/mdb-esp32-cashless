@@ -15,19 +15,20 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define pin_mdb_rx 	GPIO_NUM_4
-#define pin_mdb_tx 	GPIO_NUM_5
+#define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
+#define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
+#define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
 
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))
 #define from_scale_factor(p, x, y) (p * x * pow(10, -(y) ))
 
-#define ACK 0x00  // Acknowledgment / Checksum correct;
-#define RET 0xAA  // Retransmit the previously sent data. Only the VMC can transmit this byte;
-#define NAK 0xFF  // Negative acknowledge.
+#define ACK 	0x00  // Acknowledgment / Checksum correct;
+#define RET 	0xAA  // Retransmit the previously sent data. Only the VMC can transmit this byte;
+#define NAK 	0xFF  // Negative acknowledge.
 
-#define BIT_MODE_SET  0b100000000
-#define BIT_ADD_SET   0b011111000
-#define BIT_CMD_SET   0b000000111
+#define BIT_MODE_SET 	0b100000000
+#define BIT_ADD_SET   	0b011111000
+#define BIT_CMD_SET   	0b000000111
 
 enum MDB_COMMAND {
 	RESET = 0x00,
@@ -146,14 +147,16 @@ void writePayload_ttl9(uint8_t *mdb_payload, uint8_t mdb_length) {
 
 void mdb_loop(void *pvParameters) {
 
+	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+
 	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
 	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 
+	uint8_t mdb_payload[256];
+
+	struct flow_payload_msg_t msg;
+
 	for (;;) {
-
-		uint8_t mdb_payload[256];
-
-		struct flow_payload_msg_t msg;
 
 		if ( machine_state == INACTIVE_STATE ){
 
@@ -381,6 +384,8 @@ void mdb_loop(void *pvParameters) {
 
 			xQueueReceive(payload_receive_queue, &msg, 500 / portTICK_PERIOD_MS); // ACK
 		}
+
+		gpio_set_level(pin_mdb_led, machine_state > ENABLED_STATE);
 	}
 }
 

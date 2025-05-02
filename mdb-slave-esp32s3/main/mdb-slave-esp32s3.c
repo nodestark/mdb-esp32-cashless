@@ -7,20 +7,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-
 #include <freertos/FreeRTOS.h>
 #include <esp_private/wifi.h>
 #include <nvs_flash.h>
 #include <mqtt_client.h>
 #include <esp_timer.h>
-
 #include <driver/gpio.h>
 #include <rom/ets_sys.h>
 #include <esp_random.h>
 
 #include "bleprph.h"
 #include "nimble.h"
-
 #include "rsacipher.h"
 
 #define pin_mdb_rx  GPIO_NUM_14  // Pin to receive data from MDB
@@ -104,7 +101,6 @@ enum MDB_SESSION_PIPE {
 // Structure for MDB flow (reading data, controlling machine state)
 struct flow_mdb_session_msg_t {
 	uint8_t pipe;
-	char uuid[36];
 	uint16_t sequential;
 	uint16_t fundsAvailable;
 	uint16_t itemPrice;
@@ -113,6 +109,27 @@ struct flow_mdb_session_msg_t {
 
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = (void*) 0;
+
+void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t sequential){
+
+	char ble_payload[10];
+
+	uint8_t chk= 0x00;
+
+	chk ^= ble_payload[0] = cmd;
+	chk ^= ble_payload[1] = itemPrice >> 8;
+	chk ^= ble_payload[2] = itemPrice;
+	chk ^= ble_payload[3] = itemNumber >> 8;
+	chk ^= ble_payload[4] = itemNumber;
+	chk ^= ble_payload[5] = sequential >> 8;
+	chk ^= ble_payload[6] = sequential;
+	chk ^= ble_payload[7] = 0x00;
+	chk ^= ble_payload[8] = 0x00;
+
+	ble_payload[9] = chk;
+
+	sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+}
 
 // Function to read 9 bits from MDB (one byte at a time)
 uint16_t read_9(uint8_t *checksum) {
@@ -341,24 +358,9 @@ void mdb_main_loop(void *pvParameters) {
 						}
 
 						/* PIPE_BLE */
-						uint16_t currentSequential = mdbCurrentSession.sequential;
 
-						char ble_payload[10];
+						transmitPayloadByBLE('a', mdbCurrentSession.itemPrice, mdbCurrentSession.itemNumber, mdbCurrentSession.sequential);
 
-						uint8_t chk= 0x00;
-
-						chk ^= ble_payload[0] = 'a';
-						chk ^= ble_payload[1] = itemPrice >> 8;
-						chk ^= ble_payload[2] = itemPrice;
-						chk ^= ble_payload[3] = itemNumber >> 8;
-						chk ^= ble_payload[4] = itemNumber;
-						chk ^= ble_payload[5] = currentSequential >> 8;
-						chk ^= ble_payload[6] = currentSequential;
-						chk ^= ble_payload[7] = 0x00;
-						chk ^= ble_payload[8] = 0x00;
-						ble_payload[9] = chk;
-
-						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
 						break;
 					}
 					case VEND_CANCEL: {
@@ -377,23 +379,11 @@ void mdb_main_loop(void *pvParameters) {
 
 						machine_state = IDLE_STATE;
 
+						mdbCurrentSession.itemNumber= itemNumber;
+
 						/* PIPE_BLE */
-						char ble_payload[10];
 
-						uint8_t chk= 0x00;
-
-						chk ^= ble_payload[0] = 'b';
-						chk ^= ble_payload[1] = 0x00;
-						chk ^= ble_payload[2] = 0x00;
-						chk ^= ble_payload[3] = itemNumber >> 8;
-						chk ^= ble_payload[4] = itemNumber;
-						chk ^= ble_payload[5] = 0x00;
-						chk ^= ble_payload[6] = 0x00;
-						chk ^= ble_payload[7] = 0x00;
-						chk ^= ble_payload[8] = 0x00;
-						ble_payload[9] = chk;
-
-						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+						transmitPayloadByBLE('b', mdbCurrentSession.itemPrice, mdbCurrentSession.itemNumber, mdbCurrentSession.sequential);
 
 						break;
 					}
@@ -404,24 +394,8 @@ void mdb_main_loop(void *pvParameters) {
 						machine_state = IDLE_STATE;
 
 						/* PIPE_BLE */
-						uint16_t currentSequential = mdbCurrentSession.sequential - 1;
 
-						char ble_payload[10];
-
-						uint8_t chk= 0x00;
-
-						chk ^= ble_payload[0] = 'c';
-						chk ^= ble_payload[1] = mdbCurrentSession.itemPrice >> 8;
-						chk ^= ble_payload[2] = mdbCurrentSession.itemPrice;
-						chk ^= ble_payload[3] = mdbCurrentSession.itemNumber >> 8;
-						chk ^= ble_payload[4] = mdbCurrentSession.itemNumber;
-						chk ^= ble_payload[5] = currentSequential >> 8;
-						chk ^= ble_payload[6] = currentSequential;
-						chk ^= ble_payload[7] = 0x00;
-						chk ^= ble_payload[8] = 0x00;
-						ble_payload[9] = chk;
-
-						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+						transmitPayloadByBLE('c', mdbCurrentSession.itemPrice, mdbCurrentSession.itemNumber, mdbCurrentSession.sequential - 1);
 
 						break;
 					}
@@ -432,22 +406,8 @@ void mdb_main_loop(void *pvParameters) {
 						session_end_todo = true;
 
 						/* PIPE_BLE */
-						char ble_payload[10];
 
-						uint8_t chk= 0x00;
-
-						chk ^= ble_payload[0] = 'd';
-						chk ^= ble_payload[1] = 0x00;
-						chk ^= ble_payload[2] = 0x00;
-						chk ^= ble_payload[3] = 0x00;
-						chk ^= ble_payload[4] = 0x00;
-						chk ^= ble_payload[5] = 0x00;
-						chk ^= ble_payload[6] = 0x00;
-						chk ^= ble_payload[7] = 0x00;
-						chk ^= ble_payload[8] = 0x00;
-						ble_payload[9] = chk;
-
-						sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+						transmitPayloadByBLE('d', mdbCurrentSession.itemPrice, mdbCurrentSession.itemNumber, mdbCurrentSession.sequential);
 
 						break;
 					}
@@ -462,7 +422,7 @@ void mdb_main_loop(void *pvParameters) {
 
 							char payload[100];
 							sprintf(payload, "item_number=%d,item_price=%d", itemNumber, itemPrice);
-							esp_mqtt_client_publish(mqttClient, "/application/sale/machine00000", (char*) &payload, 0, 1, 0);
+							esp_mqtt_client_publish(mqttClient, "/app/machine00000/sale", (char*) &payload, 0, 1, 0);
 						}
 
 						break;
@@ -878,7 +838,7 @@ void mdb_main_loop(void *pvParameters) {
  }*/
 
 void ping_callback(void *arg) {
-	esp_mqtt_client_publish(mqttClient, "/application/ping/machine00000", "ping", 0, 1, 0);
+	esp_mqtt_client_publish(mqttClient, "/app/machine00000/ping", "1", 0, 1, 0);
 }
 
 void ble_event_handler(char *event_data) {
@@ -887,7 +847,7 @@ void ble_event_handler(char *event_data) {
 	if (strncmp(event_data, "e", 1) == 0) {
 //    	Starting a vending session...
 
-		struct flow_mdb_session_msg_t msg = { .pipe = PIPE_BLE, .fundsAvailable = 0xffff };
+		struct flow_mdb_session_msg_t msg = { .pipe = PIPE_BLE, .sequential = esp_random(), .fundsAvailable = 0xffff };
 
 		xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
 
@@ -933,7 +893,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		esp_mqtt_client_subscribe(client, "/iot/machine00000/#", 0);
 
-		esp_mqtt_client_publish(client, "/application/poweron/machine00000", "poweron", 0, 1, 0);
+		esp_mqtt_client_publish(client, "/app/machine00000/poweron", "1", 0, 1, 0);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
@@ -956,16 +916,14 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		}
 
 		// Starting a new vending session...
-		if (strncmp(event->topic, "/iot/machine00000/session", 25) == 0) {
-			if (strncmp(event->data, "a", 1) == 0) {
+		if (strncmp(event->topic, "/iot/machine00000/session/e", 25) == 0) {
 
-				struct flow_mdb_session_msg_t msg = { .pipe = PIPE_MQTT };
+			struct flow_mdb_session_msg_t msg = { .pipe = PIPE_MQTT };
 
-				// a,150,87dfae4b-f021-40cd-a1dd-89c68d53ecb1
-				sscanf(event->data, "%*1s,%hu,%36s", (uint16_t*) &msg.fundsAvailable, (char*) &msg.uuid);
+			// 150,7309
+			sscanf(event->data, "%hu,%hu", (uint16_t*) &msg.fundsAvailable, (uint16_t*) &msg.sequential);
 
-				xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
-			}
+			xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
 		}
 
 		break;
