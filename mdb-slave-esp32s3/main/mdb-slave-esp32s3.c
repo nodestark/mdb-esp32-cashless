@@ -15,6 +15,8 @@
 #include <driver/gpio.h>
 #include <rom/ets_sys.h>
 #include <esp_random.h>
+#include <driver/uart.h>
+#include <driver/gpio.h>
 
 #include "bleprph.h"
 #include "nimble.h"
@@ -493,373 +495,500 @@ void mdb_main_loop(void *pvParameters) {
 	}
 }
 
+char* calc_crc_16(uint16_t *pCrc, char *uData) {
+
+	uint8_t data = *uData;
+	for (uint8_t iBit = 0; iBit < 8; iBit++, data >>= 1) {
+
+		if ((data ^ *pCrc) & 0x01) {
+
+			*pCrc >>= 1;
+			*pCrc ^= 0xA001;
+
+		} else
+			*pCrc >>= 1;
+	}
+
+	return uData;
+}
+
+void readTelemetryDex() {
+
+	uint8_t data[128];
+
+	// -------------------------------------- First Handshake --------------------------------------
+
+	// ENQ ->
+	uart_write_bytes(UART_NUM_1, "\x05", 1);
+
+	// DLE 0 <-
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
+	if( data[0] != 0x10 || data[1] != '0' ) return;
+
+	// DLE SOH ->
+	uart_write_bytes(UART_NUM_1, "\x10\x01", 2);
+
+	uint16_t crc = 0x0000;
+
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "1"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "2"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "3"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "4"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "5"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "6"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "7"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "8"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "9"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "0"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "R"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "R"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "0"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "0"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "L"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "0"), 1 );
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "6"), 1 );
+
+	uart_write_bytes( UART_NUM_1, "\x10", 1 );						// DLE
+	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x03"), 1 ); 	// ETX
+
+	data [0] = crc % 256;
+	data [1] = crc / 256;
+	uart_write_bytes( UART_NUM_1, &data, 2 );
+
+	// DLE 1 <-
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
+	if( data[0] != 0x10 || data[1] != '1' ) return;
+
+	// EOT ->
+	uart_write_bytes(UART_NUM_1, "\x04", 1);
+
+	// -------------------------------------- Second Handshake --------------------------------------
+
+	// ENQ <-
+	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(10));
+	if( data[0] != 0x05 ) return;
+
+	// DLE 0 ->
+	uart_write_bytes(UART_NUM_1, "\x10\x30", 2);
+
+	// DLE SOH <-
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
+	if( data[0] != 0x10 || data[1] != 0x01 ) return;
+
+	// ... <-
+	uart_read_bytes(UART_NUM_1, (void*) 0, 18, pdMS_TO_TICKS(10));
+
+	// DLE ETX <-
+	uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(10));
+
+	// CRC <-
+	uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(10));
+
+	// DLE 1 ->
+	uart_write_bytes(UART_NUM_1, "\x10\x31", 2);
+
+	// EOT <-
+	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(10));
+	if( data[0] != 0x04 ) return;
+
+	// -------------------------------------- Data transfer --------------------------------------
+
+	// ENQ <-
+	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(10));
+	if (data[0] != 0x05) return;
+
+	uint8_t b = 0x00;
+	for (;;) {
+
+		data[0] = 0x10; 					// DLE
+		data[1] = ('0' + (b++ & 0x01)); 	// '0'|'1' ->
+		uart_write_bytes(UART_NUM_1, &data, 2);
+
+		// DLE STX <-
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
+		if (data[0] != 0x10 || data[1] != 0x02) return;
+
+		for (;;) {
+
+			uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(50));
+			if (data[0] == 0x10) { // DLE
+
+				uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(50));
+				if (data[1] == 0x17) { // ETB
+
+					// <- CRC
+					uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(50));
+
+					break;
+
+				} else if (data[1] == 0x03) { // ETX
+
+					// CRC <-
+					uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(50));
+
+					data[0] = 0x10; 					// DLE
+					data[1] = ('0' + (b++ & 0x01)); 	// '0'|'1' ->
+					uart_write_bytes(UART_NUM_1, &data, 2);
+
+					// EOT <-
+					uart_read_bytes(UART_NUM_1, (void*) 0, 1, pdMS_TO_TICKS(50));
+
+					return;
+				}
+			}
+
+			printf("%c", data[0]);
+		}
+	}
+}
+
+/*void readTelemetryDex() {
+
+	HardwareSerial serial1 = HardwareSerial(1);
+
+	serial1.begin(9600, SERIAL_8N1, pin_dex_rx, pin_dex_tx,
+			(settings.telemetry_selected != 2 ? true : false));
+	serial1.setTimeout(3000);
+
+	//----- First Handshake ---------------------------------
+	serial1.write(0x05); // ENQ
+
+	if (!serial1.find("\x10\x30")) {
+		return;
+	} // DLE '0'
+
+	vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
+
+	unsigned int crc;
+
+	crc = 0;
+	serial1.write(0x10);                      	// DLE
+	serial1.write(0x01);                      	// SOH
+	serial1.write(calc_crc_16(&crc, '1'));
+	serial1.write(calc_crc_16(&crc, '2'));
+	serial1.write(calc_crc_16(&crc, '3'));
+	serial1.write(calc_crc_16(&crc, '4'));
+	serial1.write(calc_crc_16(&crc, '5'));
+	serial1.write(calc_crc_16(&crc, '6'));
+	serial1.write(calc_crc_16(&crc, '7'));
+	serial1.write(calc_crc_16(&crc, '8'));
+	serial1.write(calc_crc_16(&crc, '9'));
+	serial1.write(calc_crc_16(&crc, '0'));
+	serial1.write(calc_crc_16(&crc, 'R'));
+	serial1.write(calc_crc_16(&crc, 'R'));
+	serial1.write(calc_crc_16(&crc, '0'));
+	serial1.write(calc_crc_16(&crc, '0'));
+	serial1.write(calc_crc_16(&crc, 'L'));
+	serial1.write(calc_crc_16(&crc, '0'));
+	serial1.write(calc_crc_16(&crc, '6'));
+	serial1.write(0x10);                      	// DLE
+	serial1.write(calc_crc_16(&crc, 0x03)); 	// ETX
+	serial1.write(crc % 256);
+	serial1.write(crc / 256);
+
+	if (!serial1.find("\x10\x31")) {
+		return;
+	} // DLE '1'
+
+	vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
+
+	serial1.write(0x04); // EOT
+
+	//--- Second Handshake -------------------------------
+	if (!serial1.find("\x05")) {
+		return;
+	} // ENQ
+	vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
+
+	serial1.write("\x10\x30"); // DLE '0'
+
+	// <--- (DLE SOH) & Communication ID & Response Code & Revision&Level & (DLE ETX CRC-16)
+	if (!serial1.find("\x10\x01")) {
+		return;
+	} // DLE SOH
+
+	// ...
+
+	if (!serial1.find("\x10\x03")) {
+		return;
+	} // DLE ETX
+
+	vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
+
+	serial1.write("\x10\x31"); // DLE '1'
+
+	if (!serial1.find("\x04")) {
+		return;
+	} // EOT
+
+	//--- Data Transfer -------------------------------
+	if (!serial1.find("\x05")) {
+		return;
+	} // ENQ
+
+	File fileEva_dts = SPIFFS.open(TELEMETRY_FILE, FILE_WRITE);
+
+	byte b = 0x00;
+	do {
+
+		vTaskDelay(pdMS_TO_TICKS(100)); // ticks para ms
+
+		// clear buffer...
+		while (serial1.available())
+			serial1.read();
+
+		serial1.write(0x10); // DLE
+		serial1.write(0x30 | (b++ & 0x01)); // '0'|'1'
+
+		// <--- (DLE STX) & (Audit Data (Block n)) & (DLE ETB|ETX CRC-16)
+
+		// DLE STX
+		if (serial1.find("\x10\x02")) {
+
+			fileEva_dts.print(serial1.readStringUntil('\x10'));
+
+		} else {
+
+			// EOT
+			break;
+		}
+
+	} while (true);
+
+	fileEva_dts.close();
+}*/
 /*
- char calc_crc_16(uint8_t *pCrc, uint8_t uData) {
-
- uint8_t oldData = uData;
- for (uint8_t iBit = 0; iBit < 8; iBit++, uData >>= 1) {
-
- if ((uData ^ *pCrc) & 0x01) {
-
- *pCrc >>= 1;
- *pCrc ^= 0xA001;
-
- } else *pCrc >>= 1;
- }
-
- return oldData;
- }
- */
-
-/*
- void readTelemetryDex() {
-
- HardwareSerial serial1 = HardwareSerial(1);
-
- serial1.begin(9600, SERIAL_8N1, pin_dex_rx, pin_dex_tx, (settings.telemetry_selected != 2 ? true : false));
- serial1.setTimeout(3000);
-
- //----- First Handshake ---------------------------------
- serial1.write(0x05); // ENQ
-
- if (!serial1.find("\x10\x30")) {
- return;
- } // DLE '0'
-
- vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
- unsigned int crc;
-
- crc = 0;
- serial1.write(0x10);                      	// DLE
- serial1.write(0x01);                      	// SOH
- serial1.write(calc_crc_16(&crc, '1'));
- serial1.write(calc_crc_16(&crc, '2'));
- serial1.write(calc_crc_16(&crc, '3'));
- serial1.write(calc_crc_16(&crc, '4'));
- serial1.write(calc_crc_16(&crc, '5'));
- serial1.write(calc_crc_16(&crc, '6'));
- serial1.write(calc_crc_16(&crc, '7'));
- serial1.write(calc_crc_16(&crc, '8'));
- serial1.write(calc_crc_16(&crc, '9'));
- serial1.write(calc_crc_16(&crc, '0'));
- serial1.write(calc_crc_16(&crc, 'R'));
- serial1.write(calc_crc_16(&crc, 'R'));
- serial1.write(calc_crc_16(&crc, '0'));
- serial1.write(calc_crc_16(&crc, '0'));
- serial1.write(calc_crc_16(&crc, 'L'));
- serial1.write(calc_crc_16(&crc, '0'));
- serial1.write(calc_crc_16(&crc, '6'));
- serial1.write(0x10);                      	// DLE
- serial1.write(calc_crc_16(&crc, 0x03)); 	// ETX
- serial1.write(crc % 256);
- serial1.write(crc / 256);
-
- if (!serial1.find("\x10\x31")) {
- return;
- } // DLE '1'
-
- vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
- serial1.write(0x04); // EOT
-
- //--- Second Handshake -------------------------------
- if (!serial1.find("\x05")) {
- return;
- } // ENQ
- vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
- serial1.write("\x10\x30"); // DLE '0'
-
- // <--- (DLE SOH) & Communication ID & Response Code & Revision&Level & (DLE ETX CRC-16)
- if (!serial1.find("\x10\x01")) {
- return;
- } // DLE SOH
-
- // ...
-
- if (!serial1.find("\x10\x03")) {
- return;
- } // DLE ETX
-
- vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
- serial1.write("\x10\x31"); // DLE '1'
-
- if (!serial1.find("\x04")) {
- return;
- } // EOT
-
- //--- Data Transfer -------------------------------
- if (!serial1.find("\x05")) {
- return;
- } // ENQ
-
- File fileEva_dts = SPIFFS.open(TELEMETRY_FILE, FILE_WRITE);
-
- byte b = 0x00;
- do {
-
- vTaskDelay(pdMS_TO_TICKS(100)); // ticks para ms
-
- // clear buffer...
- while (serial1.available())
- serial1.read();
-
- serial1.write(0x10); // DLE
- serial1.write(0x30 | (b++ & 0x01)); // '0'|'1'
-
- // <--- (DLE STX) & (Audit Data (Block n)) & (DLE ETB|ETX CRC-16)
-
- // DLE STX
- if (serial1.find("\x10\x02")) {
-
- fileEva_dts.print(serial1.readStringUntil('\x10'));
-
- } else {
-
- // EOT
- break;
- }
-
- } while (true);
-
- fileEva_dts.close();
- }
- */
-
-/*
- void readTelemetryDdcmp() {
-
- HardwareSerial serial1 = HardwareSerial(1);
-
- serial1.begin(2400, SERIAL_8N1, pin_dex_rx, pin_dex_tx, (settings.telemetry_selected != 2 ? true : false));
- serial1.setTimeout(3000);
-
- //-------------------------------------------------------
- byte buffer_rx[1024];
- byte seq_rr_ddcmp;
- byte seq_xx_ddcmp = 0;
- unsigned int n_bytes_message;
- unsigned int crc;
- byte last_package;
-
- crc = 0;
- // start...
- serial1.write(calc_crc_16(&crc, 0x05));
- serial1.write(calc_crc_16(&crc, 0x06));
- serial1.write(calc_crc_16(&crc, 0x40));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x00)); // mbd
- serial1.write(calc_crc_16(&crc, 0x01)); // sadd
- serial1.write(crc % 256);
- serial1.write(crc / 256);
-
- if (serial1.readBytes(buffer_rx, 8) != 8) {
- return;
- }
- if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x07)) {
- return;
- } // ...stack
-
- crc = 0;
- // data message header...
- serial1.write(calc_crc_16(&crc, 0x81));
- serial1.write(calc_crc_16(&crc, 0x10));            // nn
- serial1.write(calc_crc_16(&crc, 0x40));            // mm
- serial1.write(calc_crc_16(&crc, 0x00));            // rr
- serial1.write(calc_crc_16(&crc, ++seq_xx_ddcmp));  // xx
- serial1.write(calc_crc_16(&crc, 0x01));            // sadd
- serial1.write(crc % 256);
- serial1.write(crc / 256);
-
- crc = 0;
- // who are you...
- serial1.write(calc_crc_16(&crc, 0x77));
- serial1.write(calc_crc_16(&crc, 0xe0));
- serial1.write(calc_crc_16(&crc, 0x00));
-
- serial1.write(calc_crc_16(&crc, 0x00)); // security code
- serial1.write(calc_crc_16(&crc, 0x00));
-
- serial1.write(calc_crc_16(&crc, 0x00)); // pass code
- serial1.write(calc_crc_16(&crc, 0x00));
-
- serial1.write(calc_crc_16(&crc, 0x01)); // date dd mm yy
- serial1.write(calc_crc_16(&crc, 0x01));
- serial1.write(calc_crc_16(&crc, 0x70));
- serial1.write(calc_crc_16(&crc, 0x00)); // time hh mm ss
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x00)); // u2
- serial1.write(calc_crc_16(&crc, 0x00)); // u1
- serial1.write(calc_crc_16(&crc, 0x0c)); // 0b-Maintenance 0c-Route Person
- serial1.write(crc % 256);
- serial1.write(crc / 256);
-
- if (serial1.readBytes(buffer_rx, 8) != 8) {
- return;
- }
- if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
- return;
- } // ...ack
-
- if (serial1.readBytes(buffer_rx, 8) != 8) {
- return;
- }
- if (buffer_rx[0] != 0x81) {
- return;
- } // ...data message header
-
- seq_rr_ddcmp = buffer_rx[4];
-
- n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
- n_bytes_message += 2; // crc16
- if (serial1.readBytes(buffer_rx, n_bytes_message) != n_bytes_message) {
- return;
- }
- //  if (buffer_rx[2] != 0x01) {
- //    return;
- //  }
- // ...not rejected
-
- crc = 0;
- // ack...
- serial1.write(calc_crc_16(&crc, 0x05));
- serial1.write(calc_crc_16(&crc, 0x01));
- serial1.write(calc_crc_16(&crc, 0x40));
- serial1.write(calc_crc_16(&crc, seq_rr_ddcmp)); // rr
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x01));         // sadd
- serial1.write(crc % 256);
- serial1.write(crc / 256); // Transmitiu ACK (05 01 40 01 00 01 B8 55)
-
- crc = 0;
- // data message header...
- serial1.write(calc_crc_16(&crc, 0x81));
- serial1.write(calc_crc_16(&crc, 0x09));                   // nm
- serial1.write(calc_crc_16(&crc, 0x40));                   // mm
- serial1.write(calc_crc_16(&crc, seq_rr_ddcmp));           // rr
- serial1.write(calc_crc_16(&crc, ++seq_xx_ddcmp));         // xx
- serial1.write(calc_crc_16(&crc, 0x01));                   // sadd
- serial1.write(crc % 256);
- serial1.write(crc / 256); // Transmitiu DATA_HEADER (81 09 40 01 02 01 46 B0)
-
- crc = 0;
- serial1.write(calc_crc_16(&crc, 0x77));
- serial1.write(calc_crc_16(&crc, 0xE2));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x02)); // security read list (Standard audit data is read without resetting the interim data. (Read only) )
- serial1.write(calc_crc_16(&crc, 0x01));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(crc % 256);
- serial1.write(crc / 256); // Transmitiu READ_DATA/Audit Collection List (77 E2 00 01 01 00 00 00 00 F0 72)
-
- if (serial1.readBytes(buffer_rx, 8) != 8) {
- return;
- }
- if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
- return;
- } // ...ack
-
- if (serial1.readBytes(buffer_rx, 8) != 8) {
- return;
- }
- if (buffer_rx[0] != 0x81) {
- return;
- } // DATA HEADER
-
- seq_rr_ddcmp = buffer_rx[4];
-
- n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
- n_bytes_message += 2; // crc16
- if (serial1.readBytes(buffer_rx, n_bytes_message) != n_bytes_message) {
- return;
- }
- if (buffer_rx[2] != 0x01) {
- return;
- }
-
- crc = 0;
- serial1.write(calc_crc_16(&crc, 0x05));
- serial1.write(calc_crc_16(&crc, 0x01));
- serial1.write(calc_crc_16(&crc, 0x40));
- serial1.write(calc_crc_16(&crc, seq_rr_ddcmp));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x01));
- serial1.write(crc % 256);
- serial1.write(crc / 256); // Transmitiu ACK
-
- File fileEva_dts = SPIFFS.open(TELEMETRY_FILE, FILE_WRITE);
-
- do {
- if (serial1.readBytes(buffer_rx, 8) != 8) {
- break;
- }
- if (buffer_rx[0] != 0x81) {
- break;
- } // ...data header
-
- seq_rr_ddcmp = buffer_rx[4];
- last_package = buffer_rx[2] & 0x80;
-
- n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
- n_bytes_message += 2; // crc16
-
- if (serial1.readBytes(buffer_rx, n_bytes_message) != n_bytes_message) {
- break;
- } // dados
-
- // Os dados recebidos são: 99 nn "audit dada" crc crc, ou seja, as informaões de audit estão da posição 2 do buffer_rx à posição n_bytes-3
- for (int x = 2; x < n_bytes_message - 2; x++)
- fileEva_dts.print((char) buffer_rx[x]);
-
- crc = 0;
- serial1.write(calc_crc_16(&crc, 0x05));
- serial1.write(calc_crc_16(&crc, 0x01));
- serial1.write(calc_crc_16(&crc, 0x40));
- serial1.write(calc_crc_16(&crc, seq_rr_ddcmp));
- serial1.write(calc_crc_16(&crc, 0x00));
- serial1.write(calc_crc_16(&crc, 0x01));
- serial1.write(crc % 256);
- serial1.write(crc / 256); // Transmitiu ACK
-
- if (last_package) {
-
- crc = 0;
- serial1.write(calc_crc_16(&crc, 0x81));
- serial1.write(calc_crc_16(&crc, 0x02));         // nn
- serial1.write(calc_crc_16(&crc, 0x40));         // mm
- serial1.write(calc_crc_16(&crc, seq_rr_ddcmp)); // rr
- serial1.write(calc_crc_16(&crc, 0x03));         // xx
- serial1.write(calc_crc_16(&crc, 0x01));         // sadd
- serial1.write(crc % 256);
- serial1.write(crc / 256); // Transmitiu DATA HEADER
-
- serial1.write(0x77);
- serial1.write(0xFF);
- serial1.write(0x67);
- serial1.write(0xB0);   // Transmitiu FINIS
-
- if (serial1.readBytes(buffer_rx, 8) != 8) {
- break;
- }
- if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
- break;
- } // ACK
-
- break;
- }
-
- vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
- } while (true);
-
- fileEva_dts.close();
- }*/
+void readTelemetryDdcmp() {
+
+	HardwareSerial serial1 = HardwareSerial(1);
+
+	serial1.begin(2400, SERIAL_8N1, pin_dex_rx, pin_dex_tx, (settings.telemetry_selected != 2 ? true : false));
+	serial1.setTimeout(3000);
+
+	//-------------------------------------------------------
+	byte buffer_rx[1024];
+	byte seq_rr_ddcmp;
+	byte seq_xx_ddcmp = 0;
+	unsigned int n_bytes_message;
+	unsigned int crc;
+	byte last_package;
+
+	crc = 0;
+	// start...
+	serial1.write(calc_crc_16(&crc, 0x05));
+	serial1.write(calc_crc_16(&crc, 0x06));
+	serial1.write(calc_crc_16(&crc, 0x40));
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x00)); // mbd
+	serial1.write(calc_crc_16(&crc, 0x01)); // sadd
+	serial1.write(crc % 256);
+	serial1.write(crc / 256);
+
+	if (serial1.readBytes(buffer_rx, 8) != 8) {
+		return;
+	}
+	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x07)) {
+		return;
+	} // ...stack
+
+	crc = 0;
+	// data message header...
+	serial1.write(calc_crc_16(&crc, 0x81));
+	serial1.write(calc_crc_16(&crc, 0x10));            // nn
+	serial1.write(calc_crc_16(&crc, 0x40));            // mm
+	serial1.write(calc_crc_16(&crc, 0x00));            // rr
+	serial1.write(calc_crc_16(&crc, ++seq_xx_ddcmp));  // xx
+	serial1.write(calc_crc_16(&crc, 0x01));            // sadd
+	serial1.write(crc % 256);
+	serial1.write(crc / 256);
+
+	crc = 0;
+	// who are you...
+	serial1.write(calc_crc_16(&crc, 0x77));
+	serial1.write(calc_crc_16(&crc, 0xe0));
+	serial1.write(calc_crc_16(&crc, 0x00));
+
+	serial1.write(calc_crc_16(&crc, 0x00)); // security code
+	serial1.write(calc_crc_16(&crc, 0x00));
+
+	serial1.write(calc_crc_16(&crc, 0x00)); // pass code
+	serial1.write(calc_crc_16(&crc, 0x00));
+
+	serial1.write(calc_crc_16(&crc, 0x01)); // date dd mm yy
+	serial1.write(calc_crc_16(&crc, 0x01));
+	serial1.write(calc_crc_16(&crc, 0x70));
+	serial1.write(calc_crc_16(&crc, 0x00)); // time hh mm ss
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x00)); // u2
+	serial1.write(calc_crc_16(&crc, 0x00)); // u1
+	serial1.write(calc_crc_16(&crc, 0x0c)); // 0b-Maintenance 0c-Route Person
+	serial1.write(crc % 256);
+	serial1.write(crc / 256);
+
+	if (serial1.readBytes(buffer_rx, 8) != 8) {
+		return;
+	}
+	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
+		return;
+	} // ...ack
+
+	if (serial1.readBytes(buffer_rx, 8) != 8) {
+		return;
+	}
+	if (buffer_rx[0] != 0x81) {
+		return;
+	} // ...data message header
+
+	seq_rr_ddcmp = buffer_rx[4];
+
+	n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
+	n_bytes_message += 2; // crc16
+	if (serial1.readBytes(buffer_rx, n_bytes_message) != n_bytes_message) {
+		return;
+	}
+	//  if (buffer_rx[2] != 0x01) {
+	//    return;
+	//  }
+	// ...not rejected
+
+	crc = 0;
+	// ack...
+	serial1.write(calc_crc_16(&crc, 0x05));
+	serial1.write(calc_crc_16(&crc, 0x01));
+	serial1.write(calc_crc_16(&crc, 0x40));
+	serial1.write(calc_crc_16(&crc, seq_rr_ddcmp)); // rr
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x01));         // sadd
+	serial1.write(crc % 256);
+	serial1.write(crc / 256); // Transmitiu ACK (05 01 40 01 00 01 B8 55)
+
+	crc = 0;
+	// data message header...
+	serial1.write(calc_crc_16(&crc, 0x81));
+	serial1.write(calc_crc_16(&crc, 0x09));                   // nm
+	serial1.write(calc_crc_16(&crc, 0x40));                   // mm
+	serial1.write(calc_crc_16(&crc, seq_rr_ddcmp));           // rr
+	serial1.write(calc_crc_16(&crc, ++seq_xx_ddcmp));         // xx
+	serial1.write(calc_crc_16(&crc, 0x01));                   // sadd
+	serial1.write(crc % 256);
+	serial1.write(crc / 256); // Transmitiu DATA_HEADER (81 09 40 01 02 01 46 B0)
+
+	crc = 0;
+	serial1.write(calc_crc_16(&crc, 0x77));
+	serial1.write(calc_crc_16(&crc, 0xE2));
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x02)); // security read list (Standard audit data is read without resetting the interim data. (Read only) )
+	serial1.write(calc_crc_16(&crc, 0x01));
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(crc % 256);
+	serial1.write(crc / 256); // Transmitiu READ_DATA/Audit Collection List (77 E2 00 01 01 00 00 00 00 F0 72)
+
+	if (serial1.readBytes(buffer_rx, 8) != 8) {
+		return;
+	}
+	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
+		return;
+	} // ...ack
+
+	if (serial1.readBytes(buffer_rx, 8) != 8) {
+		return;
+	}
+	if (buffer_rx[0] != 0x81) {
+		return;
+	} // DATA HEADER
+
+	seq_rr_ddcmp = buffer_rx[4];
+
+	n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
+	n_bytes_message += 2; // crc16
+	if (serial1.readBytes(buffer_rx, n_bytes_message) != n_bytes_message) {
+		return;
+	}
+	if (buffer_rx[2] != 0x01) {
+		return;
+	}
+
+	crc = 0;
+	serial1.write(calc_crc_16(&crc, 0x05));
+	serial1.write(calc_crc_16(&crc, 0x01));
+	serial1.write(calc_crc_16(&crc, 0x40));
+	serial1.write(calc_crc_16(&crc, seq_rr_ddcmp));
+	serial1.write(calc_crc_16(&crc, 0x00));
+	serial1.write(calc_crc_16(&crc, 0x01));
+	serial1.write(crc % 256);
+	serial1.write(crc / 256); // Transmitiu ACK
+
+	File fileEva_dts = SPIFFS.open(TELEMETRY_FILE, FILE_WRITE);
+
+	do {
+		if (serial1.readBytes(buffer_rx, 8) != 8) {
+			break;
+		}
+		if (buffer_rx[0] != 0x81) {
+			break;
+		} // ...data header
+
+		seq_rr_ddcmp = buffer_rx[4];
+		last_package = buffer_rx[2] & 0x80;
+
+		n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
+		n_bytes_message += 2; // crc16
+
+		if (serial1.readBytes(buffer_rx, n_bytes_message) != n_bytes_message) {
+			break;
+		} // dados
+
+		// Os dados recebidos são: 99 nn "audit dada" crc crc, ou seja, as informaões de audit estão da posição 2 do buffer_rx à posição n_bytes-3
+		for (int x = 2; x < n_bytes_message - 2; x++)
+			fileEva_dts.print((char) buffer_rx[x]);
+
+		crc = 0;
+		serial1.write(calc_crc_16(&crc, 0x05));
+		serial1.write(calc_crc_16(&crc, 0x01));
+		serial1.write(calc_crc_16(&crc, 0x40));
+		serial1.write(calc_crc_16(&crc, seq_rr_ddcmp));
+		serial1.write(calc_crc_16(&crc, 0x00));
+		serial1.write(calc_crc_16(&crc, 0x01));
+		serial1.write(crc % 256);
+		serial1.write(crc / 256); // Transmitiu ACK
+
+		if (last_package) {
+
+			crc = 0;
+			serial1.write(calc_crc_16(&crc, 0x81));
+			serial1.write(calc_crc_16(&crc, 0x02));         // nn
+			serial1.write(calc_crc_16(&crc, 0x40));         // mm
+			serial1.write(calc_crc_16(&crc, seq_rr_ddcmp)); // rr
+			serial1.write(calc_crc_16(&crc, 0x03));         // xx
+			serial1.write(calc_crc_16(&crc, 0x01));         // sadd
+			serial1.write(crc % 256);
+			serial1.write(crc / 256); // Transmitiu DATA HEADER
+
+			serial1.write(0x77);
+			serial1.write(0xFF);
+			serial1.write(0x67);
+			serial1.write(0xB0);   // Transmitiu FINIS
+
+			if (serial1.readBytes(buffer_rx, 8) != 8) {
+				break;
+			}
+			if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
+				break;
+			} // ACK
+
+			break;
+		}
+
+		vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
+
+	} while (true);
+
+	fileEva_dts.close();
+}*/
 
 void ping_callback(void *arg) {
 	esp_mqtt_client_publish(mqttClient, "/app/machine00000/ping", "1", 0, 1, 0);
