@@ -87,23 +87,10 @@ uint16_t read_9() {
 
 static QueueHandle_t button_receive_queue = NULL;
 
-void button_loop(void *pvParameters) {
+static void IRAM_ATTR button_isr_handler(void* arg) {
 
-	gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
-	gpio_set_pull_mode(GPIO_NUM_0, GPIO_PULLUP_ONLY);
-
-	for(;;){
-
-		if( gpio_get_level(GPIO_NUM_0) == 0 ){
-
-			uint32_t time= esp_timer_get_time();
-			xQueueSend(button_receive_queue, &time, 0);
-
-			while(gpio_get_level(GPIO_NUM_0) == 0);
-		}
-
-		vTaskDelay(34 / portTICK_PERIOD_MS);
-	}
+	uint32_t time = esp_timer_get_time();
+	xQueueSendFromISR(button_receive_queue, &time, 0);
 }
 
 struct flow_payload_msg_t {
@@ -392,8 +379,20 @@ void mdb_loop(void *pvParameters) {
 void app_main(void) {
 
 	button_receive_queue = xQueueCreate(1 /*queue-length*/, sizeof(uint32_t));
-	xTaskCreate(button_loop, "button_loop", 6765, (void*) 0, 1, (void*) 0);
 
+	gpio_config_t io_conf = {
+			.intr_type = GPIO_INTR_NEGEDGE, // Borda de descida (pressionado)
+			.mode = GPIO_MODE_INPUT,
+			.pin_bit_mask = (1ULL << GPIO_NUM_0),
+			.pull_up_en = GPIO_PULLUP_ENABLE,
+			.pull_down_en = GPIO_PULLDOWN_DISABLE,
+    };
+    gpio_config(&io_conf);
+
+    gpio_install_isr_service(0 /*default*/);
+    gpio_isr_handler_add(GPIO_NUM_0, button_isr_handler, (void*) 0);
+
+    //
 	payload_receive_queue = xQueueCreate(1 /*queue-length*/, sizeof(struct flow_payload_msg_t));
 	xTaskCreate(payload_loop, "payload_loop", 6765, (void*) 0, 1, (void*) 0);
 
