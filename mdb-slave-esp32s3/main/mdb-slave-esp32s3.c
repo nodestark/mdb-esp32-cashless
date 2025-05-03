@@ -114,11 +114,11 @@ struct flow_mdb_session_msg_t {
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = (void*) 0;
 
-void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t sequential){
+void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t sequential) {
 
 	char ble_payload[10];
 
-	uint8_t chk= 0x00;
+	uint8_t chk = 0x00;
 
 	chk ^= ble_payload[0] = cmd;
 	chk ^= ble_payload[1] = itemPrice >> 8;
@@ -152,7 +152,8 @@ uint16_t read_9(uint8_t *checksum) {
 		ets_delay_us(104); // 9600bps timing
 	}
 
-	if (checksum) *checksum += coming_read;
+	if (checksum)
+		*checksum += coming_read;
 
 	return coming_read;
 }
@@ -337,22 +338,21 @@ void mdb_main_loop(void *pvParameters) {
 						mdb_payload[2] = fundsAvailable;
 						available_tx = 3;
 
-					} else if ( session_cancel_todo ) {
+					} else if (session_cancel_todo) {
 						// Cancel session
-			            session_cancel_todo = false;
+						session_cancel_todo = false;
 
-			            mdb_payload[ 0 ] = 0x04;
-			            available_tx = 1;
+						mdb_payload[0] = 0x04;
+						available_tx = 1;
 
 					} else {
 
-					    int64_t now = esp_timer_get_time();
-					    int64_t elapsed = now - state_start_time_us;
+						int64_t now = esp_timer_get_time();
+						int64_t elapsed = now - state_start_time_us;
 
-					    if( machine_state >= IDLE_STATE && elapsed > TIMEOUT_IDLE_US ){
-					    	session_cancel_todo = true;
-					    }
-
+						if (machine_state >= IDLE_STATE && elapsed > TIMEOUT_IDLE_US) {
+							session_cancel_todo = true;
+						}
 					}
 
 					break;
@@ -369,8 +369,8 @@ void mdb_main_loop(void *pvParameters) {
 
 						machine_state = VEND_STATE;
 
-						mdbCurrentSession.itemNumber= itemNumber;
-						mdbCurrentSession.itemPrice= itemPrice;
+						mdbCurrentSession.itemNumber = itemNumber;
+						mdbCurrentSession.itemPrice = itemPrice;
 
 						if (mdbCurrentSession.pipe == PIPE_MQTT) {
 
@@ -403,7 +403,7 @@ void mdb_main_loop(void *pvParameters) {
 
 						machine_state = IDLE_STATE;
 
-						mdbCurrentSession.itemNumber= itemNumber;
+						mdbCurrentSession.itemNumber = itemNumber;
 
 						/* PIPE_BLE */
 
@@ -442,7 +442,7 @@ void mdb_main_loop(void *pvParameters) {
 
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 
-						if(checksum_ == checksum){
+						if (checksum_ == checksum) {
 
 							char payload[100];
 							sprintf(payload, "item_number=%d,item_price=%d", itemNumber, itemPrice);
@@ -881,7 +881,7 @@ void ble_event_handler(char *event_data) {
 		char ble_payload[10];
 		memcpy(ble_payload, event_data, sizeof(ble_payload));
 
-		uint8_t chk= 0x00;
+		uint8_t chk = 0x00;
 
 		chk ^= ble_payload[0];
 		chk ^= ble_payload[1];
@@ -895,7 +895,7 @@ void ble_event_handler(char *event_data) {
 //		assert(ble_payload[9] == chk);
 
 		uint16_t sequential = (ble_payload[5] << 8) | ble_payload[6];
-//        assert(sequential == (mdbSessionOwner->sequential + 1) );
+//		assert(sequential == (mdbSessionOwner->sequential + 1) );
 
 		vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
 
@@ -933,17 +933,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		printf("DATA=%.*s\r\n", event->data_len, event->data);
 
 		if (strncmp(event->topic, "/iot/machine00000/restart", 25) == 0) {
-			if (strncmp(event->data, "restart", 7) == 0) {
-				esp_restart();
-			}
+			esp_restart();
 		}
 
 		// Starting a new vending session...
-		if (strncmp(event->topic, "/iot/machine00000/session/e", 25) == 0) {
+		if (strncmp(event->topic, "/iot/machine00000/session/e", 27) == 0) {
 
 			struct flow_mdb_session_msg_t msg = { .pipe = PIPE_MQTT };
 
-			// 150,7309
+			// 150,<sequential>
 			sscanf(event->data, "%hu,%hu", (uint16_t*) &msg.fundsAvailable, (uint16_t*) &msg.sequential);
 
 			xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
@@ -1007,7 +1005,7 @@ void app_main(void) {
 	esp_wifi_start();
 
 	// MQTT client configuration (Eclipse MQTT Broker)
-	const esp_mqtt_client_config_t mqttCfg = { .broker.address.uri = "mqtt://mqtt.eclipseprojects.io", /*MQTT broker URI*/ };
+	const esp_mqtt_client_config_t mqttCfg = { .broker.address.uri = "mqtt://mqtt.eclipseprojects.io", /*MQTT broker URI*/};
 
 	// Initialization and registration of MQTT client events
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
