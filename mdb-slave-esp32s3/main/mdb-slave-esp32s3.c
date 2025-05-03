@@ -263,7 +263,7 @@ void mdb_main_loop(void *pvParameters) {
 						mdb_payload[3] = 0xff;        	// Country Code Low
 						mdb_payload[4] = 1;           	// Scale Factor
 						mdb_payload[5] = 2;           	// Decimal Places
-						mdb_payload[6] = 5; 			// Maximum Response Time (5s)
+						mdb_payload[6] = 3; 			// Maximum Response Time (3s)
 						mdb_payload[7] = 0b00001001;  	// Miscellaneous Options
 						available_tx = 8;
 
