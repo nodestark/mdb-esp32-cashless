@@ -1046,17 +1046,17 @@ void app_main(void) {
 	nvs_flash_init();
 
 	// Initialize UART1 driver and configure TX/RX pins
-	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
-	ESP_ERROR_CHECK (uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1));
-
-	uart_config_t uart_config_1 = {
-			.baud_rate = 9600,
-			.data_bits = UART_DATA_8_BITS,
-			.parity = UART_PARITY_DISABLE,
-			.stop_bits = UART_STOP_BITS_1,
-			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
-
-	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
+//	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
+//	ESP_ERROR_CHECK (uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1));
+//
+//	uart_config_t uart_config_1 = {
+//			.baud_rate = 9600,
+//			.data_bits = UART_DATA_8_BITS,
+//			.parity = UART_PARITY_DISABLE,
+//			.stop_bits = UART_STOP_BITS_1,
+//			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
+//
+//	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
 
 	// Initialization of the network stack and event loop
 	esp_netif_init();
