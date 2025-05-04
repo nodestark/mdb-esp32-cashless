@@ -514,9 +514,14 @@ char* calc_crc_16(uint16_t *pCrc, char *uData) {
 
 void readTelemetryDex() {
 
-	uint8_t data[128];
+	uart_set_baudrate(UART_NUM_1, 9600);
+
+//	uart_set_line_inverse(UART_NUM_1, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
+	uart_set_line_inverse(UART_NUM_1, 0);
 
 	// -------------------------------------- First Handshake --------------------------------------
+
+	uint8_t data[128];
 
 	// ENQ ->
 	uart_write_bytes(UART_NUM_1, "\x05", 1);
@@ -530,6 +535,7 @@ void readTelemetryDex() {
 
 	uint16_t crc = 0x0000;
 
+	// Communication ID
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "1"), 1 );
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "2"), 1 );
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "3"), 1 );
@@ -540,7 +546,9 @@ void readTelemetryDex() {
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "8"), 1 );
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "9"), 1 );
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "0"), 1 );
+	// Operation Request
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "R"), 1 );
+	// Revision & Level
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "R"), 1 );
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "0"), 1 );
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "0"), 1 );
@@ -575,11 +583,16 @@ void readTelemetryDex() {
 	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
 	if( data[0] != 0x10 || data[1] != 0x01 ) return;
 
-	// ... <-
-	uart_read_bytes(UART_NUM_1, (void*) 0, 18, pdMS_TO_TICKS(10));
+	// Response Code <-
+	uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(10));
+	// Communication ID <-
+	uart_read_bytes(UART_NUM_1, (void*) 0, 10, pdMS_TO_TICKS(10));
+	// Revision & Level <-
+	uart_read_bytes(UART_NUM_1, (void*) 0, 6, pdMS_TO_TICKS(10));
 
 	// DLE ETX <-
 	uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(10));
+	if( data[0] != 0x10 || data[1] != 0x03 ) return;
 
 	// CRC <-
 	uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(10));
@@ -600,8 +613,8 @@ void readTelemetryDex() {
 	uint8_t b = 0x00;
 	for (;;) {
 
-		data[0] = 0x10; 					// DLE
-		data[1] = ('0' + (b++ & 0x01)); 	// '0'|'1' ->
+		data[0] = 0x10; 				// DLE
+		data[1] = ('0' + (b++ & 1)); 	// '0'|'1' ->
 		uart_write_bytes(UART_NUM_1, &data, 2);
 
 		// DLE STX <-
@@ -614,14 +627,15 @@ void readTelemetryDex() {
 			if (data[0] == 0x10) { // DLE
 
 				uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(50));
-				if (data[1] == 0x17) { // ETB
+
+				if (data[0] == 0x17) { // ETB
 
 					// <- CRC
 					uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(50));
 
 					break;
 
-				} else if (data[1] == 0x03) { // ETX
+				} else if (data[0] == 0x03) { // ETX
 
 					// CRC <-
 					uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(50));
@@ -642,121 +656,6 @@ void readTelemetryDex() {
 	}
 }
 
-/*void readTelemetryDex() {
-
-	HardwareSerial serial1 = HardwareSerial(1);
-
-	serial1.begin(9600, SERIAL_8N1, pin_dex_rx, pin_dex_tx,
-			(settings.telemetry_selected != 2 ? true : false));
-	serial1.setTimeout(3000);
-
-	//----- First Handshake ---------------------------------
-	serial1.write(0x05); // ENQ
-
-	if (!serial1.find("\x10\x30")) {
-		return;
-	} // DLE '0'
-
-	vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
-	unsigned int crc;
-
-	crc = 0;
-	serial1.write(0x10);                      	// DLE
-	serial1.write(0x01);                      	// SOH
-	serial1.write(calc_crc_16(&crc, '1'));
-	serial1.write(calc_crc_16(&crc, '2'));
-	serial1.write(calc_crc_16(&crc, '3'));
-	serial1.write(calc_crc_16(&crc, '4'));
-	serial1.write(calc_crc_16(&crc, '5'));
-	serial1.write(calc_crc_16(&crc, '6'));
-	serial1.write(calc_crc_16(&crc, '7'));
-	serial1.write(calc_crc_16(&crc, '8'));
-	serial1.write(calc_crc_16(&crc, '9'));
-	serial1.write(calc_crc_16(&crc, '0'));
-	serial1.write(calc_crc_16(&crc, 'R'));
-	serial1.write(calc_crc_16(&crc, 'R'));
-	serial1.write(calc_crc_16(&crc, '0'));
-	serial1.write(calc_crc_16(&crc, '0'));
-	serial1.write(calc_crc_16(&crc, 'L'));
-	serial1.write(calc_crc_16(&crc, '0'));
-	serial1.write(calc_crc_16(&crc, '6'));
-	serial1.write(0x10);                      	// DLE
-	serial1.write(calc_crc_16(&crc, 0x03)); 	// ETX
-	serial1.write(crc % 256);
-	serial1.write(crc / 256);
-
-	if (!serial1.find("\x10\x31")) {
-		return;
-	} // DLE '1'
-
-	vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
-	serial1.write(0x04); // EOT
-
-	//--- Second Handshake -------------------------------
-	if (!serial1.find("\x05")) {
-		return;
-	} // ENQ
-	vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
-	serial1.write("\x10\x30"); // DLE '0'
-
-	// <--- (DLE SOH) & Communication ID & Response Code & Revision&Level & (DLE ETX CRC-16)
-	if (!serial1.find("\x10\x01")) {
-		return;
-	} // DLE SOH
-
-	// ...
-
-	if (!serial1.find("\x10\x03")) {
-		return;
-	} // DLE ETX
-
-	vTaskDelay(pdMS_TO_TICKS(10)); // ticks para ms
-
-	serial1.write("\x10\x31"); // DLE '1'
-
-	if (!serial1.find("\x04")) {
-		return;
-	} // EOT
-
-	//--- Data Transfer -------------------------------
-	if (!serial1.find("\x05")) {
-		return;
-	} // ENQ
-
-	File fileEva_dts = SPIFFS.open(TELEMETRY_FILE, FILE_WRITE);
-
-	byte b = 0x00;
-	do {
-
-		vTaskDelay(pdMS_TO_TICKS(100)); // ticks para ms
-
-		// clear buffer...
-		while (serial1.available())
-			serial1.read();
-
-		serial1.write(0x10); // DLE
-		serial1.write(0x30 | (b++ & 0x01)); // '0'|'1'
-
-		// <--- (DLE STX) & (Audit Data (Block n)) & (DLE ETB|ETX CRC-16)
-
-		// DLE STX
-		if (serial1.find("\x10\x02")) {
-
-			fileEva_dts.print(serial1.readStringUntil('\x10'));
-
-		} else {
-
-			// EOT
-			break;
-		}
-
-	} while (true);
-
-	fileEva_dts.close();
-}*/
 /*
 void readTelemetryDdcmp() {
 
@@ -1101,26 +1000,36 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 void app_main(void) {
 
-	// LED configuration as output and initial activation
+	// Configure LED pin as output and set initial state to LOW
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
-	gpio_set_level(pin_mdb_led, 1);
+	gpio_set_level(pin_mdb_led, 0);
 
 	// Initialization of non-volatile flash memory (NVS)
 	nvs_flash_init();
+
+	// Initialize UART1 driver and configure TX/RX pins
+	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
+	ESP_ERROR_CHECK (uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1));
+
+	uart_config_t uart_config_1 = {
+			.baud_rate = 9600,
+			.data_bits = UART_DATA_8_BITS,
+			.parity = UART_PARITY_DISABLE,
+			.stop_bits = UART_STOP_BITS_1,
+			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
+
+	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
 
 	// Initialization of the network stack and event loop
 	esp_netif_init();
 	esp_event_loop_create_default();
 	esp_netif_create_default_wifi_sta();
 
-	// Wi-Fi interface configuration and initialization
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	esp_wifi_init(&cfg);
 
-	// Registering the Wi-Fi event handler
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
 
-	// Wi-Fi network configuration (SSID and password)
 	wifi_config_t wifi_config = {
 			.sta = {
 					.ssid = "ALLREDE-SOARES-2G", 	// Wi-Fi network name (SSID)
@@ -1128,7 +1037,6 @@ void app_main(void) {
 					.threshold.authmode = WIFI_AUTH_WPA2_PSK, // WPA2-PSK authentication mode
 			}, };
 
-	// Setting Wi-Fi mode to station (STA) and starting Wi-Fi
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 	esp_wifi_start();
@@ -1136,7 +1044,6 @@ void app_main(void) {
 	// MQTT client configuration (Eclipse MQTT Broker)
 	const esp_mqtt_client_config_t mqttCfg = { .broker.address.uri = "mqtt://mqtt.eclipseprojects.io", /*MQTT broker URI*/};
 
-	// Initialization and registration of MQTT client events
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
 	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
 	esp_mqtt_client_start(mqttClient);
@@ -1150,7 +1057,6 @@ void app_main(void) {
 	esp_timer_handle_t periodic_timer;
 	esp_timer_create(&timer_args, &periodic_timer);
 
-	// Start the periodic timer with an interval of 5 minutes (300,000,000 microseconds)
 	esp_timer_start_periodic(periodic_timer, 300000000);
 
 	// Initialization of Bluetooth Low Energy (BLE) with the machine name
