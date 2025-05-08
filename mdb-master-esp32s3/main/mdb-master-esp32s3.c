@@ -7,13 +7,11 @@
 
 #include <stdio.h>
 #include <math.h>
-
-#include "driver/gpio.h"
+#include <driver/gpio.h>
 #include <rom/ets_sys.h>
-#include "esp_timer.h"
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include <esp_timer.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB

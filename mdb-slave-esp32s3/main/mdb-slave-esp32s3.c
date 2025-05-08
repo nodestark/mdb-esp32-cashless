@@ -23,9 +23,9 @@
 #include "nimble.h"
 #include "rsacipher.h"
 
-#define pin_mdb_rx  GPIO_NUM_14  // Pin to receive data from MDB
-#define pin_mdb_tx  GPIO_NUM_27  // Pin to transmit data to MDB
-#define pin_mdb_led GPIO_NUM_25  // LED to indicate MDB state
+#define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
+#define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
+#define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
 
 // Functions for scale factor conversion
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))  // Converts to scale factor
@@ -499,6 +499,7 @@ void mdb_main_loop(void *pvParameters) {
 char* calc_crc_16(uint16_t *pCrc, char *uData) {
 
 	uint8_t data = *uData;
+
 	for (uint8_t iBit = 0; iBit < 8; iBit++, data >>= 1) {
 
 		if ((data ^ *pCrc) & 0x01) {
@@ -1046,17 +1047,17 @@ void app_main(void) {
 	nvs_flash_init();
 
 	// Initialize UART1 driver and configure TX/RX pins
-//	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
-//	ESP_ERROR_CHECK (uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1));
-//
-//	uart_config_t uart_config_1 = {
-//			.baud_rate = 9600,
-//			.data_bits = UART_DATA_8_BITS,
-//			.parity = UART_PARITY_DISABLE,
-//			.stop_bits = UART_STOP_BITS_1,
-//			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
-//
-//	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
+	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
+	ESP_ERROR_CHECK (uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1));
+
+	uart_config_t uart_config_1 = {
+			.baud_rate = 9600,
+			.data_bits = UART_DATA_8_BITS,
+			.parity = UART_PARITY_DISABLE,
+			.stop_bits = UART_STOP_BITS_1,
+			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
+
+	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
 
 	// Initialization of the network stack and event loop
 	esp_netif_init();
