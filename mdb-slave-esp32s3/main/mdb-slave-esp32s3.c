@@ -279,6 +279,7 @@ void mdb_main_loop(void *pvParameters) {
 						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 
 						uint8_t checksum_ = read_9((uint8_t*) 0);
+
 						break;
 					}
 					}
@@ -1041,14 +1042,13 @@ void app_main(void) {
 
 	// Configure LED pin as output and set initial state to LOW
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
-	gpio_set_level(pin_mdb_led, 1);
 
 	// Initialization of non-volatile flash memory (NVS)
 	nvs_flash_init();
 
 	// Initialize UART1 driver and configure TX/RX pins
-	ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0));
-	ESP_ERROR_CHECK (uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1));
+	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
+	uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1);
 
 	uart_config_t uart_config_1 = {
 			.baud_rate = 9600,
@@ -1057,7 +1057,7 @@ void app_main(void) {
 			.stop_bits = UART_STOP_BITS_1,
 			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
 
-	ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config_1));
+	uart_param_config(UART_NUM_1, &uart_config_1);
 
 	// Initialization of the network stack and event loop
 	esp_netif_init();
