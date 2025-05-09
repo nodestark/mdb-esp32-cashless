@@ -329,7 +329,7 @@ void mdb_loop(void *pvParameters) {
 
 				} else if (xQueueReceive(button_receive_queue, &btn_selected, 0)) {
 
-					uint16_t itemPrice = to_scale_factor(coils[btn_selected][0], reader0x10.scaleFactor, reader0x10.decimalPlaces);
+					uint16_t itemPrice = to_scale_factor(coils[btn_selected][0] / 100.0f, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 					uint16_t itemNumber = btn_selected;
 
 					/*Vend Cancel (Vend Request)*/
