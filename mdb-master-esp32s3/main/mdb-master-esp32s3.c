@@ -54,6 +54,9 @@ struct reader_t {
 };
 struct reader_t reader0x10 = { .responseTimeSec = 1 /*1sec*/};
 
+/* PA102 - Product Price
+ * PA201 - Number of Products Vended Since Initialisation
+ * */
 uint8_t coils[1][2] = {{100 /*PA102*/, 0 /*PA201*/}};
 
 void write_9(uint16_t nth9) {
@@ -90,7 +93,7 @@ uint16_t read_9() {
 
 static QueueHandle_t button_receive_queue = (void*) 0;
 
-static void IRAM_ATTR button_isr_handler(void* arg) {
+static void IRAM_ATTR button0_isr_handler(void* arg) {
 
 	uint8_t btn_selected = 0;
 	xQueueSendFromISR(button_receive_queue, &btn_selected, 0);
@@ -191,8 +194,16 @@ void mdb_loop(void *pvParameters) {
 
 		} else if (machine_state == DISABLED_STATE) {
 
-			uint16_t maxPrice = to_scale_factor(2.00, reader0x10.scaleFactor, reader0x10.decimalPlaces);
-			uint16_t minPrice = to_scale_factor(1.00, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+			uint16_t maxPrice = 0, minPrice = 0xffff;
+
+			for (uint8_t c = 0; c < sizeof(coils)/sizeof(coils[0]); c++) {
+				if(coils[c][0] > maxPrice) maxPrice = coils[c][0];
+
+				if(coils[c][0] < minPrice) minPrice = coils[c][0];
+			}
+
+			maxPrice = to_scale_factor(maxPrice / 100.0f, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+			minPrice = to_scale_factor(minPrice / 100.0f, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 
 			mdb_payload[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
 			mdb_payload[1] = 0x01; // Max/Min Prices
@@ -561,7 +572,7 @@ void app_main(void) {
 	gpio_config(&io_conf);
 
 	gpio_install_isr_service(0 /*default*/);
-	gpio_isr_handler_add(GPIO_NUM_0, button_isr_handler, (void*) 0);
+	gpio_isr_handler_add(GPIO_NUM_0, button0_isr_handler, (void*) 0);
 
 	// Initialize UART1 driver and configure TX/RX pins
 	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
