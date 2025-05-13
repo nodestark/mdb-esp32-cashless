@@ -105,7 +105,7 @@ struct flow_payload_msg_t {
 
 static QueueHandle_t payload_receive_queue = NULL;
 
-void payload_loop(void *pvParameters) {
+void payload_mdb_loop(void *pvParameters) {
 
 	struct flow_payload_msg_t msg;
 
@@ -138,12 +138,7 @@ void writePayload_ttl9(uint8_t *mdb_payload, uint8_t mdb_length) {
 	write_9(checksum);
 }
 
-void mdb_loop(void *pvParameters) {
-
-	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
-
-	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
-	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
+void mdb_vmc_loop(void *pvParameters) {
 
 	uint8_t btn_selected = -1;
 
@@ -543,6 +538,11 @@ void writeTelemetryDEX(void *pvParameters) {
 
 void app_main(void) {
 
+	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
+	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
+	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+
+	//
 	button_receive_queue = xQueueCreate(1 /*queue-length*/, sizeof(uint8_t));
 
 	gpio_config_t io_conf = {
@@ -571,9 +571,9 @@ void app_main(void) {
 
 	//
 	payload_receive_queue = xQueueCreate(1 /*queue-length*/, sizeof(struct flow_payload_msg_t));
-	xTaskCreate(payload_loop, "payload_loop", 6765, (void*) 0, 1, (void*) 0);
+	xTaskCreate(payload_mdb_loop, "payload_mdb_loop", 6765, (void*) 0, 1, (void*) 0);
 
-	xTaskCreate(mdb_loop, "mdb_loop", 6765, (void*) 0, 1, (void*) 0);
+	xTaskCreate(mdb_vmc_loop, "vmc_loop", 6765, (void*) 0, 1, (void*) 0);
 
 	xTaskCreate(writeTelemetryDEX, "dex_loop", 6765, (void*) 0, 1, (void*) 0);
 }

@@ -23,6 +23,8 @@
 #include "nimble.h"
 #include "rsacipher.h"
 
+#define TIMEOUT_IDLE_US 	(90 * 1000000ULL)  // 90 segundos em microssegundos
+
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
 #define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
@@ -31,14 +33,14 @@
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))  // Converts to scale factor
 #define from_scale_factor(p, x, y) (p * x * pow(10, -(y) )) // Converts from scale factor
 
-#define ACK 0x00  // Acknowledgment / Checksum correct
-#define RET 0xAA  // Retransmit previously sent data. Only VMC can send this
-#define NAK 0xFF  // Negative acknowledgment
+#define ACK 	0x00  // Acknowledgment / Checksum correct
+#define RET 	0xAA  // Retransmit previously sent data. Only VMC can send this
+#define NAK 	0xFF  // Negative acknowledgment
 
 // Bit masks for MDB operations
-#define BIT_MODE_SET  0b100000000
-#define BIT_ADD_SET   0b011111000
-#define BIT_CMD_SET   0b000000111
+#define BIT_MODE_SET 	0b100000000
+#define BIT_ADD_SET   	0b011111000
+#define BIT_CMD_SET   	0b000000111
 
 // Defining MDB commands as an enum
 enum MDB_COMMAND {
@@ -92,8 +94,6 @@ uint8_t vend_denied_todo = false;
 //
 uint8_t cashless_reset_todo = false;
 uint8_t outsequence_todo = false;
-
-#define TIMEOUT_IDLE_US  (90 * 1000000ULL)  // 90 segundos em microssegundos
 
 static int64_t state_start_time_us = 0;
 
@@ -178,7 +178,7 @@ void write_9(uint16_t nth9) {
 }
 
 // Function to transmit the payload via UART9 (using MDB protocol)
-void transmitPayloadByUART9(uint8_t *mdb_payload, uint8_t length) {
+void writePayload_ttl9(uint8_t *mdb_payload, uint8_t length) {
 
 	uint8_t checksum = 0;
 
@@ -194,14 +194,10 @@ void transmitPayloadByUART9(uint8_t *mdb_payload, uint8_t length) {
 }
 
 // Main MDB loop function
-void mdb_main_loop(void *pvParameters) {
+void mdb_cashless_loop(void *pvParameters) {
 
 	// Declaration of the current MDB session structure
 	struct flow_mdb_session_msg_t mdbCurrentSession;
-
-	// Configure the MDB RX pin as input and the MDB TX pin as output
-	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
-	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 
 	// Payload buffer and available transmission flag
 	uint8_t mdb_payload[256];
@@ -483,7 +479,7 @@ void mdb_main_loop(void *pvParameters) {
 				}
 
 				// Transmit the prepared payload via UART
-				transmitPayloadByUART9((uint8_t*) &mdb_payload, available_tx);
+				writePayload_ttl9((uint8_t*) &mdb_payload, available_tx);
 
 				// Intended address
 				gpio_set_level(pin_mdb_led, 1);
@@ -1047,7 +1043,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 void app_main(void) {
 
-	// Configure LED pin as output and set initial state to LOW
+	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
+	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
 	// Initialization of non-volatile flash memory (NVS)
@@ -1111,5 +1108,5 @@ void app_main(void) {
 
 	// Creation of the queue for MDB sessions and the main MDB task
 	mdbSessionQueue = xQueueCreate(16 /*queue-length*/, sizeof(struct flow_mdb_session_msg_t));
-	xTaskCreate(mdb_main_loop, "main_loop", 4096, (void*) 0, 1, (void*) 0);
+	xTaskCreate(mdb_cashless_loop, "cashless_loop", 4096, (void*) 0, 1, (void*) 0);
 }
