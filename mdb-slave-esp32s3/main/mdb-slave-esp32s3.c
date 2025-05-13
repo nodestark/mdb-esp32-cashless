@@ -524,13 +524,13 @@ void readTelemetryDEX() {
 
 	// -------------------------------------- First Handshake --------------------------------------
 
-	uint8_t data[128];
+	uint8_t data[32];
 
 	// ENQ ->
 	uart_write_bytes(UART_NUM_1, "\x05", 1);
 
 	// DLE 0 <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 	if( data[0] != 0x10 || data[1] != '0' ) return;
 
 	// DLE SOH ->
@@ -567,7 +567,7 @@ void readTelemetryDEX() {
 	uart_write_bytes( UART_NUM_1, &data, 2 );
 
 	// DLE 1 <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 	if( data[0] != 0x10 || data[1] != '1' ) return;
 
 	// EOT ->
@@ -576,79 +576,79 @@ void readTelemetryDEX() {
 	// -------------------------------------- Second Handshake --------------------------------------
 
 	// ENQ <-
-	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(100));
 	if( data[0] != 0x05 ) return;
 
 	// DLE 0 ->
 	uart_write_bytes(UART_NUM_1, "\x10\x30", 2);
 
 	// DLE SOH <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 	if( data[0] != 0x10 || data[1] != 0x01 ) return;
 
 	// Response Code <-
-	uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 	// Communication ID <-
-	uart_read_bytes(UART_NUM_1, (void*) 0, 10, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 10, pdMS_TO_TICKS(100));
 	// Revision & Level <-
-	uart_read_bytes(UART_NUM_1, (void*) 0, 6, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 6, pdMS_TO_TICKS(100));
 
 	// DLE ETX <-
-	uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 	if( data[0] != 0x10 || data[1] != 0x03 ) return;
 
 	// CRC <-
-	uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 
 	// DLE 1 ->
 	uart_write_bytes(UART_NUM_1, "\x10\x31", 2);
 
 	// EOT <-
-	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(100));
 	if( data[0] != 0x04 ) return;
 
 	// -------------------------------------- Data transfer --------------------------------------
 
 	// ENQ <-
-	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(10));
+	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(100));
 	if (data[0] != 0x05) return;
 
-	uint8_t b = 0x00;
+	uint8_t block = 0x00;
 	for (;;) {
 
 		data[0] = 0x10; 				// DLE
-		data[1] = ('0' + (b++ & 1)); 	// '0'|'1' ->
+		data[1] = ('0' + (block++ & 1)); 	// '0'|'1' ->
 		uart_write_bytes(UART_NUM_1, &data, 2);
 
 		// DLE STX <-
-		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(10));
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
 		if (data[0] != 0x10 || data[1] != 0x02) return;
 
 		for (;;) {
 
-			uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(50));
+			uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(200));
 			if (data[0] == 0x10) { // DLE
 
-				uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(50));
+				uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(200));
 
 				if (data[0] == 0x17) { // ETB
 
 					// <- CRC
-					uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(50));
+					uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
 
 					break;
 
 				} else if (data[0] == 0x03) { // ETX
 
 					// CRC <-
-					uart_read_bytes(UART_NUM_1, (void*) 0, 2, pdMS_TO_TICKS(50));
+					uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
 
 					data[0] = 0x10; 					// DLE
-					data[1] = ('0' + (b++ & 0x01)); 	// '0'|'1' ->
+					data[1] = ('0' + (block++ & 0x01)); 	// '0'|'1' ->
 					uart_write_bytes(UART_NUM_1, &data, 2);
 
 					// EOT <-
-					uart_read_bytes(UART_NUM_1, (void*) 0, 1, pdMS_TO_TICKS(50));
+					uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(200));
 
 					return;
 				}
@@ -687,7 +687,7 @@ void readTelemetryDDCMP() {
 	crc_[1] = crc / 256;
 	uart_write_bytes( UART_NUM_1, &crc_, 2 );
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(50)) != 8)
+	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x07)) {
@@ -734,14 +734,14 @@ void readTelemetryDDCMP() {
 	crc_[1] = crc / 256;
 	uart_write_bytes( UART_NUM_1, &crc_, 2 );
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(50)) != 8)
+	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
 		return;
 	} // ...ack
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(50)) != 8)
+	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if (buffer_rx[0] != 0x81) {
@@ -753,7 +753,7 @@ void readTelemetryDDCMP() {
 	n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
 	n_bytes_message += 2; // crc16
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(50)) != n_bytes_message)
+	if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
 		return;
 
 //  if (buffer_rx[2] != 0x01) {
@@ -802,14 +802,14 @@ void readTelemetryDDCMP() {
 	crc_[1] = crc / 256;
 	uart_write_bytes( UART_NUM_1, &crc_, 2 ); // Transmitiu READ_DATA/Audit Collection List (77 E2 00 01 01 00 00 00 00 F0 72)
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(50)) != 8)
+	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
 		return;
 	} // ...ack
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(50)) != 8)
+	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if (buffer_rx[0] != 0x81) {
@@ -821,7 +821,7 @@ void readTelemetryDDCMP() {
 	n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
 	n_bytes_message += 2; // crc16
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(50)) != n_bytes_message)
+	if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
 		return;
 
 	if (buffer_rx[2] != 0x01) {
@@ -842,7 +842,7 @@ void readTelemetryDDCMP() {
 
 	do {
 
-		if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(50)) != 8)
+		if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 			break;
 
 		if (buffer_rx[0] != 0x81) {
@@ -855,7 +855,7 @@ void readTelemetryDDCMP() {
 		n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
 		n_bytes_message += 2; // crc16
 
-		if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(50)) != n_bytes_message)
+		if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
 			break;
 		// ...data
 
@@ -894,7 +894,7 @@ void readTelemetryDDCMP() {
 			uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x67"), 1 );
 			uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\xB0"), 1 ); // Transmitiu FINIS
 
-			if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(50)) != 8)
+			if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 				break;
 
 			if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
@@ -909,10 +909,17 @@ void readTelemetryDDCMP() {
 	} while(1);
 }
 
+SemaphoreHandle_t xOneShotReqTelemetry;
+
 void requestTelemetryData(void *arg) {
 
-    readTelemetryDDCMP();
-    readTelemetryDEX();
+	if (xSemaphoreTake(xOneShotReqTelemetry, (TickType_t) 0 ) == pdTRUE) {
+
+		readTelemetryDDCMP();
+		readTelemetryDEX();
+
+        xSemaphoreGive(xOneShotReqTelemetry);
+	}
 
     vTaskDelete((void*) 0);
 }
@@ -961,7 +968,7 @@ void ble_event_handler(char *event_data) {
 		session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
 
 	} else if (strncmp(event_data, "h", 1) == 0) {
-	    xTaskCreate(requestTelemetryData, "OneShotTelemetry", 2048, NULL, 1, NULL);
+	    xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
 	}
 }
 
@@ -1047,9 +1054,6 @@ void app_main(void) {
 	nvs_flash_init();
 
 	// Initialize UART1 driver and configure TX/RX pins
-	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
-	uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1);
-
 	uart_config_t uart_config_1 = {
 			.baud_rate = 9600,
 			.data_bits = UART_DATA_8_BITS,
@@ -1058,6 +1062,8 @@ void app_main(void) {
 			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
 
 	uart_param_config(UART_NUM_1, &uart_config_1);
+	uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1);
+	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
 
 	// Initialization of the network stack and event loop
 	esp_netif_init();
@@ -1100,6 +1106,8 @@ void app_main(void) {
 
 	// Initialization of Bluetooth Low Energy (BLE) with the machine name
 	startBle("machine00000", ble_event_handler);
+
+	xSemaphoreGive(xOneShotReqTelemetry= xSemaphoreCreateBinary());
 
 	// Creation of the queue for MDB sessions and the main MDB task
 	mdbSessionQueue = xQueueCreate(16 /*queue-length*/, sizeof(struct flow_mdb_session_msg_t));
