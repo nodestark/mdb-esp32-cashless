@@ -397,142 +397,142 @@ void writeTelemetryDEX(void *pvParameters) {
 	while (1) {
 
 		// ENQ <-
-		uart_read_bytes(UART_NUM_2, &data, 1, portMAX_DELAY);
+		uart_read_bytes(UART_NUM_1, &data, 1, portMAX_DELAY);
 		if (data[0] != 0x05)
 			continue;
 
 		// -------------------------------------- First Handshake --------------------------------------
 
 		// DLE 0 ->
-		uart_write_bytes(UART_NUM_2, "\x10\x30", 2);
+		uart_write_bytes(UART_NUM_1, "\x10\x30", 2);
 
 		// DLE SOH <-
-		uart_read_bytes(UART_NUM_2, &data, 2, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 		if (data[0] != 0x10 || data[1] != 0x01)
 			continue;
 
 		// Communication ID <-
-		uart_read_bytes(UART_NUM_2, &data, 10, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 10, pdMS_TO_TICKS(100));
 
 		// Operation Request <-
-		uart_read_bytes(UART_NUM_2, &data, 1, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(100));
 
 		// Revision & Level <-
-		uart_read_bytes(UART_NUM_2, &data, 6, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 6, pdMS_TO_TICKS(100));
 
 		// DLE ETX <-
-		uart_read_bytes(UART_NUM_2, &data, 2, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 		if (data[0] != 0x10 || data[1] != 0x03)
 			continue;
 
 		// CRC-16 <-
-		uart_read_bytes(UART_NUM_2, &data, 2, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 
 		// DLE 1 ->
-		uart_write_bytes(UART_NUM_2, "\x10\x31", 2);
+		uart_write_bytes(UART_NUM_1, "\x10\x31", 2);
 
 		// EOT <-
-		uart_read_bytes(UART_NUM_2, &data, 1, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(100));
 		if (data[0] != 0x04)
 			continue;
 
 		// -------------------------------------- Second Handshake --------------------------------------
 
 		// ENQ ->
-		uart_write_bytes(UART_NUM_2, "\x05", 1);
+		uart_write_bytes(UART_NUM_1, "\x05", 1);
 
 		// DLE 0 <-
-		uart_read_bytes(UART_NUM_2, &data, 2, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 		if (data[0] != 0x10 || data[1] != '0')
 			continue;
 
 		// DLE SOH ->
-		uart_write_bytes(UART_NUM_2, "\x10\x01", 2);
+		uart_write_bytes(UART_NUM_1, "\x10\x01", 2);
 
 		// Response Code ->
-		uart_write_bytes(UART_NUM_2, "00", 2);
+		uart_write_bytes(UART_NUM_1, "00", 2);
 		// Communication ID ->
-		uart_write_bytes(UART_NUM_2, "1234567890", 10);
+		uart_write_bytes(UART_NUM_1, "1234567890", 10);
 		// Revision & Level ->
-		uart_write_bytes(UART_NUM_2, "R00L06", 6);
+		uart_write_bytes(UART_NUM_1, "R00L06", 6);
 
 		// DLE ETX ->
-		uart_write_bytes(UART_NUM_2, "\x10\x03", 2);
+		uart_write_bytes(UART_NUM_1, "\x10\x03", 2);
 		// CRC-16 ->
-		uart_write_bytes(UART_NUM_2, "\xFF\xFF", 2);
+		uart_write_bytes(UART_NUM_1, "\xFF\xFF", 2);
 
 		// DLE 1 <-
-		uart_read_bytes(UART_NUM_2, &data, 2, pdMS_TO_TICKS(100));
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
 		if (data[0] != 0x10 || data[1] != '1')
 			continue;
 
 		// EOT ->
-		uart_write_bytes(UART_NUM_2, "\x04", 1);
+		uart_write_bytes(UART_NUM_1, "\x04", 1);
 
 		// -------------------------------------- Data transfer --------------------------------------
 
 		// ENQ ->
-		uart_write_bytes(UART_NUM_2, "\x05", 1);
+		uart_write_bytes(UART_NUM_1, "\x05", 1);
 
 		uint8_t block = 0x00;
 		for (uint8_t c = 0; c < sizeof(coils)/sizeof(coils[0]); c++) {
 
 			// DLE 0|1 <-
-			uart_read_bytes(UART_NUM_2, &data, 2, pdMS_TO_TICKS(200));
+			uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
 			if (data[0] != 0x10 || data[1] != ('0' + (block++ & 0x01)) )
 				break;
 
 			// DLE STX ->
-			uart_write_bytes(UART_NUM_2, "\x10\x02", 2);
+			uart_write_bytes(UART_NUM_1, "\x10\x02", 2);
 
 			char pa1[100];
 			sprintf(pa1, "PA1*%d*%d****\x0D\x0A", c, coils[c][0]);
 
-			uart_write_bytes(UART_NUM_2, &pa1, strlen(pa1));
+			uart_write_bytes(UART_NUM_1, &pa1, strlen(pa1));
 
 			char pa2[100];
 			sprintf(pa2, "PA2*%d*0*0*0\x0D\x0A", coils[c][1]);
 
-			uart_write_bytes(UART_NUM_2, &pa2, strlen(pa2));
+			uart_write_bytes(UART_NUM_1, &pa2, strlen(pa2));
 
 			// DLE ETB ->
-			uart_write_bytes(UART_NUM_2, "\x10\x17", 2);
+			uart_write_bytes(UART_NUM_1, "\x10\x17", 2);
 			// CRC-16
-			uart_write_bytes(UART_NUM_2, "\xff\xff", 2);
+			uart_write_bytes(UART_NUM_1, "\xff\xff", 2);
 		}
 
 		// DLE 0|1 <-
-		uart_read_bytes(UART_NUM_2, &data, 2, pdMS_TO_TICKS(200));
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
 		if (data[0] != 0x10 || data[1] != ('0' + (block++ & 0x01)) )
 			break;
 
 		// DLE STX ->
-		uart_write_bytes(UART_NUM_2, "\x10\x02", 2);
+		uart_write_bytes(UART_NUM_1, "\x10\x02", 2);
 
 		char *ea3 = "EA3**000101*000080**000101*000080***490*490\x0D\x0A";
-		uart_write_bytes(UART_NUM_2, ea3, strlen(ea3));
+		uart_write_bytes(UART_NUM_1, ea3, strlen(ea3));
 
 		char *g85 = "G85*1BB8\x0D\x0A";
-		uart_write_bytes(UART_NUM_2, g85, strlen(g85));
+		uart_write_bytes(UART_NUM_1, g85, strlen(g85));
 
 		char *se = "SE*280*0001\x0D\x0A";
-		uart_write_bytes(UART_NUM_2, se, strlen(se));
+		uart_write_bytes(UART_NUM_1, se, strlen(se));
 
 		char *dxe = "DXE*1*1\x0D\x0A";
-		uart_write_bytes(UART_NUM_2, dxe, strlen(dxe));
+		uart_write_bytes(UART_NUM_1, dxe, strlen(dxe));
 
 		// DLE ETX ->
-		uart_write_bytes(UART_NUM_2, "\x10\x03", 2);
+		uart_write_bytes(UART_NUM_1, "\x10\x03", 2);
 		// CRC-16
-		uart_write_bytes(UART_NUM_2, "\xff\xff", 2);
+		uart_write_bytes(UART_NUM_1, "\xff\xff", 2);
 
 		// DLE 0|1 <-
-		uart_read_bytes(UART_NUM_2, &data, 2, pdMS_TO_TICKS(200));
+		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
 		if (data[0] != 0x10 || data[1] != ('0' + (block++ & 0x01)) )
 			break;
 
 		// EOT ->
-		uart_write_bytes(UART_NUM_2, "\x04", 1);
+		uart_write_bytes(UART_NUM_1, "\x04", 1);
 	}
 }
 
