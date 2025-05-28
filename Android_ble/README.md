@@ -16,6 +16,3 @@ This is the Android application for communication with the **ESP32 MDB-Cashless 
 - Discover and automatically pair with compatible devices
 - Exchange commands and telemetry according to the MDB-Cashless protocol
 - Interface to simulate commands and receive responses from the board
-
----
-
