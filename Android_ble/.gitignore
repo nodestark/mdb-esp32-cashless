@@ -1,0 +1,76 @@
+# === Android/Gradle defaults ===
+
+# Build directories
+/build/
+/*/build/
+
+# Android Studio files
+.idea/
+.gradle/
+.local.properties
+.cxx/
+.externalNativeBuild/
+captures/
+output.json
+
+# Log and temporary files
+*.iml
+*.hprof
+*.log
+*.tmp
+*.orig
+*.swp
+
+# System cache
+.DS_Store
+Thumbs.db
+
+# Kotlin files
+*.kotlin_module
+
+# NDK / CMake
+cmake-build-*/
+
+# System-generated files
+ehthumbs.db
+desktop.ini
+
+# Android package files
+*.apk
+*.ap_ 
+*.dex
+*.class
+
+# Cache files
+.cache/
+build/
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+
+# VSCode settings (if used)
+.vscode/
+
+# Environment and credential files
+.env
+*.keystore
+*.jks
+
+# Gradle files
+!gradle-wrapper.jar
+.gradle/
+**/build/
+
+# Lint files
+lint/intermediates/
+lint/generated/
+
+# Test and coverage output
+*.ec
+coverage/
+test-results/
+test-output/
+
