@@ -1,6 +1,6 @@
 # 📱 Android App – MDB Cashless BLE
 
-This is the official Android application for communication with the **ESP32 MDB-Cashless BLE** board. The project is part of the `mdb-esp32-cashless` solution, enabling cashless payment system integration with vending machines via the MDB protocol and Bluetooth Low Energy (BLE) communication.
+This is the Android application for communication with the **ESP32 MDB-Cashless BLE** board. The project is part of the `mdb-esp32-cashless` solution, enabling cashless payment system integration with vending machines via the MDB protocol and Bluetooth Low Energy (BLE) communication.
 
 ---
 
