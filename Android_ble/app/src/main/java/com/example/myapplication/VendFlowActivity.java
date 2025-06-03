@@ -18,52 +18,69 @@ import java.util.UUID;
 
 public class VendFlowActivity extends AppCompatActivity {
 
-    private BluetoothGattCharacteristic writeChar; // guardamos para usar depois
+    private static final UUID SERVICE_UUID = UUID.fromString("b2bbc642-46da-11ed-b878-0242ac120002");
+    private static final UUID WRITE_CHARACTERISTIC_UUID = UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002");
 
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
 
+        private static final byte VEND_REQUEST = 'a';
+        private static final byte VEND_SUCCESS = 'b';
+        private static final byte VEND_FAILURE = 'c';
+        private static final byte SESSION_COMPLETE = 'd';
+        private static final byte SESSION_BEGIN_TODO = 'e';
+        private static final byte VEND_APPROVED_TODO = 'f';
+
         @Override
         public void onCharacteristicChanged(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic characteristic, @NonNull byte[] value) {
+
             byte[] dados = characteristic.getValue();
 
-            if(dados[0] == 'a'){
-                // VEND_REQUEST
+            switch (dados[0]){
+                case VEND_REQUEST: {
 
-                short itemPrice = (short) ((dados[1] << 8) | dados[2]);
-                short itemNumber = (short) ((dados[3] << 8) | dados[4]);
-                short nonce = (short) ((dados[5] << 8) | dados[6]);
+                    short itemPrice = (short) ((dados[1] << 8) | dados[2]);
+                    short itemNumber = (short) ((dados[3] << 8) | dados[4]);
+                    short nonce = (short) ((dados[5] << 8) | dados[6]);
 
-                Log.d("MDB-", "🔹 VEND_REQUEST Item price: " + itemPrice + ", Item number: " + itemNumber);
+                    BluetoothGattService service = gatt.getService( SERVICE_UUID );
+                    BluetoothGattCharacteristic writeChar = service.getCharacteristic( WRITE_CHARACTERISTIC_UUID );
 
-//                BluetoothGattService service = gatt.getService(UUID.fromString("b2bbc642-46da-11ed-b878-0242ac120002"));
-//                BluetoothGattCharacteristic writeChar_ = service.getCharacteristic(UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002"));
+                    byte[] dados_ = new byte[]{VEND_APPROVED_TODO, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+                    writeChar.setValue(dados_);
 
-                // Enviar dados
-                byte[] dados_ = new byte[]{'f', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-                writeChar.setValue(dados_);
+                    gatt.writeCharacteristic(writeChar);
 
-                boolean ok = gatt.writeCharacteristic(writeChar);
+                    Log.d("MDB-", "🔹 VEND_REQUEST Item price: " + itemPrice + ", Item number: " + itemNumber);
+                }
+                    break;
+                case VEND_SUCCESS: {
 
-                Log.d("MDB-", "Escrevendo characteristic: " + ok);
-            } else if(dados[0] == 'b'){
-                // VEND_SUCCESS
+                    short itemPrice = (short) ((dados[1] << 8) | dados[2]);
+                    short itemNumber = (short) ((dados[3] << 8) | dados[4]);
+                    short nonce = (short) ((dados[5] << 8) | dados[6]);
 
-                short itemPrice = (short) ((dados[1] << 8) | dados[2]);
-                short itemNumber = (short) ((dados[3] << 8) | dados[4]);
-                short nonce = (short) ((dados[5] << 8) | dados[6]);
+                    Log.d("MDB-", "🔹 VEND_SUCCESS Item price: " + itemPrice + ", Item number: " + itemNumber);
+                }
+                    break;
+                case VEND_FAILURE:{
+                    short itemPrice = (short) ((dados[1] << 8) | dados[2]);
+                    short itemNumber = (short) ((dados[3] << 8) | dados[4]);
+                    short nonce = (short) ((dados[5] << 8) | dados[6]);
 
-                Log.d("MDB-", "🔹 VEND_SUCCESS Item price: " + itemPrice + ", Item number: " + itemNumber);
+                    Log.d("MDB-", "🔹 VEND_FAILURE Item price: " + itemPrice + ", Item number: " + itemNumber);
+                }
+                    break;
+                case SESSION_COMPLETE: {
 
-            } else if(dados[0] == 'd'){
-                // SESSION_COMPLETE
+                    short itemPrice = (short) ((dados[1] << 8) | dados[2]);
+                    short itemNumber = (short) ((dados[3] << 8) | dados[4]);
+                    short nonce = (short) ((dados[5] << 8) | dados[6]);
 
-                short itemPrice = (short) ((dados[1] << 8) | dados[2]);
-                short itemNumber = (short) ((dados[3] << 8) | dados[4]);
-                short nonce = (short) ((dados[5] << 8) | dados[6]);
+                    finish();
 
-                Log.d("MDB-", "🔹 SESSION_COMPLETE Item price: " + itemPrice + ", Item number: " + itemNumber);
-
-                finish();
+                    Log.d("MDB-", "🔹 SESSION_COMPLETE Item price: " + itemPrice + ", Item number: " + itemNumber);
+                }
+                    break;
             }
         }
 
@@ -82,8 +99,10 @@ public class VendFlowActivity extends AppCompatActivity {
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
 
-            // Enviar dados
-            byte[] dados = new byte[]{'e', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            BluetoothGattService service = gatt.getService( SERVICE_UUID );
+            BluetoothGattCharacteristic writeChar = service.getCharacteristic( WRITE_CHARACTERISTIC_UUID );
+
+            byte[] dados = new byte[]{SESSION_BEGIN_TODO, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
             writeChar.setValue(dados);
 
             boolean ok = gatt.writeCharacteristic(writeChar);
@@ -97,19 +116,16 @@ public class VendFlowActivity extends AppCompatActivity {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d("MDB-", "Serviços descobertos" );
 
-                // 🔍 Achar a characteristic que você quer
-                BluetoothGattService service = gatt.getService(UUID.fromString("b2bbc642-46da-11ed-b878-0242ac120002"));
+                BluetoothGattService service = gatt.getService( SERVICE_UUID );
 
                 if (service != null) {
-                    writeChar = service.getCharacteristic(UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002"));
+                    BluetoothGattCharacteristic writeChar = service.getCharacteristic( WRITE_CHARACTERISTIC_UUID );
 
                     if (writeChar != null) {
 
                         gatt.setCharacteristicNotification(writeChar, true);
 
-                        BluetoothGattDescriptor descriptor = writeChar.getDescriptor(
-                                UUID.fromString("00002902-0000-1000-8000-00805f9b34fb") // UUID padrão do Client Characteristic Configuration Descriptor
-                        );
+                        BluetoothGattDescriptor descriptor = writeChar.getDescriptor( UUID.fromString("00002902-0000-1000-8000-00805f9b34fb") /*Default client UUID*/ );
 
                         if (descriptor != null) {
                             descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
@@ -118,7 +134,7 @@ public class VendFlowActivity extends AppCompatActivity {
                     }
                 }
             } else {
-                Log.e("MDB-", "Falha ao descobrir serviços, status: " + status);
+                Log.d("MDB-", "Falha ao descobrir serviços, status: " + status);
             }
         }
 
@@ -137,7 +153,9 @@ public class VendFlowActivity extends AppCompatActivity {
 
         BluetoothDevice device = getIntent().getParcelableExtra("device");
 
-        Toast.makeText(getApplicationContext(), device.getName(), Toast.LENGTH_LONG).show();
+        runOnUiThread(() -> {
+            Toast.makeText(getApplicationContext(), "Machine: " + device.getName().substring(7), Toast.LENGTH_LONG).show();
+        });
 
         bluetoothGatt = device.connectGatt(getApplicationContext(), false, gattCallback);
     }
