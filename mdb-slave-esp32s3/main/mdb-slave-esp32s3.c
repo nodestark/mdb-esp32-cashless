@@ -229,11 +229,10 @@ void mdb_cashless_loop(void *pvParameters) {
 				switch (coming_read & BIT_CMD_SET) {
 
 				case RESET: {
-					// Handle RESET command
 					uint8_t checksum_ = read_9((uint8_t*) 0);
-					// Reset during VEND_STATE is interpreted as VEND_SUCCESS
+
 					if (machine_state == VEND_STATE) {
-						// VEND_SUCCESS interpretation
+						// Reset during VEND_STATE is interpreted as VEND_SUCCESS
 					}
 
 					machine_state = INACTIVE_STATE;
@@ -242,35 +241,32 @@ void mdb_cashless_loop(void *pvParameters) {
 					break;
 				}
 				case SETUP: {
-					// Handle SETUP command
 					switch (read_9(&checksum)) {
 
 					case CONFIG_DATA: {
-						// Configuration Data handling
 						uint8_t vmcFeatureLevel = read_9(&checksum);
 						uint8_t vmcColumnsOnDisplay = read_9(&checksum);
 						uint8_t vmcRowsOnDisplay = read_9(&checksum);
 						uint8_t vmcDisplayInfo = read_9(&checksum);
+
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 
 						machine_state = DISABLED_STATE;
 
-						// Setting up the reader configuration payload
 						mdb_payload[0] = 0x01;        	// Reader Config Data
 						mdb_payload[1] = 1;           	// Reader Feature Level
 						mdb_payload[2] = 0xff;        	// Country Code High
 						mdb_payload[3] = 0xff;        	// Country Code Low
 						mdb_payload[4] = 1;           	// Scale Factor
 						mdb_payload[5] = 2;           	// Decimal Places
-						mdb_payload[6] = 3; 		// Maximum Response Time (5s)
+						mdb_payload[6] = 3; 			// Maximum Response Time (5s)
 						mdb_payload[7] = 0b00001001;  	// Miscellaneous Options
 						available_tx = 8;
 
 						break;
 					}
-
 					case MAX_MIN_PRICES: {
-						// Handling maximum and minimum price settings
+
 						uint16_t maxPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 
@@ -279,10 +275,11 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					}
+
 					break;
 				}
 				case POLL: {
-					// Handle POLL command
+
 					uint8_t checksum_ = read_9((uint8_t*) 0);
 
 					if (outsequence_todo) {
@@ -358,10 +355,9 @@ void mdb_cashless_loop(void *pvParameters) {
 					break;
 				}
 				case VEND: {
-					// Handle VEND command
 					switch (read_9(&checksum)) {
 					case VEND_REQUEST: {
-						// Handling a vend request
+
 						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
@@ -452,13 +448,12 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					}
+
 					break;
 				}
 				case READER: {
-					// Handle READER command
 					switch (read_9(&checksum)) {
 					case READER_DISABLE: {
-						// Disable reader
 
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 						machine_state = DISABLED_STATE;
@@ -466,14 +461,23 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					case READER_ENABLE: {
-						// Enable reader
 
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 						machine_state = ENABLED_STATE;
 
 						break;
 					}
+					case READER_CANCEL: {
+
+						uint8_t checksum_ = read_9((uint8_t*) 0);
+
+						mdb_payload[ 0 ] = 0x08; // Canceled
+						available_tx = 1;
+
+						break;
 					}
+					}
+
 					break;
 				}
 				}
