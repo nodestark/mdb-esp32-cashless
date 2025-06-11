@@ -7,7 +7,7 @@
 
 #include <driver/gpio.h>
 #include <driver/uart.h>
-#include <esp_private/wifi.h>
+#include <esp_wifi.h>
 #include <esp_random.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
@@ -1027,22 +1027,35 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
 
-	switch (event_id) {
-	case WIFI_EVENT_STA_START:
-		esp_wifi_connect();
-		break;
-	case WIFI_EVENT_STA_CONNECTED:
+	if (event_base == WIFI_EVENT)
+		switch (event_id) {
+		case WIFI_EVENT_STA_START:
+			esp_wifi_connect();
+			break;
+		case WIFI_EVENT_STA_CONNECTED:
+			break;
+		case WIFI_EVENT_STA_DISCONNECTED:
+			esp_mqtt_client_disconnect(mqttClient);
+			esp_wifi_connect();
+			break;
+		}
 
-		// Configuration and initialization of the SNTP client for time synchronization via the internet
-		sntp_setoperatingmode(SNTP_OPMODE_POLL);
-		sntp_setservername(0, "pool.ntp.org");
-		sntp_init();
+	if (event_base == IP_EVENT)
+		switch (event_id) {
+		case IP_EVENT_STA_GOT_IP:
 
-		break;
-	case WIFI_EVENT_STA_DISCONNECTED:
-		esp_wifi_connect();
-		break;
-	}
+			esp_mqtt_client_start(mqttClient);
+
+			// Configuration and initialization of the SNTP client for time synchronization via the internet
+			sntp_setoperatingmode(SNTP_OPMODE_POLL);
+			sntp_setservername(0, "pool.ntp.org");
+			sntp_init();
+
+			//
+			esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+
+			break;
+		}
 }
 
 void app_main(void) {
@@ -1050,9 +1063,6 @@ void app_main(void) {
 	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
 	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
-
-	// Initialization of non-volatile flash memory (NVS)
-	nvs_flash_init();
 
 	// Initialize UART1 driver and configure TX/RX pins
 	uart_config_t uart_config_1 = {
@@ -1067,6 +1077,8 @@ void app_main(void) {
 	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
 
 	// Initialization of the network stack and event loop
+	nvs_flash_init();
+
 	esp_netif_init();
 	esp_event_loop_create_default();
 	esp_netif_create_default_wifi_sta();
@@ -1075,6 +1087,7 @@ void app_main(void) {
 	esp_wifi_init(&cfg);
 
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
+	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
 
 	wifi_config_t wifi_config = {
 			.sta = {
@@ -1092,7 +1105,6 @@ void app_main(void) {
 
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
 	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-	esp_mqtt_client_start(mqttClient);
 
 	// Configuration and creation of a periodic timer
 	const esp_timer_create_args_t timer_args = {
