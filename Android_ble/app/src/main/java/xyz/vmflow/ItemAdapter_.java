@@ -1,20 +1,16 @@
-package com.example.myapplication;
+package xyz.vmflow;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.le.ScanResult;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class ItemAdapter_ extends RecyclerView.Adapter<ItemAdapter_.ViewHolder_> {
 

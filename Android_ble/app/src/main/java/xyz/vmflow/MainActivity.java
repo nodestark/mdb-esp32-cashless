@@ -1,5 +1,6 @@
-package com.example.myapplication;
+package xyz.vmflow;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -8,6 +9,7 @@ import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -17,6 +19,8 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -78,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
 
         BluetoothManager bluetoothManager = getSystemService(BluetoothManager.class);
         BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-        if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled() ) {
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled() ) {
 
             ActivityResultLauncher<Intent> enableBluetoothLauncher = registerForActivityResult( new ActivityResultContracts.StartActivityForResult(), r -> {
                 if (r.getResultCode() == Activity.RESULT_OK) { }
@@ -120,7 +124,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        bluetoothLeScanner.startScan(scanCallback);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT}, 1);
+        } else {
+
+            bluetoothLeScanner.startScan(scanCallback);
+        }
     }
 
     @Override

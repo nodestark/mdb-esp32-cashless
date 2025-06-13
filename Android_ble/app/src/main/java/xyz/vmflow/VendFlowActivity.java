@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package xyz.vmflow;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -151,13 +152,15 @@ public class VendFlowActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_vend_flow);
 
-        BluetoothDevice device = getIntent().getParcelableExtra("device");
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        BluetoothDevice bleDevice = getIntent().getParcelableExtra("device");
 
         runOnUiThread(() -> {
-            Toast.makeText(getApplicationContext(), "Machine: " + device.getName().substring(7), Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "Machine: " + bleDevice.getName().substring(7), Toast.LENGTH_LONG).show();
         });
 
-        bluetoothGatt = device.connectGatt(getApplicationContext(), false, gattCallback);
+        bluetoothGatt = bleDevice.connectGatt(getApplicationContext(), false, gattCallback);
     }
 
     @Override

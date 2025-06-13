@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package xyz.vmflow;
 
 import android.bluetooth.le.ScanResult;
 
