@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="favicon.svg" type="image/x-icon">
+
+    <title>vmflow</title>
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Titillium Web', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .link-button {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 10px;
+            background-color: #F2B705;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .link-button:hover {
+            background-color: #BF4904;
+            box-shadow: 0 0 6px #732002;
+        }
+
+        ul {
+            list-style-position: inside;
+        }
+
+    </style>
+    <script src="https://unpkg.com/mithril/mithril.js"></script>
+
+</head>
+<body>
+
+<div id="root" style="max-width: 1200px; margin: 0 auto; text-align: center;"></div>
+
+<div id="footer-left" style="text-align: left;">Developed by <a href="http://nodestark.com" target="_blank">nodestark.com</a></div>
+
+<script>
+
+    const MainContent = {
+        view: () => m("div", [
+            m("img", {id: "outer", src: "Flux_Schnell_A_futuristic_vending_machine_with_bright_yellow_n_2.jpg", height: "450"}),
+            m("h1", "MDB Protocol Implementation for Cashless Vending Machine"),
+            m("p", "This is an open source project dedicated to implementing the MDB (Multi-Drop Bus) protocol for cashless vending machines, using ESP32 as the main platform and KiCad for PCB design. The MDB protocol is widely used in vending machines for communication between devices, enabling integration with cashless payment systems."),
+
+            m("img", {src: "1411051686640.png", height: "130", style: {margin: "10px"}} ),
+            m("img", {src: "d4853d90-1b8e-46a0-853e-638dff79a9b7.png", height: "130", style: {margin: "10px"}} ),
+            m("img", {src: "mdb-master-esp32s3_assembled.png", height: "130", style: {margin: "10px"}} ),
+            m("img", {src: "mdb-slave-esp32s3_pcb.png", height: "130", style: {margin: "10px"}} ),
+
+            m("h2", "Key Features:"),
+            m("ul", [
+                m("li", "Implementation of the MDB protocol for communication with vending machines;"),
+                m("li", "Support for integrating cashless payment systems into vending machines;"),
+                m("li", "Utilization of ESP32 as the hardware platform, offering flexibility and advanced IoT features;"),
+                m("li", "PCB design done in KiCad, facilitating production and customization of the hardware;"),
+                m("li", "Support for EVA DTS (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines."),
+            ]),
+
+            m("h2", "How to Contribute:"),
+                m("img", {src: "pull-shark-default-498c279a747d.png", height: "70", style: {margin: "2px"}} ),
+                m("img", {src: "starstruck-default-b6610abad518.png", height: "70", style: {margin: "2px"}} ),
+                m("ul", [
+                m("li", "Contributions are welcome! Feel free to open issues, send pull requests, or propose new features;"),
+                m("li", "Before submitting a pull request, make sure the code complies with the style and quality guidelines defined in the project;"),
+                m("li", "Help us improve documentation by adding usage examples, installation instructions, and any other relevant information.")
+            ]),
+        ])
+    };
+
+    const Footer = {
+        view: () => m("footer", [
+            m("br"),
+            m("a.link-button", { href: "https://github.com/nodestark/mdb-esp32-cashless", target: "_blank", style: {display: "inline-flex", alignItems: "center", textDecoration: "none"} }, [m("img", {src: "github.png", height: "25", style: {marginRight: "7px"}} ), "View repository on GitHub"]),
+            m("br"),
+<!--            m("a.link-button", { href: "https://wa.me/5561996648569", target: "_blank", style: {display: "inline-flex", alignItems: "center", textDecoration: "none"} }, [m("img", {src: "whatsapp.png", height: "25", style: {marginRight: "7px"}} ), "Chat on WhatsApp"]),-->
+            m("br"), m("br")
+        ])
+    };
+
+    const App = {
+        view: () => m("div", [
+            m(MainContent),
+            m(Footer)
+        ])
+    };
+
+    m.mount(document.getElementById("root"), App);
+
+</script>
+</body>
+</html>
