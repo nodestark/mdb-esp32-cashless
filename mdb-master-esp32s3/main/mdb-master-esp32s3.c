@@ -145,12 +145,12 @@ void mdb_vmc_loop(void *pvParameters) {
 
 		if (machine_state == INACTIVE_STATE) {
 
-			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (RESET & BIT_CMD_SET);
+			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
 			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
 
 			xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
-			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (POLL & BIT_CMD_SET);
+			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
 			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
 
 			if (xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000))) {
@@ -159,7 +159,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					write_9(ACK | BIT_MODE_SET);
 
-					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
+					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x00; 			// Config Data
 					mdb_payload_tx[2] = 1; 			// VMC Feature Level
 					mdb_payload_tx[3] = 0; 			// Columns on Display
@@ -194,7 +194,7 @@ void mdb_vmc_loop(void *pvParameters) {
 			maxPrice = to_scale_factor(maxPrice / 100.0f, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 			minPrice = to_scale_factor(minPrice / 100.0f, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 
-			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
+			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
 			mdb_payload_tx[1] = 0x01; // Max/Min Prices
 			mdb_payload_tx[2] = maxPrice >> 8;
 			mdb_payload_tx[3] = maxPrice;
@@ -205,7 +205,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 			xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
-			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (EXPANSION & BIT_CMD_SET);
+			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (EXPANSION & BIT_CMD_SET);
 			mdb_payload_tx[1] = 0x00; // Request ID
 
 			mdb_payload_tx[2] = ' '; // Manufacturer code
@@ -248,7 +248,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 				write_9(ACK | BIT_MODE_SET);
 
-				mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (READER & BIT_CMD_SET);
+				mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (READER & BIT_CMD_SET);
 				mdb_payload_tx[1] = 0x01; // Reader Enable
 
 				writePayload_ttl9((uint8_t*) &mdb_payload_tx, 2);
@@ -260,7 +260,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 		} else {
 
-			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (POLL & BIT_CMD_SET);
+			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
 			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
 
 			if (xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000))) {
@@ -270,7 +270,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 				} else if (mdb_payload_rx[0] == 0x06 /*Vend Denied*/) {
 
-					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (VEND & BIT_CMD_SET);
+					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
 
 					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 2);
@@ -282,7 +282,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					uint16_t vendAmount = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
 
-					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (VEND & BIT_CMD_SET);
+					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x02; // Vend Success
 					mdb_payload_tx[2] = itemNumber >> 8;
 					mdb_payload_tx[3] = itemNumber;
@@ -295,7 +295,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					++coils[itemNumber][1];
 
-					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (VEND & BIT_CMD_SET);
+					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
 
 					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 2);
@@ -305,7 +305,7 @@ void mdb_vmc_loop(void *pvParameters) {
 				} else if (mdb_payload_rx[0] == 0x04 /*Session Cancel Request*/) {
 					// IDLE_STATE
 
-					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/& BIT_ADD_SET) | (VEND & BIT_CMD_SET);
+					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
 
 					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 2);
@@ -372,7 +372,7 @@ void mdb_vmc_loop(void *pvParameters) {
 		}
 
 		{
-			mdb_payload_tx[0] = (0x60 /*Cashless Device #2*/& BIT_ADD_SET) | (RESET & BIT_CMD_SET);
+			mdb_payload_tx[0] = 0x60 /*Cashless Device #2*/ | RESET;
 			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
 
 			xQueueReceive(payload_receive_queue, &mdb_payload_rx, 500 / portTICK_PERIOD_MS); // ACK
