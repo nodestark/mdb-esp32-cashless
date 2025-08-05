@@ -21,7 +21,6 @@
 
 #include "bleprph.h"
 #include "nimble.h"
-#include "rsacipher.h"
 
 #define TIMEOUT_IDLE_US 	(90 * 1000000ULL)  // 90 segundos em microssegundos
 
