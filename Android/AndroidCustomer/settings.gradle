@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Android_ble"
+rootProject.name = "AndroidCustomer"
 include ':app'
