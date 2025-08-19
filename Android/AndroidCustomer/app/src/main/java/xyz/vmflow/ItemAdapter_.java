@@ -34,7 +34,11 @@ public class ItemAdapter_ extends RecyclerView.Adapter<ItemAdapter_.ViewHolder_>
         ScanResult scanResult = scanResults.get(position);
 
         BluetoothDevice device = scanResult.getDevice();
-        holder.deviceNameText.setText( "\uD83C\uDF6B Machine: " + device.getName().substring(7) );
+
+        String s = device.getName().split("\\.")[0];
+        String padded = String.format("%6s", s).replace(' ', '0'); // 00199
+
+        holder.deviceNameText.setText( "\uD83C\uDF6B Machine: " + padded );
         holder.deviceAddressText.setText(device.getAddress());
 
         holder.bind(scanResult, listener);

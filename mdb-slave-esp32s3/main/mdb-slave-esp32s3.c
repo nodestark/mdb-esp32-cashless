@@ -1117,7 +1117,7 @@ void app_main(void) {
 	esp_timer_start_periodic(periodic_timer, 300000000);
 
 	// Initialization of Bluetooth Low Energy (BLE) with the machine name
-	startBle("machine00000", ble_event_handler);
+	startBle("0.vmflow.xyz", ble_event_handler);
 
 	xSemaphoreGive(xOneShotReqTelemetry= xSemaphoreCreateBinary());
 

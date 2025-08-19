@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
                 BluetoothDevice device = result.getDevice();
 
                 String deviceName = device.getName();
-                if (deviceName == null || !deviceName.toLowerCase().startsWith("machine"))
+                if (deviceName == null || !deviceName.toLowerCase().endsWith("vmflow.xyz"))
                     return;
 
                 boolean exists = false;
