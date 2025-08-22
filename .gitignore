@@ -1,8 +1,4 @@
-kicad/mdb-master-esp32s3/mdb-master-esp32s3-backups
-kicad/mdb-slave-esp32s3/mdb-slave-esp32s3-backups
-
-mdb-master-esp32/build
-mdb-master-esp32/sdkconfig.old
+kicad/mdb-slave-esp32s3-backups
 
 mdb-slave-esp32s3/managed_components
 mdb-slave-esp32s3/build
