@@ -1,8 +1,8 @@
 package xyz.vmflow;
 
-import android.bluetooth.le.ScanResult;
+import android.bluetooth.BluetoothDevice;
 
 public interface ItemAdapter_OnItemClickListener {
 
-    void onItemClick(ScanResult device);
+    void onItemClick(BluetoothDevice device);
 }

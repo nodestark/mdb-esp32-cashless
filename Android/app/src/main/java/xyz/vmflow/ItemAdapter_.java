@@ -10,15 +10,17 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ItemAdapter_ extends RecyclerView.Adapter<ItemAdapter_.ViewHolder_> {
 
-    private List<ScanResult> scanResults;
+    private List<BluetoothDevice> mBluetoothDevices;
+
     private ItemAdapter_OnItemClickListener listener;
 
-    public ItemAdapter_(List<ScanResult> scanResults, ItemAdapter_OnItemClickListener listener) {
-        this.scanResults = scanResults;
+    public ItemAdapter_(List<BluetoothDevice> bluetoothDevices, ItemAdapter_OnItemClickListener listener) {
+        this.mBluetoothDevices = bluetoothDevices;
         this.listener = listener;
     }
 
@@ -31,9 +33,7 @@ public class ItemAdapter_ extends RecyclerView.Adapter<ItemAdapter_.ViewHolder_>
 
     public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
 
-        ScanResult scanResult = scanResults.get(position);
-
-        BluetoothDevice device = scanResult.getDevice();
+        BluetoothDevice device = mBluetoothDevices.get(position);
 
         String s = device.getName().split("\\.")[0];
         String padded = String.format("%6s", s).replace(' ', '0'); // 00199
@@ -41,11 +41,11 @@ public class ItemAdapter_ extends RecyclerView.Adapter<ItemAdapter_.ViewHolder_>
         holder.deviceNameText.setText( "\uD83C\uDF6B Machine: " + padded );
         holder.deviceAddressText.setText(device.getAddress());
 
-        holder.bind(scanResult, listener);
+        holder.bind(device, listener);
     }
 
     public int getItemCount() {
-        return scanResults.size();
+        return mBluetoothDevices.size();
     }
 
     public static class ViewHolder_ extends RecyclerView.ViewHolder {
@@ -59,7 +59,7 @@ public class ItemAdapter_ extends RecyclerView.Adapter<ItemAdapter_.ViewHolder_>
             deviceAddressText = view.findViewById(R.id.textViewDeviceAddress);
         }
 
-        public void bind(ScanResult result, ItemAdapter_OnItemClickListener listener) {
+        public void bind(BluetoothDevice result, ItemAdapter_OnItemClickListener listener) {
             itemView.setOnClickListener(v -> listener.onItemClick(result));
         }
     }
