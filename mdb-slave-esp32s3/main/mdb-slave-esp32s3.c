@@ -22,6 +22,8 @@
 #include "bleprph.h"
 #include "nimble.h"
 
+char mydomain[32];
+
 #define TIMEOUT_IDLE_US 	(90 * 1000000ULL)  // 90 segundos em microssegundos
 
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
@@ -441,7 +443,11 @@ void mdb_cashless_loop(void *pvParameters) {
 
 							char payload[100];
 							sprintf(payload, "item_number=%d,item_price=%d", itemNumber, itemPrice);
-							esp_mqtt_client_publish(mqttClient, "/app/machine00000/sale", (char*) &payload, 0, 1, 0);
+
+						  	char buffer[64];
+						  	snprintf(buffer, sizeof(buffer), "/domain/%s/sale", mydomain);
+
+							esp_mqtt_client_publish(mqttClient, buffer, (char*) &payload, 0, 1, 0);
 						}
 
 						break;
@@ -924,11 +930,44 @@ void requestTelemetryData(void *arg) {
 }
 
 void ping_callback(void *arg) {
-	esp_mqtt_client_publish(mqttClient, "/app/machine00000/ping", "1", 0, 1, 0);
+
+	char buffer[64];
+	snprintf(buffer, sizeof(buffer), "/domain/%s/ping", mydomain);
+
+	esp_mqtt_client_publish(mqttClient, buffer, "1", 0, 1, 0);
 }
 
 void ble_event_handler(char *event_data) {
-	printf(">_ %s\n", event_data);
+	// 0 (command) 1..17 (payload) 18 (check)
+
+    uint8_t command = (uint8_t) event_data[0];
+
+    if(command == 0x00){
+
+		nvs_handle_t handle;
+		nvs_open("vmflow", NVS_READWRITE, &handle);
+
+		size_t required_size = 0;
+		if (nvs_get_str(handle, "domain", NULL, &required_size) != ESP_OK) {
+
+			nvs_set_str(handle, "domain", &event_data[1]);
+			nvs_commit(handle);
+		}
+		nvs_close(handle);
+
+    } else if(command == 0x01){
+
+		nvs_handle_t handle;
+		nvs_open("vmflow", NVS_READWRITE, &handle);
+
+		size_t required_size = 0;
+		if (nvs_get_str(handle, "vernam", NULL, &required_size) != ESP_OK) {
+
+			nvs_set_str(handle, "vernam", &event_data[1]);
+			nvs_commit(handle);
+		}
+		nvs_close(handle);
+    }
 
 	if (strncmp(event_data, "e", 1) == 0) {
 //    	Starting a vending session...
@@ -979,9 +1018,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	switch ((esp_mqtt_event_id_t) event_id) {
 	case MQTT_EVENT_CONNECTED:
 
-		esp_mqtt_client_subscribe(client, "/iot/machine00000/#", 0);
+    	char buffer[64];
+    	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", mydomain);
 
-		esp_mqtt_client_publish(client, "/app/machine00000/poweron", "1", 0, 1, 0);
+    	esp_mqtt_client_subscribe(client, buffer, 0);
+
+    	char buffer_[64];
+    	snprintf(buffer_, sizeof(buffer_), "/domain/%s/poweron", mydomain);
+
+		esp_mqtt_client_publish(client, buffer_, "1", 0, 1, 0);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
@@ -1095,12 +1140,28 @@ void app_main(void) {
 					.threshold.authmode = WIFI_AUTH_WPA2_PSK, // WPA2-PSK authentication mode
 			}, };
 
+	nvs_handle_t handle_;
+	if (nvs_open("wifi", NVS_READONLY, &handle_) == ESP_OK) {
+
+		size_t required_size = 0;
+
+		if (nvs_get_str(handle_, "ssid", NULL, &required_size) == ESP_OK && required_size > 0) {
+	    	nvs_get_str(handle_, "ssid", (char*) wifi_config.sta.ssid, &required_size);
+	    }
+
+	    if (nvs_get_str(handle_, "password", NULL, &required_size) == ESP_OK && required_size > 0) {
+			nvs_get_str(handle_, "password", (char*) wifi_config.sta.password, &required_size);
+		}
+
+	    nvs_close(handle_);
+	}
+
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 	esp_wifi_start();
 
 	// MQTT client configuration (Eclipse MQTT Broker)
-	const esp_mqtt_client_config_t mqttCfg = { .broker.address.uri = "mqtt://mqtt.eclipseprojects.io", /*MQTT broker URI*/};
+	const esp_mqtt_client_config_t mqttCfg = { .broker.address.uri = "mqtt://mqtt.vmflow.xyz", /*MQTT broker URI*/};
 
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
 	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
@@ -1116,8 +1177,24 @@ void app_main(void) {
 
 	esp_timer_start_periodic(periodic_timer, 300000000);
 
-	// Initialization of Bluetooth Low Energy (BLE) with the machine name
-	startBle("0.vmflow.xyz", ble_event_handler);
+	// Initialization of Bluetooth Low Energy (BLE) with the alias
+
+	char myhost[64];
+	strcpy(myhost, "0.vmflow.xyz"); // Default value
+
+	nvs_handle_t handle;
+	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
+	    size_t required_size = 0;
+	    if (nvs_get_str(handle, "domain", NULL, &required_size) == ESP_OK && required_size > 0) {
+
+	        if (nvs_get_str(handle, "domain", mydomain, &required_size) == ESP_OK) {
+	            snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", mydomain);
+	        }
+	    }
+	    nvs_close(handle);
+	}
+
+	startBle(myhost, ble_event_handler);
 
 	xSemaphoreGive(xOneShotReqTelemetry= xSemaphoreCreateBinary());
 
