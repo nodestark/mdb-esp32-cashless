@@ -22,8 +22,6 @@
 #include "bleprph.h"
 #include "nimble.h"
 
-char mydomain[32];
-
 #define TIMEOUT_IDLE_US 	(90 * 1000000ULL)  // 90 segundos em microssegundos
 
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
@@ -42,6 +40,11 @@ char mydomain[32];
 #define BIT_MODE_SET 	0b100000000
 #define BIT_ADD_SET   	0b011111000
 #define BIT_CMD_SET   	0b000000111
+
+struct settings_t {
+	char domain[32];
+	char vernam[17];
+} settings;
 
 // Defining MDB commands as an enum
 enum MDB_COMMAND {
@@ -445,7 +448,7 @@ void mdb_cashless_loop(void *pvParameters) {
 							sprintf(payload, "item_number=%d,item_price=%d", itemNumber, itemPrice);
 
 						  	char buffer[64];
-						  	snprintf(buffer, sizeof(buffer), "/domain/%s/sale", mydomain);
+						  	snprintf(buffer, sizeof(buffer), "/domain/%s/sale", settings.domain);
 
 							esp_mqtt_client_publish(mqttClient, buffer, (char*) &payload, 0, 1, 0);
 						}
@@ -932,7 +935,7 @@ void requestTelemetryData(void *arg) {
 void ping_callback(void *arg) {
 
 	char buffer[64];
-	snprintf(buffer, sizeof(buffer), "/domain/%s/ping", mydomain);
+	snprintf(buffer, sizeof(buffer), "/domain/%s/ping", settings.domain);
 
 	esp_mqtt_client_publish(mqttClient, buffer, "1", 0, 1, 0);
 }
@@ -1019,12 +1022,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_CONNECTED:
 
     	char buffer[64];
-    	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", mydomain);
+    	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", settings.domain);
 
     	esp_mqtt_client_subscribe(client, buffer, 0);
 
     	char buffer_[64];
-    	snprintf(buffer_, sizeof(buffer_), "/domain/%s/poweron", mydomain);
+    	snprintf(buffer_, sizeof(buffer_), "/domain/%s/poweron", settings.domain);
 
 		esp_mqtt_client_publish(client, buffer_, "1", 0, 1, 0);
 
@@ -1040,24 +1043,51 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_DATA:
 
 		printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+		printf("DATA_LEN=%d\r\n", event->data_len);
 		printf("DATA=%.*s\r\n", event->data_len, event->data);
 
-		if (strncmp(event->topic, "/iot/machine00000/restart", 25) == 0) {
-			esp_restart();
+
+		size_t topic_len = strlen(event->topic);
+
+		if (topic_len > 10 && strncmp(event->topic + strlen(event->topic) - 10, "/telemetry", 10) == 0) {
+			xTaskCreate(requestTelemetryData, "OneShotTelemetry", 2048, NULL, 1, NULL);
 		}
 
-		if (strncmp(event->topic, "/iot/machine00000/telemetry", 25) == 0) {
-		    xTaskCreate(requestTelemetryData, "OneShotTelemetry", 2048, NULL, 1, NULL);
-		}
+		if (topic_len > 7 && strncmp(event->topic + strlen(event->topic) - 7, "/credit", 7) == 0) {
 
-		if (strncmp(event->topic, "/iot/machine00000/session/e", 27) == 0) {
+			char *payload = event->data;
 
-			struct flow_mdb_session_msg_t msg = { .pipe = PIPE_MQTT };
+			uint8_t chk = payload[0];
+			for(int x= 1; x < 18; x++){
+				payload[x] ^= settings.vernam[x - 1];
+				chk += payload[x];
+			}
 
-			// 150,<sequential>
-			sscanf(event->data, "%hu,%hu", (uint16_t*) &msg.fundsAvailable, (uint16_t*) &msg.sequential);
 
-			xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
+			if(chk == payload[18]){
+				printf("chk ok!\n");
+
+				uint32_t timestampSec = ((uint32_t) payload[5] << 24) |
+						((uint32_t) payload[6] << 16) |
+						((uint32_t) payload[7] << 8)  |
+						((uint32_t) payload[8] << 0);
+
+				uint16_t amount = ((uint16_t) payload[1] << 8)  | ((uint16_t) payload[2] << 0);
+
+			    uint32_t now;
+			    time((time_t*) &now);
+
+				if((timestampSec >> 4) == (now >> 4)){
+					// 16sec
+
+					printf("time ok!\n");
+
+					struct flow_mdb_session_msg_t msg = { .pipe = PIPE_MQTT };
+					msg.fundsAvailable = amount;
+
+					xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
+				}
+			}
 		}
 
 		break;
@@ -1184,14 +1214,20 @@ void app_main(void) {
 
 	nvs_handle_t handle;
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
+
 	    size_t required_size = 0;
 	    if (nvs_get_str(handle, "domain", NULL, &required_size) == ESP_OK && required_size > 0) {
 
-	        if (nvs_get_str(handle, "domain", mydomain, &required_size) == ESP_OK) {
-	            snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", mydomain);
+	        if (nvs_get_str(handle, "domain", settings.domain, &required_size) == ESP_OK) {
+	            snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", settings.domain);
 	        }
 	    }
-	    nvs_close(handle);
+
+		if (nvs_get_str(handle, "vernam", NULL, &required_size) == ESP_OK && required_size > 0) {
+			nvs_get_str(handle, "vernam", settings.vernam, &required_size);
+		}
+
+		nvs_close(handle);
 	}
 
 	startBle(myhost, ble_event_handler);
@@ -1201,4 +1237,5 @@ void app_main(void) {
 	// Creation of the queue for MDB sessions and the main MDB task
 	mdbSessionQueue = xQueueCreate(16 /*queue-length*/, sizeof(struct flow_mdb_session_msg_t));
 	xTaskCreate(mdb_cashless_loop, "cashless_loop", 4096, (void*) 0, 1, (void*) 0);
+
 }
