@@ -374,7 +374,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						/* PIPE_BLE */
 
-						transmitPayloadByBLE('a', itemPrice, itemNumber);
+						transmitPayloadByBLE(0x0a, itemPrice, itemNumber);
 
 						break;
 					}
@@ -396,7 +396,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						/* PIPE_BLE */
 
-						transmitPayloadByBLE('b', itemPrice, itemNumber);
+						transmitPayloadByBLE(0x0b, itemPrice, itemNumber);
 
 						break;
 					}
@@ -408,7 +408,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						/* PIPE_BLE */
 
-						transmitPayloadByBLE('c', itemPrice, itemNumber);
+						transmitPayloadByBLE(0x0c, itemPrice, itemNumber);
 
 						break;
 					}
@@ -420,7 +420,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						/* PIPE_BLE */
 
-						transmitPayloadByBLE('d', itemPrice, itemNumber);
+						transmitPayloadByBLE(0x0d, itemPrice, itemNumber);
 
 						break;
 					}
