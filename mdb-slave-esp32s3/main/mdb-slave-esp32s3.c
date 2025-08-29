@@ -22,8 +22,6 @@
 #include "bleprph.h"
 #include "nimble.h"
 
-#define TIMEOUT_IDLE 90 /*sec*/
-
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
 #define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
@@ -41,10 +39,8 @@
 #define BIT_ADD_SET   	0b011111000
 #define BIT_CMD_SET   	0b000000111
 
-struct settings_t {
-	char domain[32];
-	char vernam[17];
-} settings;
+char mydomain[32];
+char vernam_key[17];
 
 // Defining MDB commands as an enum
 enum MDB_COMMAND {
@@ -99,8 +95,6 @@ uint8_t vend_denied_todo = false;
 uint8_t cashless_reset_todo = false;
 uint8_t outsequence_todo = false;
 
-int32_t state_start_time = 0;
-
 // MQTT client handle
 esp_mqtt_client_handle_t mqttClient = (void*) 0;
 
@@ -131,7 +125,7 @@ void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber) {
 	uint8_t chk = payload[0];
 	for(int x= 1; x < sizeof(payload) - 1; x++){
 		chk += payload[x];
-		payload[x] ^= settings.vernam[x - 1];
+		payload[x] ^= vernam_key[x - 1];
 	}
 	
 	payload[sizeof(payload) - 1] = chk;	
@@ -196,6 +190,8 @@ void writePayload_ttl9(uint8_t *mdb_payload, uint8_t length) {
 
 // Main MDB loop function
 void mdb_cashless_loop(void *pvParameters) {
+	
+	int32_t session_begin_time = 0;
 
 	uint16_t fundsAvailable = 0;
 	uint16_t itemPrice = 0;
@@ -334,7 +330,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						mdb_payload[2] = fundsAvailable_;
 						available_tx = 3;
 						
-						time((time_t*) &state_start_time);
+						time((time_t*) &session_begin_time);
 
 					} else if (session_cancel_todo) {
 						// Cancel session
@@ -348,7 +344,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint32_t now;
 						time((time_t*) &now);
 						
-						if (machine_state >= IDLE_STATE && (now - state_start_time /*elapsed*/) > TIMEOUT_IDLE) {
+						if (machine_state >= IDLE_STATE && (now - session_begin_time /*elapsed*/) > 90 /*sec*/) {
 							session_cancel_todo = true;
 						}
 					}
@@ -437,7 +433,7 @@ void mdb_cashless_loop(void *pvParameters) {
 							sprintf(payload, "item_number=%d,item_price=%d", itemNumber, itemPrice);
 
 						  	char buffer[64];
-						  	snprintf(buffer, sizeof(buffer), "/domain/%s/sale", settings.domain);
+						  	snprintf(buffer, sizeof(buffer), "/domain/%s/sale", mydomain);
 
 							esp_mqtt_client_publish(mqttClient, buffer, (char*) &payload, 0, 1, 0);
 						}
@@ -924,7 +920,7 @@ void requestTelemetryData(void *arg) {
 void ping_callback(void *arg) {
 
 	char buffer[64];
-	snprintf(buffer, sizeof(buffer), "/domain/%s/ping", settings.domain);
+	snprintf(buffer, sizeof(buffer), "/domain/%s/ping", mydomain);
 
 	esp_mqtt_client_publish(mqttClient, buffer, "1", 0, 1, 0);
 }
@@ -939,8 +935,8 @@ void ble_event_handler(char *event_data) {
 		nvs_handle_t handle;
 		nvs_open("vmflow", NVS_READWRITE, &handle);
 
-		size_t required_size = 0;
-		if (nvs_get_str(handle, "domain", NULL, &required_size) != ESP_OK) {
+		size_t s_len = 0;
+		if (nvs_get_str(handle, "domain", (void*) 0, &s_len) != ESP_OK) {
 
 			nvs_set_str(handle, "domain", &event_data[1]);
 			nvs_commit(handle);
@@ -952,8 +948,8 @@ void ble_event_handler(char *event_data) {
 		nvs_handle_t handle;
 		nvs_open("vmflow", NVS_READWRITE, &handle);
 
-		size_t required_size = 0;
-		if (nvs_get_str(handle, "vernam", NULL, &required_size) != ESP_OK) {
+		size_t s_len = 0;
+		if (nvs_get_str(handle, "vernam", (void*) 0, &s_len) != ESP_OK) {
 
 			nvs_set_str(handle, "vernam", &event_data[1]);
 			nvs_commit(handle);
@@ -974,21 +970,19 @@ void ble_event_handler(char *event_data) {
     	
     	uint8_t chk = payload[0];
 		for(int x= 1; x < sizeof(payload) - 1; x++){
-			payload[x] ^= settings.vernam[x - 1];
+			payload[x] ^= vernam_key[x - 1];
 			chk += payload[x];
 		}
 
 		if(chk == payload[18]){
 			printf("chk ok!\n");
 
-			uint32_t timestamp = ((uint32_t) payload[5] << 24) |
+			int32_t timestamp = ((uint32_t) payload[5] << 24) |
 					((uint32_t) payload[6] << 16) |
 					((uint32_t) payload[7] << 8)  |
 					((uint32_t) payload[8] << 0);
 
-			uint16_t amount = ((uint16_t) payload[1] << 8)  | ((uint16_t) payload[2] << 0);
-
-			uint32_t now;
+			int32_t now;
 			time((time_t*) &now);
 
 			if( abs(now - timestamp) < 8 /*sec*/){
@@ -1016,12 +1010,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_CONNECTED:
 
     	char buffer[64];
-    	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", settings.domain);
+    	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", mydomain);
 
     	esp_mqtt_client_subscribe(client, buffer, 0);
 
     	char buffer_[64];
-    	snprintf(buffer_, sizeof(buffer_), "/domain/%s/poweron", settings.domain);
+    	snprintf(buffer_, sizeof(buffer_), "/domain/%s/poweron", mydomain);
 
 		esp_mqtt_client_publish(client, buffer_, "1", 0, 1, 0);
 
@@ -1040,7 +1034,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		printf("DATA_LEN=%d\r\n", event->data_len);
 		printf("DATA=%.*s\r\n", event->data_len, event->data);
 
-
 		size_t topic_len = strlen(event->topic);
 
 		if (topic_len > 10 && strncmp(event->topic + strlen(event->topic) - 10, "/telemetry", 10) == 0) {
@@ -1053,22 +1046,21 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 			uint8_t chk = payload[0];
 			for(int x= 1; x < 18; x++){
-				payload[x] ^= settings.vernam[x - 1];
+				payload[x] ^= vernam_key[x - 1];
 				chk += payload[x];
 			}
-
 
 			if(chk == payload[18]){
 				printf("chk ok!\n");
 
-				uint32_t timestamp = ((uint32_t) payload[5] << 24) |
+				int32_t timestamp = ((uint32_t) payload[5] << 24) |
 						((uint32_t) payload[6] << 16) |
 						((uint32_t) payload[7] << 8)  |
 						((uint32_t) payload[8] << 0);
 
 				uint16_t amount = ((uint16_t) payload[1] << 8)  | ((uint16_t) payload[2] << 0);
 
-			    uint32_t now;
+			    int32_t now;
 			    time((time_t*) &now);
 
 				if( abs(now - timestamp) < 8 /*sec*/){
@@ -1162,16 +1154,11 @@ void app_main(void) {
 
 	nvs_handle_t handle_;
 	if (nvs_open("wifi", NVS_READONLY, &handle_) == ESP_OK) {
-
-		size_t required_size = 0;
-
-		if (nvs_get_str(handle_, "ssid", NULL, &required_size) == ESP_OK && required_size > 0) {
-	    	nvs_get_str(handle_, "ssid", (char*) wifi_config.sta.ssid, &required_size);
-	    }
-
-	    if (nvs_get_str(handle_, "password", NULL, &required_size) == ESP_OK && required_size > 0) {
-			nvs_get_str(handle_, "password", (char*) wifi_config.sta.password, &required_size);
-		}
+		
+		size_t s_len = 0;
+		
+		nvs_get_str(handle_, "ssid", (char*) wifi_config.sta.ssid, &s_len);
+		nvs_get_str(handle_, "password", (char*) wifi_config.sta.password, &s_len);
 
 	    nvs_close(handle_);
 	}
@@ -1205,18 +1192,12 @@ void app_main(void) {
 	nvs_handle_t handle;
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
 
-	    size_t required_size = 0;
-	    if (nvs_get_str(handle, "domain", NULL, &required_size) == ESP_OK && required_size > 0) {
-
-	        if (nvs_get_str(handle, "domain", settings.domain, &required_size) == ESP_OK) {
-	            snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", settings.domain);
-	        }
-	    }
-
-		if (nvs_get_str(handle, "vernam", NULL, &required_size) == ESP_OK && required_size > 0) {
-			nvs_get_str(handle, "vernam", settings.vernam, &required_size);
+	    size_t s_len = 0;
+        if (nvs_get_str(handle, "domain", mydomain, &s_len) == ESP_OK) {
+			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", mydomain);
 		}
-
+        nvs_get_str(handle, "vernam", vernam_key, &s_len);
+        
 		nvs_close(handle);
 	}
 
