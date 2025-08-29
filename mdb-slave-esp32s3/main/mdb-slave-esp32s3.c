@@ -22,7 +22,7 @@
 #include "bleprph.h"
 #include "nimble.h"
 
-#define TIMEOUT_IDLE_US 	(90 * 1000000ULL)  // 90 segundos em microssegundos
+#define TIMEOUT_IDLE 90 /*sec*/
 
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
@@ -99,47 +99,44 @@ uint8_t vend_denied_todo = false;
 uint8_t cashless_reset_todo = false;
 uint8_t outsequence_todo = false;
 
-static int64_t state_start_time_us = 0;
+int32_t state_start_time = 0;
 
 // MQTT client handle
 esp_mqtt_client_handle_t mqttClient = (void*) 0;
 
-// Defining session pipes for different communication types
-enum MDB_SESSION_PIPE {
-	PIPE_BLE = 0x00, PIPE_MQTT = 0x01
-};
-
-// Structure for MDB flow (reading data, controlling machine state)
-struct flow_mdb_session_msg_t {
-	uint8_t pipe;
-	uint16_t sequential;
-	uint16_t fundsAvailable;
-	uint16_t itemPrice;
-	uint16_t itemNumber;
-};
-
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = (void*) 0;
 
-void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t sequential) {
+void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber) {
 
-	char ble_payload[10];
+	char payload[19];
+	esp_fill_random(&payload, sizeof(payload));
+	
+	payload[0] = cmd;
+	
+	payload[1] = itemPrice >> 8;
+	payload[2] = itemPrice;
 
-	uint8_t chk = 0x00;
+	payload[3] = itemNumber >> 8;
+	payload[4] = itemNumber;
+	
+	uint32_t now;
+	time((time_t*) &now);
+	
+	payload[5] = now >> 24;
+	payload[6] = now >> 16;
+	payload[7] = now >> 8;
+	payload[8] = now >> 0;	
+	
+	uint8_t chk = payload[0];
+	for(int x= 1; x < sizeof(payload) - 1; x++){
+		chk += payload[x];
+		payload[x] ^= settings.vernam[x - 1];
+	}
+	
+	payload[sizeof(payload) - 1] = chk;	
 
-	chk ^= ble_payload[0] = cmd;
-	chk ^= ble_payload[1] = itemPrice >> 8;
-	chk ^= ble_payload[2] = itemPrice;
-	chk ^= ble_payload[3] = itemNumber >> 8;
-	chk ^= ble_payload[4] = itemNumber;
-	chk ^= ble_payload[5] = sequential >> 8;
-	chk ^= ble_payload[6] = sequential;
-	chk ^= ble_payload[7] = 0x00;
-	chk ^= ble_payload[8] = 0x00;
-
-	ble_payload[9] = chk;
-
-	sendBleNotification((char*) &ble_payload, sizeof(ble_payload));
+	sendBleNotification((char*) &payload, sizeof(payload));
 }
 
 // Function to read 9 bits from MDB (one byte at a time)
@@ -200,8 +197,9 @@ void writePayload_ttl9(uint8_t *mdb_payload, uint8_t length) {
 // Main MDB loop function
 void mdb_cashless_loop(void *pvParameters) {
 
-	// Declaration of the current MDB session structure
-	struct flow_mdb_session_msg_t mdbCurrentSession;
+	uint16_t fundsAvailable = 0;
+	uint16_t itemPrice = 0;
+	uint16_t itemNumber = 0;
 
 	// Payload buffer and available transmission flag
 	uint8_t mdb_payload[256];
@@ -303,10 +301,9 @@ void mdb_cashless_loop(void *pvParameters) {
 						// Vend approved
 						vend_approved_todo = false;
 
-						uint16_t vendAmount = mdbCurrentSession.itemPrice;
 						mdb_payload[0] = 0x05;
-						mdb_payload[1] = vendAmount >> 8;
-						mdb_payload[2] = vendAmount;
+						mdb_payload[1] = itemPrice >> 8;
+						mdb_payload[2] = itemPrice;
 						available_tx = 3;
 
 					} else if (vend_denied_todo) {
@@ -325,19 +322,19 @@ void mdb_cashless_loop(void *pvParameters) {
 						available_tx = 1;
 						machine_state = ENABLED_STATE;
 
-					} else if (machine_state == ENABLED_STATE && xQueueReceive(mdbSessionQueue, &mdbCurrentSession, 0)) {
+					} else if (machine_state == ENABLED_STATE && xQueueReceive(mdbSessionQueue, &fundsAvailable, 0)) {
 						// Begin session
 						session_begin_todo = false;
 
 						machine_state = IDLE_STATE;
 
-						state_start_time_us = esp_timer_get_time();
-
-						uint16_t fundsAvailable = mdbCurrentSession.fundsAvailable;
+						uint16_t fundsAvailable_ = (fundsAvailable == 0x0000 ? 0xffff : fundsAvailable);
 						mdb_payload[0] = 0x03;
-						mdb_payload[1] = fundsAvailable >> 8;
-						mdb_payload[2] = fundsAvailable;
+						mdb_payload[1] = fundsAvailable_ >> 8;
+						mdb_payload[2] = fundsAvailable_;
 						available_tx = 3;
+						
+						time((time_t*) &state_start_time);
 
 					} else if (session_cancel_todo) {
 						// Cancel session
@@ -348,10 +345,10 @@ void mdb_cashless_loop(void *pvParameters) {
 
 					} else {
 
-						int64_t now = esp_timer_get_time();
-						int64_t elapsed = now - state_start_time_us;
-
-						if (machine_state >= IDLE_STATE && elapsed > TIMEOUT_IDLE_US) {
+						uint32_t now;
+						time((time_t*) &now);
+						
+						if (machine_state >= IDLE_STATE && (now - state_start_time /*elapsed*/) > TIMEOUT_IDLE) {
 							session_cancel_todo = true;
 						}
 					}
@@ -362,28 +359,22 @@ void mdb_cashless_loop(void *pvParameters) {
 					switch (read_9(&checksum)) {
 					case VEND_REQUEST: {
 
-						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
-						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+						itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 
 						machine_state = VEND_STATE;
 
-						mdbCurrentSession.itemNumber = itemNumber;
-						mdbCurrentSession.itemPrice = itemPrice;
-
-						if (mdbCurrentSession.pipe == PIPE_MQTT) {
-
-							if (itemPrice < mdbCurrentSession.fundsAvailable) {
-								vend_approved_todo = true;
-							} else {
-								vend_denied_todo = true;
-							}
+						if (itemPrice <= fundsAvailable) {
+							vend_approved_todo = true;
+						} else {
+							vend_denied_todo = true;
 						}
 
 						/* PIPE_BLE */
 
-						transmitPayloadByBLE('a', mdbCurrentSession.itemPrice, mdbCurrentSession.itemNumber, mdbCurrentSession.sequential);
+						transmitPayloadByBLE('a', itemPrice, itemNumber);
 
 						break;
 					}
@@ -397,17 +388,15 @@ void mdb_cashless_loop(void *pvParameters) {
 					}
 					case VEND_SUCCESS: {
 
-						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 
 						machine_state = IDLE_STATE;
 
-						mdbCurrentSession.itemNumber = itemNumber;
-
 						/* PIPE_BLE */
 
-						transmitPayloadByBLE('b', mdbCurrentSession.itemPrice, mdbCurrentSession.itemNumber, mdbCurrentSession.sequential);
+						transmitPayloadByBLE('b', itemPrice, itemNumber);
 
 						break;
 					}
@@ -419,7 +408,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						/* PIPE_BLE */
 
-						transmitPayloadByBLE('c', mdbCurrentSession.itemPrice, mdbCurrentSession.itemNumber, mdbCurrentSession.sequential - 1);
+						transmitPayloadByBLE('c', itemPrice, itemNumber);
 
 						break;
 					}
@@ -431,7 +420,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						/* PIPE_BLE */
 
-						transmitPayloadByBLE('d', mdbCurrentSession.itemPrice, mdbCurrentSession.itemNumber, mdbCurrentSession.sequential);
+						transmitPayloadByBLE('d', itemPrice, itemNumber);
 
 						break;
 					}
@@ -970,46 +959,51 @@ void ble_event_handler(char *event_data) {
 			nvs_commit(handle);
 		}
 		nvs_close(handle);
-    }
+		
+    } else if(command == 0x02){
+    	// Starting a vending session...
+    			
+		uint16_t fundsAvailable = 0x0000;
+		xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
+		
+    } else if(command == 0x03){
+    	// Approve the vending session...
+    	
+    	char payload[19];
+		memcpy(payload, event_data, sizeof(payload));
+    	
+    	uint8_t chk = payload[0];
+		for(int x= 1; x < sizeof(payload) - 1; x++){
+			payload[x] ^= settings.vernam[x - 1];
+			chk += payload[x];
+		}
 
-	if (strncmp(event_data, "e", 1) == 0) {
-//    	Starting a vending session...
+		if(chk == payload[18]){
+			printf("chk ok!\n");
 
-		struct flow_mdb_session_msg_t msg = { .pipe = PIPE_BLE, .sequential = esp_random(), .fundsAvailable = 0xffff };
+			uint32_t timestamp = ((uint32_t) payload[5] << 24) |
+					((uint32_t) payload[6] << 16) |
+					((uint32_t) payload[7] << 8)  |
+					((uint32_t) payload[8] << 0);
 
-		xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
+			uint16_t amount = ((uint16_t) payload[1] << 8)  | ((uint16_t) payload[2] << 0);
 
-	} else if (strncmp(event_data, "f", 1) == 0) {
-//    	Approve the vending session...
+			uint32_t now;
+			time((time_t*) &now);
 
-		char ble_payload[10];
-		memcpy(ble_payload, event_data, sizeof(ble_payload));
+			if( abs(now - timestamp) < 8 /*sec*/){
+				printf("time ok!\n");
 
-		uint8_t chk = 0x00;
-
-		chk ^= ble_payload[0];
-		chk ^= ble_payload[1];
-		chk ^= ble_payload[2];
-		chk ^= ble_payload[3];
-		chk ^= ble_payload[4];
-		chk ^= ble_payload[5];
-		chk ^= ble_payload[6];
-		chk ^= ble_payload[7];
-		chk ^= ble_payload[8];
-//		assert(ble_payload[9] == chk);
-
-		uint16_t sequential = (ble_payload[5] << 8) | ble_payload[6];
-//		assert(sequential == (mdbSessionOwner->sequential + 1) );
-
-		vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
-
-	} else if (strncmp(event_data, "g", 1) == 0) {
-//    	Close the vending session...
-
+				vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
+			}
+		}
+		
+    } else if(command == 0x04){
+    	// Close the vending session...
 		session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
 
-	} else if (strncmp(event_data, "h", 1) == 0) {
-	    xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
+    } else if(command == 0x05){
+		xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
 	}
 }
 
@@ -1067,7 +1061,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 			if(chk == payload[18]){
 				printf("chk ok!\n");
 
-				uint32_t timestampSec = ((uint32_t) payload[5] << 24) |
+				uint32_t timestamp = ((uint32_t) payload[5] << 24) |
 						((uint32_t) payload[6] << 16) |
 						((uint32_t) payload[7] << 8)  |
 						((uint32_t) payload[8] << 0);
@@ -1077,15 +1071,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 			    uint32_t now;
 			    time((time_t*) &now);
 
-				if((timestampSec >> 4) == (now >> 4)){
-					// 16sec
-
+				if( abs(now - timestamp) < 8 /*sec*/){
 					printf("time ok!\n");
 
-					struct flow_mdb_session_msg_t msg = { .pipe = PIPE_MQTT };
-					msg.fundsAvailable = amount;
-
-					xQueueSend(mdbSessionQueue, &msg, 0 /*if full, do not wait*/);
+					uint16_t fundsAvailable = amount;
+					xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
 				}
 			}
 		}
@@ -1235,7 +1225,6 @@ void app_main(void) {
 	xSemaphoreGive(xOneShotReqTelemetry= xSemaphoreCreateBinary());
 
 	// Creation of the queue for MDB sessions and the main MDB task
-	mdbSessionQueue = xQueueCreate(16 /*queue-length*/, sizeof(struct flow_mdb_session_msg_t));
+	mdbSessionQueue = xQueueCreate(16 /*queue-length*/, sizeof(uint16_t));
 	xTaskCreate(mdb_cashless_loop, "cashless_loop", 4096, (void*) 0, 1, (void*) 0);
-
 }
