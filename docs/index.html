@@ -32,7 +32,13 @@
         ul {
             list-style-position: inside;
         }
-
+        
+	.circular {
+	    width: 150px;
+	    height: 150px;
+	    border-radius: 50%;   /* deixa a imagem redonda */
+	    object-fit: cover;    /* corta e centraliza */
+	}
     </style>
     <script src="https://unpkg.com/mithril/mithril.js"></script>
 
@@ -51,10 +57,10 @@
             m("h1", "MDB Protocol Implementation for Cashless Vending Machine"),
             m("p", "This is an open source project dedicated to implementing the MDB (Multi-Drop Bus) protocol for cashless vending machines, using ESP32 as the main platform and KiCad for PCB design. The MDB protocol is widely used in vending machines for communication between devices, enabling integration with cashless payment systems."),
 
-            m("img", {src: "1411051686640.png", height: "130", style: {margin: "10px"}} ),
-            m("img", {src: "d4853d90-1b8e-46a0-853e-638dff79a9b7.png", height: "130", style: {margin: "10px"}} ),
-            m("img", {src: "mdb-master-esp32s3_assembled.png", height: "130", style: {margin: "10px"}} ),
-            m("img", {src: "mdb-slave-esp32s3_pcb.png", height: "130", style: {margin: "10px"}} ),
+            m("img.circular", {src: "1411051686640.jpg", height: "130", style: {margin: "10px"}} ),
+            m("img.circular", {src: "d4853d90-1b8e-46a0-853e-638dff79a9b7.jpg", height: "130", style: {margin: "10px"}} ),
+            m("img.circular", {src: "mdb-master-esp32s3_assembled.jpeg", height: "130", style: {margin: "10px"}} ),
+            m("img.circular", {src: "mdb-slave-esp32s3_pcb.png", height: "130", style: {margin: "10px"}} ),
 
             m("h2", "Key Features:"),
             m("ul", [
