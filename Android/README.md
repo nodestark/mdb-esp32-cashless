@@ -1,8 +1,11 @@
 # VMFlow - Android IoT Telemetry App
 
-![VMFlow.xyz]
+<div align="center">
+<img src="Screenshot_20250901_154605.png" width="400"/>
+<img src="Screenshot_20250901_154627.png" width="400"/>
+</div>
 
-VMFlow is an **Android application for IoT telemetry**, designed to manage vending machine devices, configure Wi-Fi, and remotely send credits via **MQTT**.  
+**Android application for IoT telemetry**, designed to manage vending machine devices, configure Wi-Fi, and remotely send credits via **MQTT**.  
 
 ---
 

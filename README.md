@@ -15,4 +15,29 @@ Help us improve documentation by adding usage examples, installation instruction
 ![MDB Cashless](1411051686640.jpg)
 ![MDB Cashless](mdb-slave-esp32s3_pcb.png)
 
+---
+
+## Sending Credit via Supabase API (MQTT)
+
+### 1️⃣ Get a Bearer Token
+
+```bash
+curl -X POST 'https://supabase.vmflow.xyz/auth/v1/token?grant_type=password' \
+-H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
+-H "Content-Type: application/json" \
+-d '{ "email": "your_email@domain.xyz", "password": "123456"}'
+```
+
+### 2️⃣ Send Credit to the Machine
+
+```bash
+curl -X POST 'https://supabase.vmflow.xyz/functions/v1/send-credit' \
+-H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
+-H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+-H "Content-Type: application/json" \
+-d '{ "domain":51,"amount":150 }'
+```
+
+---
+
 [![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
