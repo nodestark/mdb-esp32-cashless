@@ -1,4 +1,4 @@
-package com.example.myapplication
+package xyz.vmflow.target
 
 import org.junit.Test
 
