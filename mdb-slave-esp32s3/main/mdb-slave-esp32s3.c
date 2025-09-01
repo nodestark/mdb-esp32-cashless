@@ -933,26 +933,26 @@ void ble_event_handler(char *event_data) {
     if(command == 0x00){
 
 		nvs_handle_t handle;
-		nvs_open("vmflow", NVS_READWRITE, &handle);
+		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
 
-		size_t s_len = 0;
-		if (nvs_get_str(handle, "domain", (void*) 0, &s_len) != ESP_OK) {
+		size_t s_len;
+		if (nvs_get_str(handle, "domain", NULL, &s_len) != ESP_OK) {
 
-			nvs_set_str(handle, "domain", &event_data[1]);
-			nvs_commit(handle);
+			ESP_ERROR_CHECK( nvs_set_str(handle, "domain", event_data + 1) );
+			ESP_ERROR_CHECK( nvs_commit(handle) );
 		}
 		nvs_close(handle);
 
     } else if(command == 0x01){
 
 		nvs_handle_t handle;
-		nvs_open("vmflow", NVS_READWRITE, &handle);
+		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
 
-		size_t s_len = 0;
-		if (nvs_get_str(handle, "vernam", (void*) 0, &s_len) != ESP_OK) {
+		size_t s_len;
+		if (nvs_get_str(handle, "vernam", NULL, &s_len) != ESP_OK) {
 
-			nvs_set_str(handle, "vernam", &event_data[1]);
-			nvs_commit(handle);
+			ESP_ERROR_CHECK( nvs_set_str(handle, "vernam", event_data + 1) );
+			ESP_ERROR_CHECK( nvs_commit(handle) );
 		}
 		nvs_close(handle);
 		
@@ -998,7 +998,29 @@ void ble_event_handler(char *event_data) {
 
     } else if(command == 0x05){
 		xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
-	}
+
+	} else if(command == 0x06){
+
+		wifi_config_t wifi_config = {0};
+		esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
+
+		strcpy((char*) wifi_config.sta.ssid, event_data + 1);
+
+		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+
+		printf("ssid %s\n", event_data + 1);
+
+    } else if(command == 0x07){
+
+		wifi_config_t wifi_config = {0};
+		esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
+
+		strcpy((char*) wifi_config.sta.password, event_data + 1);
+
+		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+
+		printf("password %s\n", event_data + 1);
+    }
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
@@ -1133,6 +1155,7 @@ void app_main(void) {
 	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
 
 	// Initialization of the network stack and event loop
+//	nvs_flash_erase();
 	nvs_flash_init();
 
 	esp_netif_init();
@@ -1145,26 +1168,7 @@ void app_main(void) {
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
 	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
 
-	wifi_config_t wifi_config = {
-			.sta = {
-					.ssid = "ALLREDE-SOARES-2G", 	// Wi-Fi network name (SSID)
-					.password = "julia2012",        // Network password
-					.threshold.authmode = WIFI_AUTH_WPA2_PSK, // WPA2-PSK authentication mode
-			}, };
-
-	nvs_handle_t handle_;
-	if (nvs_open("wifi", NVS_READONLY, &handle_) == ESP_OK) {
-		
-		size_t s_len = 0;
-		
-		nvs_get_str(handle_, "ssid", (char*) wifi_config.sta.ssid, &s_len);
-		nvs_get_str(handle_, "password", (char*) wifi_config.sta.password, &s_len);
-
-	    nvs_close(handle_);
-	}
-
 	esp_wifi_set_mode(WIFI_MODE_STA);
-	esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 	esp_wifi_start();
 
 	// MQTT client configuration (Eclipse MQTT Broker)
@@ -1193,11 +1197,16 @@ void app_main(void) {
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
 
 	    size_t s_len = 0;
-        if (nvs_get_str(handle, "domain", mydomain, &s_len) == ESP_OK) {
+        if (nvs_get_str(handle, "domain", (void*) 0, &s_len) == ESP_OK) {
+        	nvs_get_str(handle, "domain", mydomain, &s_len);
+
 			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", mydomain);
 		}
-        nvs_get_str(handle, "vernam", vernam_key, &s_len);
-        
+
+        if (nvs_get_str(handle, "vernam", (void*) 0, &s_len) == ESP_OK) {
+            nvs_get_str(handle, "vernam", vernam_key, &s_len);
+		}
+
 		nvs_close(handle);
 	}
 
