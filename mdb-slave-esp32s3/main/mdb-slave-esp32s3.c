@@ -1086,10 +1086,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 			    time((time_t*) &now);
 
 				if( abs(now - timestamp) < 8 /*sec*/){
-					printf("time ok!\n");
-
 					uint16_t fundsAvailable = amount;
 					xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
+
+					printf("Amount: %d\n", fundsAvailable);
+
 				}
 			}
 		}
