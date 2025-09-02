@@ -922,7 +922,10 @@ void ping_callback(void *arg) {
 	char buffer[64];
 	snprintf(buffer, sizeof(buffer), "/domain/%s/ping", mydomain);
 
-	esp_mqtt_client_publish(mqttClient, buffer, "1", 0, 1, 0);
+	int32_t now;
+	time((time_t*) &now);
+	
+	esp_mqtt_client_publish(mqttClient, buffer, (char*) &now, sizeof(now), 0, 0);
 }
 
 void ble_event_handler(char *event_data) {
@@ -1026,7 +1029,7 @@ void ble_event_handler(char *event_data) {
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
 
 	esp_mqtt_event_handle_t event = event_data;
-	esp_mqtt_client_handle_t client = event->client;
+	esp_mqtt_client_handle_t mqttClient = event->client;
 
 	switch ((esp_mqtt_event_id_t) event_id) {
 	case MQTT_EVENT_CONNECTED:
@@ -1034,12 +1037,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     	char buffer[64];
     	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", mydomain);
 
-    	esp_mqtt_client_subscribe(client, buffer, 0);
+    	esp_mqtt_client_subscribe(mqttClient, buffer, 0);
 
     	char buffer_[64];
     	snprintf(buffer_, sizeof(buffer_), "/domain/%s/poweron", mydomain);
 
-		esp_mqtt_client_publish(client, buffer_, "1", 0, 1, 0);
+		int32_t now;
+		time((time_t*) &now);
+			
+		esp_mqtt_client_publish(mqttClient, buffer_, (char*) &now, sizeof(now), 0, 0);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
@@ -1216,6 +1222,6 @@ void app_main(void) {
 	xSemaphoreGive(xOneShotReqTelemetry= xSemaphoreCreateBinary());
 
 	// Creation of the queue for MDB sessions and the main MDB task
-	mdbSessionQueue = xQueueCreate(16 /*queue-length*/, sizeof(uint16_t));
+	mdbSessionQueue = xQueueCreate(3 /*queue-length*/, sizeof(uint16_t));
 	xTaskCreate(mdb_cashless_loop, "cashless_loop", 4096, (void*) 0, 1, (void*) 0);
 }
