@@ -39,7 +39,7 @@
 #define BIT_ADD_SET   	0b011111000
 #define BIT_CMD_SET   	0b000000111
 
-char mydomain[32];
+char mysubdomain[32];
 char vernam_key[17];
 
 // Defining MDB commands as an enum
@@ -433,7 +433,7 @@ void mdb_cashless_loop(void *pvParameters) {
 							sprintf(payload, "item_number=%d,item_price=%d", itemNumber, itemPrice);
 
 						  	char buffer[64];
-						  	snprintf(buffer, sizeof(buffer), "/domain/%s/sale", mydomain);
+						  	snprintf(buffer, sizeof(buffer), "/domain/%s/sale", mysubdomain);
 
 							esp_mqtt_client_publish(mqttClient, buffer, (char*) &payload, 0, 1, 0);
 						}
@@ -917,17 +917,6 @@ void requestTelemetryData(void *arg) {
     vTaskDelete((void*) 0);
 }
 
-void ping_callback(void *arg) {
-
-	char buffer[64];
-	snprintf(buffer, sizeof(buffer), "/domain/%s/ping", mydomain);
-
-	int32_t now;
-	time((time_t*) &now);
-	
-	esp_mqtt_client_publish(mqttClient, buffer, (char*) &now, sizeof(now), 0, 0);
-}
-
 void ble_event_handler(char *event_data) {
 	// 0 (command) 1..17 (payload) 18 (check)
 
@@ -1035,17 +1024,14 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_CONNECTED:
 
     	char buffer[64];
-    	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", mydomain);
+    	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", mysubdomain);
 
     	esp_mqtt_client_subscribe(mqttClient, buffer, 0);
 
     	char buffer_[64];
-    	snprintf(buffer_, sizeof(buffer_), "/domain/%s/poweron", mydomain);
+    	snprintf(buffer_, sizeof(buffer_), "/domain/%s/status", mysubdomain);
 
-		int32_t now;
-		time((time_t*) &now);
-			
-		esp_mqtt_client_publish(mqttClient, buffer_, (char*) &now, sizeof(now), 0, 0);
+		esp_mqtt_client_publish(mqttClient, buffer_, "online", 0, 0, 0);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
@@ -1162,7 +1148,6 @@ void app_main(void) {
 	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
 
 	// Initialization of the network stack and event loop
-//	nvs_flash_erase();
 	nvs_flash_init();
 
 	esp_netif_init();
@@ -1178,25 +1163,7 @@ void app_main(void) {
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_start();
 
-	// MQTT client configuration (Eclipse MQTT Broker)
-	const esp_mqtt_client_config_t mqttCfg = { .broker.address.uri = "mqtt://mqtt.vmflow.xyz", /*MQTT broker URI*/};
-
-	mqttClient = esp_mqtt_client_init(&mqttCfg);
-	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-
-	// Configuration and creation of a periodic timer
-	const esp_timer_create_args_t timer_args = {
-			.callback = &ping_callback, /*Timer callback function*/
-			.arg = (void*) 0, /*Callback function argument*/
-			.name = "ping_timer" /*Timer name*/ };
-
-	esp_timer_handle_t periodic_timer;
-	esp_timer_create(&timer_args, &periodic_timer);
-
-	esp_timer_start_periodic(periodic_timer, 300000000);
-
 	// Initialization of Bluetooth Low Energy (BLE) with the alias
-
 	char myhost[64];
 	strcpy(myhost, "0.vmflow.xyz"); // Default value
 
@@ -1205,9 +1172,9 @@ void app_main(void) {
 
 	    size_t s_len = 0;
         if (nvs_get_str(handle, "domain", (void*) 0, &s_len) == ESP_OK) {
-        	nvs_get_str(handle, "domain", mydomain, &s_len);
+        	nvs_get_str(handle, "domain", mysubdomain, &s_len);
 
-			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", mydomain);
+			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", mysubdomain);
 		}
 
         if (nvs_get_str(handle, "vernam", (void*) 0, &s_len) == ESP_OK) {
@@ -1219,6 +1186,22 @@ void app_main(void) {
 
 	startBle(myhost, ble_event_handler);
 
+	char lwt_topic[64];
+	snprintf(lwt_topic, sizeof(lwt_topic), "domain/%s/status", mysubdomain);
+
+	// MQTT client configuration
+	const esp_mqtt_client_config_t mqttCfg = {
+		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
+		// LWT (Last Will and Testament)
+		.session.last_will.topic = lwt_topic,
+		.session.last_will.msg = "offline",
+		.session.last_will.qos = 1,
+	};
+
+	mqttClient = esp_mqtt_client_init(&mqttCfg);
+	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+
+	// ---
 	xSemaphoreGive(xOneShotReqTelemetry= xSemaphoreCreateBinary());
 
 	// Creation of the queue for MDB sessions and the main MDB task
