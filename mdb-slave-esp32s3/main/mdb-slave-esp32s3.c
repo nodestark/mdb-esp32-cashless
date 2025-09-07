@@ -1187,7 +1187,7 @@ void app_main(void) {
 	startBle(myhost, ble_event_handler);
 
 	char lwt_topic[64];
-	snprintf(lwt_topic, sizeof(lwt_topic), "domain/%s/status", mysubdomain);
+	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", mysubdomain);
 
 	// MQTT client configuration
 	const esp_mqtt_client_config_t mqttCfg = {
