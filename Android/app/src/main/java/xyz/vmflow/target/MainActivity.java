@@ -33,6 +33,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.polidea.rxandroidble3.RxBleClient;
@@ -53,6 +54,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.reactivex.rxjava3.disposables.Disposable;
 import okhttp3.MediaType;
@@ -79,7 +81,6 @@ public class MainActivity extends AppCompatActivity {
 
         TextView deviceNameText;
         ImageButton btnSetPassword;
-
         ImageButton btnSendCredit;
 
         public ViewHolder_(@NonNull View itemView) {
@@ -113,7 +114,16 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
 
-            holder.deviceNameText.setText("\uD83C\uDF6B Machine: " + padded);
+            try {
+                if ("online".equals(jsonEmbedded.getString("status"))) {
+                    holder.deviceNameText.setText("\uD83D\uDFE2 Machine: " + padded);
+                } else {
+                    holder.deviceNameText.setText("\uD83D\uDD34 Machine: " + padded);
+                }
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+
 
             holder.btnSendCredit.setOnClickListener(v -> {
 
@@ -205,18 +215,18 @@ public class MainActivity extends AppCompatActivity {
 
             holder.btnSetPassword.setOnClickListener(v -> {
 
-                ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
-                progressDialog.setMessage("Connecting...");
-                progressDialog.setCancelable(false);
-
-                progressDialog.show();
-
                 String embeddedDomain = null;
                 try {
                     embeddedDomain = String.format("%d.vmflow.xyz", jsonEmbedded.getInt("subdomain"));
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
+
+                ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
+                progressDialog.setMessage("Connecting to " + embeddedDomain);
+                progressDialog.setCancelable(false);
+
+                progressDialog.show();
 
                 Disposable disposable = mRxBleClient.scanBleDevices(new ScanSettings.Builder().build(), new ScanFilter.Builder().setDeviceName(embeddedDomain).build())
                         .firstElement()
@@ -225,7 +235,10 @@ public class MainActivity extends AppCompatActivity {
                             progressDialog.dismiss();
                         })
                         .subscribe( MainActivity.this::rxBleSetWifi, th -> {
-                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "Ops! ...try again", Toast.LENGTH_SHORT).show());
+
+                            if (th instanceof TimeoutException) {
+                                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Embedded not found", Toast.LENGTH_SHORT).show());
+                            }
                         });
             });
         }
@@ -345,7 +358,7 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(view -> {
 
             ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
-            progressDialog.setMessage("Connecting...");
+            progressDialog.setMessage("Connecting to 0.vmflow.xyz");
             progressDialog.setCancelable(false); // não fecha ao tocar fora
 
             progressDialog.show();
@@ -357,79 +370,92 @@ public class MainActivity extends AppCompatActivity {
                         progressDialog.dismiss();
                     })
                     .subscribe( MainActivity.this::rxBleInstall, th -> {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "Ops! ...try again", Toast.LENGTH_SHORT).show());
+
+                        if (th instanceof TimeoutException) {
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "Embedded not found", Toast.LENGTH_SHORT).show());
+                        }
                     });
         });
 
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(() -> {
+        SwipeRefreshLayout swipeRefreshLayout = findViewById(R.id.swipeRefresh);
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
 
-            ProgressBar progressBar = findViewById(R.id.progressBar);
+                ExecutorService executor = Executors.newSingleThreadExecutor();
+                executor.execute(() -> {
 
-            boolean retry;
-            do {
-                retry = false; // controla se precisa repetir a requisição
+                    fetchEmbeddedData();
 
-                try {
-                    SharedPreferences prefs = getSharedPreferences("target_prefs", MODE_PRIVATE);
+                    runOnUiThread(() -> swipeRefreshLayout.setRefreshing(false));
+                });
+            }
+        });
+    }
 
-                    JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
+    private void fetchEmbeddedData() {
 
-                    Request request = new Request.Builder()
-                            .url(SUPABASE_URL + "/rest/v1/embedded")
+        boolean retry;
+        do {
+            retry = false; // controla se precisa repetir a requisição
+
+            try {
+                SharedPreferences prefs = getSharedPreferences("target_prefs", MODE_PRIVATE);
+
+                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
+
+                Request request = new Request.Builder()
+                        .url(SUPABASE_URL + "/rest/v1/embedded")
+                        .addHeader("apikey", SUPABASE_KEY)
+                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
+                        .addHeader("Content-Type", "application/json")
+                        .build();
+
+                Response response = new OkHttpClient().newCall(request).execute();
+                if(response.isSuccessful()){
+
+                    try {
+                        JSONArray jsonArray = new JSONArray(response.body().string());
+
+                        mListEmbedded.clear();
+                        for (int i = 0; i < jsonArray.length(); i++) {
+                            mListEmbedded.add(jsonArray.getJSONObject(i));
+                        }
+
+                        runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
+
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+
+                } else if (response.code() == 401) {
+
+                    RequestBody requestBody = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
+
+                    Request request_ = new Request.Builder().url(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
+                            .post(requestBody)
                             .addHeader("apikey", SUPABASE_KEY)
-                            .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                             .addHeader("Content-Type", "application/json")
                             .build();
 
-                    Response response = new OkHttpClient().newCall(request).execute();
-                    if(response.isSuccessful()){
+                    Response response_ = new OkHttpClient().newCall(request_).execute();
+                    if (response_.isSuccessful()) {
 
-                        try {
-                            JSONArray jsonArray = new JSONArray(response.body().string());
+                        SharedPreferences.Editor editor = prefs.edit();
+                        editor.putString("auth_json", response_.body().string());
+                        editor.apply();
 
-                            mListEmbedded.clear();
-                            for (int i = 0; i < jsonArray.length(); i++) {
-                                mListEmbedded.add(jsonArray.getJSONObject(i));
-                            }
-
-                            runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
-
-                        } catch (JSONException e) {
-                            throw new RuntimeException(e);
-                        }
-
-                    } else if (response.code() == 401) {
-
-                        RequestBody requestBody = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
-
-                        Request request_ = new Request.Builder().url(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
-                                .post(requestBody)
-                                .addHeader("apikey", SUPABASE_KEY)
-                                .addHeader("Content-Type", "application/json")
-                                .build();
-
-                        Response response_ = new OkHttpClient().newCall(request_).execute();
-                        if (response_.isSuccessful()) {
-
-                            SharedPreferences.Editor editor = prefs.edit();
-                            editor.putString("auth_json", response_.body().string());
-                            editor.apply();
-
-                            retry = true;
-                        }
-                    } else {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "Erro: " + response.code(), Toast.LENGTH_SHORT).show());
+                        retry = true;
                     }
-
-                } catch (JSONException | IOException e) {
-                    e.printStackTrace();
+                } else {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Erro: " + response.code(), Toast.LENGTH_SHORT).show());
                 }
 
-            } while(retry);
+            } catch (JSONException | IOException e) {
+                e.printStackTrace();
+            }
 
-            runOnUiThread(() -> progressBar.setVisibility(View.GONE));
-        });
+        } while(retry);
     }
 
     private void rxBleInstall(ScanResult scanResult) {
@@ -549,6 +575,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            fetchEmbeddedData();
+
+            ProgressBar progressBar = findViewById(R.id.progressBar);
+            runOnUiThread(() -> progressBar.setVisibility(View.GONE) );
+        });
 
         if (hasBluetoothPermissions()) {
             checkAndEnableBluetooth();

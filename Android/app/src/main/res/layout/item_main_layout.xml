@@ -19,7 +19,7 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_lock_lock"
+        android:src="@android:drawable/ic_menu_upload"
         android:contentDescription="Definir senha"/>
 
     <!-- Novo botão para enviar crédito via MQTT -->
