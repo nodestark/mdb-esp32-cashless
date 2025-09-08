@@ -103,24 +103,22 @@ static QueueHandle_t mdbSessionQueue = (void*) 0;
 
 void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber) {
 
+	uint32_t now;
+	time((time_t*) &now);
+
 	char payload[19];
 	esp_fill_random(&payload, sizeof(payload));
 	
 	payload[0] = cmd;
-	
-	payload[1] = itemPrice >> 8;
-	payload[2] = itemPrice;
-
-	payload[3] = itemNumber >> 8;
-	payload[4] = itemNumber;
-	
-	uint32_t now;
-	time((time_t*) &now);
-	
-	payload[5] = now >> 24;
-	payload[6] = now >> 16;
-	payload[7] = now >> 8;
-	payload[8] = now >> 0;	
+	payload[1] = 0x01; 				// version v1
+	payload[2] = itemPrice >> 8;	// itemPrice
+	payload[3] = itemPrice;
+	payload[4] = itemNumber >> 8;	// itemNumber
+	payload[5] = itemNumber;
+	payload[6] = (now >> 24);		// time (sec)
+	payload[7] = (now >> 16);
+	payload[8] = (now >> 8);
+	payload[9] = (now >> 0);
 	
 	uint8_t chk = payload[0];
 	for(int x= 1; x < sizeof(payload) - 1; x++){
@@ -429,13 +427,13 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						if (checksum_ == checksum) {
 
-							char payload[100];
-							sprintf(payload, "item_number=%d,item_price=%d", itemNumber, itemPrice);
+							char msg[100];
+							sprintf(msg, "item_number=%d,item_price=%d", itemNumber, itemPrice);
 
-						  	char buffer[64];
-						  	snprintf(buffer, sizeof(buffer), "/domain/%s/sale", mysubdomain);
+						  	char topic[64];
+						  	snprintf(topic, sizeof(topic), "/domain/%s/sale", mysubdomain);
 
-							esp_mqtt_client_publish(mqttClient, buffer, (char*) &payload, 0, 1, 0);
+							esp_mqtt_client_publish(mqttClient, topic, (char*) &msg, 0, 1, 0);
 						}
 
 						break;
@@ -969,10 +967,10 @@ void ble_event_handler(char *event_data) {
 		if(chk == payload[18]){
 			printf("chk ok!\n");
 
-			int32_t timestamp = ((uint32_t) payload[5] << 24) |
-					((uint32_t) payload[6] << 16) |
-					((uint32_t) payload[7] << 8)  |
-					((uint32_t) payload[8] << 0);
+			int32_t timestamp = ((uint32_t) payload[6] << 24) |
+					((uint32_t) payload[7] << 16) |
+					((uint32_t) payload[8] << 8)  |
+					((uint32_t) payload[9] << 0);
 
 			int32_t now;
 			time((time_t*) &now);
@@ -1023,15 +1021,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	switch ((esp_mqtt_event_id_t) event_id) {
 	case MQTT_EVENT_CONNECTED:
 
-    	char buffer[64];
-    	snprintf(buffer, sizeof(buffer), "%s.vmflow.xyz/#", mysubdomain);
+    	char topic[64];
+    	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", mysubdomain);
 
-    	esp_mqtt_client_subscribe(mqttClient, buffer, 0);
+    	esp_mqtt_client_subscribe(mqttClient, topic, 0);
 
-    	char buffer_[64];
-    	snprintf(buffer_, sizeof(buffer_), "/domain/%s/status", mysubdomain);
+    	char topic_[64];
+    	snprintf(topic_, sizeof(topic_), "/domain/%s/status", mysubdomain);
 
-		esp_mqtt_client_publish(mqttClient, buffer_, "online", 0, 0, 0);
+		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 0, 0);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
@@ -1067,12 +1065,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 			if(chk == payload[18]){
 				printf("chk ok!\n");
 
-				int32_t timestamp = ((uint32_t) payload[5] << 24) |
-						((uint32_t) payload[6] << 16) |
-						((uint32_t) payload[7] << 8)  |
-						((uint32_t) payload[8] << 0);
+				uint16_t amount = ((uint16_t) payload[2] << 8)  | ((uint16_t) payload[3] << 0);
 
-				uint16_t amount = ((uint16_t) payload[1] << 8)  | ((uint16_t) payload[2] << 0);
+				int32_t timestamp = ((uint32_t) payload[6] << 24) |
+						((uint32_t) payload[7] << 16) |
+						((uint32_t) payload[8] << 8)  |
+						((uint32_t) payload[9] << 0);
 
 			    int32_t now;
 			    time((time_t*) &now);
