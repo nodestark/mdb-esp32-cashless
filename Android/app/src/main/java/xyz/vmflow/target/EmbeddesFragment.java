@@ -91,15 +91,10 @@ public class EmbeddesFragment extends Fragment {
 
             JSONObject jsonEmbedded = mListEmbedded.get(position);
 
-            // "%06d" -> número inteiro com 6 dígitos, preenchido com zeros à esquerda
-            String padded = null; // Exemplo: 000199
             try {
-                padded = String.format("%06d", jsonEmbedded.getInt("subdomain"));
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
 
-            try {
+                String padded = String.format("%06d", jsonEmbedded.getInt("subdomain"));
+
                 if ("online".equals(jsonEmbedded.getString("status"))) {
                     holder.deviceNameText.setText("\uD83D\uDFE2 Machine: " + padded);
                 } else {
