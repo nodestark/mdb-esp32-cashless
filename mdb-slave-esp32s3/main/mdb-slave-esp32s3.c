@@ -39,8 +39,8 @@
 #define BIT_ADD_SET   	0b011111000
 #define BIT_CMD_SET   	0b000000111
 
-char mysubdomain[32];
-char vernam_key[17];
+char my_subdomain[32];
+char my_passkey[17];
 
 // Defining MDB commands as an enum
 enum MDB_COMMAND {
@@ -123,7 +123,7 @@ void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber) {
 	uint8_t chk = payload[0];
 	for(int x= 1; x < sizeof(payload) - 1; x++){
 		chk += payload[x];
-		payload[x] ^= vernam_key[x - 1];
+		payload[x] ^= my_passkey[x - 1];
 	}
 	
 	payload[sizeof(payload) - 1] = chk;	
@@ -431,7 +431,7 @@ void mdb_cashless_loop(void *pvParameters) {
 							sprintf(msg, "item_number=%d,item_price=%d", itemNumber, itemPrice);
 
 						  	char topic[64];
-						  	snprintf(topic, sizeof(topic), "/domain/%s/sale", mysubdomain);
+						  	snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
 
 							esp_mqtt_client_publish(mqttClient, topic, (char*) &msg, 0, 1, 0);
 						}
@@ -920,6 +920,7 @@ void ble_event_handler(char *event_data) {
 
     uint8_t command = (uint8_t) event_data[0];
 
+    /*install-settings*/
     if(command == 0x00){
 
 		nvs_handle_t handle;
@@ -939,14 +940,17 @@ void ble_event_handler(char *event_data) {
 		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
 
 		size_t s_len;
-		if (nvs_get_str(handle, "vernam", NULL, &s_len) != ESP_OK) {
+		if (nvs_get_str(handle, "passkey", NULL, &s_len) != ESP_OK) {
 
-			ESP_ERROR_CHECK( nvs_set_str(handle, "vernam", event_data + 1) );
+			ESP_ERROR_CHECK( nvs_set_str(handle, "passkey", event_data + 1) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
 		}
 		nvs_close(handle);
 		
-    } else if(command == 0x02){
+		esp_restart();
+    }
+
+    if(command == 0x02){
     	// Starting a vending session...
     			
 		uint16_t fundsAvailable = 0x0000;
@@ -960,7 +964,7 @@ void ble_event_handler(char *event_data) {
     	
     	uint8_t chk = payload[0];
 		for(int x= 1; x < sizeof(payload) - 1; x++){
-			payload[x] ^= vernam_key[x - 1];
+			payload[x] ^= my_passkey[x - 1];
 			chk += payload[x];
 		}
 
@@ -989,16 +993,20 @@ void ble_event_handler(char *event_data) {
     } else if(command == 0x05){
 		xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
 
-	} else if(command == 0x06){
+	}
+
+    /*wifi-settings*/
+    if(command == 0x06){
+
+    	esp_wifi_disconnect();
 
 		wifi_config_t wifi_config = {0};
 		esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
 
 		strcpy((char*) wifi_config.sta.ssid, event_data + 1);
-
 		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 
-		printf("ssid %s\n", event_data + 1);
+		printf("ssid %s\n", wifi_config.sta.ssid);
 
     } else if(command == 0x07){
 
@@ -1006,10 +1014,11 @@ void ble_event_handler(char *event_data) {
 		esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
 
 		strcpy((char*) wifi_config.sta.password, event_data + 1);
-
 		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 
-		printf("password %s\n", event_data + 1);
+		esp_wifi_connect();
+
+		printf("password %s\n", wifi_config.sta.password);
     }
 }
 
@@ -1022,12 +1031,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_CONNECTED:
 
     	char topic[64];
-    	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", mysubdomain);
+    	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", my_subdomain);
 
     	esp_mqtt_client_subscribe(mqttClient, topic, 0);
 
     	char topic_[64];
-    	snprintf(topic_, sizeof(topic_), "/domain/%s/status", mysubdomain);
+    	snprintf(topic_, sizeof(topic_), "/domain/%s/status", my_subdomain);
 
 		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 0, 0);
 
@@ -1058,7 +1067,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 			uint8_t chk = payload[0];
 			for(int x= 1; x < 18; x++){
-				payload[x] ^= vernam_key[x - 1];
+				payload[x] ^= my_passkey[x - 1];
 				chk += payload[x];
 			}
 
@@ -1116,12 +1125,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 			esp_mqtt_client_start(mqttClient);
 
 			// Configuration and initialization of the SNTP client for time synchronization via the internet
-			sntp_setoperatingmode(SNTP_OPMODE_POLL);
-			sntp_setservername(0, "pool.ntp.org");
-			sntp_init();
-
-			//
-			esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+			esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+			esp_sntp_setservername(0, "pool.ntp.org");
+			esp_sntp_init();
 
 			break;
 		}
@@ -1170,13 +1176,13 @@ void app_main(void) {
 
 	    size_t s_len = 0;
         if (nvs_get_str(handle, "domain", (void*) 0, &s_len) == ESP_OK) {
-        	nvs_get_str(handle, "domain", mysubdomain, &s_len);
+        	nvs_get_str(handle, "domain", my_subdomain, &s_len);
 
-			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", mysubdomain);
+			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
 		}
 
-        if (nvs_get_str(handle, "vernam", (void*) 0, &s_len) == ESP_OK) {
-            nvs_get_str(handle, "vernam", vernam_key, &s_len);
+        if (nvs_get_str(handle, "passkey", (void*) 0, &s_len) == ESP_OK) {
+            nvs_get_str(handle, "passkey", my_passkey, &s_len);
 		}
 
 		nvs_close(handle);
@@ -1185,7 +1191,7 @@ void app_main(void) {
 	startBle(myhost, ble_event_handler);
 
 	char lwt_topic[64];
-	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", mysubdomain);
+	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);
 
 	// MQTT client configuration
 	const esp_mqtt_client_config_t mqttCfg = {
@@ -1195,7 +1201,7 @@ void app_main(void) {
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,
 	};
-
+//
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
 	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
 
