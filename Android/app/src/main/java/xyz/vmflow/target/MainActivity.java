@@ -312,20 +312,21 @@ public class MainActivity extends AppCompatActivity {
 
             RxBleDevice rxBleDevice = scanResult.getBleDevice();
 
-            Disposable disposable = rxBleDevice.establishConnection(false).subscribe(rxBleConnection -> {
-                Log.d("rxBle_", "Conectado!");
+            final Disposable[] disposableRef = new Disposable[1];
 
-                Disposable disposable_ = rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSsid)
-                        .flatMap(bytes -> {
-                            Log.d("rxBle_", "Write 1 OK: " + new String(bytes));
-                            return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPswd);
-                        })
-                        .subscribe(
-                                bytes -> Log.d("rxBle_", "Write 2 OK: " + new String(bytes)),
-                                err -> Log.e("rxBle_", "Erro em algum write", err)
-                        );
-
-            }, th -> runOnUiThread(() -> Toast.makeText(MainActivity.this, "Erro de conexão BLE", Toast.LENGTH_SHORT).show()) );
+            disposableRef[0] = rxBleDevice.establishConnection(false)
+                    .flatMap(rxBleConnection -> {
+                        return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSsid)
+                                .flatMap(bytes -> {
+                                    Log.d("rxBle_", "Write 1 OK: " + new String(bytes));
+                                    return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPswd);
+                                }).toObservable();
+                    })
+                    .subscribe(
+                            bytes -> Log.d("rxBle_", "Write 2 OK: " + new String(bytes)),
+                            err -> Log.e("rxBle_", "Erro em algum write", err),
+                            () -> disposableRef[0].dispose()
+                    );
         });
 
         AlertDialog dialog = builder.create();
@@ -358,6 +359,7 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(view -> {
 
             ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
+
             progressDialog.setMessage("Connecting to 0.vmflow.xyz");
             progressDialog.setCancelable(false); // não fecha ao tocar fora
 
@@ -366,9 +368,7 @@ public class MainActivity extends AppCompatActivity {
             Disposable disposable = mRxBleClient.scanBleDevices(new com.polidea.rxandroidble3.scan.ScanSettings.Builder().build(), new com.polidea.rxandroidble3.scan.ScanFilter.Builder().setDeviceName("0.vmflow.xyz").build())
                     .firstElement()
                     .timeout(3, TimeUnit.SECONDS)
-                    .doFinally(() -> {
-                        progressDialog.dismiss();
-                    })
+                    .doFinally(() -> progressDialog.dismiss())
                     .subscribe( MainActivity.this::rxBleInstall, th -> {
 
                         if (th instanceof TimeoutException) {
@@ -405,7 +405,7 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
-                        .url(SUPABASE_URL + "/rest/v1/embedded")
+                        .url(SUPABASE_URL + "/rest/v1/embeddeds")
                         .addHeader("apikey", SUPABASE_KEY)
                         .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                         .addHeader("Content-Type", "application/json")
@@ -480,7 +480,7 @@ public class MainActivity extends AppCompatActivity {
 
                     JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
-                    Request request = new Request.Builder().url(SUPABASE_URL + "/rest/v1/embedded")
+                    Request request = new Request.Builder().url(SUPABASE_URL + "/rest/v1/embeddeds")
                             .post(requestBody)
                             .addHeader("apikey", SUPABASE_KEY)
                             .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
@@ -494,43 +494,47 @@ public class MainActivity extends AppCompatActivity {
                         JSONArray jsonArray = new JSONArray(response.body().string());
                         JSONObject jsonNewEmbedded = jsonArray.getJSONObject(0);
 
-                        Disposable disposable = rxBleDevice.establishConnection(false).subscribe(rxBleConnection -> {
-                            Log.d("rxBle_", "Conectado!");
+                        final Disposable[] disposableRef = new Disposable[1];
 
-                            byte[] payloadSubdomain = new byte[22];
-                            {
-                                byte[] arrAlias = jsonNewEmbedded.getString("subdomain").getBytes(StandardCharsets.UTF_8);
+                        disposableRef[0] = rxBleDevice.establishConnection(false)
+                                .flatMap(rxBleConnection -> {
+                                    Log.d("rxBle_", "Conectado!");
 
-                                payloadSubdomain[0] = 0x00;
-                                System.arraycopy(arrAlias, 0, payloadSubdomain, 1, arrAlias.length);
+                                    // --- Prepara payloads ---
+                                    byte[] payloadSubdomain = new byte[22];
+                                    {
+                                        byte[] arrAlias = jsonNewEmbedded.getString("subdomain").getBytes(StandardCharsets.UTF_8);
+                                        payloadSubdomain[0] = 0x00;
+                                        System.arraycopy(arrAlias, 0, payloadSubdomain, 1, arrAlias.length);
+                                        payloadSubdomain[1 + arrAlias.length] = 0x00;
+                                    }
 
-                                payloadSubdomain[1 + arrAlias.length] = 0x00;
-                            }
+                                    byte[] payloadPasskey = new byte[22];
+                                    {
+                                        byte[] arrXorkey = jsonNewEmbedded.getString("passkey").getBytes(StandardCharsets.UTF_8);
+                                        payloadPasskey[0] = 0x01;
+                                        System.arraycopy(arrXorkey, 0, payloadPasskey, 1, arrXorkey.length);
+                                        payloadPasskey[1 + arrXorkey.length] = 0x00;
+                                    }
 
-                            byte[] payloadVernam = new byte[22];
-                            {
-                                byte[] arrXorkey = jsonNewEmbedded.getString("vernam").getBytes(StandardCharsets.UTF_8);
+                                    return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSubdomain)
+                                            .flatMap(bytes -> {
+                                                Log.d("rxBle_", "Write 1 OK: " + new String(bytes));
+                                                return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPasskey);
+                                            }).toObservable();
+                                })
+                                .subscribe(
+                                        bytes -> {
+                                            Log.d("rxBle_", "Write 2 OK: " + new String(bytes));
+                                        },
+                                        err -> {
+                                            Log.e("rxBle_", "Erro na conexão ou nos writes", err);
 
-                                payloadVernam[0] = 0x01;
-                                System.arraycopy(arrXorkey, 0, payloadVernam, 1, arrXorkey.length);
-
-                                payloadVernam[1 + arrXorkey.length] = 0x00;
-                            }
-
-                            Disposable disposable_ = rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSubdomain)
-                                    .flatMap(bytes -> {
-                                        Log.d("rxBle_", "Write 1 OK: " + new String(bytes));
-                                        return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadVernam);
-                                    })
-                                    .subscribe(
-                                            bytes -> Log.d("rxBle_", "Write 2 OK: " + new String(bytes)),
-                                            err -> Log.e("rxBle_", "Erro em algum write", err)
-                                    );
-                        }, th -> {
-                            Log.e("rxBle_", "Erro na conexão BLE", th);
-                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "Erro de conexão BLE", Toast.LENGTH_SHORT).show()
-                            );
-                        });
+                                            runOnUiThread(() ->
+                                                    Toast.makeText(MainActivity.this, "Erro BLE", Toast.LENGTH_SHORT).show()
+                                            );
+                                        }, () -> disposableRef[0].dispose()
+                                );
 
                         mListEmbedded.add(jsonNewEmbedded);
                         runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
