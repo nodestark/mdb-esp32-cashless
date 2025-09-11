@@ -1,41 +1,66 @@
 package xyz.vmflow.target;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
-import androidx.viewpager2.widget.ViewPager2;
+
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
 
-    private class ViewPagerAdapter extends FragmentStateAdapter {
-        public ViewPagerAdapter(MainActivity activity) {
-            super(activity);
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        if (item.getItemId() == R.id.action_about) {
+            new AlertDialog.Builder(this)
+                    .setTitle("About")
+                    .setMessage("This app is part of an open source project implementing the MDB protocol for vending machines, focused on cashless payments and remote telemetry.\n" +
+                            "\n" +
+                            "Key features:\n" +
+                            "\n" +
+                            "Communication with vending machines via MDB\n" +
+                            "\n" +
+                            "Integration of payments via Bluetooth and MQTT\n" +
+                            "\n" +
+                            "Remote monitoring and real-time telemetry\n" +
+                            "\n" +
+                            "Data storage and management using Supabase\n" +
+                            "\n" +
+                            "Platform based on ESP32, with PCB design in KiCad\n" +
+                            "\n" +
+                            "Support for EVA DTS/DDCMP reading\n" +
+                            "\n" +
+                            "Contributions welcome: pull requests, suggestions for new features, and documentation improvements.")
+                    .setNeutralButton("GitHub", (dialog, which) -> {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/nodestark/mdb-esp32-cashless")));
+                    })
+                    .setPositiveButton("Nice!", (dialog, which) -> dialog.dismiss())
+                    .show();
+            return true;
         }
 
-        @NonNull
-        @Override
-        public androidx.fragment.app.Fragment createFragment(int position) {
-            switch (position) {
-                case 0: return new EmbeddesFragment();
-                case 1: return new SalesFragment();
-                case 2: return new NearestFragment();
-                default: return new SalesFragment(); // fallback
-            }
-        }
+        return super.onOptionsItemSelected(item);
+    }
 
-        @Override
-        public int getItemCount() {
-            return 3;
-        }
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
     }
 
     @Override
@@ -43,8 +68,33 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        ViewPager2 viewPager = findViewById(R.id.viewPager);
-        viewPager.setAdapter(new ViewPagerAdapter(this));
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar( toolbar );
+        getSupportActionBar().setTitle( getString(R.string.app_name) );
+
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setOnItemSelectedListener(item -> {
+
+            Fragment selectedFragment = null;
+
+            if(item.getItemId() == R.id.nav_embeddeds )
+                selectedFragment = new EmbeddesFragment();
+
+            if(item.getItemId() == R.id.nav_nearest )
+                selectedFragment = new NearestFragment();
+
+            if(item.getItemId() == R.id.nav_sales )
+                selectedFragment = new SalesFragment();
+
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.container, selectedFragment)
+                    .commit();
+
+            return true;
+        });
+
+        bottomNav.setSelectedItemId(R.id.nav_nearest);
     }
 
     @Override

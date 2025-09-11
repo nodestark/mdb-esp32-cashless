@@ -57,7 +57,7 @@ public class EmbeddesFragment extends Fragment {
     private static final UUID SERVICE_UUID = UUID.fromString("b2bbc642-46da-11ed-b878-0242ac120002");
     private static final UUID WRITE_CHARACTERISTIC_UUID = UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002");
 
-    private final List<JSONObject> mListEmbedded = new ArrayList<>();
+    private final List<JSONObject> mListEmbeddeds = new ArrayList<>();
     private final ItemAdapter_ itemAdapter_ = new ItemAdapter_();
 
     private static final String SUPABASE_URL = "https://supabase.vmflow.xyz";
@@ -83,13 +83,13 @@ public class EmbeddesFragment extends Fragment {
     class ItemAdapter_ extends RecyclerView.Adapter<ViewHolder_> {
 
         public ViewHolder_ onCreateViewHolder(ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_main_layout, parent, false);
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_embedded_layout, parent, false);
             return new ViewHolder_(view);
         }
 
         public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
 
-            JSONObject jsonEmbedded = mListEmbedded.get(position);
+            JSONObject jsonEmbedded = mListEmbeddeds.get(position);
 
             try {
 
@@ -224,7 +224,7 @@ public class EmbeddesFragment extends Fragment {
 
         @Override
         public int getItemCount() {
-            return mListEmbedded.size();
+            return mListEmbeddeds.size();
         }
     }
 
@@ -351,14 +351,14 @@ public class EmbeddesFragment extends Fragment {
             ExecutorService executor = Executors.newSingleThreadExecutor();
             executor.execute(() -> {
 
-                fetchEmbeddedData();
+                fetchEmbeddedsData();
 
                 getActivity().runOnUiThread(() -> swipeRefreshLayout.setRefreshing(false));
             });
         });
     }
 
-    private void fetchEmbeddedData() {
+    private void fetchEmbeddedsData() {
 
         boolean retry;
         do {
@@ -382,12 +382,13 @@ public class EmbeddesFragment extends Fragment {
                     try {
                         JSONArray jsonArray = new JSONArray(response.body().string());
 
-                        mListEmbedded.clear();
+                        mListEmbeddeds.clear();
                         for (int i = 0; i < jsonArray.length(); i++) {
-                            mListEmbedded.add(jsonArray.getJSONObject(i));
+                            mListEmbeddeds.add(jsonArray.getJSONObject(i));
                         }
 
-                        getActivity().runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
+                        if(getActivity() != null)
+                            getActivity().runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
 
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -412,9 +413,8 @@ public class EmbeddesFragment extends Fragment {
 
                         retry = true;
                     }
-                } else {
+                } else if(getActivity() != null)
                     getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Erro: " + response.code(), Toast.LENGTH_SHORT).show());
-                }
 
             } catch (JSONException | IOException e) {
                 e.printStackTrace();
@@ -501,15 +501,17 @@ public class EmbeddesFragment extends Fragment {
                                         }, () -> disposableRef[0].dispose()
                                 );
 
-                        mListEmbedded.add(jsonNewEmbedded);
-                        getActivity().runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
+                        mListEmbeddeds.add(jsonNewEmbedded);
 
                         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
                         builder.setTitle("Registered!");
                         builder.setMessage(jsonNewEmbedded.getString("subdomain"));
                         builder.setPositiveButton("Ok", null );
 
-                        getActivity().runOnUiThread(() -> builder.create().show() );
+                        getActivity().runOnUiThread(() -> {
+                            itemAdapter_.notifyDataSetChanged();
+                            builder.create().show();
+                        } );
 
                     } else if (response.code() == 401) {
 
@@ -547,7 +549,7 @@ public class EmbeddesFragment extends Fragment {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
-            fetchEmbeddedData();
+            fetchEmbeddedsData();
 
             ProgressBar progressBar = getActivity().findViewById(R.id.progressBar);
             getActivity().runOnUiThread(() -> progressBar.setVisibility(View.GONE) );
