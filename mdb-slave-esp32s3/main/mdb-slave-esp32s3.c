@@ -1,7 +1,5 @@
 /*
- * mdb-slave-esp32.c - Vending machine peripheral
- *
- * Written by Leonardo Soares <leonardobsi@gmail.com>
+ * mdb-slave-esp32s3.c - Vending machine peripheral
  *
  */
 
