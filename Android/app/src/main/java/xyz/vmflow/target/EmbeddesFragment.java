@@ -4,15 +4,12 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
-import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -20,6 +17,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,9 +26,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
-import com.polidea.rxandroidble3.scan.ScanFilter;
 import com.polidea.rxandroidble3.scan.ScanResult;
-import com.polidea.rxandroidble3.scan.ScanSettings;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -54,7 +50,6 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class EmbeddesFragment extends Fragment {
-    private static final UUID SERVICE_UUID = UUID.fromString("b2bbc642-46da-11ed-b878-0242ac120002");
     private static final UUID WRITE_CHARACTERISTIC_UUID = UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002");
 
     private final List<JSONObject> mListEmbeddeds = new ArrayList<>();
@@ -66,17 +61,17 @@ public class EmbeddesFragment extends Fragment {
     private RxBleClient mRxBleClient;
 
     class ViewHolder_ extends RecyclerView.ViewHolder {
+        View viewDeviceOffline;
 
         TextView deviceNameText;
-        ImageButton btnSetPassword;
         ImageButton btnSendCredit;
 
         public ViewHolder_(@NonNull View itemView) {
             super(itemView);
 
             deviceNameText = itemView.findViewById(R.id.textViewDeviceAlias);
-            btnSetPassword = itemView.findViewById(R.id.btnSetPassword);
             btnSendCredit = itemView.findViewById(R.id.btnSendCredit);
+            viewDeviceOffline = itemView.findViewById(R.id.viewDeviceOffline);
         }
     }
 
@@ -93,12 +88,12 @@ public class EmbeddesFragment extends Fragment {
 
             try {
 
-                String padded = String.format("%06d", jsonEmbedded.getInt("subdomain"));
+                holder.deviceNameText.setText(String.format("Machine: %06d", jsonEmbedded.getInt("subdomain")));
 
                 if ("online".equals(jsonEmbedded.getString("status"))) {
-                    holder.deviceNameText.setText("\uD83D\uDFE2 Machine: " + padded);
-                } else {
-                    holder.deviceNameText.setText("\uD83D\uDD34 Machine: " + padded);
+
+                    int color = ContextCompat.getColor(getContext(), R.color.green);
+                    holder.viewDeviceOffline.setBackgroundColor(color);
                 }
             } catch (JSONException e) {
                 throw new RuntimeException(e);
@@ -191,125 +186,12 @@ public class EmbeddesFragment extends Fragment {
                 AlertDialog dialog = builder.create();
                 dialog.show();
             });
-
-            holder.btnSetPassword.setOnClickListener(v -> {
-
-                String embeddedDomain = null;
-                try {
-                    embeddedDomain = String.format("%d.vmflow.xyz", jsonEmbedded.getInt("subdomain"));
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
-                }
-
-                ProgressDialog progressDialog = new ProgressDialog(getContext());
-                progressDialog.setMessage("Connecting to " + embeddedDomain);
-                progressDialog.setCancelable(false);
-
-                progressDialog.show();
-
-                Disposable disposable = mRxBleClient.scanBleDevices(new ScanSettings.Builder().build(), new ScanFilter.Builder().setDeviceName(embeddedDomain).build())
-                        .firstElement()
-                        .timeout(3, TimeUnit.SECONDS)
-                        .doFinally(() -> {
-                            progressDialog.dismiss();
-                        })
-                        .subscribe( EmbeddesFragment.this::rxBleSetWifi, th -> {
-
-                            if (th instanceof TimeoutException) {
-                                getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Embedded not found", Toast.LENGTH_SHORT).show());
-                            }
-                        });
-            });
         }
 
         @Override
         public int getItemCount() {
             return mListEmbeddeds.size();
         }
-    }
-
-    private void rxBleSetWifi(ScanResult scanResult) {
-
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_wifi_settings, null);
-
-        AutoCompleteTextView editTextSsid = dialogView.findViewById(R.id.editTextSsid);
-        EditText editTextPassword = dialogView.findViewById(R.id.editTextPassword);
-
-        WifiManager wifiManager = (WifiManager) getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-
-        if (wifiManager != null) {
-
-            wifiManager.startScan();
-            List<android.net.wifi.ScanResult> results = wifiManager.getScanResults();
-
-            List<String> ssidList = new ArrayList<>();
-            for (android.net.wifi.ScanResult result : results) {
-                if (result.SSID != null && !result.SSID.isEmpty() && !ssidList.contains(result.SSID)) {
-                    ssidList.add(result.SSID);
-                }
-            }
-
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_dropdown_item_1line, ssidList);
-            editTextSsid.setAdapter(adapter);
-            editTextSsid.setThreshold(1);
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("Wi-Fi Settings");
-        builder.setView(dialogView);
-
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-        builder.setPositiveButton("Send", (dialog, which) -> {
-
-            String ssid = editTextSsid.getText().toString().trim();
-            String password = editTextPassword.getText().toString().trim();
-
-            if (ssid.isEmpty() ) {
-                Toast.makeText(getContext(), "Select SSID", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            byte[] payloadSsid = new byte[22];
-            {
-                byte[] arrSsid = ssid.getBytes(StandardCharsets.UTF_8);
-
-                payloadSsid[0] = 0x06;
-                System.arraycopy(arrSsid, 0, payloadSsid, 1, arrSsid.length);
-
-                payloadSsid[1 + arrSsid.length] = 0x00;
-            }
-
-            byte[] payloadPswd = new byte[22];
-            {
-                byte[] arrPswd = password.getBytes(StandardCharsets.UTF_8);
-
-                payloadPswd[0] = 0x07;
-                System.arraycopy(arrPswd, 0, payloadPswd, 1, arrPswd.length);
-
-                payloadPswd[1 + arrPswd.length] = 0x00;
-            }
-
-            RxBleDevice rxBleDevice = scanResult.getBleDevice();
-
-            final Disposable[] disposableRef = new Disposable[1];
-
-            disposableRef[0] = rxBleDevice.establishConnection(false)
-                    .flatMap(rxBleConnection -> {
-                        return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSsid)
-                                .flatMap(bytes -> {
-                                    Log.d("rxBle_", "Write 1 OK: " + new String(bytes));
-                                    return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPswd);
-                                }).toObservable();
-                    })
-                    .subscribe(
-                            bytes -> Log.d("rxBle_", "Write 2 OK: " + new String(bytes)),
-                            err -> Log.e("rxBle_", "Erro em algum write", err),
-                            () -> disposableRef[0].dispose()
-                    );
-        });
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
     }
 
     @Override

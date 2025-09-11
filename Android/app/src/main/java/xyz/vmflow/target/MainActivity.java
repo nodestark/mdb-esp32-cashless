@@ -11,7 +11,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,7 +18,6 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.viewpager2.adapter.FragmentStateAdapter;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
@@ -94,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         });
 
-        bottomNav.setSelectedItemId(R.id.nav_nearest);
+        bottomNav.setSelectedItemId(R.id.nav_sales);
     }
 
     @Override
@@ -105,6 +103,10 @@ public class MainActivity extends AppCompatActivity {
             checkAndEnableBluetooth();
         } else {
             requestBluetoothPermissions();
+        }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions( new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 102 );
         }
     }
 

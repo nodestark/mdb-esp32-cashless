@@ -1,4 +1,5 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/containerEmbeddedItem"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="12dp"
@@ -6,6 +7,15 @@
     android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical">
 
+    <!-- Linha de status (vermelho, verde ou azul via adapter) -->
+    <View
+        android:id="@+id/viewDeviceOffline"
+        android:layout_width="4dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="8dp"
+        android:background="#F44336" />
+
+    <!-- Nome do device -->
     <TextView
         android:id="@+id/textViewDeviceAlias"
         android:layout_width="0dp"
@@ -15,14 +25,6 @@
         android:textStyle="bold"
         android:textSize="16sp"
         android:textColor="#333333" />
-
-    <ImageButton
-        android:id="@+id/btnSetPassword"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_upload"
-        android:contentDescription="Definir senha" />
 
     <ImageButton
         android:id="@+id/btnSendCredit"
