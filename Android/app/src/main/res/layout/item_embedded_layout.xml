@@ -1,8 +1,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp"
+    android:padding="12dp"
     android:orientation="horizontal"
+    android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical">
 
     <TextView
@@ -10,24 +11,24 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textSize="21sp"
-        android:text="TextView" />
+        android:text="Device Alias"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:textColor="#333333" />
 
-    <!-- Botão de ícone para definir senha -->
     <ImageButton
         android:id="@+id/btnSetPassword"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_menu_upload"
-        android:contentDescription="Definir senha"/>
+        android:contentDescription="Definir senha" />
 
-    <!-- Novo botão para enviar crédito via MQTT -->
     <ImageButton
         android:id="@+id/btnSendCredit"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_menu_send"
-        android:contentDescription="Enviar crédito"/>
+        android:contentDescription="Enviar crédito" />
 </LinearLayout>

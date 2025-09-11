@@ -1,64 +1,146 @@
 package xyz.vmflow.target;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link NearestFragment#newInstance} factory method to
- * create an instance of this fragment.
- */
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
+import com.polidea.rxandroidble3.RxBleClient;
+import com.polidea.rxandroidble3.RxBleDevice;
+import com.polidea.rxandroidble3.scan.ScanSettings;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import io.reactivex.rxjava3.disposables.Disposable;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
 public class NearestFragment extends Fragment {
 
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
+    private final List<RxBleDevice> mListRxBleDevices = new ArrayList<>();
+    private final ItemAdapter_ itemAdapter_ = new ItemAdapter_();
 
-    // TODO: Rename and change types of parameters
-    private String mParam1;
-    private String mParam2;
+    class ViewHolder_ extends RecyclerView.ViewHolder {
 
-    public NearestFragment() {
-        // Required empty public constructor
+        TextView viewText;
+
+        public ViewHolder_(@NonNull View itemView) {
+            super(itemView);
+
+            viewText = itemView.findViewById(R.id.textViewNearest);
+        }
     }
 
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment NearestFragment.
-     */
-    // TODO: Rename and change types and number of parameters
-    public static NearestFragment newInstance(String param1, String param2) {
-        NearestFragment fragment = new NearestFragment();
-        Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
-        fragment.setArguments(args);
-        return fragment;
-    }
+    class ItemAdapter_ extends RecyclerView.Adapter<ViewHolder_> {
 
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
+        public ViewHolder_ onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_nearest_layout, parent, false);
+            return new ViewHolder_(view);
+        }
+
+        public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
+
+            RxBleDevice rxBleDevice = mListRxBleDevices.get(position);
+            holder.viewText.setText(rxBleDevice.getName());
+        }
+
+        @Override
+        public int getItemCount() {
+            return mListRxBleDevices.size();
         }
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
+    public void onViewCreated(@NonNull View view_, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view_, savedInstanceState);
+
+        RecyclerView recyclerView = view_.findViewById(R.id.recyclerView);
+        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerView.setAdapter( itemAdapter_ );
+
+        SwipeRefreshLayout swipeRefreshLayout = view_.findViewById(R.id.swipeRefresh);
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            executor.execute(() -> {
+
+                fetchNearestData();
+
+                if(getActivity() != null)
+                    getActivity().runOnUiThread(() -> swipeRefreshLayout.setRefreshing(false));
+            });
+        });
+    }
+
+    private void fetchNearestData() {
+
+        RxBleClient rxBleClient = RxBleClient.create(getContext());
+
+        mListRxBleDevices.clear();
+        Disposable scanDisposable = rxBleClient.scanBleDevices(new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build())
+                .take(3, TimeUnit.SECONDS)
+                .filter(sr -> sr.getBleDevice().getName() != null && !sr.getBleDevice().getName().isEmpty())
+                .distinct(sr -> sr.getBleDevice().getMacAddress()) // chave: MAC -> remove repetições
+                .subscribe( sr -> {
+                    Log.d("rxBle_", sr.getBleDevice().getName());
+
+                    mListRxBleDevices.add(sr.getBleDevice());
+
+                    if(getActivity() != null)
+                        getActivity().runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
+
+                }, th -> {
+                    Log.d("rxBle_", th.toString());
+                }, () -> {
+
+                    Log.d("rxBle_", "...end");
+                });
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            fetchNearestData();
+
+            if(getActivity() != null)
+                getActivity().runOnUiThread(() -> {
+                    ProgressBar progressBar = getActivity().findViewById(R.id.progressBar);
+                    progressBar.setVisibility(View.GONE);
+                } );
+        });
+    }
+
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_nearest, container, false);
     }
 }
