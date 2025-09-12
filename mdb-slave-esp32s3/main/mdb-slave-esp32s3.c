@@ -464,7 +464,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						if (checksum_ == checksum) {
 
                             uint8_t payload[19];
-                            payload[0] = 0x01;
+                            payload[0] = 0x21;
 
 						    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
 
