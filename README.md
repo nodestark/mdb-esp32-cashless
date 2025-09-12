@@ -40,3 +40,7 @@ curl -X POST 'https://supabase.vmflow.xyz/functions/v1/send-credit' \
 ---
 
 [![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
