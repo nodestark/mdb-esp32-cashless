@@ -123,8 +123,11 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
         return 0;
     }
 
-    *itemPrice = ((uint16_t) payload[2] << 8)  | ((uint16_t) payload[3] << 0);
-    *itemNumber = ((uint16_t) payload[4] << 8)  | ((uint16_t) payload[5] << 0);
+    if(itemPrice)
+        *itemPrice = ((uint16_t) payload[2] << 8) | ((uint16_t) payload[3] << 0);
+
+    if(itemNumber)
+        *itemNumber = ((uint16_t) payload[4] << 8) | ((uint16_t) payload[5] << 0);
 
     return 1;
 }
@@ -384,11 +387,13 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						machine_state = VEND_STATE;
 
-						if (itemPrice <= fundsAvailable) {
-							vend_approved_todo = true;
-						} else {
-							vend_denied_todo = true;
-						}
+                        if(fundsAvailable){
+                            if (itemPrice <= fundsAvailable) {
+                                vend_approved_todo = true;
+                            } else {
+                                vend_denied_todo = true;
+                            }
+                        }
 
 						/* PIPE_BLE */
 						uint8_t payload[19];
@@ -990,10 +995,7 @@ void ble_event_handler(char *event_data) {
 		break;
 	case 0x03: /*Approve the vending session*/
 
-        uint16_t itemPrice;
-        uint16_t itemNumber;
-
-        if(xorDecodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) event_data, 19)){
+        if(xorDecodeWithPasskey((void*) 0, (void*) 0, (uint8_t*) event_data, 19)){
             vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
         }
         break;
@@ -1071,12 +1073,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		if (topic_len > 7 && strncmp(event->topic + strlen(event->topic) - 7, "/credit", 7) == 0) {
 
-			uint16_t itemPrice;
-			uint16_t itemNumber;
+			uint16_t fundsAvailable;
+			if(xorDecodeWithPasskey(&fundsAvailable, (void*) 0, (uint8_t*) event->data, 19)){
+			    xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
 
-			if(xorDecodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) event->data, 19)){
-			    xQueueSend(mdbSessionQueue, &itemPrice, 0 /*if full, do not wait*/);
-				printf("Amount: %d\n", itemPrice);
+				printf("Amount: %d\n", fundsAvailable);
 			}
 		}
 

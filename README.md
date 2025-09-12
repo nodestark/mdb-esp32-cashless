@@ -34,7 +34,7 @@ curl -X POST 'https://supabase.vmflow.xyz/auth/v1/token?grant_type=password' \
 curl -X POST 'https://supabase.vmflow.xyz/functions/v1/send-credit' \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 -H "Content-Type: application/json" \
--d '{ "subdomain":51,"amount":150 }'
+-d '{ "subdomain":51,"amount":1.50 }'
 ```
 
 ---
