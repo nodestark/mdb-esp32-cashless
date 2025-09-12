@@ -99,34 +99,60 @@ esp_mqtt_client_handle_t mqttClient = (void*) 0;
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = (void*) 0;
 
-void transmitPayloadByBLE(char cmd, uint16_t itemPrice, uint16_t itemNumber) {
+uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload, uint8_t p_len) {
 
-	uint32_t now;
+    uint8_t chk = payload[0];
+    for(int x= 1; x < (p_len - 1); x++){
+        payload[x] ^= my_passkey[x - 1];
+        chk += payload[x];
+    }
+
+    if(chk != payload[18]){
+        return 0;
+    }
+
+    int32_t timestamp = ((uint32_t) payload[6] << 24) |
+						((uint32_t) payload[7] << 16) |
+						((uint32_t) payload[8] << 8)  |
+						((uint32_t) payload[9] << 0);
+
+    int32_t now;
+    time((time_t*) &now);
+
+    if( abs(now - timestamp) > 8 /*sec*/){
+        return 0;
+    }
+
+    *itemPrice = ((uint16_t) payload[2] << 8)  | ((uint16_t) payload[3] << 0);
+    *itemNumber = ((uint16_t) payload[4] << 8)  | ((uint16_t) payload[5] << 0);
+
+    return 1;
+}
+
+void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload, uint8_t p_len) {
+
+    uint32_t now;
 	time((time_t*) &now);
 
-	char payload[19];
-	esp_fill_random(&payload, sizeof(payload));
-	
-	payload[0] = cmd;
+	esp_fill_random(payload, p_len);
+
+	// payload[0] = cmd;
 	payload[1] = 0x01; 				// version v1
-	payload[2] = itemPrice >> 8;	// itemPrice
-	payload[3] = itemPrice;
-	payload[4] = itemNumber >> 8;	// itemNumber
-	payload[5] = itemNumber;
+	payload[2] = *itemPrice >> 8;	// itemPrice
+	payload[3] = *itemPrice;
+	payload[4] = *itemNumber >> 8;	// itemNumber
+	payload[5] = *itemNumber;
 	payload[6] = (now >> 24);		// time (sec)
 	payload[7] = (now >> 16);
 	payload[8] = (now >> 8);
 	payload[9] = (now >> 0);
-	
+
 	uint8_t chk = payload[0];
-	for(int x= 1; x < sizeof(payload) - 1; x++){
+	for(int x= 1; x < p_len - 1; x++){
 		chk += payload[x];
 		payload[x] ^= my_passkey[x - 1];
 	}
-	
-	payload[sizeof(payload) - 1] = chk;	
-
-	sendBleNotification((char*) &payload, sizeof(payload));
+	payload[p_len - 1] = chk;
 }
 
 // Function to read 9 bits from MDB (one byte at a time)
@@ -365,9 +391,12 @@ void mdb_cashless_loop(void *pvParameters) {
 						}
 
 						/* PIPE_BLE */
+						uint8_t payload[19];
+						payload[0] = 0x0a;
 
-						transmitPayloadByBLE(0x0a, itemPrice, itemNumber);
+						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
 
+                        sendBleNotification((char*) &payload, sizeof(payload));
 						break;
 					}
 					case VEND_CANCEL: {
@@ -387,9 +416,12 @@ void mdb_cashless_loop(void *pvParameters) {
 						machine_state = IDLE_STATE;
 
 						/* PIPE_BLE */
+						uint8_t payload[19];
+						payload[0] = 0x0b;
 
-						transmitPayloadByBLE(0x0b, itemPrice, itemNumber);
+						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
 
+                        sendBleNotification((char*) &payload, sizeof(payload));
 						break;
 					}
 					case VEND_FAILURE: {
@@ -398,10 +430,13 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						machine_state = IDLE_STATE;
 
-						/* PIPE_BLE */
+					    /* PIPE_BLE */
+						uint8_t payload[19];
+						payload[0] = 0x0c;
 
-						transmitPayloadByBLE(0x0c, itemPrice, itemNumber);
+						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
 
+                        sendBleNotification((char*) &payload, sizeof(payload));
 						break;
 					}
 					case SESSION_COMPLETE: {
@@ -410,10 +445,13 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						session_end_todo = true;
 
-						/* PIPE_BLE */
+			            /* PIPE_BLE */
+						uint8_t payload[19];
+						payload[0] = 0x0d;
 
-						transmitPayloadByBLE(0x0d, itemPrice, itemNumber);
+						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
 
+                        sendBleNotification((char*) &payload, sizeof(payload));
 						break;
 					}
 					case CASH_SALE: {
@@ -425,13 +463,15 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						if (checksum_ == checksum) {
 
-							char msg[100];
-							sprintf(msg, "item_number=%d,item_price=%d", itemNumber, itemPrice);
+                            uint8_t payload[19];
+                            payload[0] = 0x01;
+
+						    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
 
 						  	char topic[64];
 						  	snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
 
-							esp_mqtt_client_publish(mqttClient, topic, (char*) &msg, 0, 1, 0);
+							esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
 						}
 
 						break;
@@ -914,14 +954,10 @@ void requestTelemetryData(void *arg) {
 }
 
 void ble_event_handler(char *event_data) {
-	// 0 (command) 1..17 (payload) 18 (check)
 
-    uint8_t command = (uint8_t) event_data[0];
-
-    /*install-settings*/
-    if(command == 0x00){
-
-		nvs_handle_t handle;
+	switch ( (uint8_t) event_data[0] ) {
+    case 0x00: {
+        nvs_handle_t handle;
 		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
 
 		size_t s_len;
@@ -931,10 +967,10 @@ void ble_event_handler(char *event_data) {
 			ESP_ERROR_CHECK( nvs_commit(handle) );
 		}
 		nvs_close(handle);
-
-    } else if(command == 0x01){
-
-		nvs_handle_t handle;
+		break;
+    }
+    case 0x01: {
+        nvs_handle_t handle;
 		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
 
 		size_t s_len;
@@ -944,59 +980,31 @@ void ble_event_handler(char *event_data) {
 			ESP_ERROR_CHECK( nvs_commit(handle) );
 		}
 		nvs_close(handle);
-		
+
 		esp_restart();
+        break;
     }
-
-    if(command == 0x02){
-    	// Starting a vending session...
-    			
-		uint16_t fundsAvailable = 0x0000;
+    case 0x02: /*Starting a vending session*/
+        uint16_t fundsAvailable = 0x0000;
 		xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
-		
-    } else if(command == 0x03){
-    	// Approve the vending session...
-    	
-    	char payload[19];
-		memcpy(payload, event_data, sizeof(payload));
-    	
-    	uint8_t chk = payload[0];
-		for(int x= 1; x < sizeof(payload) - 1; x++){
-			payload[x] ^= my_passkey[x - 1];
-			chk += payload[x];
-		}
+		break;
+	case 0x03: /*Approve the vending session*/
 
-		if(chk == payload[18]){
-			printf("chk ok!\n");
+        uint16_t itemPrice;
+        uint16_t itemNumber;
 
-			int32_t timestamp = ((uint32_t) payload[6] << 24) |
-					((uint32_t) payload[7] << 16) |
-					((uint32_t) payload[8] << 8)  |
-					((uint32_t) payload[9] << 0);
-
-			int32_t now;
-			time((time_t*) &now);
-
-			if( abs(now - timestamp) < 8 /*sec*/){
-				printf("time ok!\n");
-
-				vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
-			}
-		}
-		
-    } else if(command == 0x04){
-    	// Close the vending session...
-		session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
-
-    } else if(command == 0x05){
-		xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
-
-	}
-
-    /*wifi-settings*/
-    if(command == 0x06){
-
-    	esp_wifi_disconnect();
+        if(xorDecodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) event_data, 19)){
+            vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
+        }
+        break;
+    case 0x04: /*Close the vending session*/
+    	session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
+        break;
+    case 0x05:
+        xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
+        break;
+    case 0x06: {
+        esp_wifi_disconnect();
 
 		wifi_config_t wifi_config = {0};
 		esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
@@ -1005,10 +1013,10 @@ void ble_event_handler(char *event_data) {
 		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 
 		printf("ssid %s\n", wifi_config.sta.ssid);
-
-    } else if(command == 0x07){
-
-		wifi_config_t wifi_config = {0};
+        break;
+    }
+    case 0x07: {
+        wifi_config_t wifi_config = {0};
 		esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
 
 		strcpy((char*) wifi_config.sta.password, event_data + 1);
@@ -1017,7 +1025,9 @@ void ble_event_handler(char *event_data) {
 		esp_wifi_connect();
 
 		printf("password %s\n", wifi_config.sta.password);
+		break;
     }
+	}
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
@@ -1036,7 +1046,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     	char topic_[64];
     	snprintf(topic_, sizeof(topic_), "/domain/%s/status", my_subdomain);
 
-		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 0, 0);
+		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 1, 1);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
@@ -1061,34 +1071,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		if (topic_len > 7 && strncmp(event->topic + strlen(event->topic) - 7, "/credit", 7) == 0) {
 
-			char *payload = event->data;
+			uint16_t itemPrice;
+			uint16_t itemNumber;
 
-			uint8_t chk = payload[0];
-			for(int x= 1; x < 18; x++){
-				payload[x] ^= my_passkey[x - 1];
-				chk += payload[x];
-			}
-
-			if(chk == payload[18]){
-				printf("chk ok!\n");
-
-				uint16_t amount = ((uint16_t) payload[2] << 8)  | ((uint16_t) payload[3] << 0);
-
-				int32_t timestamp = ((uint32_t) payload[6] << 24) |
-						((uint32_t) payload[7] << 16) |
-						((uint32_t) payload[8] << 8)  |
-						((uint32_t) payload[9] << 0);
-
-			    int32_t now;
-			    time((time_t*) &now);
-
-				if( abs(now - timestamp) < 8 /*sec*/){
-					uint16_t fundsAvailable = amount;
-					xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
-
-					printf("Amount: %d\n", fundsAvailable);
-
-				}
+			if(xorDecodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) event->data, 19)){
+			    xQueueSend(mdbSessionQueue, &itemPrice, 0 /*if full, do not wait*/);
+				printf("Amount: %d\n", itemPrice);
 			}
 		}
 
@@ -1198,8 +1186,9 @@ void app_main(void) {
 		.session.last_will.topic = lwt_topic,
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,
+		.session.last_will.retain = 1,
 	};
-//
+
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
 	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
 
