@@ -130,7 +130,7 @@ public class EmbeddesFragment extends Fragment {
                                 SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                                 JSONObject jsonObjectSend= new JSONObject();
-                                jsonObjectSend.put("amount", (int) (amount.floatValue() * 100) );
+                                jsonObjectSend.put("amount", amount.floatValue() );
                                 jsonObjectSend.put("subdomain", jsonEmbedded.getInt("subdomain") );
 
                                 RequestBody requestBody = RequestBody.create( jsonObjectSend.toString(), MediaType.parse("application/json") );

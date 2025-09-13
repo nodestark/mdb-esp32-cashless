@@ -187,7 +187,10 @@ public class NearestFragment extends Fragment {
         mListRxBleDevices.clear();
         Disposable scanDisposable = rxBleClient.scanBleDevices(new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build())
                 .take(3, TimeUnit.SECONDS)
-                .filter(sr -> sr.getBleDevice().getName() != null && !sr.getBleDevice().getName().isEmpty())
+                .filter(sr -> sr.getBleDevice().getName() != null
+                        && !sr.getBleDevice().getName().isEmpty()
+                        && sr.getBleDevice().getName().endsWith(".vmflow.xyz")
+                        && !sr.getBleDevice().getName().equals("0.vmflow.xyz"))
                 .distinct(sr -> sr.getBleDevice().getMacAddress()) // chave: MAC -> remove repetições
                 .subscribe( sr -> {
                     Log.d("rxBle_", sr.getBleDevice().getName());
