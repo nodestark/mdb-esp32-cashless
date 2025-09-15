@@ -38,7 +38,7 @@
 #define BIT_CMD_SET   	0b000000111
 
 char my_subdomain[32];
-char my_passkey[17];
+char my_passkey[18];
 
 // Defining MDB commands as an enum
 enum MDB_COMMAND {
@@ -99,15 +99,20 @@ esp_mqtt_client_handle_t mqttClient = (void*) 0;
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = (void*) 0;
 
-uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload, uint8_t p_len) {
+uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
 
-    uint8_t chk = payload[0];
-    for(int x= 1; x < (p_len - 1); x++){
-        payload[x] ^= my_passkey[x - 1];
-        chk += payload[x];
-    }
+	int p_len = sizeof(my_passkey) + 1;
 
-    if(chk != payload[18]){
+	for(int x = 0; x < sizeof(my_passkey); x++){
+		payload[x + 1] ^= my_passkey[x];
+	}
+
+	uint8_t chk = 0x00;
+	for(int x= 0; x < p_len - 1; x++){
+		chk += payload[x];
+	}
+
+    if(chk != payload[p_len - 1]){
         return 0;
     }
 
@@ -132,12 +137,14 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
     return 1;
 }
 
-void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload, uint8_t p_len) {
+void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
 
-    uint32_t now;
-	time((time_t*) &now);
+	int p_len = sizeof(my_passkey) + 1;
 
 	esp_fill_random(payload, p_len);
+
+	uint32_t now;
+	time((time_t*) &now);
 
 	// payload[0] = cmd;
 	payload[1] = 0x01; 				// version v1
@@ -150,12 +157,15 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 	payload[8] = (now >> 8);
 	payload[9] = (now >> 0);
 
-	uint8_t chk = payload[0];
-	for(int x= 1; x < p_len - 1; x++){
+	uint8_t chk = 0x00;
+	for(int x= 0; x < p_len - 1; x++){
 		chk += payload[x];
-		payload[x] ^= my_passkey[x - 1];
 	}
 	payload[p_len - 1] = chk;
+
+	for(int x = 0; x < sizeof(my_passkey); x++){
+		payload[x + 1] ^= my_passkey[x];
+	}
 }
 
 // Function to read 9 bits from MDB (one byte at a time)
@@ -399,7 +409,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint8_t payload[19];
 						payload[0] = 0x0a;
 
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
+						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
                         sendBleNotification((char*) &payload, sizeof(payload));
 						break;
@@ -424,7 +434,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint8_t payload[19];
 						payload[0] = 0x0b;
 
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
+						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
                         sendBleNotification((char*) &payload, sizeof(payload));
 						break;
@@ -439,7 +449,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint8_t payload[19];
 						payload[0] = 0x0c;
 
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
+						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
                         sendBleNotification((char*) &payload, sizeof(payload));
 						break;
@@ -454,7 +464,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint8_t payload[19];
 						payload[0] = 0x0d;
 
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
+						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
                         sendBleNotification((char*) &payload, sizeof(payload));
 						break;
@@ -471,7 +481,7 @@ void mdb_cashless_loop(void *pvParameters) {
                             uint8_t payload[19];
                             payload[0] = 0x21;
 
-						    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload, sizeof(payload));
+						    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
 						  	char topic[64];
 						  	snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
@@ -968,8 +978,15 @@ void ble_event_handler(char *event_data) {
 		size_t s_len;
 		if (nvs_get_str(handle, "domain", NULL, &s_len) != ESP_OK) {
 
-			ESP_ERROR_CHECK( nvs_set_str(handle, "domain", event_data + 1) );
+			strcpy((char*) &my_subdomain, event_data + 1);
+
+			ESP_ERROR_CHECK( nvs_set_str(handle, "domain", (char*) &my_subdomain) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
+
+			char myhost[64];
+			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
+
+			renameBleDevice((char*) &myhost);
 		}
 		nvs_close(handle);
 		break;
@@ -981,12 +998,13 @@ void ble_event_handler(char *event_data) {
 		size_t s_len;
 		if (nvs_get_str(handle, "passkey", NULL, &s_len) != ESP_OK) {
 
-			ESP_ERROR_CHECK( nvs_set_str(handle, "passkey", event_data + 1) );
+			strcpy((char*) &my_passkey, event_data + 1);
+
+			ESP_ERROR_CHECK( nvs_set_str(handle, "passkey", (char*) &my_passkey) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
 		}
 		nvs_close(handle);
 
-		esp_restart();
         break;
     }
     case 0x02: /*Starting a vending session*/
@@ -995,7 +1013,7 @@ void ble_event_handler(char *event_data) {
 		break;
 	case 0x03: /*Approve the vending session*/
 
-        if(xorDecodeWithPasskey((void*) 0, (void*) 0, (uint8_t*) event_data, 19)){
+        if(xorDecodeWithPasskey((void*) 0, (void*) 0, (uint8_t*) event_data)){
             vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
         }
         break;
@@ -1074,7 +1092,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		if (topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
 
 			uint16_t fundsAvailable;
-			if(xorDecodeWithPasskey(&fundsAvailable, (void*) 0, (uint8_t*) event->data, 19)){
+			if(xorDecodeWithPasskey(&fundsAvailable, (void*) 0, (uint8_t*) event->data)){
 			    xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
 
 				printf("Amount: %d\n", fundsAvailable);
