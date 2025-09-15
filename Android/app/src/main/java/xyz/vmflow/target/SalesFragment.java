@@ -3,8 +3,6 @@ package xyz.vmflow.target;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.text.format.Time;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,12 +23,9 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.text.NumberFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -80,7 +75,7 @@ public class SalesFragment extends Fragment {
             try {
                 holder.saleChannelText.setText(jsonEmbedded.getString("channel"));
                 holder.saleItemNumberText.setText(String.format("Item #%03x", jsonEmbedded.getInt("item_number")) );
-                holder.saleEmbeddedSubdomainText.setText(String.format("Embedded: %06d", jsonEmbedded.getInt("embedded_subdomain")) );
+                holder.saleEmbeddedSubdomainText.setText(String.format("Embedded: %06d", jsonEmbedded.getJSONObject("embeddeds").getInt("subdomain")) );
                 holder.saleCreatedAtText.setText( jsonEmbedded.getString("created_at") );
 
                 NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
@@ -132,7 +127,7 @@ public class SalesFragment extends Fragment {
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
-                        .url(SUPABASE_URL + "/rest/v1/sales?order=created_at.desc")
+                        .url(SUPABASE_URL + "/rest/v1/sales?select=*,embeddeds(subdomain)&order=created_at.desc")
                         .addHeader("apikey", SUPABASE_KEY)
                         .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                         .addHeader("Content-Type", "application/json")
