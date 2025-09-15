@@ -1193,7 +1193,7 @@ void app_main(void) {
 		nvs_close(handle);
 	}
 
-	startBle(myhost, ble_event_handler);
+	startBleDevice(myhost, ble_event_handler);
 
 	char lwt_topic[64];
 	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);

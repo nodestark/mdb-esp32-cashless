@@ -126,7 +126,7 @@ static void bleprph_on_sync(void) {
 }
 
 // Inicialização do BLE
-void startBle(char *deviceName, void* writeBleCharacteristic_) { //! Call this function to start BLE
+void startBleDevice(char *deviceName, void* writeBleCharacteristic_) { //! Call this function to start BLE
     writeBleCharacteristic = writeBleCharacteristic_;
 
     nimble_port_init();
