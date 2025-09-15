@@ -3,6 +3,8 @@
  *
  */
 
+#include "esp_log.h"
+
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_wifi.h>
@@ -987,6 +989,8 @@ void ble_event_handler(char *event_data) {
 			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
 
 			renameBleDevice((char*) &myhost);
+
+			ESP_LOGI("ble_", "HOST= %s", myhost);
 		}
 		nvs_close(handle);
 		break;
@@ -1002,6 +1006,8 @@ void ble_event_handler(char *event_data) {
 
 			ESP_ERROR_CHECK( nvs_set_str(handle, "passkey", (char*) &my_passkey) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
+
+			ESP_LOGI("ble_", "PASSKEY= %s", my_passkey);
 		}
 		nvs_close(handle);
 
@@ -1032,7 +1038,7 @@ void ble_event_handler(char *event_data) {
 		strcpy((char*) wifi_config.sta.ssid, event_data + 1);
 		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 
-		printf("ssid %s\n", wifi_config.sta.ssid);
+	    ESP_LOGI("ble_", "SSID= %s", wifi_config.sta.ssid);
         break;
     }
     case 0x07: {
@@ -1044,7 +1050,7 @@ void ble_event_handler(char *event_data) {
 
 		esp_wifi_connect();
 
-		printf("password %s\n", wifi_config.sta.password);
+	    ESP_LOGI("ble_", "PASSWORD= %s", wifi_config.sta.password);
 		break;
     }
 	}
@@ -1079,9 +1085,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		break;
 	case MQTT_EVENT_DATA:
 
-		printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-		printf("DATA_LEN=%d\r\n", event->data_len);
-		printf("DATA=%.*s\r\n", event->data_len, event->data);
+	    ESP_LOGI("mqtt_", "TOPIC= %.*s", event->topic_len, event->topic);
+	    ESP_LOGI("mqtt_", "DATA_LEN= %d", event->data_len);
+	    ESP_LOGI("mqtt_", "DATA= %.*s", event->data_len, event->data);
 
 		size_t topic_len = strlen(event->topic);
 
@@ -1095,7 +1101,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 			if(xorDecodeWithPasskey(&fundsAvailable, (void*) 0, (uint8_t*) event->data)){
 			    xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
 
-				printf("Amount: %d\n", fundsAvailable);
+			    ESP_LOGI("mqtt_", "Amount= %d", fundsAvailable);
 			}
 		}
 
@@ -1103,7 +1109,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_ERROR:
 		break;
 	default:
-		printf("Other event id:%d\n", event->event_id);
+	    ESP_LOGI("mqtt_", "Other event id: %d", event->event_id);
 		break;
 	}
 }
