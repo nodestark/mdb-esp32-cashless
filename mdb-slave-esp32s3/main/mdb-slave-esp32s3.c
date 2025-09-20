@@ -22,6 +22,8 @@
 #include "bleprph.h"
 #include "nimble.h"
 
+#define TAG "mdb-slave"
+
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
 #define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
@@ -123,10 +125,10 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
 						((uint32_t) payload[8] << 8)  |
 						((uint32_t) payload[9] << 0);
 
-    int32_t now;
-    time((time_t*) &now);
+    time_t now;
+    time( &now);
 
-    if( abs(now - timestamp) > 8 /*sec*/){
+    if( abs((int32_t) now - timestamp) > 8 /*sec*/){
         return 0;
     }
 
@@ -145,8 +147,8 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 
 	esp_fill_random(payload, p_len);
 
-	uint32_t now;
-	time((time_t*) &now);
+	time_t now;
+	time( &now);
 
 	// payload[0] = cmd;
 	payload[1] = 0x01; 				// version v1
@@ -228,7 +230,7 @@ void writePayload_ttl9(uint8_t *mdb_payload, uint8_t length) {
 // Main MDB loop function
 void mdb_cashless_loop(void *pvParameters) {
 	
-	int32_t session_begin_time = 0;
+	time_t session_begin_time = 0;
 
 	uint16_t fundsAvailable = 0;
 	uint16_t itemPrice = 0;
@@ -362,12 +364,13 @@ void mdb_cashless_loop(void *pvParameters) {
 						machine_state = IDLE_STATE;
 
 						uint16_t fundsAvailable_ = (fundsAvailable == 0x0000 ? 0xffff : fundsAvailable);
+
 						mdb_payload[0] = 0x03;
 						mdb_payload[1] = fundsAvailable_ >> 8;
 						mdb_payload[2] = fundsAvailable_;
 						available_tx = 3;
 						
-						time((time_t*) &session_begin_time);
+						time( &session_begin_time);
 
 					} else if (session_cancel_todo) {
 						// Cancel session
@@ -378,8 +381,8 @@ void mdb_cashless_loop(void *pvParameters) {
 
 					} else {
 
-						uint32_t now;
-						time((time_t*) &now);
+						time_t now;
+						time( &now);
 						
 						if (machine_state >= IDLE_STATE && (now - session_begin_time /*elapsed*/) > 90 /*sec*/) {
 							session_cancel_todo = true;
@@ -990,7 +993,7 @@ void ble_event_handler(char *event_data) {
 
 			renameBleDevice((char*) &myhost);
 
-			ESP_LOGI("ble_", "HOST= %s", myhost);
+			ESP_LOGI( TAG, "HOST= %s", myhost);
 		}
 		nvs_close(handle);
 		break;
@@ -1007,7 +1010,7 @@ void ble_event_handler(char *event_data) {
 			ESP_ERROR_CHECK( nvs_set_str(handle, "passkey", (char*) &my_passkey) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
 
-			ESP_LOGI("ble_", "PASSKEY= %s", my_passkey);
+			ESP_LOGI( TAG, "PASSKEY= %s", my_passkey);
 		}
 		nvs_close(handle);
 
@@ -1038,7 +1041,7 @@ void ble_event_handler(char *event_data) {
 		strcpy((char*) wifi_config.sta.ssid, event_data + 1);
 		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 
-	    ESP_LOGI("ble_", "SSID= %s", wifi_config.sta.ssid);
+	    ESP_LOGI( TAG, "SSID= %s", wifi_config.sta.ssid);
         break;
     }
     case 0x07: {
@@ -1050,7 +1053,7 @@ void ble_event_handler(char *event_data) {
 
 		esp_wifi_connect();
 
-	    ESP_LOGI("ble_", "PASSWORD= %s", wifi_config.sta.password);
+	    ESP_LOGI( TAG, "PASSWORD= %s", wifi_config.sta.password);
 		break;
     }
 	}
@@ -1085,9 +1088,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		break;
 	case MQTT_EVENT_DATA:
 
-	    ESP_LOGI("mqtt_", "TOPIC= %.*s", event->topic_len, event->topic);
-	    ESP_LOGI("mqtt_", "DATA_LEN= %d", event->data_len);
-	    ESP_LOGI("mqtt_", "DATA= %.*s", event->data_len, event->data);
+	    ESP_LOGI( TAG, "TOPIC= %.*s", event->topic_len, event->topic);
+	    ESP_LOGI( TAG, "DATA_LEN= %d", event->data_len);
+	    ESP_LOGI( TAG, "DATA= %.*s", event->data_len, event->data);
 
 		size_t topic_len = strlen(event->topic);
 
@@ -1101,7 +1104,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 			if(xorDecodeWithPasskey(&fundsAvailable, (void*) 0, (uint8_t*) event->data)){
 			    xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
 
-			    ESP_LOGI("mqtt_", "Amount= %d", fundsAvailable);
+			    ESP_LOGI( TAG, "Amount= %d", fundsAvailable);
 			}
 		}
 
@@ -1109,7 +1112,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_ERROR:
 		break;
 	default:
-	    ESP_LOGI("mqtt_", "Other event id: %d", event->event_id);
+	    ESP_LOGI( TAG, "Other event id: %d", event->event_id);
 		break;
 	}
 }
