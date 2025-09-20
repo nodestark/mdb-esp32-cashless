@@ -1,7 +1,5 @@
 /*
- * mdb-master-esp32.c - Vending machine controller
- *
- * Written by Leonardo Soares <leonardobsi@gmail.com>
+ * mdb-master-esp32s3.c - Vending machine controller
  *
  */
 
@@ -294,6 +292,8 @@ void mdb_vmc_loop(void *pvParameters) {
 					machine_state = IDLE_STATE;
 
 					++coils[itemNumber][1];
+
+					vTaskDelay(pdMS_TO_TICKS(500));
 
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
