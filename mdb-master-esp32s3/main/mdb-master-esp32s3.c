@@ -259,8 +259,8 @@ void mdb_vmc_loop(void *pvParameters) {
 		} else {
 
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
-			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
 
+			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
 			if (xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000))) {
 
 				if (mdb_payload_rx[0] == 0x07 /*End Session*/) {
@@ -287,13 +287,12 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 4);
 
+					vTaskDelay(pdMS_TO_TICKS(500));
 					xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
 					machine_state = IDLE_STATE;
 
 					++coils[itemNumber][1];
-
-					vTaskDelay(pdMS_TO_TICKS(500));
 
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete

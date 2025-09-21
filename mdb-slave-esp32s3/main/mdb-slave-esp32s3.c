@@ -105,11 +105,11 @@ static QueueHandle_t mdbSessionQueue = (void*) 0;
 
 uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
 
-	int p_len = sizeof(my_passkey) + 1;
-
 	for(int x = 0; x < sizeof(my_passkey); x++){
 		payload[x + 1] ^= my_passkey[x];
 	}
+
+	int p_len = sizeof(my_passkey) + 1;
 
 	uint8_t chk = 0x00;
 	for(int x= 0; x < p_len - 1; x++){
@@ -143,9 +143,7 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
 
 void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
 
-	int p_len = sizeof(my_passkey) + 1;
-
-	esp_fill_random(payload, p_len);
+	esp_fill_random(payload + 1, sizeof(my_passkey));
 
 	time_t now;
 	time( &now);
@@ -160,6 +158,8 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 	payload[7] = (now >> 16);
 	payload[8] = (now >> 8);
 	payload[9] = (now >> 0);
+
+	int p_len = sizeof(my_passkey) + 1;
 
 	uint8_t chk = 0x00;
 	for(int x= 0; x < p_len - 1; x++){
@@ -275,6 +275,7 @@ void mdb_cashless_loop(void *pvParameters) {
 					machine_state = INACTIVE_STATE;
 					cashless_reset_todo = true;
 
+					ESP_LOGI( TAG, "RESET");
 					break;
 				}
 				case SETUP: {
@@ -417,6 +418,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
                         sendBleNotification((char*) &payload, sizeof(payload));
+
+						ESP_LOGI( TAG, "VEND_REQUEST");
 						break;
 					}
 					case VEND_CANCEL: {
@@ -442,6 +445,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
                         sendBleNotification((char*) &payload, sizeof(payload));
+
+						ESP_LOGI( TAG, "VEND_SUCCESS");
 						break;
 					}
 					case VEND_FAILURE: {
@@ -472,6 +477,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
                         sendBleNotification((char*) &payload, sizeof(payload));
+
+						ESP_LOGI( TAG, "SESSION_COMPLETE");
 						break;
 					}
 					case CASH_SALE: {
@@ -492,6 +499,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						  	snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
 
 							esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
+
+							ESP_LOGI( TAG, "CASH_SALE");
 						}
 
 						break;
@@ -542,6 +551,7 @@ void mdb_cashless_loop(void *pvParameters) {
 				// Not the intended address
 				gpio_set_level(pin_mdb_led, 0);
 			}
+
 		}
 	}
 }
