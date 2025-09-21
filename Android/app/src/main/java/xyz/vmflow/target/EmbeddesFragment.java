@@ -59,6 +59,7 @@ public class EmbeddesFragment extends Fragment {
     private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4";
 
     private RxBleClient mRxBleClient;
+    private View mProgressBar;
 
     class ViewHolder_ extends RecyclerView.ViewHolder {
         View viewDeviceOffline;
@@ -79,25 +80,7 @@ public class EmbeddesFragment extends Fragment {
 
         public ViewHolder_ onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_embedded_layout, parent, false);
-            return new ViewHolder_(view);
-        }
-
-        public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
-
-            JSONObject jsonEmbedded = mListEmbeddeds.get(position);
-
-            try {
-
-                holder.deviceNameText.setText(String.format("Machine: %06d", jsonEmbedded.getInt("subdomain")));
-
-                if ("online".equals(jsonEmbedded.getString("status"))) {
-
-                    int color = ContextCompat.getColor(getContext(), R.color.green);
-                    holder.viewDeviceOffline.setBackgroundColor(color);
-                }
-            } catch (JSONException e) {
-                throw new RuntimeException(e);
-            }
+            ViewHolder_ holder = new ViewHolder_(view);
 
             holder.btnSendCredit.setOnClickListener(v -> {
 
@@ -128,6 +111,8 @@ public class EmbeddesFragment extends Fragment {
 
                             try {
                                 SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+
+                                JSONObject jsonEmbedded = mListEmbeddeds.get(holder.getAdapterPosition());
 
                                 JSONObject jsonObjectSend= new JSONObject();
                                 jsonObjectSend.put("amount", amount.floatValue() );
@@ -186,6 +171,26 @@ public class EmbeddesFragment extends Fragment {
                 AlertDialog dialog = builder.create();
                 dialog.show();
             });
+
+            return holder;
+        }
+
+        public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
+
+            JSONObject jsonEmbedded = mListEmbeddeds.get(position);
+
+            try {
+
+                holder.deviceNameText.setText(String.format("Machine: %06d", jsonEmbedded.getInt("subdomain")));
+
+                if ("online".equals(jsonEmbedded.getString("status"))) {
+
+                    int color = ContextCompat.getColor(getContext(), R.color.green);
+                    holder.viewDeviceOffline.setBackgroundColor(color);
+                }
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
@@ -197,6 +202,8 @@ public class EmbeddesFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view_, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view_, savedInstanceState);
+
+        mProgressBar = view_.findViewById(R.id.progressBar);
 
         mRxBleClient = RxBleClient.create(getContext());
 
@@ -303,6 +310,9 @@ public class EmbeddesFragment extends Fragment {
             }
 
         } while(retry);
+
+        if(getActivity() != null)
+            getActivity().runOnUiThread(() -> mProgressBar.setVisibility(View.GONE) );
     }
 
     private void rxBleInstall(ScanResult scanResult) {
@@ -341,9 +351,7 @@ public class EmbeddesFragment extends Fragment {
                         JSONArray jsonArray = new JSONArray(response.body().string());
                         JSONObject jsonNewEmbedded = jsonArray.getJSONObject(0);
 
-                        final Disposable[] disposableRef = new Disposable[1];
-
-                        disposableRef[0] = rxBleDevice.establishConnection(false)
+                        Disposable disposable = rxBleDevice.establishConnection(false)
                                 .flatMap(rxBleConnection -> {
                                     Log.d("rxBle_", "Conectado!");
 
@@ -380,7 +388,7 @@ public class EmbeddesFragment extends Fragment {
                                             getActivity().runOnUiThread(() ->
                                                     Toast.makeText(getContext(), "Erro BLE", Toast.LENGTH_SHORT).show()
                                             );
-                                        }, () -> disposableRef[0].dispose()
+                                        }, () -> {}
                                 );
 
                         mListEmbeddeds.add(jsonNewEmbedded);
@@ -429,12 +437,11 @@ public class EmbeddesFragment extends Fragment {
     public void onStart() {
         super.onStart();
 
+        mProgressBar.setVisibility(View.VISIBLE);
+
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             fetchEmbeddedsData();
-
-            ProgressBar progressBar = getActivity().findViewById(R.id.progressBar);
-            getActivity().runOnUiThread(() -> progressBar.setVisibility(View.GONE) );
         });
     }
 

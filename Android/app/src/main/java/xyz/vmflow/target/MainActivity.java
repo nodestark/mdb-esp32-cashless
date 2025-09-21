@@ -26,9 +26,16 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
 
         if (item.getItemId() == R.id.action_about) {
+
+            String version = "";
+            try {
+                version = "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            } catch (Exception e) {
+            }
+
             new AlertDialog.Builder(this)
                     .setTitle("About")
-                    .setMessage("This app is part of an open source project implementing the MDB protocol for vending machines, focused on cashless payments and remote telemetry.\n" +
+                    .setMessage(version + "\n\nThis app is part of an open source project implementing the MDB protocol for vending machines, focused on cashless payments and remote telemetry.\n" +
                             "\n" +
                             "Key features:\n" +
                             "\n" +

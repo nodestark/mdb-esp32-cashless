@@ -2,8 +2,10 @@ package xyz.vmflow.target;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -27,6 +29,10 @@ import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.scan.ScanSettings;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,14 +41,25 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.disposables.Disposable;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class NearestFragment extends Fragment {
+
+    private static final String SUPABASE_URL = "https://supabase.vmflow.xyz";
+    private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4";
 
     private static final UUID WRITE_CHARACTERISTIC_UUID = UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002");
 
     private final List<RxBleDevice> mListRxBleDevices = new ArrayList<>();
     private final ItemAdapter_ itemAdapter_ = new ItemAdapter_();
+    private SwipeRefreshLayout mSwipeRefreshLayout;
+    private View mProgressBar;
 
     class ViewHolder_ extends RecyclerView.ViewHolder {
 
@@ -61,13 +78,109 @@ public class NearestFragment extends Fragment {
 
         public ViewHolder_ onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_nearest_layout, parent, false);
-            return new ViewHolder_(view);
-        }
+            ViewHolder_ holder = new ViewHolder_(view);
 
-        public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
+            view.setOnClickListener(v -> {
+                int pos = holder.getAdapterPosition();
+                if (pos != RecyclerView.NO_POSITION) {
 
-            RxBleDevice rxBleDevice = mListRxBleDevices.get(position);
-            holder.viewText.setText(rxBleDevice.getName());
+                    RxBleDevice device = mListRxBleDevices.get(pos);
+                    Disposable disposable_ = device.establishConnection(false)
+                            .flatMap(rxBleConnection -> rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, new byte[]{0x02 /*begin_session*/} ).toObservable()
+                                    .flatMap(initResult -> {
+                                        Log.d("rxBle_", "Sessão iniciada: ");
+
+                                        return rxBleConnection.setupNotification(WRITE_CHARACTERISTIC_UUID)
+                                                .flatMap(notificationObservable ->
+                                                        notificationObservable.flatMap(bytes -> {
+
+                                                            Log.d("rxBle_", "Recebido: " + Integer.toHexString(bytes[0]));
+
+                                                            if(bytes[0] == 0x0d /*session_complete*/){
+
+                                                            }
+
+                                                            if(bytes[0] == 0x0c /*vend_failure*/){
+
+                                                            }
+
+                                                            if(bytes[0] == 0x0b /*vend_succecss*/){
+
+                                                            }
+
+                                                            if(bytes[0] == 0x0a /*vend_request*/){
+
+                                                                boolean retry;
+                                                                do {
+                                                                    retry = false;
+
+                                                                    try {
+                                                                        SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+
+                                                                        JSONObject jsonObjectSend= new JSONObject();
+                                                                        jsonObjectSend.put("payload", Base64.encodeToString(bytes, Base64.NO_WRAP));
+                                                                        jsonObjectSend.put("subdomain", device.getName().split("\\.")[0] );
+
+                                                                        RequestBody requestBody = RequestBody.create( jsonObjectSend.toString(), MediaType.parse("application/json") );
+
+                                                                        JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
+
+                                                                        Request request = new Request.Builder().url(SUPABASE_URL + "/functions/v1/request-credit")
+                                                                                .post(requestBody)
+                                                                                .addHeader("apikey", SUPABASE_KEY)
+                                                                                .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
+                                                                                .addHeader("Content-Type", "application/json")
+                                                                                .build();
+
+                                                                        Response response = new OkHttpClient().newCall(request).execute();
+                                                                        if(response.isSuccessful()){
+
+                                                                            JSONObject jsonObject = new JSONObject(response.body().string());
+                                                                            byte[] payload = Base64.decode(jsonObject.getString("payload"), Base64.NO_WRAP);
+
+                                                                            return rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, payload ).toObservable();
+
+                                                                        } else if (response.code() == 401) {
+
+                                                                            RequestBody requestBody_ = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
+
+                                                                            Request request_ = new Request.Builder().url(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
+                                                                                    .post(requestBody_)
+                                                                                    .addHeader("apikey", SUPABASE_KEY)
+                                                                                    .addHeader("Content-Type", "application/json")
+                                                                                    .build();
+
+                                                                            Response response_ = new OkHttpClient().newCall(request_).execute();
+                                                                            if (response_.isSuccessful()) {
+
+                                                                                SharedPreferences.Editor editor = prefs.edit();
+                                                                                editor.putString("auth_json", response_.body().string());
+                                                                                editor.apply();
+
+                                                                                retry = true;
+                                                                            }
+                                                                        }
+
+                                                                    } catch (JSONException | IOException e) {
+                                                                        e.printStackTrace();
+                                                                    }
+
+                                                                } while(retry);
+
+                                                                return rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, new byte[]{0x04 /*cancel_session*/} ).toObservable();
+                                                            }
+                                                            return Observable.empty();
+                                                        })
+                                                );
+                                            })
+                            )
+                            .retry(2)
+                            .subscribe(
+                                    result -> Log.d("rxBle_", "Escrita/Resposta concluída"),
+                                    throwable -> Log.e("rxBle_", "Erro BLE", throwable)
+                            );
+                }
+            });
 
             holder.btnSetPassword.setOnClickListener(v -> {
 
@@ -130,26 +243,35 @@ public class NearestFragment extends Fragment {
                         payloadPswd[1 + arrPswd.length] = 0x00;
                     }
 
-                    final Disposable[] disposableRef = new Disposable[1];
-
-                    disposableRef[0] = rxBleDevice.establishConnection(false)
+                    RxBleDevice rxBleDevice = mListRxBleDevices.get(holder.getAdapterPosition());
+                    Disposable disposable = rxBleDevice.establishConnection(false)
                             .flatMap(rxBleConnection -> {
                                 return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSsid)
+                                        .timeout(3, TimeUnit.SECONDS)
                                         .flatMap(bytes -> {
                                             Log.d("rxBle_", "Write 1 OK: " + new String(bytes));
-                                            return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPswd);
+                                            return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPswd).timeout(3, TimeUnit.SECONDS);
                                         }).toObservable();
                             })
+                            .retry(2)
                             .subscribe(
                                     bytes -> Log.d("rxBle_", "Write 2 OK: " + new String(bytes)),
                                     err -> Log.e("rxBle_", "Erro em algum write", err),
-                                    () -> disposableRef[0].dispose()
+                                    () -> {}
                             );
                 });
 
                 AlertDialog dialog = builder.create();
                 dialog.show();
             });
+
+            return holder;
+        }
+
+        public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
+
+            RxBleDevice rxBleDevice = mListRxBleDevices.get(position);
+            holder.viewText.setText(rxBleDevice.getName());
         }
 
         @Override
@@ -162,20 +284,19 @@ public class NearestFragment extends Fragment {
     public void onViewCreated(@NonNull View view_, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view_, savedInstanceState);
 
+        mProgressBar = view_.findViewById(R.id.progressBar);
+
         RecyclerView recyclerView = view_.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter( itemAdapter_ );
 
-        SwipeRefreshLayout swipeRefreshLayout = view_.findViewById(R.id.swipeRefresh);
-        swipeRefreshLayout.setOnRefreshListener(() -> {
+        mSwipeRefreshLayout = view_.findViewById(R.id.swipeRefresh);
+        mSwipeRefreshLayout.setOnRefreshListener(() -> {
 
             ExecutorService executor = Executors.newSingleThreadExecutor();
             executor.execute(() -> {
 
                 fetchNearestData();
-
-                if(getActivity() != null)
-                    getActivity().runOnUiThread(() -> swipeRefreshLayout.setRefreshing(false));
             });
         });
     }
@@ -190,19 +311,27 @@ public class NearestFragment extends Fragment {
                 .filter(sr -> sr.getBleDevice().getName() != null
                         && !sr.getBleDevice().getName().isEmpty()
                         && sr.getBleDevice().getName().endsWith(".vmflow.xyz")
-                        && !sr.getBleDevice().getName().equals("0.vmflow.xyz"))
+                        && !sr.getBleDevice().getName().equals("0.vmflow.xyz") )
                 .distinct(sr -> sr.getBleDevice().getMacAddress()) // chave: MAC -> remove repetições
                 .subscribe( sr -> {
                     Log.d("rxBle_", sr.getBleDevice().getName());
 
                     mListRxBleDevices.add(sr.getBleDevice());
-
-                    if(getActivity() != null)
-                        getActivity().runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
-
                 }, th -> {
                     Log.d("rxBle_", th.toString());
                 }, () -> {
+
+                    if(getActivity() != null)
+                        getActivity().runOnUiThread(() -> {
+
+                            itemAdapter_.notifyDataSetChanged();
+                            mSwipeRefreshLayout.setRefreshing(false);
+
+                            mProgressBar.setVisibility(View.GONE);
+
+                            Log.d("rxBle_", "...GONE");
+
+                        });
 
                     Log.d("rxBle_", "...end");
                 });
@@ -212,15 +341,11 @@ public class NearestFragment extends Fragment {
     public void onStart() {
         super.onStart();
 
+        mProgressBar.setVisibility(View.VISIBLE);
+
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             fetchNearestData();
-
-            if(getActivity() != null)
-                getActivity().runOnUiThread(() -> {
-                    ProgressBar progressBar = getActivity().findViewById(R.id.progressBar);
-                    progressBar.setVisibility(View.GONE);
-                } );
         });
     }
 

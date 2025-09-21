@@ -42,6 +42,7 @@ public class SalesFragment extends Fragment {
 
     private static final String SUPABASE_URL = "https://supabase.vmflow.xyz";
     private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4";
+    private View mProgressBar;
 
     class ViewHolder_ extends RecyclerView.ViewHolder {
 
@@ -96,6 +97,8 @@ public class SalesFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view_, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view_, savedInstanceState);
+
+        mProgressBar = view_.findViewById(R.id.progressBar);
 
         RecyclerView recyclerView = view_.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -179,21 +182,19 @@ public class SalesFragment extends Fragment {
             }
 
         } while(retry);
+
+        if(getActivity() != null)
+            getActivity().runOnUiThread(() -> mProgressBar.setVisibility(View.GONE) );
     }
     @Override
     public void onStart() {
         super.onStart();
 
+        mProgressBar.setVisibility(View.VISIBLE);
+
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             fetchSalesData();
-
-            if(getActivity() != null)
-                getActivity().runOnUiThread(() -> {
-                    ProgressBar progressBar = getActivity().findViewById(R.id.progressBar);
-                    progressBar.setVisibility(View.GONE);
-                } );
-
         });
     }
 
