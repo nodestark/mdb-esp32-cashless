@@ -11,7 +11,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AutoCompleteTextView;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -110,7 +109,7 @@ public class EmbeddesFragment extends Fragment {
                             retry = false;
 
                             try {
-                                SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                                 JSONObject jsonEmbedded = mListEmbeddeds.get(holder.getAdapterPosition());
 

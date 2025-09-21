@@ -14,7 +14,6 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -61,6 +60,8 @@ public class NearestFragment extends Fragment {
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private View mProgressBar;
 
+    private Disposable bleConnectionDisposable;
+
     class ViewHolder_ extends RecyclerView.ViewHolder {
 
         TextView viewText;
@@ -84,11 +85,26 @@ public class NearestFragment extends Fragment {
                 int pos = holder.getAdapterPosition();
                 if (pos != RecyclerView.NO_POSITION) {
 
+                    AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                    builder.setNegativeButton("Cancel", (dialog_, which) -> {
+                        bleConnectionDisposable.dispose();
+                    });
+
+                    builder.setTitle("Send Credit (BLE)");
+                    builder.setMessage("Connecting...");
+                    builder.setCancelable(false);
+
+                    AlertDialog dialog = builder.create();
+                    dialog.show();
+
                     RxBleDevice device = mListRxBleDevices.get(pos);
-                    Disposable disposable_ = device.establishConnection(false)
+                    bleConnectionDisposable = device.establishConnection(false)
+                            .doOnDispose(() -> dialog.dismiss())
                             .flatMap(rxBleConnection -> rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, new byte[]{0x02 /*begin_session*/} ).toObservable()
                                     .flatMap(initResult -> {
                                         Log.d("rxBle_", "Sessão iniciada: ");
+
+                                        dialog.setMessage("Please select a product on the machine.");
 
                                         return rxBleConnection.setupNotification(WRITE_CHARACTERISTIC_UUID)
                                                 .flatMap(notificationObservable ->
@@ -97,18 +113,20 @@ public class NearestFragment extends Fragment {
                                                             Log.d("rxBle_", "Recebido: " + Integer.toHexString(bytes[0]));
 
                                                             if(bytes[0] == 0x0d /*session_complete*/){
-
+                                                                dialog.setMessage("Session finished.");
+                                                                bleConnectionDisposable.dispose();
                                                             }
 
                                                             if(bytes[0] == 0x0c /*vend_failure*/){
-
+                                                                dialog.setMessage("Purchase failed. Please try again.");
                                                             }
 
                                                             if(bytes[0] == 0x0b /*vend_succecss*/){
-
+                                                                dialog.setMessage("Product dispensed successfully!");
                                                             }
 
                                                             if(bytes[0] == 0x0a /*vend_request*/){
+                                                                dialog.setMessage("Processing payment...");
 
                                                                 boolean retry;
                                                                 do {
@@ -177,8 +195,12 @@ public class NearestFragment extends Fragment {
                             .retry(2)
                             .subscribe(
                                     result -> Log.d("rxBle_", "Escrita/Resposta concluída"),
-                                    throwable -> Log.e("rxBle_", "Erro BLE", throwable)
+                                    throwable -> Log.e("rxBle_", "Erro BLE", throwable),
+                                    () -> {
+                                        Log.d("rxBle_", "It's all");
+                                    }
                             );
+
                 }
             });
 

@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -125,7 +124,7 @@ public class SalesFragment extends Fragment {
             retry = false; // controla se precisa repetir a requisição
 
             try {
-                SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
