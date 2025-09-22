@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.polidea.rxandroidble3.RxBleClient;
+import com.polidea.rxandroidble3.RxBleConnection;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.scan.ScanSettings;
 
@@ -77,6 +78,8 @@ public class NearestFragment extends Fragment {
 
     class ItemAdapter_ extends RecyclerView.Adapter<ViewHolder_> {
 
+        private RxBleConnection mRxBleConnection;
+
         public ViewHolder_ onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_nearest_layout, parent, false);
             ViewHolder_ holder = new ViewHolder_(view);
@@ -85,9 +88,19 @@ public class NearestFragment extends Fragment {
                 int pos = holder.getAdapterPosition();
                 if (pos != RecyclerView.NO_POSITION) {
 
+                    RxBleDevice device = mListRxBleDevices.get(pos);
+
                     AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
                     builder.setNegativeButton("Cancel", (dialog_, which) -> {
-                        bleConnectionDisposable.dispose();
+
+                        if(mRxBleConnection != null){
+                            Disposable dis = mRxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{0x04} /*cancel_session*/).toObservable().subscribe(bytes -> {
+                            }, throwable -> {
+                            }, () -> {
+                                bleConnectionDisposable.dispose();
+                            });
+                        }
+
                     });
 
                     builder.setTitle("Send Credit (BLE)");
@@ -97,7 +110,6 @@ public class NearestFragment extends Fragment {
                     AlertDialog dialog = builder.create();
                     dialog.show();
 
-                    RxBleDevice device = mListRxBleDevices.get(pos);
                     bleConnectionDisposable = device.establishConnection(false)
                             .doOnDispose(() -> dialog.dismiss())
                             .flatMap(rxBleConnection -> rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, new byte[]{0x02 /*begin_session*/} ).toObservable()
@@ -106,6 +118,8 @@ public class NearestFragment extends Fragment {
 
                                         dialog.setMessage("Please select a product on the machine.");
 
+                                        mRxBleConnection = rxBleConnection;
+                                        
                                         return rxBleConnection.setupNotification(WRITE_CHARACTERISTIC_UUID)
                                                 .flatMap(notificationObservable ->
                                                         notificationObservable.flatMap(bytes -> {
