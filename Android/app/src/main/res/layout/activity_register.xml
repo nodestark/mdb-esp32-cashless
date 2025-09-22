@@ -2,24 +2,35 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="24dp"
+    android:background="#F9FAFB">
+
+    <!-- Logo -->
+    <ImageView
+        android:id="@+id/imgLogo"
+        android:layout_width="256dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/app_name"
+        app:srcCompat="@drawable/vmflowxyz_1" />
 
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Texto vmflow (bold) .xyz (normal) -->
-
         <EditText
             android:id="@+id/etName"
-            android:hint="Name"
+            android:hint="Full name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textPersonName"
-            android:layout_marginBottom="12dp"/>
+            android:layout_marginBottom="12dp"
+            android:padding="14dp"/>
 
         <EditText
             android:id="@+id/etEmail"
@@ -27,7 +38,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textEmailAddress"
-            android:layout_marginBottom="12dp"/>
+            android:layout_marginBottom="12dp"
+            android:padding="14dp"/>
 
         <EditText
             android:id="@+id/etPassword"
@@ -35,13 +47,28 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textPassword"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="12dp"
+            android:padding="14dp"/>
+
+        <EditText
+            android:id="@+id/etConfirmPassword"
+            android:hint="Confirm password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:layout_marginBottom="20dp"
+            android:padding="14dp"/>
 
         <Button
             android:id="@+id/btnSubmit"
-            android:text="Signup"
+            android:text="Create Account"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"/>
+            android:backgroundTint="#2563EB"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:padding="14dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp"/>
     </LinearLayout>
 </LinearLayout>

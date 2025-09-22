@@ -42,13 +42,20 @@ public class RegisterActivity extends AppCompatActivity {
         EditText editName = findViewById(R.id.etName);
         EditText editEmail = findViewById(R.id.etEmail);
         EditText editPswd = findViewById(R.id.etPassword);
+        EditText editConfirmPswd = findViewById(R.id.etConfirmPassword);
 
         String email = editEmail.getText().toString().trim();
         String senha = editPswd.getText().toString().trim();
+        String confirmPassword = editConfirmPswd.getText().toString().trim();
         String nome = editName.getText().toString().trim();
 
         if (email.isEmpty() || senha.isEmpty()) {
-            Toast.makeText(this, "Preencha todos os campos!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!senha.equals(confirmPassword)) {
+            Toast.makeText(this, "Both passwords need to be the same to continue", Toast.LENGTH_SHORT).show();
             return;
         }
 

@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
 
             String version = "";
             try {
-                version = "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             } catch (Exception e) {
             }
 
