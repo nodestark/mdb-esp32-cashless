@@ -8,7 +8,7 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 - Support for integrating cashless payment systems into vending machines
 - ESP32 hardware platform offering flexibility and advanced IoT features
 - PCB design done in KiCad, facilitating production and customization of the hardware
-- Support for EVA DTS (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
+- Support for EVA DTS DEX/DDCMP (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
 # How to Contribute:
 - Contributions are welcome! Feel free to open issues, send pull requests, or propose new features
 - Before submitting a pull request, make sure the code complies with the style and quality guidelines defined in the project
