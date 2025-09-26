@@ -41,7 +41,7 @@
 	}
     </style>
     <script src="https://unpkg.com/mithril/mithril.js"></script>
-
+    <script src="https://buttons.github.io/buttons.js"></script>
 </head>
 <body>
 
@@ -83,9 +83,8 @@
     const Footer = {
         view: () => m("footer", [
             m("br"),
-            m("a.link-button", { href: "https://github.com/nodestark/mdb-esp32-cashless", target: "_blank", style: {display: "inline-flex", alignItems: "center", textDecoration: "none"} }, [m("img", {src: "github.png", height: "25", style: {marginRight: "7px"}} ), "View repository on GitHub"]),
+            m("a.github-button", { href: "https://github.com/nodestark/mdb-esp32-cashless", "data-icon": "octicon-star", "data-size": "large", "data-show-count": "true", target: "_blank", rel: "noopener"}, "Star"),
             m("br"),
-<!--            m("a.link-button", { href: "https://wa.me/5561996648569", target: "_blank", style: {display: "inline-flex", alignItems: "center", textDecoration: "none"} }, [m("img", {src: "whatsapp.png", height: "25", style: {marginRight: "7px"}} ), "Chat on WhatsApp"]),-->
             m("br"), m("br")
         ])
     };
