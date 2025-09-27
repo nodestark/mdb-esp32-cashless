@@ -198,7 +198,7 @@ uint16_t read_9(uint8_t *checksum) {
 // Function to write 9 bits to MDB (one byte at a time)
 void write_9(uint16_t nth9) {
 
-	gpio_set_level(pin_mdb_tx, 0); // Start transmission
+	gpio_set_level(pin_mdb_tx, 0); // Start bit
 	ets_delay_us(104);
 
 	for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
@@ -207,12 +207,12 @@ void write_9(uint16_t nth9) {
 		ets_delay_us(104); // 9600bps timing
 	}
 
-	gpio_set_level(pin_mdb_tx, 1); // End transmission
+	gpio_set_level(pin_mdb_tx, 1); // Stop bit
 	ets_delay_us(104);
 }
 
 // Function to transmit the payload via UART9 (using MDB protocol)
-void writePayload_ttl9(uint8_t *mdb_payload, uint8_t length) {
+void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 
 	uint8_t checksum = 0;
 
@@ -587,7 +587,7 @@ void mdb_cashless_loop(void *pvParameters) {
 				}
 
 				// Transmit the prepared payload via UART
-				writePayload_ttl9((uint8_t*) &mdb_payload, available_tx);
+				write_payload_9((uint8_t*) &mdb_payload, available_tx);
 
 				// Intended address
 				gpio_set_level(pin_mdb_led, 1);
