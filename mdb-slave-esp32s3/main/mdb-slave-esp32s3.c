@@ -84,7 +84,7 @@ typedef enum MACHINE_STATE {
 	INACTIVE_STATE, DISABLED_STATE, ENABLED_STATE, IDLE_STATE, VEND_STATE
 } machine_state_t;
 
-machine_state_t machine_state = INACTIVE_STATE; // Initial machine state
+machine_state_t machine_state = INACTIVE_STATE, machine_state_; // Initial machine state
 
 // Control flags for MDB flows
 uint8_t session_begin_todo = false;
@@ -172,21 +172,21 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 	}
 }
 
-// Function to read 9 bits from MDB (one byte at a time)
-uint16_t read_9(uint8_t *checksum) {
+
+uint16_t IRAM_ATTR read_9(uint8_t *checksum) {
 
 	uint16_t coming_read = 0;
 
-	// Wait until the RX signal is 0
+	// Wait start bit
 	while (gpio_get_level(pin_mdb_rx))
 		;
 
-	ets_delay_us(156); // Delay between bits
+	ets_delay_us(104);
+	ets_delay_us(78);
 
-	for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
-
+	for(int x = 0; x < 9; x++){
 		coming_read |= (gpio_get_level(pin_mdb_rx) << x);
-		ets_delay_us(104); // 9600bps timing
+		ets_delay_us(104); // 9600bps
 	}
 
 	if (checksum)
@@ -195,20 +195,16 @@ uint16_t read_9(uint8_t *checksum) {
 	return coming_read;
 }
 
-// Function to write 9 bits to MDB (one byte at a time)
-void write_9(uint16_t nth9) {
+void IRAM_ATTR write_9(uint16_t nth9) {
 
-	gpio_set_level(pin_mdb_tx, 0); // Start bit
-	ets_delay_us(104);
+	nth9 <<= 1;
+	nth9 |= 0b10000000000; // Start bit | nth9 | Stop bit
 
-	for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
+	for (uint8_t x = 0; x < 11; x++) {
 
 		gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
-		ets_delay_us(104); // 9600bps timing
+		ets_delay_us(104); // 9600bps
 	}
-
-	gpio_set_level(pin_mdb_tx, 1); // Stop bit
-	ets_delay_us(104);
 }
 
 // Function to transmit the payload via UART9 (using MDB protocol)
@@ -229,7 +225,7 @@ void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 
 // Main MDB loop function
 void mdb_cashless_loop(void *pvParameters) {
-	
+
 	time_t session_begin_time = 0;
 
 	uint16_t fundsAvailable = 0;
@@ -1206,6 +1202,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 void app_main(void) {
 
 	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
+
 	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
@@ -1223,7 +1220,7 @@ void app_main(void) {
 
 	// Initialization of the network stack and event loop
 	nvs_flash_init();
-
+	//
 	esp_netif_init();
 	esp_event_loop_create_default();
 	esp_netif_create_default_wifi_sta();
@@ -1240,7 +1237,7 @@ void app_main(void) {
 	// Initialization of Bluetooth Low Energy (BLE) with the alias
 	char myhost[64];
 	strcpy(myhost, "0.vmflow.xyz"); // Default value
-
+	//
 	nvs_handle_t handle;
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
 
@@ -1259,7 +1256,7 @@ void app_main(void) {
 	}
 
 	startBleDevice(myhost, ble_event_handler);
-
+	//
 	char lwt_topic[64];
 	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);
 

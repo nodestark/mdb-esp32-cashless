@@ -57,33 +57,32 @@ struct reader_t reader0x10 = { .responseTimeSec = 1 /*1sec*/};
  * */
 uint8_t coils[1][2] = {{100 /*PA102*/, 0 /*PA201*/}};
 
-void write_9(uint16_t nth9) {
+void IRAM_ATTR write_9(uint16_t nth9) {
 
-	gpio_set_level(pin_mdb_tx, 0); // start
-	ets_delay_us(104);
+	nth9 <<= 1;
+	nth9 |= 0b10000000000; // Start bit | nth9 | Stop bit
 
-	for (uint8_t x = 0; x < 9; x++) {
+	for (uint8_t x = 0; x < 11; x++) {
 
 		gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
 		ets_delay_us(104); // 9600bps
 	}
-
-	gpio_set_level(pin_mdb_tx, 1); // stop
-	ets_delay_us(104);
 }
 
-uint16_t read_9() {
+uint16_t IRAM_ATTR read_9() {
 
 	uint16_t coming_read = 0;
 
+	// Wait start bit
 	while (gpio_get_level(pin_mdb_rx))
 		;
 
-	ets_delay_us(156);
-	for (uint8_t x = 0; x < 9; x++) {
+	ets_delay_us(104);
+	ets_delay_us(52);
 
+	for(int x = 0; x < 9; x++){
 		coming_read |= (gpio_get_level(pin_mdb_rx) << x);
-		ets_delay_us(104); // 9600bps
+		ets_delay_us(104);
 	}
 
 	return coming_read;
@@ -118,7 +117,7 @@ void mdb_payload_loop(void *pvParameters) {
 	}
 }
 
-void writePayload_ttl9(uint8_t *mdb_payload_tx, uint8_t mdb_length) {
+void write_payload_9(uint8_t *mdb_payload_tx, uint8_t mdb_length) {
 
 	uint8_t checksum = 0;
 
@@ -144,13 +143,15 @@ void mdb_vmc_loop(void *pvParameters) {
 		if (machine_state == INACTIVE_STATE) {
 
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
-			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
+			write_payload_9((uint8_t*) &mdb_payload_tx, 1);
 
+			vTaskDelay(pdMS_TO_TICKS(250));
 			xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
-			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
+			write_payload_9((uint8_t*) &mdb_payload_tx, 1);
 
+			vTaskDelay(pdMS_TO_TICKS(250));
 			if (xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000))) {
 
 				if (mdb_payload_rx[0] == 0x00 /*Just Reset*/) {
@@ -164,8 +165,9 @@ void mdb_vmc_loop(void *pvParameters) {
 					mdb_payload_tx[4] = 0; 			// Rows on Display
 					mdb_payload_tx[5] = 0b00000001; 	// Display Information
 
-					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 6);
+					write_payload_9((uint8_t*) &mdb_payload_tx, 6);
 
+					vTaskDelay(pdMS_TO_TICKS(250));
 					if (xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000))) {
 						// Reader Config
 
@@ -199,8 +201,9 @@ void mdb_vmc_loop(void *pvParameters) {
 			mdb_payload_tx[4] = minPrice >> 8;
 			mdb_payload_tx[5] = minPrice;
 
-			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 6);
+			write_payload_9((uint8_t*) &mdb_payload_tx, 6);
 
+			vTaskDelay(pdMS_TO_TICKS(250));
 			xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (EXPANSION & BIT_CMD_SET);
@@ -239,8 +242,9 @@ void mdb_vmc_loop(void *pvParameters) {
 			mdb_payload_tx[29] = ' '; // Software Version
 			mdb_payload_tx[30] = ' ';
 
-			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 31);
+			write_payload_9((uint8_t*) &mdb_payload_tx, 31);
 
+			vTaskDelay(pdMS_TO_TICKS(250));
 			if (xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000))) {
 				// Peripheral ID
 
@@ -249,8 +253,9 @@ void mdb_vmc_loop(void *pvParameters) {
 				mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (READER & BIT_CMD_SET);
 				mdb_payload_tx[1] = 0x01; // Reader Enable
 
-				writePayload_ttl9((uint8_t*) &mdb_payload_tx, 2);
+				write_payload_9((uint8_t*) &mdb_payload_tx, 2);
 
+				vTaskDelay(pdMS_TO_TICKS(250));
 				xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
 				machine_state = ENABLED_STATE;
@@ -260,7 +265,9 @@ void mdb_vmc_loop(void *pvParameters) {
 
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
 
-			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
+			write_payload_9((uint8_t*) &mdb_payload_tx, 1);
+
+			vTaskDelay(pdMS_TO_TICKS(250));
 			if (xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000))) {
 
 				if (mdb_payload_rx[0] == 0x07 /*End Session*/) {
@@ -271,8 +278,9 @@ void mdb_vmc_loop(void *pvParameters) {
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
 
-					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 2);
+					write_payload_9((uint8_t*) &mdb_payload_tx, 2);
 
+					vTaskDelay(pdMS_TO_TICKS(250));
 					xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 					machine_state = IDLE_STATE;
 
@@ -285,9 +293,9 @@ void mdb_vmc_loop(void *pvParameters) {
 					mdb_payload_tx[2] = itemNumber >> 8;
 					mdb_payload_tx[3] = itemNumber;
 
-					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 4);
+					write_payload_9((uint8_t*) &mdb_payload_tx, 4);
 
-					vTaskDelay(pdMS_TO_TICKS(500));
+					vTaskDelay(pdMS_TO_TICKS(250));
 					xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
 					machine_state = IDLE_STATE;
@@ -297,8 +305,9 @@ void mdb_vmc_loop(void *pvParameters) {
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
 
-					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 2);
+					write_payload_9((uint8_t*) &mdb_payload_tx, 2);
 
+					vTaskDelay(pdMS_TO_TICKS(250));
 					xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
 				} else if (mdb_payload_rx[0] == 0x04 /*Session Cancel Request*/) {
@@ -307,8 +316,9 @@ void mdb_vmc_loop(void *pvParameters) {
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
 
-					writePayload_ttl9((uint8_t*) &mdb_payload_tx, 2);
+					write_payload_9((uint8_t*) &mdb_payload_tx, 2);
 
+					vTaskDelay(pdMS_TO_TICKS(250));
 					xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS(reader0x10.responseTimeSec * 1000)); // ACK*
 
 				} else if (mdb_payload_rx[0] == 0x03 /*Begin Session*/) {
@@ -340,8 +350,9 @@ void mdb_vmc_loop(void *pvParameters) {
 						mdb_payload_tx[4] = itemNumber >> 8;
 						mdb_payload_tx[5] = itemNumber;
 
-						writePayload_ttl9((uint8_t*) &mdb_payload_tx, 6);
+						write_payload_9((uint8_t*) &mdb_payload_tx, 6);
 
+						vTaskDelay(pdMS_TO_TICKS(250));
 						xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS( reader0x10.responseTimeSec * 1000)); // ACK*
 
 						machine_state = VEND_STATE;
@@ -356,8 +367,9 @@ void mdb_vmc_loop(void *pvParameters) {
 						mdb_payload_tx[4] = itemNumber >> 8;
 						mdb_payload_tx[5] = itemNumber;
 
-						writePayload_ttl9((uint8_t*) &mdb_payload_tx, 6);
+						write_payload_9((uint8_t*) &mdb_payload_tx, 6);
 
+						vTaskDelay(pdMS_TO_TICKS(250));
 						xQueueReceive(payload_receive_queue, &mdb_payload_rx, pdMS_TO_TICKS( reader0x10.responseTimeSec * 1000)); // ACK*
 
 						++coils[itemNumber][1];
@@ -372,8 +384,9 @@ void mdb_vmc_loop(void *pvParameters) {
 
 		{
 			mdb_payload_tx[0] = 0x60 /*Cashless Device #2*/ | RESET;
-			writePayload_ttl9((uint8_t*) &mdb_payload_tx, 1);
+			write_payload_9((uint8_t*) &mdb_payload_tx, 1);
 
+			vTaskDelay(pdMS_TO_TICKS(250));
 			xQueueReceive(payload_receive_queue, &mdb_payload_rx, 500 / portTICK_PERIOD_MS); // ACK
 		}
 
@@ -383,6 +396,19 @@ void mdb_vmc_loop(void *pvParameters) {
 
 void eva_dts_loop(void *pvParameters) {
 
+	// Initialize UART1 driver and configure TX/RX pins
+	uart_config_t uart_config_1 = {
+			.baud_rate = 9600,
+			.data_bits = UART_DATA_8_BITS,
+			.parity = UART_PARITY_DISABLE,
+			.stop_bits = UART_STOP_BITS_1,
+			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
+
+	uart_param_config(UART_NUM_1, &uart_config_1);
+	uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1);
+	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
+
+	//
 	uint8_t data[32];
 
 	while (1) {
@@ -548,18 +574,6 @@ void app_main(void) {
 
 	gpio_install_isr_service(0 /*default*/);
 	gpio_isr_handler_add(GPIO_NUM_0, button0_isr_handler, (void*) 0);
-
-	// Initialize UART1 driver and configure TX/RX pins
-	uart_config_t uart_config_1 = {
-			.baud_rate = 9600,
-			.data_bits = UART_DATA_8_BITS,
-			.parity = UART_PARITY_DISABLE,
-			.stop_bits = UART_STOP_BITS_1,
-			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
-
-	uart_param_config(UART_NUM_1, &uart_config_1);
-	uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1);
-	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
 
 	//
 	payload_receive_queue = xQueueCreate(1 /*queue-length*/, 256 * sizeof(uint8_t));
