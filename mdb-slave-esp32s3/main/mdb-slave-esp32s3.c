@@ -22,7 +22,7 @@
 #include "bleprph.h"
 #include "nimble.h"
 
-#define TAG "mdb-slave"
+#define TAG "mdb-target"
 
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
@@ -619,12 +619,9 @@ char* calc_crc_16(uint16_t *pCrc, char *uData) {
 void readTelemetryDEX() {
 
 	uart_set_baudrate(UART_NUM_1, 9600);
-
-//	uart_set_line_inverse(UART_NUM_1, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
-	uart_set_line_inverse(UART_NUM_1, 0);
+    // uart_set_line_inverse(UART_NUM_1, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
 
 	// -------------------------------------- First Handshake --------------------------------------
-
 	uint8_t data[32];
 
 	// ENQ ->
@@ -762,10 +759,8 @@ void readTelemetryDEX() {
 
 void readTelemetryDDCMP() {
 
-	uart_set_baudrate(UART_NUM_1, 9600);
-
-//	uart_set_line_inverse(UART_NUM_1, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
-	uart_set_line_inverse(UART_NUM_1, 0);
+	uart_set_baudrate(UART_NUM_1, 2400);
+    // uart_set_line_inverse(UART_NUM_1, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
 
 	//-------------------------------------------------------
 	uint8_t buffer_rx[1024];
