@@ -40,7 +40,7 @@ curl -X POST 'https://supabase.vmflow.xyz/functions/v1/send-credit' \
 -d '{ "subdomain":51,"amount":1.50 }'
 ```
 
-### 4️⃣ View Sales
+### 3️⃣ View Sales
 
 ```bash
 curl -X GET 'https://supabase.vmflow.xyz/rest/v1/sales' \
@@ -48,7 +48,7 @@ curl -X GET 'https://supabase.vmflow.xyz/rest/v1/sales' \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### 3️⃣ View Embeddeds
+### 4️⃣ View Embeddeds
 
 ```bash
 curl -X GET 'https://supabase.vmflow.xyz/rest/v1/embeddeds' \
