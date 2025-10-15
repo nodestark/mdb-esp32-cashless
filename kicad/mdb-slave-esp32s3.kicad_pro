@@ -38,8 +38,8 @@
         "other_text_upright": false,
         "pads": {
           "drill": 0.0,
-          "height": 1.0,
-          "width": 1.0
+          "height": 0.8,
+          "width": 0.2
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -523,8 +523,8 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "../../../../Downloads/mdb-target-esp32s3/",
-      "pos_files": "../../../../Downloads/mdb-target-esp32s3-pos/",
+      "plot": "../../../../Downloads/pcbway_mdb_target_esp32s3/",
+      "pos_files": "../../../../Downloads/pcbway_mdb_target_esp32s3/",
       "specctra_dsn": "../../../mdb-slave-esp32s3.dsn",
       "step": "",
       "svg": "",
@@ -534,7 +534,7 @@
   },
   "schematic": {
     "annotate_start_num": 0,
-    "bom_export_filename": "/home/leonardo/Downloads/mdb-target-esp32s3.csv",
+    "bom_export_filename": "/home/leonardo/Downloads/pcbway_mdb_target_esp32s3/mdb-slave-esp32s3.csv",
     "bom_fmt_presets": [],
     "bom_fmt_settings": {
       "field_delimiter": ",",
@@ -613,6 +613,12 @@
           "group_by": false,
           "label": "LCSCR#",
           "name": "LCSCR#",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "#LCSC",
+          "name": "#LCSC",
           "show": false
         }
       ],
