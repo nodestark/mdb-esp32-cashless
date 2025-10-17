@@ -608,18 +608,6 @@
           "label": "MOUSER#",
           "name": "MOUSER#",
           "show": true
-        },
-        {
-          "group_by": false,
-          "label": "LCSCR#",
-          "name": "LCSCR#",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "#LCSC",
-          "name": "#LCSC",
-          "show": false
         }
       ],
       "filter_string": "",
