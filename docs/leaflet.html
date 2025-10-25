@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leaflet Map + Supabase</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+    }
+    #map {
+        height: 70%;
+        width: 100%;
+    }
+    #loginForm {
+        padding: 1rem;
+        background: #f0f0f0;
+    }
+    #loginForm input {
+        margin: 0.5rem 0;
+        padding: 0.5rem;
+    }
+</style>
+</head>
+<body>
+
+<h2>📍 VMflow - Sales</h2>
+
+<div id="loginForm">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button id="loginBtn">Login</button>
+</div>
+
+<div id="map"></div>
+
+<script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    // 🔑 Supabase configuration
+    const SUPABASE_URL = 'https://supabase.vmflow.xyz';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let map;
+    let markersLayer = L.layerGroup(); // 🧭 layer to group markers
+
+    // 🗺️ Initialize the map
+    function initMap() {
+        map = L.map('map').setView([-14.2350, -51.9253], 4);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        markersLayer.addTo(map);
+    }
+
+    // 📍 Load points from Supabase
+    async function loadLocations() {
+    const { data, error } = await supabase.from('sales')
+        .select('lat,lng,embeddeds(subdomain)')
+        .not('lat', 'is', null)
+        .not('lng', 'is', null);
+
+        if (error) {
+            console.error('Error loading locations:', error.message);
+            return;
+        }
+
+        // clear previous markers
+        markersLayer.clearLayers();
+
+        // add updated markers
+        data.forEach(loc => {
+            if (loc.lat && loc.lng) {
+
+                const label = loc.embeddeds.subdomain.toString();
+                console.log(label);
+
+                L.marker([loc.lat, loc.lng])
+                    .addTo(markersLayer)
+                    .bindTooltip(label || 'No name', { permanent: true, direction: 'top' });
+            }
+        });
+
+        console.log(`Updated at ${new Date().toLocaleTimeString()}`);
+    }
+
+    // 🔐 Supabase login
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+
+        if (!email || !password) {
+            alert('Please enter email and password.');
+            return;
+        }
+
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            console.error('Login error:', error.message);
+            alert('Login error: ' + error.message);
+        } else {
+            alert('Login successful!');
+            document.getElementById('loginForm').style.display = 'none';
+            initMap();
+            await loadLocations();
+
+            // 🔁 Refresh every 30 min
+            setInterval(loadLocations, 30 * 60 * 1000);
+        }
+    });
+</script>
+
+</body>
+</html>
