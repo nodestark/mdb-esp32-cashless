@@ -1,4 +1,6 @@
 /*
+ * VMflow.xyz
+ *
  * mdb-slave-esp32s3.c - Vending machine peripheral
  *
  */
@@ -125,8 +127,7 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
 						((uint32_t) payload[8] << 8)  |
 						((uint32_t) payload[9] << 0);
 
-    time_t now;
-    time( &now);
+    time_t now = time((void*) 0);
 
     if( abs((int32_t) now - timestamp) > 8 /*sec*/){
         return 0;
@@ -145,8 +146,7 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 
 	esp_fill_random(payload + 1, sizeof(my_passkey));
 
-	time_t now;
-	time( &now);
+	time_t now = time((void*) 0);
 
 	// payload[0] = cmd;
 	payload[1] = 0x01; 				// version v1
@@ -297,6 +297,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						mdb_payload[7] = 0b00001001;  	// Miscellaneous Options
 						available_tx = 8;
 
+						ESP_LOGI( TAG, "CONFIG_DATA");
+
 						break;
 					}
 					case MAX_MIN_PRICES: {
@@ -305,6 +307,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 
 						uint8_t checksum_ = read_9((uint8_t*) 0);
+
+						ESP_LOGI( TAG, "MAX_MIN_PRICES");
 
 						break;
 					}
@@ -378,10 +382,9 @@ void mdb_cashless_loop(void *pvParameters) {
 
 					} else {
 
-						time_t now;
-						time( &now);
-						
-						if (machine_state >= IDLE_STATE && (now - session_begin_time /*elapsed*/) > 90 /*sec*/) {
+						time_t now = time((void*) 0);
+
+						if (machine_state >= IDLE_STATE && (now - session_begin_time /*elapsed*/) > 60 /*60 sec*/) {
 							session_cancel_todo = true;
 						}
 					}
@@ -512,12 +515,16 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 						machine_state = DISABLED_STATE;
 
+						ESP_LOGI( TAG, "READER_DISABLE");
+
 						break;
 					}
 					case READER_ENABLE: {
 
 						uint8_t checksum_ = read_9((uint8_t*) 0);
 						machine_state = ENABLED_STATE;
+
+						ESP_LOGI( TAG, "READER_ENABLE");
 
 						break;
 					}
@@ -527,6 +534,8 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						mdb_payload[ 0 ] = 0x08; // Canceled
 						available_tx = 1;
+
+						ESP_LOGI( TAG, "READER_CANCEL");
 
 						break;
 					}
@@ -574,6 +583,9 @@ void mdb_cashless_loop(void *pvParameters) {
 						mdb_payload[ 29 ] = ' ';
 
 						available_tx = 30;
+
+						ESP_LOGI( TAG, "REQUEST_ID");
+
 						break;
 					}
 					}
@@ -1020,9 +1032,10 @@ void requestTelemetryData(void *arg) {
     vTaskDelete((void*) 0);
 }
 
-void ble_event_handler(char *event_data) {
 
-	switch ( (uint8_t) event_data[0] ) {
+void ble_event_handler(char *ble_payload) {
+
+	switch ( (uint8_t) ble_payload[0] ) {
     case 0x00: {
         nvs_handle_t handle;
 		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
@@ -1030,7 +1043,7 @@ void ble_event_handler(char *event_data) {
 		size_t s_len;
 		if (nvs_get_str(handle, "domain", NULL, &s_len) != ESP_OK) {
 
-			strcpy((char*) &my_subdomain, event_data + 1);
+			strcpy((char*) &my_subdomain, ble_payload + 1);
 
 			ESP_ERROR_CHECK( nvs_set_str(handle, "domain", (char*) &my_subdomain) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
@@ -1052,7 +1065,7 @@ void ble_event_handler(char *event_data) {
 		size_t s_len;
 		if (nvs_get_str(handle, "passkey", NULL, &s_len) != ESP_OK) {
 
-			strcpy((char*) &my_passkey, event_data + 1);
+			strcpy((char*) &my_passkey, ble_payload + 1);
 
 			ESP_ERROR_CHECK( nvs_set_str(handle, "passkey", (char*) &my_passkey) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
@@ -1069,7 +1082,7 @@ void ble_event_handler(char *event_data) {
 		break;
 	case 0x03: /*Approve the vending session*/
 
-        if(xorDecodeWithPasskey((void*) 0, (void*) 0, (uint8_t*) event_data)){
+        if(xorDecodeWithPasskey((void*) 0, (void*) 0, (uint8_t*) ble_payload)){
             vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
         }
         break;
@@ -1085,7 +1098,7 @@ void ble_event_handler(char *event_data) {
 		wifi_config_t wifi_config = {0};
 		esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
 
-		strcpy((char*) wifi_config.sta.ssid, event_data + 1);
+		strcpy((char*) wifi_config.sta.ssid, ble_payload + 1);
 		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 
 	    ESP_LOGI( TAG, "SSID= %s", wifi_config.sta.ssid);
@@ -1095,7 +1108,7 @@ void ble_event_handler(char *event_data) {
         wifi_config_t wifi_config = {0};
 		esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
 
-		strcpy((char*) wifi_config.sta.password, event_data + 1);
+		strcpy((char*) wifi_config.sta.password, ble_payload + 1);
 		esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 
 		esp_wifi_connect();

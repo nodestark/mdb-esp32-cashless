@@ -43,8 +43,8 @@ static int gatt_svr_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max
 }
 
 // Callback de acesso à característica
-static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
-                              struct ble_gatt_access_ctxt *ctxt, void *arg) {
+static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
+
     int rc;
 
     switch (ctxt->op) {
@@ -53,6 +53,7 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
+
         rc = gatt_svr_chr_write(ctxt->om, 1, sizeof(characteristic_received_value), characteristic_received_value, NULL);
 
         writeBleCharacteristic( (char*) &characteristic_received_value );
