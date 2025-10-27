@@ -1,4 +1,4 @@
-package xyz.vmflow.target;
+package xyz.vmflow;
 
 import android.Manifest;
 import android.app.AlertDialog;
@@ -35,22 +35,14 @@ public class MainActivity extends AppCompatActivity {
 
             new AlertDialog.Builder(this)
                     .setTitle("About")
-                    .setMessage(version + "\n\nThis app is part of an open source project implementing the MDB protocol for vending machines, focused on cashless payments and remote telemetry.\n" +
-                            "\n" +
-                            "Key features:\n" +
-                            "\n" +
-                            "Communication with vending machines via MDB\n" +
-                            "\n" +
-                            "Integration of payments via Bluetooth and MQTT\n" +
-                            "\n" +
-                            "Remote monitoring and real-time telemetry\n" +
-                            "\n" +
-                            "Data storage and management using Supabase\n" +
-                            "\n" +
-                            "Platform based on ESP32, with PCB design in KiCad\n" +
-                            "\n" +
-                            "Support for EVA DTS/DDCMP reading\n" +
-                            "\n" +
+                    .setMessage(version + "\n\nThis app is part of an open source project implementing the MDB protocol for vending machines, focused on cashless payments and remote telemetry.\n\n" +
+                            "Key features:\n\n" +
+                            "Communication with vending machines via MDB\n\n" +
+                            "Integration of payments via Bluetooth and MQTT\n\n" +
+                            "Remote monitoring and real-time telemetry\n\n" +
+                            "Data storage and management using Supabase\n\n" +
+                            "Platform based on ESP32, with PCB design in KiCad\n\n" +
+                            "Support for EVA DTS/DDCMP reading\n\n" +
                             "Contributions welcome: pull requests, suggestions for new features, and documentation improvements.")
                     .setNeutralButton("GitHub", (dialog, which) -> {
                         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/nodestark/mdb-esp32-cashless")));

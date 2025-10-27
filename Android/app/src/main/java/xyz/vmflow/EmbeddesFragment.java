@@ -1,4 +1,4 @@
-package xyz.vmflow.target;
+package xyz.vmflow;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;

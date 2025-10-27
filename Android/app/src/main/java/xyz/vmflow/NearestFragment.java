@@ -1,8 +1,10 @@
-package xyz.vmflow.target;
+package xyz.vmflow;
 
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.location.Location;
+import android.location.LocationManager;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.util.Base64;
@@ -147,11 +149,17 @@ public class NearestFragment extends Fragment {
                                                                     retry = false;
 
                                                                     try {
+
+                                                                        LocationManager locationManager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+                                                                        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
                                                                         SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                                                                         JSONObject jsonObjectSend= new JSONObject();
                                                                         jsonObjectSend.put("payload", Base64.encodeToString(bytes, Base64.NO_WRAP));
                                                                         jsonObjectSend.put("subdomain", device.getName().split("\\.")[0] );
+                                                                        jsonObjectSend.put("lat", location.getLatitude());
+                                                                        jsonObjectSend.put("lng", location.getLongitude() );
 
                                                                         RequestBody requestBody = RequestBody.create( jsonObjectSend.toString(), MediaType.parse("application/json") );
 

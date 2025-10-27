@@ -1,4 +1,4 @@
-package xyz.vmflow.target;
+package xyz.vmflow;
 
 import android.content.Context;
 import android.content.SharedPreferences;

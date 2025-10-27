@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace 'xyz.vmflow.target'
+    namespace 'xyz.vmflow'
     compileSdk 36
 
     defaultConfig {
-        applicationId "xyz.vmflow.target"
+        applicationId "xyz.vmflow"
         minSdk 24
         targetSdk 36
         versionCode 3
