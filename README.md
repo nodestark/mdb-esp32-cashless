@@ -9,7 +9,7 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 - ESP32 hardware platform offering flexibility and advanced IoT features
 - PCB design done in KiCad, facilitating production and customization of the hardware
 - Support for EVA DTS DEX/DDCMP (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
-- **Real-time vending machine locations**: [📍 View on Map](https://vmflow.xyz/leaflet.html) – Displays the position of each vending machine based on sales data collected via the ble channel
+- **Real-time vending machine locations**: [📍 View on Map](https://vmflow.xyz/leaflet.html) – Displays the position of each vending machine based on sales data collected via the BLE channel
 
 - # How to Contribute:
 - Contributions are welcome! Feel free to open issues, send pull requests, or propose new features
