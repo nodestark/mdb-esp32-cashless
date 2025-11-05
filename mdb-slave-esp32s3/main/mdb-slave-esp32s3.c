@@ -23,6 +23,7 @@
 
 #include "bleprph.h"
 #include "nimble.h"
+#include <time.h>
 
 #define TAG "mdb-target"
 
