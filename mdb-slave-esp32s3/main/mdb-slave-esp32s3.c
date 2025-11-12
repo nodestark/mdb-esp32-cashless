@@ -1224,7 +1224,7 @@ void app_main(void) {
 			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
 
 	uart_param_config(UART_NUM_1, &uart_config_1);
-	uart_set_pin( UART_NUM_1, GPIO_NUM_17, GPIO_NUM_18, -1, -1);
+	uart_set_pin( UART_NUM_1, GPIO_NUM_43, GPIO_NUM_44, -1, -1);
 	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
 
 	// Initialization of the network stack and event loop
