@@ -13,6 +13,7 @@
 #include <esp_random.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
+#include "freertos/ringbuf.h"
 #include <math.h>
 #include <mqtt_client.h>
 #include <nvs_flash.h>
@@ -99,6 +100,8 @@ uint8_t vend_denied_todo = false;
 //
 uint8_t cashless_reset_todo = false;
 uint8_t outsequence_todo = false;
+
+RingbufHandle_t dexRingbuf;
 
 // MQTT client handle
 esp_mqtt_client_handle_t mqttClient = (void*) 0;
@@ -765,7 +768,7 @@ void readTelemetryDEX() {
 				}
 			}
 
-			printf("%c", data[0]);
+			xRingbufferSend(dexRingbuf, &data[0], 1, 0);
 		}
 	}
 }
@@ -970,7 +973,7 @@ void readTelemetryDDCMP() {
 
 		// Os dados recebidos são: 99 nn "audit dada" crc crc, ou seja, as informaões de audit estão da posição 2 do buffer_rx à posição n_bytes-3
 		for (int x = 2; x < n_bytes_message - 2; x++)
-			printf("%c", (char) buffer_rx[x]);
+			xRingbufferSend(dexRingbuf, &buffer_rx[x], 1, 0);
 
 		crc = 0x0000;
 
@@ -1018,19 +1021,20 @@ void readTelemetryDDCMP() {
 	} while(1);
 }
 
-SemaphoreHandle_t xOneShotReqTelemetry;
-
 void requestTelemetryData(void *arg) {
 
-	if (xSemaphoreTake(xOneShotReqTelemetry, (TickType_t) 0 ) == pdTRUE) {
+	readTelemetryDDCMP();
+	readTelemetryDEX();
 
-		readTelemetryDDCMP();
-		readTelemetryDEX();
+	size_t dex_size;
+	uint8_t *dex = (uint8_t*) xRingbufferReceive(dexRingbuf, &dex_size, 0);
 
-        xSemaphoreGive(xOneShotReqTelemetry);
-	}
+  	char topic[64];
+	snprintf(topic, sizeof(topic), "/domain/%s/dex", my_subdomain);
 
-    vTaskDelete((void*) 0);
+    esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 1, 0);
+
+    vRingbufferReturnItem(dexRingbuf, (void*) dex);
 }
 
 
@@ -1283,7 +1287,17 @@ void app_main(void) {
 	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
 
 	// ---
-	xSemaphoreGive(xOneShotReqTelemetry= xSemaphoreCreateBinary());
+    dexRingbuf = xRingbufferCreate(8 * 1024 /*8Kb*/, RINGBUF_TYPE_BYTEBUF);
+
+    const int INTERVAL_12H_US = 12 * 60 * 60 * 1000000; // 12h
+	const esp_timer_create_args_t periodic_timer_args = {
+		.callback = &requestTelemetryData,
+		.name = "task_dex_12h"
+	};
+
+	esp_timer_handle_t periodic_timer;
+	esp_timer_create(&periodic_timer_args, &periodic_timer);
+	esp_timer_start_periodic(periodic_timer, INTERVAL_12H_US);
 
 	// Creation of the queue for MDB sessions and the main MDB task
 	mdbSessionQueue = xQueueCreate(3 /*queue-length*/, sizeof(uint16_t));
