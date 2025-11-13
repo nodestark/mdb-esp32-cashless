@@ -1032,7 +1032,7 @@ void requestTelemetryData(void *arg) {
   	char topic[64];
 	snprintf(topic, sizeof(topic), "/domain/%s/dex", my_subdomain);
 
-    esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 1, 0);
+    esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 0, 0);
 
     vRingbufferReturnItem(dexRingbuf, (void*) dex);
 }
