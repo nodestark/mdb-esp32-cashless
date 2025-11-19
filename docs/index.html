@@ -5,87 +5,99 @@
     <link rel="icon" href="favicon.svg" type="image/x-icon">
 
     <title>vmflow</title>
+
+    <!-- Fonte -->
     <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;700&display=swap" rel="stylesheet">
 
-    <style>
-        body {
-            font-family: 'Titillium Web', sans-serif;
-            background-color: #f8f9fa;
-        }
-        .link-button {
-            display: inline-block;
-            padding: 12px 24px;
-            margin: 10px;
-            background-color: #F2B705;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background-color 0.3s, box-shadow 0.3s;
-        }
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-        .link-button:hover {
-            background-color: #BF4904;
-            box-shadow: 0 0 6px #732002;
-        }
-
-        ul {
-            list-style-position: inside;
-        }
-        
-	.circular {
-	    width: 150px;
-	    height: 150px;
-	    border-radius: 50%;   /* deixa a imagem redonda */
-	    object-fit: cover;    /* corta e centraliza */
-	}
-    </style>
     <script src="https://unpkg.com/mithril/mithril.js"></script>
 
+    <style>
+        body { font-family: 'Titillium Web', sans-serif; }
+    </style>
 </head>
-<body>
 
-<div id="root" style="max-width: 1200px; margin: 0 auto; text-align: center;"></div>
+<body class="bg-gray-100">
+
+<div id="root" class="max-w-screen-xl mx-auto text-center"></div>
 
 <script>
 
     const MainContent = {
-        view: () => m("div", [
-            m("img", {id: "outer", src: "Flux_Schnell_A_futuristic_vending_machine_with_bright_yellow_n_2.png", height: "450"}),
-            m("h1", "MDB Protocol Implementation for Cashless Vending Machine"),
-            m("p", "This is an open source project dedicated to implementing the MDB (Multi-Drop Bus) protocol for cashless vending machines, using ESP32 as the main platform and KiCad for PCB design. The MDB protocol is widely used in vending machines for communication between devices, enabling integration with cashless payment systems."),
+        view: () => m("div", {class: "p-4"}, [
+            m("img", {id: "outer", src: "Flux_Schnell_A_futuristic_vending_machine_with_bright_yellow_n_2.jpg", class: "h-[450px] mx-auto rounded-xl shadow"}),
 
-            m("img.circular", {src: "1411051686640.jpg", style: {margin: "10px"}} ),
-            m("img.circular", {src: "d4853d90-1b8e-46a0-853e-638dff79a9b7.jpg", style: {margin: "10px"}} ),
-            m("img.circular", {src: "mdb-master-esp32s3_assembled.jpeg", style: {margin: "10px"}} ),
-            m("img.circular", {src: "mdb-slave-esp32s3_pcb.png", style: {margin: "10px"}} ),
+            m("h1", {
+                class: "text-3xl font-bold mt-6 mb-4 bg-gradient-to-r from-yellow-500 via-orange-500 to-red-600 text-transparent bg-clip-text"
+            }, "MDB Protocol Implementation for Cashless Vending Machine")
+            ,
 
-            m("h2", "Key Features:"),
-            m("ul", [
-                m("li", "Implementation of the MDB protocol for communication with vending machines;"),
-                m("li", "Support for integrating cashless payment systems into vending machines;"),
-                m("li", "Utilization of ESP32 as the hardware platform, offering flexibility and advanced IoT features;"),
-                m("li", "PCB design done in KiCad, facilitating production and customization of the hardware;"),
-                m("li", "Support for EVA DTS (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines."),
-            ]),
+            m("p", {class: "text-gray-700 leading-relaxed max-w-3xl mx-auto"},
+              "This is an open source project dedicated to implementing the MDB (Multi-Drop Bus) protocol for cashless vending machines, using ESP32 as the main platform and KiCad for PCB design. The MDB protocol is widely used in vending machines for communication between devices, enabling integration with cashless payment systems."
+            ),
 
-            m("h2", "How to Contribute:"),
-                m("img", {src: "pull-shark-default-498c279a747d.png", height: "70", style: {margin: "2px"}} ),
-                m("img", {src: "starstruck-default-b6610abad518.png", height: "70", style: {margin: "2px"}} ),
-                m("ul", [
-                m("li", "Contributions are welcome! Feel free to open issues, send pull requests, or propose new features;"),
-                m("li", "Before submitting a pull request, make sure the code complies with the style and quality guidelines defined in the project;"),
-                m("li", "Help us improve documentation by adding usage examples, installation instructions, and any other relevant information.")
-            ]),
+            // Imagens circulares
+            m("div", {class: "flex flex-wrap justify-center mt-6"},
+                [
+                    "1411051686640.jpg",
+                    "d4853d90-1b8e-46a0-853e-638dff79a9b7.jpg",
+                    "mdb-master-esp32s3_assembled.jpeg",
+                    "mdb-slave-esp32s3_pcb.png"
+                ].map(src =>
+                    m("img", {
+                        src,
+                        class: "w-[150px] h-[150px] rounded-full object-cover m-2 shadow"
+                    })
+                )
+            ),
+
+            m("h2", {class: "text-3xl font-bold mt-6 mb-4 bg-gradient-to-r from-yellow-500 via-orange-500 to-red-600 text-transparent bg-clip-text"}, "Key Features:"),
+
+            m("ul", {class: "list-disc list-inside text-left max-w-2xl mx-auto text-gray-700"},
+                [
+                    "Implementation of the MDB protocol for communication with vending machines;",
+                    "Support for integrating cashless payment systems into vending machines;",
+                    "Utilization of ESP32 as the hardware platform, offering flexibility and advanced IoT features;",
+                    "PCB design done in KiCad, facilitating production and customization of the hardware;",
+                    "Support for EVA DTS (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines."
+                ].map(item => m("li", item))
+            ),
+
+            m("h2", {class: "text-3xl font-bold mt-6 mb-4 bg-gradient-to-r from-yellow-500 via-orange-500 to-red-600 text-transparent bg-clip-text"}, "How to Contribute:"),
+
+            m("div", {class: "flex justify-center mb-4"},
+                [
+                    m("img", {src: "pull-shark-default-498c279a747d.png", class: "h-[70px] m-2"}),
+                    m("img", {src: "starstruck-default-b6610abad518.png", class: "h-[70px] m-2"})
+                ]
+            ),
+
+            m("ul", {class: "list-disc list-inside text-left max-w-2xl mx-auto text-gray-700"},
+                [
+                    "Contributions are welcome! Feel free to open issues, send pull requests, or propose new features;",
+                    "Before submitting a pull request, make sure the code complies with the style and quality guidelines defined in the project;",
+                    "Help us improve documentation by adding usage examples, installation instructions, and any other relevant information."
+                ].map(item => m("li", item))
+            ),
         ])
     };
 
     const Footer = {
-        view: () => m("footer", [
-            m("br"),
-            m("a.link-button", { href: "https://github.com/nodestark/mdb-esp32-cashless", target: "_blank", style: {display: "inline-flex", alignItems: "center", textDecoration: "none"} }, [m("img", {src: "github.png", height: "25", style: {marginRight: "7px"}} ), "View repository on GitHub"]),
-            m("br"),
-            m("br"), m("br")
+        view: () => m("footer", {class: "mt-10 mb-10"}, [
+            m("a",
+                {
+                    href: "https://github.com/nodestark/mdb-esp32-cashless",
+                    target: "_blank",
+                    class:
+                    "inline-flex items-center px-6 py-3 bg-yellow-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow transition"
+                },
+                [
+                    m("img", {src: "github.png", class: "h-[25px] mr-2"}),
+                    "View repository on GitHub"
+                ]
+            )
         ])
     };
 
@@ -99,5 +111,6 @@
     m.mount(document.getElementById("root"), App);
 
 </script>
+
 </body>
 </html>
