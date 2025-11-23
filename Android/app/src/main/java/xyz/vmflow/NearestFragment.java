@@ -118,7 +118,7 @@ public class NearestFragment extends Fragment {
                                     .flatMap(initResult -> {
                                         Log.d("rxBle_", "Sessão iniciada: ");
 
-                                        dialog.setMessage("Please select a product on the machine.");
+                                        getActivity().runOnUiThread(() -> dialog.setMessage("Please select a product on the machine.") );
 
                                         mRxBleConnection = rxBleConnection;
                                         
@@ -129,20 +129,21 @@ public class NearestFragment extends Fragment {
                                                             Log.d("rxBle_", "Recebido: " + Integer.toHexString(bytes[0]));
 
                                                             if(bytes[0] == 0x0d /*session_complete*/){
-                                                                dialog.setMessage("Session finished.");
+                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Session finished.") );
+
                                                                 bleConnectionDisposable.dispose();
                                                             }
 
                                                             if(bytes[0] == 0x0c /*vend_failure*/){
-                                                                dialog.setMessage("Purchase failed. Please try again.");
+                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Purchase failed. Please try again.") );
                                                             }
 
                                                             if(bytes[0] == 0x0b /*vend_succecss*/){
-                                                                dialog.setMessage("Product dispensed successfully!");
+                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Product dispensed successfully!") );
                                                             }
 
                                                             if(bytes[0] == 0x0a /*vend_request*/){
-                                                                dialog.setMessage("Processing payment...");
+                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Processing payment...") );
 
                                                                 boolean retry;
                                                                 do {
@@ -206,6 +207,8 @@ public class NearestFragment extends Fragment {
                                                                     }
 
                                                                 } while(retry);
+
+                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Falha no pagamento.") );
 
                                                                 return rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, new byte[]{0x04 /*cancel_session*/} ).toObservable();
                                                             }
