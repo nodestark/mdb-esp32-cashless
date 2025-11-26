@@ -15,7 +15,7 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 - Support for EVA DTS DEX/DDCMP (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
 - **Real-time vending machine locations**: [📍 View on Map](https://vmflow.xyz/leaflet.html) – Displays the position of each vending machine based on sales data collected via the BLE channel
 
-- # How to Contribute:
+# How to Contribute:
 - Contributions are welcome! Feel free to open issues, send pull requests, or propose new features
 - Before submitting a pull request, make sure the code complies with the style and quality guidelines defined in the project
 - Help us improve documentation by adding usage examples, installation instructions, and any other relevant information
