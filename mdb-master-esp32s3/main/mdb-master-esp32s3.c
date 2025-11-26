@@ -74,12 +74,11 @@ uint8_t coils[1][2] = {{100 /*PA102*/, 0 /*PA201*/}};
 
 void IRAM_ATTR write_9(uint16_t nth9) {
 
-	nth9 <<= 1;
-	nth9 |= 0b10000000000; // Start bit | nth9 | Stop bit
+    uint16_t nth9w = (nth9 << 1) | 0b10000000000; // Start bit | nth9 | Stop bit
 
 	for (uint8_t x = 0; x < 11; x++) {
 
-		gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
+		gpio_set_level(pin_mdb_tx, (nth9w >> x) & 1);
 		ets_delay_us(104); // 9600bps
 	}
 }
@@ -157,8 +156,8 @@ void mdb_vmc_loop(void *pvParameters) {
 
 	uint8_t itemNumber = -1;
 
-	uint8_t mdb_payload_tx[256];
-	uint8_t mdb_payload_rx[256];
+	uint8_t mdb_payload_tx[36];
+	uint8_t mdb_payload_rx[36];
 
 	for (;;) {
 

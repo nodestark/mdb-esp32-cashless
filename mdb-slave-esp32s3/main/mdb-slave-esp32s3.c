@@ -5,7 +5,7 @@
  *
  */
 
-#include "esp_log.h"
+#include <esp_log.h>
 
 #include <driver/gpio.h>
 #include <driver/uart.h>
@@ -13,7 +13,7 @@
 #include <esp_random.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
-#include "freertos/ringbuf.h"
+#include <freertos/ringbuf.h>
 #include <math.h>
 #include <mqtt_client.h>
 #include <nvs_flash.h>
@@ -88,7 +88,7 @@ typedef enum MACHINE_STATE {
 	INACTIVE_STATE, DISABLED_STATE, ENABLED_STATE, IDLE_STATE, VEND_STATE
 } machine_state_t;
 
-machine_state_t machine_state = INACTIVE_STATE, machine_state_; // Initial machine state
+machine_state_t machine_state = INACTIVE_STATE; // Initial machine state
 
 // Control flags for MDB flows
 uint8_t session_begin_todo = false;
@@ -201,12 +201,11 @@ uint16_t IRAM_ATTR read_9(uint8_t *checksum) {
 
 void IRAM_ATTR write_9(uint16_t nth9) {
 
-	nth9 <<= 1;
-	nth9 |= 0b10000000000; // Start bit | nth9 | Stop bit
+    uint16_t nth9w = (nth9 << 1) | 0b10000000000; // Start bit | nth9 | Stop bit
 
 	for (uint8_t x = 0; x < 11; x++) {
 
-		gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
+		gpio_set_level(pin_mdb_tx, (nth9w >> x) & 1);
 		ets_delay_us(104); // 9600bps
 	}
 }
@@ -237,7 +236,7 @@ void mdb_cashless_loop(void *pvParameters) {
 	uint16_t itemNumber = 0;
 
 	// Payload buffer and available transmission flag
-	uint8_t mdb_payload[256];
+	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
 
 	for (;;) {
