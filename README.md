@@ -61,14 +61,13 @@ curl -X GET 'https://supabase.vmflow.xyz/rest/v1/embeddeds' \
 -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
-### 5️⃣ Payments API
+---
+# Payments API:
 
 <div>
 <img src="MP_RGB_HANDSHAKE_color_horizontal.png" width="150">
 <img src="pix_powered_by_Banco_Central_(Brazil,_2020).png" width="150">
 </div>
-
----
 
 ## License
 
