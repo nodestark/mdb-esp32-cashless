@@ -301,6 +301,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						available_tx = 8;
 
 						ESP_LOGI( TAG, "CONFIG_DATA");
+						
+						vTaskDelay(pdMS_TO_TICKS(5));
 
 						break;
 					}
