@@ -100,6 +100,19 @@ public class NearestFragment extends Fragment {
                             }, throwable -> {
                             }, () -> {
                                 bleConnectionDisposable.dispose();
+
+                                getActivity().runOnUiThread(() -> {
+
+                                    mProgressBar.setVisibility(View.VISIBLE);
+
+                                    mListRxBleDevices.clear();
+                                    itemAdapter_.notifyDataSetChanged();
+                                } );
+
+                                ExecutorService executor = Executors.newSingleThreadExecutor();
+                                executor.execute(() -> {
+                                    fetchNearestData();
+                                });
                             });
                         }
 
@@ -129,9 +142,22 @@ public class NearestFragment extends Fragment {
                                                             Log.d("rxBle_", "Recebido: " + Integer.toHexString(bytes[0]));
 
                                                             if(bytes[0] == 0x0d /*session_complete*/){
-                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Session finished.") );
-
                                                                 bleConnectionDisposable.dispose();
+
+                                                                getActivity().runOnUiThread(() -> {
+
+                                                                    dialog.setMessage("Session finished.");
+
+                                                                    mProgressBar.setVisibility(View.VISIBLE);
+
+                                                                    mListRxBleDevices.clear();
+                                                                    itemAdapter_.notifyDataSetChanged();
+                                                                } );
+
+                                                                ExecutorService executor = Executors.newSingleThreadExecutor();
+                                                                executor.execute(() -> {
+                                                                    fetchNearestData();
+                                                                });
                                                             }
 
                                                             if(bytes[0] == 0x0c /*vend_failure*/){
