@@ -17,7 +17,6 @@
 #include <math.h>
 #include <mqtt_client.h>
 #include <nvs_flash.h>
-#include <rom/ets_sys.h>
 #include <stdio.h>
 #include <string.h>
 #include <esp_sntp.h>
@@ -80,7 +79,7 @@ enum MDB_READER_FLOW {
 
 // Defining MDB expansion flow
 enum MDB_EXPANSION_FLOW {
-	REQUEST_ID = 0x00
+	REQUEST_ID = 0x00, DIAGNOSTICS = 0xFF
 };
 
 // Defining machine states
@@ -91,15 +90,15 @@ typedef enum MACHINE_STATE {
 machine_state_t machine_state = INACTIVE_STATE; // Initial machine state
 
 // Control flags for MDB flows
-uint8_t session_begin_todo = false;
-uint8_t session_cancel_todo = false;
-uint8_t session_end_todo = false;
+bool session_begin_todo = false;
+bool session_cancel_todo = false;
+bool session_end_todo = false;
 //
-uint8_t vend_approved_todo = false;
-uint8_t vend_denied_todo = false;
+bool vend_approved_todo = false;
+bool vend_denied_todo = false;
 //
-uint8_t cashless_reset_todo = false;
-uint8_t outsequence_todo = false;
+bool cashless_reset_todo = false;
+bool outsequence_todo = false;
 
 RingbufHandle_t dexRingbuf;
 
@@ -176,44 +175,24 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 	}
 }
 
+void write_9(uint16_t nth9) {
 
-uint16_t IRAM_ATTR read_9(uint8_t *checksum) {
+    uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
-	uint16_t coming_read = 0;
+    // Use the parity bit to send the mode bit 🤩
+    if ((nth9 >> 8) & 1) {
+        uart_set_parity(UART_NUM_2, ones % 2 ? UART_PARITY_EVEN : UART_PARITY_ODD);
+    } else {
+        uart_set_parity(UART_NUM_2, ones % 2 ? UART_PARITY_ODD : UART_PARITY_EVEN);
+    }
 
-	// Wait start bit
-	while (gpio_get_level(pin_mdb_rx))
-		;
-
-	ets_delay_us(104);
-	ets_delay_us(78);
-
-	for(int x = 0; x < 9; x++){
-		coming_read |= (gpio_get_level(pin_mdb_rx) << x);
-		ets_delay_us(104); // 9600bps
-	}
-
-	if (checksum)
-		*checksum += coming_read;
-
-	return coming_read;
-}
-
-void IRAM_ATTR write_9(uint16_t nth9) {
-
-    uint16_t nth9w = (nth9 << 1) | 0b10000000000; // Start bit | nth9 | Stop bit
-
-	for (uint8_t x = 0; x < 11; x++) {
-
-		gpio_set_level(pin_mdb_tx, (nth9w >> x) & 1);
-		ets_delay_us(104); // 9600bps
-	}
+    uart_write_bytes(UART_NUM_2, (uint8_t*) &nth9, 1);
 }
 
 // Function to transmit the payload via UART9 (using MDB protocol)
 void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 
-	uint8_t checksum = 0;
+	uint8_t checksum = 0x00;
 
 	// Calculate checksum
 	for (int x = 0; x < length; x++) {
@@ -236,380 +215,368 @@ void mdb_cashless_loop(void *pvParameters) {
 	uint16_t itemNumber = 0;
 
 	// Payload buffer and available transmission flag
-	uint8_t mdb_payload[36];
-	uint8_t available_tx = 0;
+	uint8_t mdb_payload_tx[36];
+    uint8_t available_tx = 0;
+
+	uint8_t mdb_payload_rx[36];
+    uint8_t available_rx = 0;
 
 	for (;;) {
 
-		// Checksum calculation
-		uint8_t checksum = 0x00;
+	    available_rx = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, portMAX_DELAY);
 
-		// Read from MDB and check if the mode bit is set
-		uint16_t coming_read = read_9(&checksum);
+	    if ((mdb_payload_rx[0] & BIT_ADD_SET) == 0x10) {
 
-		if (coming_read & BIT_MODE_SET) {
+	        available_tx = 0;
 
-			if ((uint8_t) coming_read == ACK) {
-				// ACK
-			} else if ((uint8_t) coming_read == RET) {
-				// RET
-			} else if ((uint8_t) coming_read == NAK) {
-				// NAK
+            // Command decoding based on incoming data
+            switch (mdb_payload_rx[0] & BIT_CMD_SET) {
 
-			} else if ((coming_read & BIT_ADD_SET) == 0x10) {
+            case RESET: {
 
-				// Reset transmission availability
-				available_tx = 0;
+                if (machine_state == VEND_STATE) {
+                    // Reset during VEND_STATE is interpreted as VEND_SUCCESS
+                    /*TODO*/
+                }
 
-				// Command decoding based on incoming data
-				switch (coming_read & BIT_CMD_SET) {
+                machine_state = INACTIVE_STATE;
+                cashless_reset_todo = true;
 
-				case RESET: {
-					uint8_t checksum_ = read_9((uint8_t*) 0);
+                ESP_LOGI( TAG, "RESET");
+                break;
+            }
+            case SETUP: {
 
-					if (machine_state == VEND_STATE) {
-						// Reset during VEND_STATE is interpreted as VEND_SUCCESS
-					}
+                available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50));
 
-					machine_state = INACTIVE_STATE;
-					cashless_reset_todo = true;
+                switch (mdb_payload_rx[1]) {
 
-					ESP_LOGI( TAG, "RESET");
-					break;
-				}
-				case SETUP: {
-					switch (read_9(&checksum)) {
+                case CONFIG_DATA: {
+                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 4, pdMS_TO_TICKS(50));
 
-					case CONFIG_DATA: {
-						uint8_t vmcFeatureLevel = read_9(&checksum);
-						uint8_t vmcColumnsOnDisplay = read_9(&checksum);
-						uint8_t vmcRowsOnDisplay = read_9(&checksum);
-						uint8_t vmcDisplayInfo = read_9(&checksum);
+                    uint8_t vmcFeatureLevel = mdb_payload_rx[2];
+                    uint8_t vmcColumnsOnDisplay = mdb_payload_rx[3];
+                    uint8_t vmcRowsOnDisplay = mdb_payload_rx[4];
+                    uint8_t vmcDisplayInfo = mdb_payload_rx[5];
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
+                    // chk
+                    machine_state = DISABLED_STATE;
 
-						machine_state = DISABLED_STATE;
+                    mdb_payload_tx[0] = 0x01;        	// Reader Config Data
+                    mdb_payload_tx[1] = 1;           	// Reader Feature Level
+                    mdb_payload_tx[2] = 0xff;        	// Country Code High
+                    mdb_payload_tx[3] = 0xff;        	// Country Code Low
+                    mdb_payload_tx[4] = 1;           	// Scale Factor
+                    mdb_payload_tx[5] = 2;           	// Decimal Places
+                    mdb_payload_tx[6] = 3; 			    // Maximum Response Time (5s)
+                    mdb_payload_tx[7] = 0b00001001;  	// Miscellaneous Options
+                    available_tx = 8;
 
-						mdb_payload[0] = 0x01;        	// Reader Config Data
-						mdb_payload[1] = 1;           	// Reader Feature Level
-						mdb_payload[2] = 0xff;        	// Country Code High
-						mdb_payload[3] = 0xff;        	// Country Code Low
-						mdb_payload[4] = 1;           	// Scale Factor
-						mdb_payload[5] = 2;           	// Decimal Places
-						mdb_payload[6] = 3; 			// Maximum Response Time (5s)
-						mdb_payload[7] = 0b00001001;  	// Miscellaneous Options
-						available_tx = 8;
+                    ESP_LOGI( TAG, "CONFIG_DATA");
+                    break;
+                }
+                case MAX_MIN_PRICES: {
+                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 4, pdMS_TO_TICKS(50));
 
-						ESP_LOGI( TAG, "CONFIG_DATA");
+                    uint16_t maxPrice = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
+                    uint16_t minPrice = (mdb_payload_rx[4] << 8) | mdb_payload_rx[5];
 
-						break;
-					}
-					case MAX_MIN_PRICES: {
+                    ESP_LOGI( TAG, "MAX_MIN_PRICES");
+                    break;
+                }
+                }
 
-						uint16_t maxPrice = (read_9(&checksum) << 8) | read_9(&checksum);
-						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+                break;
+            }
+            case POLL: {
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
+                if (cashless_reset_todo) {
+                    // Just reset
+                    cashless_reset_todo = false;
+                    mdb_payload_tx[0] = 0x00;
+                    available_tx = 1;
 
-						ESP_LOGI( TAG, "MAX_MIN_PRICES");
+                } else if (machine_state == ENABLED_STATE && xQueueReceive(mdbSessionQueue, &fundsAvailable, 0)) {
+                    // Begin session
+                    session_begin_todo = false;
 
-						break;
-					}
-					}
+                    machine_state = IDLE_STATE;
 
-					break;
-				}
-				case POLL: {
+                    mdb_payload_tx[0] = 0x03;
+                    mdb_payload_tx[1] = fundsAvailable >> 8;
+                    mdb_payload_tx[2] = fundsAvailable;
+                    available_tx = 3;
 
-					uint8_t checksum_ = read_9((uint8_t*) 0);
+                    time( &session_begin_time);
 
-					if (outsequence_todo) {
-						// Command out of sequence
-						outsequence_todo = false;
+                } else if (session_cancel_todo) {
+                    // Cancel session
+                    session_cancel_todo = false;
 
-						mdb_payload[0] = 0x0b;
-						available_tx = 1;
+                    mdb_payload_tx[0] = 0x04;
+                    available_tx = 1;
 
-					} else if (cashless_reset_todo) {
-						// Just reset
-						cashless_reset_todo = false;
-						mdb_payload[0] = 0x00;
-						available_tx = 1;
+                } else if (vend_approved_todo) {
+                    // Vend approved
+                    vend_approved_todo = false;
 
-					} else if (vend_approved_todo) {
-						// Vend approved
-						vend_approved_todo = false;
+                    mdb_payload_tx[0] = 0x05;
+                    mdb_payload_tx[1] = itemPrice >> 8;
+                    mdb_payload_tx[2] = itemPrice;
+                    available_tx = 3;
 
-						mdb_payload[0] = 0x05;
-						mdb_payload[1] = itemPrice >> 8;
-						mdb_payload[2] = itemPrice;
-						available_tx = 3;
+                } else if (vend_denied_todo) {
+                    // Vend denied
+                    vend_denied_todo = false;
 
-					} else if (vend_denied_todo) {
-						// Vend denied
-						vend_denied_todo = false;
+                    mdb_payload_tx[0] = 0x06;
+                    available_tx = 1;
+                    machine_state = IDLE_STATE;
 
-						mdb_payload[0] = 0x06;
-						available_tx = 1;
-						machine_state = IDLE_STATE;
+                } else if (session_end_todo) {
+                    // End session
+                    session_end_todo = false;
 
-					} else if (session_end_todo) {
-						// End session
-						session_end_todo = false;
+                    mdb_payload_tx[0] = 0x07;
+                    available_tx = 1;
+                    machine_state = ENABLED_STATE;
 
-						mdb_payload[0] = 0x07;
-						available_tx = 1;
-						machine_state = ENABLED_STATE;
+                } else if (outsequence_todo) {
+                    // Command out of sequence
+                    outsequence_todo = false;
 
-					} else if (machine_state == ENABLED_STATE && xQueueReceive(mdbSessionQueue, &fundsAvailable, 0)) {
-						// Begin session
-						session_begin_todo = false;
+                    mdb_payload_tx[0] = 0x0b;
+                    available_tx = 1;
 
-						machine_state = IDLE_STATE;
+                } else {
 
-						uint16_t fundsAvailable_ = (fundsAvailable == 0x0000 ? 0xffff : fundsAvailable);
+                    time_t now = time((void*) 0);
 
-						mdb_payload[0] = 0x03;
-						mdb_payload[1] = fundsAvailable_ >> 8;
-						mdb_payload[2] = fundsAvailable_;
-						available_tx = 3;
-						
-						time( &session_begin_time);
+                    if (machine_state >= IDLE_STATE && (now - session_begin_time /*elapsed*/) > 60 /*60 sec*/) {
+                        session_cancel_todo = true;
+                    }
+                }
 
-					} else if (session_cancel_todo) {
-						// Cancel session
-						session_cancel_todo = false;
+                break;
+            }
+            case VEND: {
+                available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50));
 
-						mdb_payload[0] = 0x04;
-						available_tx = 1;
+                switch (mdb_payload_rx[1]) {
+                case VEND_REQUEST: {
+                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 4, pdMS_TO_TICKS(50));
 
-					} else {
+                    uint16_t itemPrice = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
+                    uint16_t itemNumber = (mdb_payload_rx[4] << 8) | mdb_payload_rx[5];
 
-						time_t now = time((void*) 0);
+                    machine_state = VEND_STATE;
 
-						if (machine_state >= IDLE_STATE && (now - session_begin_time /*elapsed*/) > 60 /*60 sec*/) {
-							session_cancel_todo = true;
-						}
-					}
-
-					break;
-				}
-				case VEND: {
-					switch (read_9(&checksum)) {
-					case VEND_REQUEST: {
-
-						itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
-						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-
-						machine_state = VEND_STATE;
-
-                        if(fundsAvailable){
-                            if (itemPrice <= fundsAvailable) {
-                                vend_approved_todo = true;
-                            } else {
-                                vend_denied_todo = true;
-                            }
+                    if(fundsAvailable && (fundsAvailable != 0xffff)){
+                        if (itemPrice <= fundsAvailable) {
+                            vend_approved_todo = true;
+                        } else {
+                            vend_denied_todo = true;
                         }
+                    }
 
-						/* PIPE_BLE */
-						uint8_t payload[19];
-						payload[0] = 0x0a;
+                    /* PIPE_BLE */
+                    uint8_t ble_payload_tx[19];
+                    ble_payload_tx[0] = 0x0a;
 
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &ble_payload_tx);
 
-                        sendBleNotification((char*) &payload, sizeof(payload));
+                    sendBleNotification((char*) &ble_payload_tx, sizeof(ble_payload_tx));
 
-						ESP_LOGI( TAG, "VEND_REQUEST");
-						break;
-					}
-					case VEND_CANCEL: {
+                    ESP_LOGI( TAG, "VEND_REQUEST");
+                    break;
+                }
+                case VEND_CANCEL: {
+                    vend_denied_todo = true;
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
+                    break;
+                }
+                case VEND_SUCCESS: {
+                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 2, pdMS_TO_TICKS(50));
 
-						vend_denied_todo = true;
+                    itemNumber = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
 
-						break;
-					}
-					case VEND_SUCCESS: {
+                    machine_state = IDLE_STATE;
 
-						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+                    /* PIPE_BLE */
+                    uint8_t ble_payload_tx[19];
+                    ble_payload_tx[0] = 0x0b;
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &ble_payload_tx);
 
-						machine_state = IDLE_STATE;
+                    sendBleNotification((char*) &ble_payload_tx, sizeof(ble_payload_tx));
 
-						/* PIPE_BLE */
-						uint8_t payload[19];
-						payload[0] = 0x0b;
+                    ESP_LOGI( TAG, "VEND_SUCCESS");
+                    break;
+                }
+                case VEND_FAILURE: {
+                    machine_state = IDLE_STATE;
 
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+                    /* PIPE_BLE */
+                    uint8_t ble_payload_tx[19];
+                    ble_payload_tx[0] = 0x0c;
 
-                        sendBleNotification((char*) &payload, sizeof(payload));
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &ble_payload_tx);
 
-						ESP_LOGI( TAG, "VEND_SUCCESS");
-						break;
-					}
-					case VEND_FAILURE: {
+                    sendBleNotification((char*) &ble_payload_tx, sizeof(ble_payload_tx));
+                    break;
+                }
+                case SESSION_COMPLETE: {
+                    session_end_todo = true;
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
+                    /* PIPE_BLE */
+                    uint8_t ble_payload_tx[19];
+                    ble_payload_tx[0] = 0x0d;
 
-						machine_state = IDLE_STATE;
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &ble_payload_tx);
 
-					    /* PIPE_BLE */
-						uint8_t payload[19];
-						payload[0] = 0x0c;
+                    sendBleNotification((char*) &ble_payload_tx, sizeof(ble_payload_tx));
 
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+                    ESP_LOGI( TAG, "SESSION_COMPLETE");
+                    break;
+                }
+                case CASH_SALE: {
+                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 4, pdMS_TO_TICKS(50));
 
-                        sendBleNotification((char*) &payload, sizeof(payload));
-						break;
-					}
-					case SESSION_COMPLETE: {
+                    uint16_t itemPrice = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
+                    uint16_t itemNumber = (mdb_payload_rx[4] << 8) | mdb_payload_rx[5];
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
+                    uint8_t payload[19];
+                    payload[0] = 0x21;
 
-						session_end_todo = true;
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
-			            /* PIPE_BLE */
-						uint8_t payload[19];
-						payload[0] = 0x0d;
+                    char topic[64];
+                    snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
 
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+                    esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
 
-                        sendBleNotification((char*) &payload, sizeof(payload));
+                    ESP_LOGI( TAG, "CASH_SALE");
+                    break;
+                }
+                }
 
-						ESP_LOGI( TAG, "SESSION_COMPLETE");
-						break;
-					}
-					case CASH_SALE: {
+                break;
+            }
+            case READER: {
+                available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50));
 
-						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
-						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+                switch (mdb_payload_rx[1]) {
+                case READER_DISABLE: {
+                    machine_state = DISABLED_STATE;
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
+                    ESP_LOGI( TAG, "READER_DISABLE");
+                    break;
+                }
+                case READER_ENABLE: {
+                    machine_state = ENABLED_STATE;
 
-						if (checksum_ == checksum) {
+                    ESP_LOGI( TAG, "READER_ENABLE");
+                    break;
+                }
+                case READER_CANCEL: {
+                    mdb_payload_tx[ 0 ] = 0x08; // Canceled
+                    available_tx = 1;
 
-                            uint8_t payload[19];
-                            payload[0] = 0x21;
+                    ESP_LOGI( TAG, "READER_CANCEL");
+                    break;
+                }
+                }
 
-						    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+                break;
+            }
+            case EXPANSION: {
+                available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50));
 
-						  	char topic[64];
-						  	snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
+                switch (mdb_payload_rx[1]) {
+                case REQUEST_ID: {
 
-							esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
+                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 29, pdMS_TO_TICKS(50));  // Manufacturer Code
 
-							ESP_LOGI( TAG, "CASH_SALE");
-						}
+                    char manufacturerCode[3];
+                    char serialNumber[12];
+                    char modelNumber[12];
+                    char softwareVersion[2];
 
-						break;
-					}
-					}
+                    memcpy(manufacturerCode, &mdb_payload_rx[2], 3);
+                    memcpy(serialNumber, &mdb_payload_rx[5], 12);
+                    memcpy(modelNumber, &mdb_payload_rx[17], 12);
+                    memcpy(softwareVersion, &mdb_payload_rx[29], 2);
 
-					break;
-				}
-				case READER: {
-					switch (read_9(&checksum)) {
-					case READER_DISABLE: {
+                    mdb_payload_tx[ 0 ] = 0x09; 	// Peripheral ID
+                    mdb_payload_tx[ 1 ] = ' '; 	// Manufacture code
+                    mdb_payload_tx[ 2 ] = ' ';
+                    mdb_payload_tx[ 3 ] = ' ';
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-						machine_state = DISABLED_STATE;
+                    mdb_payload_tx[ 4 ] = ' '; 	// Serial number
+                    mdb_payload_tx[ 5 ] = ' ';
+                    mdb_payload_tx[ 6 ] = ' ';
+                    mdb_payload_tx[ 7 ] = ' ';
+                    mdb_payload_tx[ 8 ] = ' ';
+                    mdb_payload_tx[ 9 ] = ' ';
+                    mdb_payload_tx[ 10 ] = ' ';
+                    mdb_payload_tx[ 11 ] = ' ';
+                    mdb_payload_tx[ 12 ] = ' ';
+                    mdb_payload_tx[ 13 ] = ' ';
+                    mdb_payload_tx[ 14 ] = ' ';
+                    mdb_payload_tx[ 15 ] = ' ';
 
-						ESP_LOGI( TAG, "READER_DISABLE");
+                    mdb_payload_tx[ 16 ] = ' '; 	// Model number
+                    mdb_payload_tx[ 17 ] = ' ';
+                    mdb_payload_tx[ 18 ] = ' ';
+                    mdb_payload_tx[ 19 ] = ' ';
+                    mdb_payload_tx[ 20 ] = ' ';
+                    mdb_payload_tx[ 21 ] = ' ';
+                    mdb_payload_tx[ 22 ] = ' ';
+                    mdb_payload_tx[ 23 ] = ' ';
+                    mdb_payload_tx[ 24 ] = ' ';
+                    mdb_payload_tx[ 25 ] = ' ';
+                    mdb_payload_tx[ 26 ] = ' ';
+                    mdb_payload_tx[ 27 ] = ' ';
 
-						break;
-					}
-					case READER_ENABLE: {
+                    mdb_payload_tx[ 28 ] = ' '; 	// Software version
+                    mdb_payload_tx[ 29 ] = ' ';
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-						machine_state = ENABLED_STATE;
+                    available_tx = 30;
 
-						ESP_LOGI( TAG, "READER_ENABLE");
+                    ESP_LOGI( TAG, "REQUEST_ID");
+                    break;
+                }
+                }
 
-						break;
-					}
-					case READER_CANCEL: {
+                break;
+            }
+            }
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
+            size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(50)); // CHK
 
-						mdb_payload[ 0 ] = 0x08; // Canceled
-						available_tx = 1;
+            // Transmit the prepared payload via UART
+            write_payload_9(mdb_payload_tx, available_tx);
 
-						ESP_LOGI( TAG, "READER_CANCEL");
+            if(available_tx > 0){
+                size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250));
 
-						break;
-					}
-					}
+                if(mdb_payload_tx[0] == ACK){
+                    // ACK
+                } else if(mdb_payload_tx[0] == NAK){
+                    // NAK
+                } else if(mdb_payload_tx[0] == RET){
+                    // RET
+                }
+            }
 
-					break;
-				}
-				case EXPANSION: {
+            gpio_set_level(pin_mdb_led, 1); // Intended address
 
-					switch (read_9(&checksum)) {
-					case REQUEST_ID: {
+	    } else {
 
-						mdb_payload[ 0 ] = 0x09; 	// Peripheral ID
-						mdb_payload[ 1 ] = ' '; 	// Manufacture code
-						mdb_payload[ 2 ] = ' ';
-						mdb_payload[ 3 ] = ' ';
+            while(uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(3)) > 0);
 
-						mdb_payload[ 4 ] = ' '; 	// Serial number
-						mdb_payload[ 5 ] = ' ';
-						mdb_payload[ 6 ] = ' ';
-						mdb_payload[ 7 ] = ' ';
-						mdb_payload[ 8 ] = ' ';
-						mdb_payload[ 9 ] = ' ';
-						mdb_payload[ 10 ] = ' ';
-						mdb_payload[ 11 ] = ' ';
-						mdb_payload[ 12 ] = ' ';
-						mdb_payload[ 13 ] = ' ';
-						mdb_payload[ 14 ] = ' ';
-						mdb_payload[ 15 ] = ' ';
-
-						mdb_payload[ 16 ] = ' '; 	// Model number
-						mdb_payload[ 17 ] = ' ';
-						mdb_payload[ 18 ] = ' ';
-						mdb_payload[ 19 ] = ' ';
-						mdb_payload[ 20 ] = ' ';
-						mdb_payload[ 21 ] = ' ';
-						mdb_payload[ 22 ] = ' ';
-						mdb_payload[ 23 ] = ' ';
-						mdb_payload[ 24 ] = ' ';
-						mdb_payload[ 25 ] = ' ';
-						mdb_payload[ 26 ] = ' ';
-						mdb_payload[ 27 ] = ' ';
-
-						mdb_payload[ 28 ] = ' '; 	// Software version
-						mdb_payload[ 29 ] = ' ';
-
-						available_tx = 30;
-
-						ESP_LOGI( TAG, "REQUEST_ID");
-
-						break;
-					}
-					}
-
-					break;
-				}
-				}
-
-				// Transmit the prepared payload via UART
-				write_payload_9((uint8_t*) &mdb_payload, available_tx);
-
-				// Intended address
-				gpio_set_level(pin_mdb_led, 1);
-
-			} else {
-
-				// Not the intended address
-				gpio_set_level(pin_mdb_led, 0);
-			}
-
-		}
+            gpio_set_level(pin_mdb_led, 0); // Not the intended address
+        }
 	}
 }
 
@@ -1039,6 +1006,8 @@ void requestTelemetryData(void *arg) {
 
 void ble_event_handler(char *ble_payload) {
 
+    printf("ble_event_handler %x\n", (uint8_t) ble_payload[0]);
+
 	switch ( (uint8_t) ble_payload[0] ) {
     case 0x00: {
         nvs_handle_t handle;
@@ -1081,7 +1050,7 @@ void ble_event_handler(char *ble_payload) {
         break;
     }
     case 0x02: /*Starting a vending session*/
-        uint16_t fundsAvailable = 0x0000;
+        uint16_t fundsAvailable = 0xffff;
 		xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
 		break;
 	case 0x03: /*Approve the vending session*/
@@ -1213,10 +1182,18 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 void app_main(void) {
 
-	gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
-
-	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+
+	uart_config_t uart_config_2 = {
+        .baud_rate = 9600,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_EVEN,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
+
+	uart_param_config(UART_NUM_2, &uart_config_2);
+	uart_set_pin(UART_NUM_2, pin_mdb_tx, pin_mdb_rx, -1, -1);
+	uart_driver_install(UART_NUM_2, 256, 256, 0, (void*) 0, 0);
 
 	// Initialize UART1 driver and configure TX/RX pins
 	uart_config_t uart_config_1 = {
@@ -1268,6 +1245,7 @@ void app_main(void) {
 	}
 
 	startBleDevice(myhost, ble_event_handler);
+
 	//
 	char lwt_topic[64];
 	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);
@@ -1288,7 +1266,8 @@ void app_main(void) {
 	// ---
     dexRingbuf = xRingbufferCreate(8 * 1024 /*8Kb*/, RINGBUF_TYPE_BYTEBUF);
 
-    const int INTERVAL_12H_US = 12 * 60 * 60 * 1000000; // 12h
+    const double INTERVAL_12H_US = 12ULL * 60 * 60 * 1000000; // 12h in microseconds
+
 	const esp_timer_create_args_t periodic_timer_args = {
 		.callback = &requestTelemetryData,
 		.name = "task_dex_12h"
@@ -1299,6 +1278,6 @@ void app_main(void) {
 	esp_timer_start_periodic(periodic_timer, INTERVAL_12H_US);
 
 	// Creation of the queue for MDB sessions and the main MDB task
-	mdbSessionQueue = xQueueCreate(3 /*queue-length*/, sizeof(uint16_t));
+	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
 	xTaskCreate(mdb_cashless_loop, "cashless_loop", 4096, (void*) 0, 1, (void*) 0);
 }
