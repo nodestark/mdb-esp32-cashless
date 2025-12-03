@@ -268,6 +268,7 @@ void mdb_vmc_loop(void *pvParameters) {
 					reader0x10.machineState = ENABLED_STATE;
 
 				} else if (mdb_payload_rx[0] == 0x06 /*Vend Denied*/ ) {
+					ESP_LOGI( TAG, "Vend Denied");
 
 				    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(10)); // CHK*
 					assert(len == 2);

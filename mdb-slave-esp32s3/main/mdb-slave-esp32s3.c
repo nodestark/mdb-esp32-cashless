@@ -372,6 +372,7 @@ void mdb_cashless_loop(void *pvParameters) {
                     machine_state = VEND_STATE;
 
                     if(fundsAvailable && (fundsAvailable != 0xffff)){
+
                         if (itemPrice <= fundsAvailable) {
                             vend_approved_todo = true;
                         } else {
@@ -393,6 +394,7 @@ void mdb_cashless_loop(void *pvParameters) {
                 case VEND_CANCEL: {
                     vend_denied_todo = true;
 
+                    ESP_LOGI( TAG, "VEND_CANCEL");
                     break;
                 }
                 case VEND_SUCCESS: {
@@ -552,7 +554,7 @@ void mdb_cashless_loop(void *pvParameters) {
             }
             }
 
-            size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(50)); // CHK
+            size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50)); // CHK
 
             // Transmit the prepared payload via UART
             write_payload_9(mdb_payload_tx, available_tx);
