@@ -20,7 +20,7 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 - Before submitting a pull request, make sure the code complies with the style and quality guidelines defined in the project
 - Help us improve documentation by adding usage examples, installation instructions, and any other relevant information
 
-![MDB Cashless](docs/mdb-slave-esp32s3_pcb_v2.png)
+![MDB Cashless](docs/mdb-slave-esp32s3_pcb_v2.jpg)
 [![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
 
 ---
