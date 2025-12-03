@@ -5,7 +5,7 @@ This is an open-source project dedicated to implementing the MDB (Multi-Drop Bus
 
 The system also supports receiving credits over **MQTT** or **Bluetooth**, allowing integration with mobile apps, web backends, or other IoT platforms.
 
-![MDB Cashless](1411051686640.jpg)
+![MDB Cashless](docs/1411051686640.jpg)
 
 # Key Features:
 - Implementation of the MDB protocol for communication with vending machines
@@ -20,7 +20,7 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 - Before submitting a pull request, make sure the code complies with the style and quality guidelines defined in the project
 - Help us improve documentation by adding usage examples, installation instructions, and any other relevant information
 
-![MDB Cashless](mdb-slave-esp32s3_pcb.png)
+![MDB Cashless](docs/mdb-slave-esp32s3_pcb.png)
 [![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
 
 ---
@@ -61,13 +61,6 @@ curl -X GET 'https://supabase.vmflow.xyz/rest/v1/embeddeds' \
 -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
-
-## Payment Integration Services
-
-<div>
-<img src="MP_RGB_HANDSHAKE_color_horizontal.png" width="150">
-<img src="pix_powered_by_Banco_Central_(Brazil,_2020).png" width="150">
-</div>
 
 ## License
 

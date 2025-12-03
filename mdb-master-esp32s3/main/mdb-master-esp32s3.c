@@ -154,7 +154,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
                 write_payload_9(mdb_payload_tx, 6);
 
-                size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(250));
+                len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(250));
                 assert(len == 9);
 
                 reader0x10.featureLevel = mdb_payload_rx[1];

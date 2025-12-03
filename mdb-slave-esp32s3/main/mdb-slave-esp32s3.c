@@ -383,9 +383,9 @@ void mdb_cashless_loop(void *pvParameters) {
                     uint8_t ble_payload_tx[19];
                     ble_payload_tx[0] = 0x0a;
 
-                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &ble_payload_tx);
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, ble_payload_tx);
 
-                    sendBleNotification((char*) &ble_payload_tx, sizeof(ble_payload_tx));
+                    sendBleNotification((char*) ble_payload_tx, sizeof(ble_payload_tx));
 
                     ESP_LOGI( TAG, "VEND_REQUEST");
                     break;
@@ -406,9 +406,9 @@ void mdb_cashless_loop(void *pvParameters) {
                     uint8_t ble_payload_tx[19];
                     ble_payload_tx[0] = 0x0b;
 
-                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &ble_payload_tx);
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, ble_payload_tx);
 
-                    sendBleNotification((char*) &ble_payload_tx, sizeof(ble_payload_tx));
+                    sendBleNotification((char*) ble_payload_tx, sizeof(ble_payload_tx));
 
                     ESP_LOGI( TAG, "VEND_SUCCESS");
                     break;
@@ -420,9 +420,9 @@ void mdb_cashless_loop(void *pvParameters) {
                     uint8_t ble_payload_tx[19];
                     ble_payload_tx[0] = 0x0c;
 
-                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &ble_payload_tx);
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, ble_payload_tx);
 
-                    sendBleNotification((char*) &ble_payload_tx, sizeof(ble_payload_tx));
+                    sendBleNotification((char*) ble_payload_tx, sizeof(ble_payload_tx));
                     break;
                 }
                 case SESSION_COMPLETE: {
@@ -432,9 +432,9 @@ void mdb_cashless_loop(void *pvParameters) {
                     uint8_t ble_payload_tx[19];
                     ble_payload_tx[0] = 0x0d;
 
-                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &ble_payload_tx);
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, ble_payload_tx);
 
-                    sendBleNotification((char*) &ble_payload_tx, sizeof(ble_payload_tx));
+                    sendBleNotification((char*) ble_payload_tx, sizeof(ble_payload_tx));
 
                     ESP_LOGI( TAG, "SESSION_COMPLETE");
                     break;
@@ -448,12 +448,12 @@ void mdb_cashless_loop(void *pvParameters) {
                     uint8_t payload[19];
                     payload[0] = 0x21;
 
-                    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+                    xorEncodeWithPasskey(&itemPrice, &itemNumber, payload);
 
                     char topic[64];
                     snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
 
-                    esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
+                    esp_mqtt_client_publish(mqttClient, topic, (char*) payload, sizeof(payload), 1, 0);
 
                     ESP_LOGI( TAG, "CASH_SALE");
                     break;
