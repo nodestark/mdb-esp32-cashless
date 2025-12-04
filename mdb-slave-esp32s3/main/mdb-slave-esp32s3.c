@@ -32,7 +32,7 @@
 #define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
 
 // Functions for scale factor conversion
-#define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))  // Converts to scale factor
+#define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))   // Converts to scale factor
 #define from_scale_factor(p, x, y) (p * x * pow(10, -(y) )) // Converts from scale factor
 
 #define ACK 	0x00  // Acknowledgment / Checksum correct
@@ -223,7 +223,20 @@ void mdb_cashless_loop(void *pvParameters) {
 
 	for (;;) {
 
-	    available_rx = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, portMAX_DELAY);
+        available_rx = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, portMAX_DELAY);
+
+        size_t len;
+	    while( (len= uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(3))) > 0)
+	        available_rx += len;
+
+        uint8_t chk = 0x00;
+        for(int x= 0; x < (available_rx - 1); x++)
+            chk += mdb_payload_rx[x];
+
+        if(chk != mdb_payload_rx[available_rx - 1]){
+            ESP_LOGI( TAG, "CHK invalid.");
+            continue;
+        }
 
 	    if ((mdb_payload_rx[0] & BIT_ADD_SET) == 0x10) {
 
@@ -236,31 +249,26 @@ void mdb_cashless_loop(void *pvParameters) {
 
                 if (machine_state == VEND_STATE) {
                     // Reset during VEND_STATE is interpreted as VEND_SUCCESS
-                    /*TODO*/
                 }
 
-                machine_state = INACTIVE_STATE;
                 cashless_reset_todo = true;
+                machine_state = INACTIVE_STATE;
 
                 ESP_LOGI( TAG, "RESET");
                 break;
             }
             case SETUP: {
 
-                available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50));
-
                 switch (mdb_payload_rx[1]) {
 
                 case CONFIG_DATA: {
-                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 4, pdMS_TO_TICKS(50));
+
+                    machine_state = DISABLED_STATE;
 
                     uint8_t vmcFeatureLevel = mdb_payload_rx[2];
                     uint8_t vmcColumnsOnDisplay = mdb_payload_rx[3];
                     uint8_t vmcRowsOnDisplay = mdb_payload_rx[4];
                     uint8_t vmcDisplayInfo = mdb_payload_rx[5];
-
-                    // chk
-                    machine_state = DISABLED_STATE;
 
                     mdb_payload_tx[0] = 0x01;        	// Reader Config Data
                     mdb_payload_tx[1] = 1;           	// Reader Feature Level
@@ -276,7 +284,6 @@ void mdb_cashless_loop(void *pvParameters) {
                     break;
                 }
                 case MAX_MIN_PRICES: {
-                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 4, pdMS_TO_TICKS(50));
 
                     uint16_t maxPrice = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
                     uint16_t minPrice = (mdb_payload_rx[4] << 8) | mdb_payload_rx[5];
@@ -299,7 +306,6 @@ void mdb_cashless_loop(void *pvParameters) {
                 } else if (machine_state == ENABLED_STATE && xQueueReceive(mdbSessionQueue, &fundsAvailable, 0)) {
                     // Begin session
                     session_begin_todo = false;
-
                     machine_state = IDLE_STATE;
 
                     mdb_payload_tx[0] = 0x03;
@@ -328,18 +334,18 @@ void mdb_cashless_loop(void *pvParameters) {
                 } else if (vend_denied_todo) {
                     // Vend denied
                     vend_denied_todo = false;
+                    machine_state = IDLE_STATE;
 
                     mdb_payload_tx[0] = 0x06;
                     available_tx = 1;
-                    machine_state = IDLE_STATE;
 
                 } else if (session_end_todo) {
                     // End session
                     session_end_todo = false;
+                    machine_state = ENABLED_STATE;
 
                     mdb_payload_tx[0] = 0x07;
                     available_tx = 1;
-                    machine_state = ENABLED_STATE;
 
                 } else if (outsequence_todo) {
                     // Command out of sequence
@@ -360,16 +366,14 @@ void mdb_cashless_loop(void *pvParameters) {
                 break;
             }
             case VEND: {
-                available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50));
 
                 switch (mdb_payload_rx[1]) {
                 case VEND_REQUEST: {
-                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 4, pdMS_TO_TICKS(50));
+
+                    machine_state = VEND_STATE;
 
                     uint16_t itemPrice = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
                     uint16_t itemNumber = (mdb_payload_rx[4] << 8) | mdb_payload_rx[5];
-
-                    machine_state = VEND_STATE;
 
                     if(fundsAvailable && (fundsAvailable != 0xffff)){
 
@@ -398,11 +402,10 @@ void mdb_cashless_loop(void *pvParameters) {
                     break;
                 }
                 case VEND_SUCCESS: {
-                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 2, pdMS_TO_TICKS(50));
-
-                    itemNumber = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
 
                     machine_state = IDLE_STATE;
+
+                    itemNumber = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
 
                     /* PIPE_BLE */
                     uint8_t ble_payload_tx[19];
@@ -442,11 +445,11 @@ void mdb_cashless_loop(void *pvParameters) {
                     break;
                 }
                 case CASH_SALE: {
-                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 4, pdMS_TO_TICKS(50));
 
                     uint16_t itemPrice = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
                     uint16_t itemNumber = (mdb_payload_rx[4] << 8) | mdb_payload_rx[5];
 
+                    /* PIPE_MQTT */
                     uint8_t payload[19];
                     payload[0] = 0x21;
 
@@ -465,7 +468,6 @@ void mdb_cashless_loop(void *pvParameters) {
                 break;
             }
             case READER: {
-                available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50));
 
                 switch (mdb_payload_rx[1]) {
                 case READER_DISABLE: {
@@ -492,56 +494,23 @@ void mdb_cashless_loop(void *pvParameters) {
                 break;
             }
             case EXPANSION: {
-                available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50));
 
                 switch (mdb_payload_rx[1]) {
                 case REQUEST_ID: {
 
-                    available_rx += uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 29, pdMS_TO_TICKS(50));  // Manufacturer Code
+                    struct mdb_id_t {
+                        char manufacturerCode[3];
+                        char serialNumber[12];
+                        char modelNumber[12];
+                        char softwareVersion[2];
+                    } *mdb_id = (struct mdb_id_t*) &mdb_payload_rx[2];
 
-                    char manufacturerCode[3];
-                    char serialNumber[12];
-                    char modelNumber[12];
-                    char softwareVersion[2];
+                    mdb_payload_tx[ 0 ] = 0x09; 	                            // Peripheral ID
 
-                    memcpy(manufacturerCode, &mdb_payload_rx[2], 3);
-                    memcpy(serialNumber, &mdb_payload_rx[5], 12);
-                    memcpy(modelNumber, &mdb_payload_rx[17], 12);
-                    memcpy(softwareVersion, &mdb_payload_rx[29], 2);
-
-                    mdb_payload_tx[ 0 ] = 0x09; 	// Peripheral ID
-                    mdb_payload_tx[ 1 ] = ' '; 	// Manufacture code
-                    mdb_payload_tx[ 2 ] = ' ';
-                    mdb_payload_tx[ 3 ] = ' ';
-
-                    mdb_payload_tx[ 4 ] = ' '; 	// Serial number
-                    mdb_payload_tx[ 5 ] = ' ';
-                    mdb_payload_tx[ 6 ] = ' ';
-                    mdb_payload_tx[ 7 ] = ' ';
-                    mdb_payload_tx[ 8 ] = ' ';
-                    mdb_payload_tx[ 9 ] = ' ';
-                    mdb_payload_tx[ 10 ] = ' ';
-                    mdb_payload_tx[ 11 ] = ' ';
-                    mdb_payload_tx[ 12 ] = ' ';
-                    mdb_payload_tx[ 13 ] = ' ';
-                    mdb_payload_tx[ 14 ] = ' ';
-                    mdb_payload_tx[ 15 ] = ' ';
-
-                    mdb_payload_tx[ 16 ] = ' '; 	// Model number
-                    mdb_payload_tx[ 17 ] = ' ';
-                    mdb_payload_tx[ 18 ] = ' ';
-                    mdb_payload_tx[ 19 ] = ' ';
-                    mdb_payload_tx[ 20 ] = ' ';
-                    mdb_payload_tx[ 21 ] = ' ';
-                    mdb_payload_tx[ 22 ] = ' ';
-                    mdb_payload_tx[ 23 ] = ' ';
-                    mdb_payload_tx[ 24 ] = ' ';
-                    mdb_payload_tx[ 25 ] = ' ';
-                    mdb_payload_tx[ 26 ] = ' ';
-                    mdb_payload_tx[ 27 ] = ' ';
-
-                    mdb_payload_tx[ 28 ] = ' '; 	// Software version
-                    mdb_payload_tx[ 29 ] = ' ';
+                    strncpy((char*) &mdb_payload_tx[1], "   ", 3);              // Manufacture code
+                    strncpy((char*) &mdb_payload_tx[4], "            ", 12);    // Serial number
+                    strncpy((char*) &mdb_payload_tx[16], "            ", 12);   // Model number
+                    strncpy((char*) &mdb_payload_tx[28], "  ", 2);              // Software version
 
                     available_tx = 30;
 
@@ -553,8 +522,6 @@ void mdb_cashless_loop(void *pvParameters) {
                 break;
             }
             }
-
-            size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(50)); // CHK
 
             // Transmit the prepared payload via UART
             write_payload_9(mdb_payload_tx, available_tx);
@@ -574,8 +541,6 @@ void mdb_cashless_loop(void *pvParameters) {
             gpio_set_level(pin_mdb_led, 1); // Intended address
 
 	    } else {
-
-            while(uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(3)) > 0);
 
             gpio_set_level(pin_mdb_led, 0); // Not the intended address
         }
