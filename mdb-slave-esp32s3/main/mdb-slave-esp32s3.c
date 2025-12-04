@@ -562,11 +562,11 @@ void mdb_cashless_loop(void *pvParameters) {
             if(available_tx > 0){
                 size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250));
 
-                if(mdb_payload_tx[0] == ACK){
+                if(mdb_payload_rx[0] == ACK){
                     // ACK
-                } else if(mdb_payload_tx[0] == NAK){
+                } else if(mdb_payload_rx[0] == NAK){
                     // NAK
-                } else if(mdb_payload_tx[0] == RET){
+                } else if(mdb_payload_rx[0] == RET){
                     // RET
                 }
             }
