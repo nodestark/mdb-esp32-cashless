@@ -1096,9 +1096,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		size_t topic_len = strlen(event->topic);
 
-		if (topic_len > 10 && strncmp(event->topic + event->topic_len - 10, "/telemetry", 10) == 0) {
+		/*if (topic_len > 10 && strncmp(event->topic + event->topic_len - 10, "/telemetry", 10) == 0) {
 			xTaskCreate(requestTelemetryData, "OneShotTelemetry", 2048, NULL, 1, NULL);
-		}
+		}*/
 
 		if (topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
 
