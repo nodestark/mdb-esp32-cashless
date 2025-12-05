@@ -108,6 +108,7 @@ esp_mqtt_client_handle_t mqttClient = (void*) 0;
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = (void*) 0;
 
+// Decode payload from communication between BLE and MQTT
 uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
 
 	for(int x = 0; x < sizeof(my_passkey); x++){
@@ -145,6 +146,7 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
     return 1;
 }
 
+// Encode payload to communication between BLE and MQTT
 void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
 
 	esp_fill_random(payload + 1, sizeof(my_passkey));
@@ -1151,6 +1153,7 @@ void app_main(void) {
 
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
+    // Initialize UART2 driver and configure MDB pins
 	uart_config_t uart_config_2 = {
         .baud_rate = 9600,
         .data_bits = UART_DATA_8_BITS,
@@ -1162,7 +1165,7 @@ void app_main(void) {
 	uart_set_pin(UART_NUM_2, pin_mdb_tx, pin_mdb_rx, -1, -1);
 	uart_driver_install(UART_NUM_2, 256, 256, 0, (void*) 0, 0);
 
-	// Initialize UART1 driver and configure TX/RX pins
+	// Initialize UART1 driver and configure EVA DTS DEX/DDCMP pins
 	uart_config_t uart_config_1 = {
 			.baud_rate = 9600,
 			.data_bits = UART_DATA_8_BITS,
@@ -1220,8 +1223,7 @@ void app_main(void) {
 	// MQTT client configuration
 	const esp_mqtt_client_config_t mqttCfg = {
 		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
-		// LWT (Last Will and Testament)
-		.session.last_will.topic = lwt_topic,
+		.session.last_will.topic = lwt_topic, // LWT (Last Will and Testament)...
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,
 		.session.last_will.retain = 1,
