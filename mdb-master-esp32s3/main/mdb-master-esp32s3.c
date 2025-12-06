@@ -89,6 +89,8 @@ static void IRAM_ATTR button0_isr_handler(void* arg) {
 
 void write_9(uint16_t nth9) {
 
+    uart_wait_tx_done(UART_NUM_2, pdMS_TO_TICKS(250));
+
     uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
     if ((nth9 >> 8) & 1) {
@@ -132,41 +134,41 @@ void mdb_vmc_loop(void *pvParameters) {
 			write_payload_9(mdb_payload_tx, 1);
 
             len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
-            assert(len == 1);
+            if(len == 1){
+                mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
+                write_payload_9(mdb_payload_tx, 1);
 
-            mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
-			write_payload_9(mdb_payload_tx, 1);
+                len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(250));
+                assert(len == 2);
 
-            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(250));
-            assert(len == 2);
+                assert(mdb_payload_rx[0] == 0x00);
 
-            assert(mdb_payload_rx[0] == 0x00);
+                if (mdb_payload_rx[0] == 0x00 /*Just Reset*/) {
+                    write_9(ACK | BIT_MODE_SET);
 
-            if (mdb_payload_rx[0] == 0x00 /*Just Reset*/) {
-                write_9(ACK | BIT_MODE_SET);
+                    mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
+                    mdb_payload_tx[1] = 0x00; 			// Config Data
+                    mdb_payload_tx[2] = 1; 			    // VMC Feature Level
+                    mdb_payload_tx[3] = 0; 			    // Columns on Display
+                    mdb_payload_tx[4] = 0; 			    // Rows on Display
+                    mdb_payload_tx[5] = 0b00000001; 	// Display Information
 
-                mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
-                mdb_payload_tx[1] = 0x00; 			// Config Data
-                mdb_payload_tx[2] = 1; 			    // VMC Feature Level
-                mdb_payload_tx[3] = 0; 			    // Columns on Display
-                mdb_payload_tx[4] = 0; 			    // Rows on Display
-                mdb_payload_tx[5] = 0b00000001; 	// Display Information
+                    write_payload_9(mdb_payload_tx, 6);
 
-                write_payload_9(mdb_payload_tx, 6);
+                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(250));
+                    assert(len == 9);
 
-                len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(250));
-                assert(len == 9);
+                    reader0x10.featureLevel = mdb_payload_rx[1];
+                    reader0x10.countryCode = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
+                    reader0x10.scaleFactor = mdb_payload_rx[4];
+                    reader0x10.decimalPlaces = mdb_payload_rx[5];
+                    reader0x10.responseTimeSec = mdb_payload_rx[6];
+                    reader0x10.miscellaneous = mdb_payload_rx[7];
 
-                reader0x10.featureLevel = mdb_payload_rx[1];
-                reader0x10.countryCode = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
-                reader0x10.scaleFactor = mdb_payload_rx[4];
-                reader0x10.decimalPlaces = mdb_payload_rx[5];
-                reader0x10.responseTimeSec = mdb_payload_rx[6];
-                reader0x10.miscellaneous = mdb_payload_rx[7];
+                    reader0x10.machineState = DISABLED_STATE;
 
-                reader0x10.machineState = DISABLED_STATE;
-
-                ESP_LOGI( TAG, "Reader Config");
+                    ESP_LOGI( TAG, "Reader Config");
+                }
             }
 
 		} else if (reader0x10.machineState == DISABLED_STATE) {

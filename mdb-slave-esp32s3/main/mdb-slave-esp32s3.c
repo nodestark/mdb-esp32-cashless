@@ -179,6 +179,8 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 
 void write_9(uint16_t nth9) {
 
+    uart_wait_tx_done(UART_NUM_2, pdMS_TO_TICKS(250));
+
     uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
     // Use the parity bit to send the mode bit 🤩
@@ -972,7 +974,6 @@ void requestTelemetryData(void *arg) {
     vRingbufferReturnItem(dexRingbuf, (void*) dex);
 }
 
-
 void ble_event_handler(char *ble_payload) {
 
     printf("ble_event_handler %x\n", (uint8_t) ble_payload[0]);
@@ -1095,10 +1096,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	    ESP_LOGI( TAG, "DATA= %.*s", event->data_len, event->data);
 
 		size_t topic_len = strlen(event->topic);
-
-		/*if (topic_len > 10 && strncmp(event->topic + event->topic_len - 10, "/telemetry", 10) == 0) {
-			xTaskCreate(requestTelemetryData, "OneShotTelemetry", 2048, NULL, 1, NULL);
-		}*/
 
 		if (topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
 
