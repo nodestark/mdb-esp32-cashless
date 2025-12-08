@@ -178,10 +178,9 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 }
 
 void write_9(uint16_t nth9) {
+    uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
     uart_wait_tx_done(UART_NUM_2, pdMS_TO_TICKS(250));
-
-    uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
     // Use the parity bit to send the mode bit 🤩
     if ((nth9 >> 8) & 1) {

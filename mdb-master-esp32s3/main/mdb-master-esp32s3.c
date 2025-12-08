@@ -88,10 +88,9 @@ static void IRAM_ATTR button0_isr_handler(void* arg) {
 }
 
 void write_9(uint16_t nth9) {
+    uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
     uart_wait_tx_done(UART_NUM_2, pdMS_TO_TICKS(250));
-
-    uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
     if ((nth9 >> 8) & 1) {
         uart_set_parity(UART_NUM_2, ones % 2 ? UART_PARITY_EVEN : UART_PARITY_ODD);
