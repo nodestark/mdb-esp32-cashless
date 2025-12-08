@@ -306,7 +306,7 @@ public class NearestFragment extends Fragment {
                         payloadSsid[1 + arrSsid.length] = 0x00;
                     }
 
-                    byte[] payloadPswd = new byte[22];
+                    byte[] payloadPswd = new byte[63];
                     {
                         byte[] arrPswd = password.getBytes(StandardCharsets.UTF_8);
 
