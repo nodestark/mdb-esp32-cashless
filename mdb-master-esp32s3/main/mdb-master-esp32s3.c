@@ -489,6 +489,8 @@ void mdb_vmc_loop(void *pvParameters) {
 
             uart_read_bytes(UART_NUM_2, mdb_payload_rx, sizeof(mdb_payload_rx), pdMS_TO_TICKS(250)); // ACK*
 			/*TODO*/
+
+            write_9(NAK | BIT_MODE_SET);
 		}
 	}
 }
