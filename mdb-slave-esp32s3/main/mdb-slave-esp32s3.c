@@ -228,24 +228,34 @@ void mdb_cashless_loop(void *pvParameters) {
 
         available_rx = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, portMAX_DELAY);
 
-        size_t len;
-	    while( (len= uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(3))) > 0)
-	        available_rx += len;
-
-        uint8_t chk = 0x00;
-        for(int x= 0; x < (available_rx - 1); x++)
-            chk += mdb_payload_rx[x];
-
-        if(chk != mdb_payload_rx[available_rx - 1]){
-            ESP_LOGI( TAG, "CHK invalid.");
+        if(mdb_payload_rx[0] == ACK){
+            continue;
+        } else if(mdb_payload_rx[0] == NAK){
+            continue;
+        } else if(mdb_payload_rx[0] == RET){
             continue;
         }
 
+        size_t len;
+	    while( (len= uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(10))) > 0)
+	        available_rx += len;
+
 	    if ((mdb_payload_rx[0] & BIT_ADD_SET) == 0x10) {
+
+            uint8_t chk = 0x00;
+            for(int x= 0; x < (available_rx - 1); x++)
+                chk += mdb_payload_rx[x];
+
+            if(chk != mdb_payload_rx[available_rx - 1]){
+                ESP_LOGI( TAG, "CHK invalid.");
+                continue;
+            }
+
+            // Intended address
+            gpio_set_level(pin_mdb_led, 1);
 
 	        available_tx = 0;
 
-            // Command decoding based on incoming data
             switch (mdb_payload_rx[0] & BIT_CMD_SET) {
 
             case RESET: {
@@ -528,20 +538,6 @@ void mdb_cashless_loop(void *pvParameters) {
 
             // Transmit the prepared payload via UART
             write_payload_9(mdb_payload_tx, available_tx);
-
-            if(available_tx > 0){
-                size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250));
-
-                if(mdb_payload_rx[0] == ACK){
-                    // ACK
-                } else if(mdb_payload_rx[0] == NAK){
-                    // NAK
-                } else if(mdb_payload_rx[0] == RET){
-                    // RET
-                }
-            }
-
-            gpio_set_level(pin_mdb_led, 1); // Intended address
 
 	    } else {
 
