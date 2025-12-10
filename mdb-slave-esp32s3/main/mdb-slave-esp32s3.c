@@ -965,6 +965,7 @@ void requestTelemetryData(void *arg) {
 	snprintf(topic, sizeof(topic), "/domain/%s/dex", my_subdomain);
 
     esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 0, 0);
+    printf("%.*s", dex_size, (char*) dex);
 
     vRingbufferReturnItem(dexRingbuf, (void*) dex);
 }
@@ -1028,7 +1029,7 @@ void ble_event_handler(char *ble_payload) {
     	session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
         break;
     case 0x05:
-        xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
+        // Not implemented
         break;
     case 0x06: {
         esp_wifi_disconnect();
