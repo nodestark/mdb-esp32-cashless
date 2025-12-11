@@ -9707,7 +9707,7 @@
 				)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "5.1k"
 			(at 264.16 168.91 90)
 			(effects
 				(font
@@ -9742,7 +9742,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C98220"
+		(property "LCSC#" "C394543"
 			(at 260.35 168.91 90)
 			(effects
 				(font
@@ -10088,7 +10088,7 @@
 				)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "5.1k"
 			(at 254 168.91 90)
 			(effects
 				(font
