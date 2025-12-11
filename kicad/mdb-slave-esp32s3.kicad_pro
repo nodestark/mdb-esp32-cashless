@@ -535,7 +535,7 @@
   },
   "schematic": {
     "annotate_start_num": 0,
-    "bom_export_filename": "/home/leonardo/Downloads/pcbway_mdb_target_esp32s3/mdb-slave-esp32s3.csv",
+    "bom_export_filename": "../../../Downloads/mdb-slave-esp32s3.csv",
     "bom_fmt_presets": [],
     "bom_fmt_settings": {
       "field_delimiter": ",",
