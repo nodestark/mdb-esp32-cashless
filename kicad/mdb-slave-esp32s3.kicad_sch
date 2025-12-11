@@ -8468,7 +8468,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_DIP:SMDIP-4_W7.62mm"
+		(property "Footprint" "Package_SO:SOP-4_3.8x4.1mm_P2.54mm"
 			(at 360.68 113.03 0)
 			(effects
 				(font
@@ -8498,7 +8498,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C41383960"
+		(property "LCSC#" "C128776"
 			(at 365.76 107.95 0)
 			(effects
 				(font
@@ -10897,7 +10897,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_DIP:SMDIP-4_W7.62mm"
+		(property "Footprint" "Package_SO:SOP-4_3.8x4.1mm_P2.54mm"
 			(at 370.84 118.11 0)
 			(effects
 				(font
@@ -10927,7 +10927,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C41383960"
+		(property "LCSC#" "C128776"
 			(at 365.76 123.19 0)
 			(effects
 				(font
