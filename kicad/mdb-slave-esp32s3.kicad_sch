@@ -5,7 +5,7 @@
 	(uuid "95980b25-0707-441d-ba83-7f6c6e1d1aaa")
 	(paper "A3")
 	(lib_symbols
-		(symbol "Connector:TestPoint_Flag"
+		(symbol "Connector:TestPoint"
 			(pin_numbers
 				(hide yes)
 			)
@@ -17,15 +17,15 @@
 			(in_bom yes)
 			(on_board yes)
 			(property "Reference" "TP"
-				(at 3.429 1.778 0)
+				(at 0 6.858 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
 				)
 			)
-			(property "Value" "TestPoint_Flag"
-				(at 3.302 4.191 0)
+			(property "Value" "TestPoint"
+				(at 0 5.08 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -50,7 +50,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "test point (alternative flag-style design)"
+			(property "Description" "test point"
 				(at 0 0 0)
 				(effects
 					(font
@@ -77,35 +77,23 @@
 					(hide yes)
 				)
 			)
-			(symbol "TestPoint_Flag_0_1"
-				(polyline
-					(pts
-						(xy 0 0) (xy 0.889 0.889)
-					)
+			(symbol "TestPoint_0_1"
+				(circle
+					(center 0 3.302)
+					(radius 0.762)
 					(stroke
-						(width 0.254)
+						(width 0)
 						(type default)
 					)
 					(fill
 						(type none)
 					)
 				)
-				(rectangle
-					(start 0.889 2.794)
-					(end 5.842 0.889)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
 			)
-			(symbol "TestPoint_Flag_1_1"
+			(symbol "TestPoint_1_1"
 				(pin passive line
 					(at 0 0 90)
-					(length 0)
+					(length 2.54)
 					(name "1"
 						(effects
 							(font
@@ -6744,16 +6732,6 @@
 	)
 	(wire
 		(pts
-			(xy 140.97 222.25) (xy 140.97 228.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a0bb8423-0498-48f1-95e0-2ded7056db9c")
-	)
-	(wire
-		(pts
 			(xy 356.87 172.72) (xy 351.79 172.72)
 		)
 		(stroke
@@ -6974,16 +6952,6 @@
 	)
 	(wire
 		(pts
-			(xy 147.32 228.6) (xy 147.32 231.14)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ca8f0079-1345-4f87-91cb-b45fb2a080e0")
-	)
-	(wire
-		(pts
 			(xy 346.71 125.73) (xy 358.14 125.73)
 		)
 		(stroke
@@ -7191,6 +7159,16 @@
 			(type default)
 		)
 		(uuid "e994eeaf-516a-4281-8eb2-099e6ab63203")
+	)
+	(wire
+		(pts
+			(xy 78.74 38.1) (xy 78.74 36.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eb17563d-f6f4-4c34-93ad-40d6835900cb")
 	)
 	(wire
 		(pts
@@ -7881,16 +7859,6 @@
 			(justify right bottom)
 		)
 		(uuid "ebbbe92e-2e87-482f-a003-ec6608796286")
-	)
-	(label "io14"
-		(at 140.97 228.6 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "f1f8e50b-d767-4315-a24c-cf784d88ee7b")
 	)
 	(label "io8"
 		(at 73.66 226.06 0)
@@ -10526,6 +10494,73 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 78.74 36.83 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7c6a1df1-cb08-46b5-b000-277459d8b639")
+		(property "Reference" "TP4"
+			(at 81.28 32.2579 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 81.28 34.7979 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 83.82 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 83.82 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 78.74 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "c2915b53-9e14-4451-929a-e4fbc16091d0")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "TP4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 260.35 172.72 0)
 		(unit 1)
@@ -11331,138 +11366,6 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "J1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 147.32 231.14 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "9e359b6d-bf59-4e4c-9870-026e69b2f8dc")
-		(property "Reference" "#PWR031"
-			(at 147.32 237.49 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "GND"
-			(at 147.32 236.22 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 147.32 231.14 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 147.32 231.14 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 147.32 231.14 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "7c2b1dcf-73ec-407b-acd0-d8972ea47f3a")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "#PWR031")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint_Flag")
-		(at 140.97 222.25 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "a10b4b56-ae9e-43ca-885d-be7f6793392f")
-		(property "Reference" "TP1"
-			(at 148.59 219.5829 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Buzzer_Flag (14)"
-			(at 148.59 222.1229 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_2.0x2.0mm"
-			(at 146.05 222.25 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 146.05 222.25 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "test point (alternative flag-style design)"
-			(at 140.97 222.25 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "438a3414-e69f-43f9-bc0b-b357a8c3c3d3")
-		)
-		(instances
-			(project ""
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "TP1")
 					(unit 1)
 				)
 			)
@@ -12453,6 +12356,72 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 78.74 38.1 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "be2707df-602c-4893-9ea2-66e4be94360a")
+		(property "Reference" "#PWR032"
+			(at 78.74 34.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 78.74 43.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 78.74 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 78.74 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 78.74 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "742e1815-d733-4484-94fe-8c6d38bc00a7")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR032")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:L")
 		(at 344.17 172.72 90)
 		(unit 1)
@@ -13207,73 +13176,6 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR042")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint_Flag")
-		(at 147.32 228.6 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "edb8e157-a304-44eb-a4a1-e66eb617f88f")
-		(property "Reference" "TP2"
-			(at 154.94 225.9329 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Buzzer_Flag (-)"
-			(at 154.94 228.4729 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_2.0x2.0mm"
-			(at 152.4 228.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 152.4 228.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "test point (alternative flag-style design)"
-			(at 147.32 228.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "d2c54766-c71a-41a0-adfe-b116a9d273da")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "TP2")
 					(unit 1)
 				)
 			)

@@ -1,4 +1,6 @@
 kicad/mdb-slave-esp32s3-backups
+kicad/fp-info-cache
+kicad/*.lck
 
 mdb-slave-esp32s3/managed_components
 mdb-slave-esp32s3/build
