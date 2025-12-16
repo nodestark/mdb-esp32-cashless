@@ -178,9 +178,10 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 }
 
 void write_9(uint16_t nth9) {
-    uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
     uart_wait_tx_done(UART_NUM_2, pdMS_TO_TICKS(250));
+
+    uint8_t ones = __builtin_popcount((uint8_t) nth9);
 
     // Use the parity bit to send the mode bit 🤩
     if ((nth9 >> 8) & 1) {
@@ -228,34 +229,27 @@ void mdb_cashless_loop(void *pvParameters) {
 
         available_rx = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, portMAX_DELAY);
 
-        if(mdb_payload_rx[0] == ACK){
-            continue;
-        } else if(mdb_payload_rx[0] == NAK){
-            continue;
-        } else if(mdb_payload_rx[0] == RET){
+        size_t len;
+     while( (len= uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(10))) > 0)
+         available_rx += len;
+
+        uint8_t chk = 0x00;
+        for(int x= 0; x < (available_rx - 1); x++)
+            chk += mdb_payload_rx[x];
+
+        if(chk != mdb_payload_rx[available_rx - 1]){
+            ESP_LOGI( TAG, "CHK invalid: len=%d, calc_chk=0x%02x, expected=0x%02x", available_rx, chk, mdb_payload_rx[available_rx - 1]);
+            for(int i=0; i<available_rx; i++){
+                ESP_LOGI(TAG, "payload[%d]=0x%02x", i, mdb_payload_rx[i]);
+            }
             continue;
         }
 
-        size_t len;
-	    while( (len= uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(10))) > 0)
-	        available_rx += len;
-
 	    if ((mdb_payload_rx[0] & BIT_ADD_SET) == 0x10) {
-
-            uint8_t chk = 0x00;
-            for(int x= 0; x < (available_rx - 1); x++)
-                chk += mdb_payload_rx[x];
-
-            if(chk != mdb_payload_rx[available_rx - 1]){
-                ESP_LOGI( TAG, "CHK invalid.");
-                continue;
-            }
-
-            // Intended address
-            gpio_set_level(pin_mdb_led, 1);
 
 	        available_tx = 0;
 
+            // Command decoding based on incoming data
             switch (mdb_payload_rx[0] & BIT_CMD_SET) {
 
             case RESET: {
@@ -267,7 +261,7 @@ void mdb_cashless_loop(void *pvParameters) {
                 cashless_reset_todo = true;
                 machine_state = INACTIVE_STATE;
 
-                ESP_LOGI( TAG, "RESET");
+                ESP_LOGI( TAG, "RESET - State: INACTIVE");
                 break;
             }
             case SETUP: {
@@ -293,7 +287,7 @@ void mdb_cashless_loop(void *pvParameters) {
                     mdb_payload_tx[7] = 0b00001001;  	// Miscellaneous Options
                     available_tx = 8;
 
-                    ESP_LOGI( TAG, "CONFIG_DATA");
+                    ESP_LOGI( TAG, "CONFIG_DATA - State: DISABLED");
                     break;
                 }
                 case MAX_MIN_PRICES: {
@@ -320,6 +314,8 @@ void mdb_cashless_loop(void *pvParameters) {
                     // Begin session
                     session_begin_todo = false;
                     machine_state = IDLE_STATE;
+
+                    ESP_LOGI(TAG, "Session begin - State: IDLE");
 
                     mdb_payload_tx[0] = 0x03;
                     mdb_payload_tx[1] = fundsAvailable >> 8;
@@ -368,6 +364,9 @@ void mdb_cashless_loop(void *pvParameters) {
                     available_tx = 1;
 
                 } else {
+                    // Send ACK if no status change
+                    mdb_payload_tx[0] = 0x00;
+                    available_tx = 1;
 
                     time_t now = time((void*) 0);
 
@@ -405,7 +404,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
                     sendBleNotification((char*) ble_payload_tx, sizeof(ble_payload_tx));
 
-                    ESP_LOGI( TAG, "VEND_REQUEST");
+                    ESP_LOGI( TAG, "VEND_REQUEST - State: VEND");
                     break;
                 }
                 case VEND_CANCEL: {
@@ -428,11 +427,13 @@ void mdb_cashless_loop(void *pvParameters) {
 
                     sendBleNotification((char*) ble_payload_tx, sizeof(ble_payload_tx));
 
-                    ESP_LOGI( TAG, "VEND_SUCCESS");
+                    ESP_LOGI( TAG, "VEND_SUCCESS - State: IDLE");
                     break;
                 }
                 case VEND_FAILURE: {
                     machine_state = IDLE_STATE;
+
+                    ESP_LOGI(TAG, "VEND_FAILURE - State: IDLE");
 
                     /* PIPE_BLE */
                     uint8_t ble_payload_tx[19];
@@ -486,13 +487,13 @@ void mdb_cashless_loop(void *pvParameters) {
                 case READER_DISABLE: {
                     machine_state = DISABLED_STATE;
 
-                    ESP_LOGI( TAG, "READER_DISABLE");
+                    ESP_LOGI( TAG, "READER_DISABLE - State: DISABLED");
                     break;
                 }
                 case READER_ENABLE: {
                     machine_state = ENABLED_STATE;
 
-                    ESP_LOGI( TAG, "READER_ENABLE");
+                    ESP_LOGI( TAG, "READER_ENABLE - State: ENABLED");
                     break;
                 }
                 case READER_CANCEL: {
@@ -538,6 +539,20 @@ void mdb_cashless_loop(void *pvParameters) {
 
             // Transmit the prepared payload via UART
             write_payload_9(mdb_payload_tx, available_tx);
+
+            if(available_tx > 0){
+                size_t len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250));
+
+                if(mdb_payload_rx[0] == ACK){
+                    // ACK
+                } else if(mdb_payload_rx[0] == NAK){
+                    // NAK
+                } else if(mdb_payload_rx[0] == RET){
+                    // RET
+                }
+            }
+
+            gpio_set_level(pin_mdb_led, 1); // Intended address
 
 	    } else {
 
@@ -965,7 +980,6 @@ void requestTelemetryData(void *arg) {
 	snprintf(topic, sizeof(topic), "/domain/%s/dex", my_subdomain);
 
     esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 0, 0);
-    printf("%.*s", dex_size, (char*) dex);
 
     vRingbufferReturnItem(dexRingbuf, (void*) dex);
 }
@@ -1029,7 +1043,7 @@ void ble_event_handler(char *ble_payload) {
     	session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
         break;
     case 0x05:
-        // Not implemented
+        xTaskCreate(requestTelemetryData, "requestTelemetry", 2048, NULL, 1, NULL);
         break;
     case 0x06: {
         esp_wifi_disconnect();
