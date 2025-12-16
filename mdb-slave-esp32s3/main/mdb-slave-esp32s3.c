@@ -27,6 +27,8 @@
 
 #define TAG "mdb-target"
 
+#define pin_dex_rx  	GPIO_NUM_44
+#define pin_dex_tx  	GPIO_NUM_43
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
 #define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
@@ -1181,7 +1183,7 @@ void app_main(void) {
 			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
 
 	uart_param_config(UART_NUM_1, &uart_config_1);
-	uart_set_pin( UART_NUM_1, GPIO_NUM_43, GPIO_NUM_44, -1, -1);
+	uart_set_pin( UART_NUM_1, pin_dex_tx, pin_dex_rx, -1, -1);
 	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
 
 	// Initialization of the network stack and event loop
