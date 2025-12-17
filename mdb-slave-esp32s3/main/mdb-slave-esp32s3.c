@@ -239,7 +239,7 @@ void mdb_cashless_loop(void *pvParameters) {
         }
 
         size_t len;
-	    while( (len= uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(10))) > 0)
+	    while( (len= uart_read_bytes(UART_NUM_2, mdb_payload_rx + available_rx, 1, pdMS_TO_TICKS(2))) > 0)
 	        available_rx += len;
 
 	    if ((mdb_payload_rx[0] & BIT_ADD_SET) == 0x10) {
@@ -252,9 +252,6 @@ void mdb_cashless_loop(void *pvParameters) {
                 ESP_LOGI( TAG, "CHK invalid.");
                 continue;
             }
-
-            // Intended address
-            gpio_set_level(pin_mdb_led, 1);
 
 	        available_tx = 0;
 
@@ -540,6 +537,9 @@ void mdb_cashless_loop(void *pvParameters) {
 
             // Transmit the prepared payload via UART
             write_payload_9(mdb_payload_tx, available_tx);
+
+            // Intended address
+            gpio_set_level(pin_mdb_led, 1);
 
 	    } else {
 
