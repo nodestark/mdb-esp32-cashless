@@ -134,12 +134,14 @@ void mdb_vmc_loop(void *pvParameters) {
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
 			write_payload_9(mdb_payload_tx, 1);
 
-            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
+            //assert(len == 1);
+
             if(len == 1){
                 mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
                 write_payload_9(mdb_payload_tx, 1);
 
-                len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(250));
+                len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(30));
                 assert(len == 2);
 
                 assert(mdb_payload_rx[0] == 0x00);
@@ -156,7 +158,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
                     write_payload_9(mdb_payload_tx, 6);
 
-                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(250));
+                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(30));
                     assert(len == 9);
 
                     reader0x10.featureLevel = mdb_payload_rx[1];
@@ -194,7 +196,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 			write_payload_9(mdb_payload_tx, 6);
 
-			len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+			len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
             assert(len == 1);
 
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (EXPANSION & BIT_CMD_SET);
@@ -235,7 +237,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 			write_payload_9(mdb_payload_tx, 31);
 
-            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 31, pdMS_TO_TICKS(250)); // CHK*
+            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 31, pdMS_TO_TICKS(125)); // CHK*
             assert(len == 31);
 
 			write_9(ACK | BIT_MODE_SET);
@@ -247,7 +249,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
             write_payload_9(mdb_payload_tx, 2);
 
-            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
             assert(len == 1);
 
             reader0x10.machineState = ENABLED_STATE;
@@ -257,13 +259,13 @@ void mdb_vmc_loop(void *pvParameters) {
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
 			write_payload_9(mdb_payload_tx, 1);
 
-            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250));
+            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30));
             if( len == 1){
                 reader0x10.poll_fail_count = 0;
 
                 if (mdb_payload_rx[0] == 0x07 /*End Session*/ ) {
 
-					len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(10)); // CHK*
+					len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 2);
 
                     write_9(ACK | BIT_MODE_SET);
@@ -273,7 +275,7 @@ void mdb_vmc_loop(void *pvParameters) {
 				} else if (mdb_payload_rx[0] == 0x06 /*Vend Denied*/ ) {
 					ESP_LOGI( TAG, "Vend Denied");
 
-				    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(10)); // CHK*
+				    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 2);
 
 					write_9(ACK | BIT_MODE_SET);
@@ -283,7 +285,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					write_payload_9(mdb_payload_tx, 2);
 
-                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
                     assert(len == 1);
 
 					reader0x10.machineState = IDLE_STATE;
@@ -291,7 +293,7 @@ void mdb_vmc_loop(void *pvParameters) {
 				} else if (mdb_payload_rx[0] == 0x05 /*Vend Approved*/) {
 					ESP_LOGI( TAG, "Vend Approved");
 
-                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 4, pdMS_TO_TICKS(10)); // CHK*
+                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 4, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 4);
 
 					uint16_t vendAmount = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
@@ -305,7 +307,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					write_payload_9(mdb_payload_tx, 4);
 
-                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
                     assert(len == 1);
 
 					reader0x10.machineState = IDLE_STATE;
@@ -317,13 +319,13 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					write_payload_9(mdb_payload_tx, 2);
 
-                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
                     assert(len == 1);
 
 				} else if (mdb_payload_rx[0] == 0x04 /*Session Cancel Request*/ ) {
 					// IDLE_STATE
 
-					len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(10)); // CHK*
+					len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 2);
 
 					write_9(ACK | BIT_MODE_SET);
@@ -333,7 +335,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					write_payload_9(mdb_payload_tx, 2);
 
-                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
                     assert(len == 1);
 
 				} else if (mdb_payload_rx[0] == 0x03 /*Begin Session*/ ) {
@@ -341,7 +343,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					ESP_LOGI( TAG, "Begin Session");
 
-                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 4, pdMS_TO_TICKS(10)); // CHK*
+                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 4, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 4);
 
 					uint16_t fundsAvailable = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
@@ -353,7 +355,7 @@ void mdb_vmc_loop(void *pvParameters) {
 				} else if (mdb_payload_rx[0] == 0x0b /*Command Out of Sequence*/) {
 					ESP_LOGI( TAG, "Command Out of Sequence");
 
-                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(10)); // CHK*
+                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 2);
 
 					reader0x10.machineState = INACTIVE_STATE;
@@ -374,7 +376,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 						write_payload_9(mdb_payload_tx, 6);
 
-						len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+						len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
 					    assert(len == 1);
 
 						reader0x10.machineState = VEND_STATE;
@@ -392,7 +394,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 						write_payload_9(mdb_payload_tx, 6);
 
-						len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(250)); // ACK*
+						len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
 					    assert(len == 1);
 
 						++coils[itemNumber][1];
@@ -489,7 +491,7 @@ void mdb_vmc_loop(void *pvParameters) {
 			mdb_payload_tx[0] = (0x60 /*Cashless Device #2*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
 			write_payload_9(mdb_payload_tx, 1);
 
-            uart_read_bytes(UART_NUM_2, mdb_payload_rx, sizeof(mdb_payload_rx), pdMS_TO_TICKS(250)); // ACK*
+            uart_read_bytes(UART_NUM_2, mdb_payload_rx, sizeof(mdb_payload_rx), pdMS_TO_TICKS(30)); // ACK*
 			/*TODO*/
 
             write_9(NAK | BIT_MODE_SET);
