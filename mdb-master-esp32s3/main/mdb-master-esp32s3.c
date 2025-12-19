@@ -141,7 +141,7 @@ void mdb_vmc_loop(void *pvParameters) {
                 mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
                 write_payload_9(mdb_payload_tx, 1);
 
-                len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(30));
+                len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(30)); // CHK*
                 assert(len == 2);
 
                 write_9(ACK | BIT_MODE_SET);
@@ -159,7 +159,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
                     write_payload_9(mdb_payload_tx, 6);
 
-                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(30));
+                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(30)); // CHK*
                     assert(len == 9);
 
                     write_9(ACK | BIT_MODE_SET);
@@ -262,7 +262,7 @@ void mdb_vmc_loop(void *pvParameters) {
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (POLL & BIT_CMD_SET);
 			write_payload_9(mdb_payload_tx, 1);
 
-            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30));
+            len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ...
             if( len == 1){
                 reader0x10.poll_fail_count = 0;
 
@@ -296,7 +296,7 @@ void mdb_vmc_loop(void *pvParameters) {
 				} else if (mdb_payload_rx[0] == 0x05 /*Vend Approved*/) {
 					ESP_LOGI( TAG, "Vend Approved");
 
-                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 4, pdMS_TO_TICKS(30)); // CHK*
+                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 3, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 4);
 
 					write_9(ACK | BIT_MODE_SET);
@@ -346,7 +346,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					ESP_LOGI( TAG, "Begin Session");
 
-                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 4, pdMS_TO_TICKS(30)); // CHK*
+                    len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 3, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 4);
 
 					write_9(ACK | BIT_MODE_SET);
