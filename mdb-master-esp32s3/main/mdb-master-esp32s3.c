@@ -144,10 +144,11 @@ void mdb_vmc_loop(void *pvParameters) {
                 len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(30));
                 assert(len == 2);
 
+                write_9(ACK | BIT_MODE_SET);
+
                 assert(mdb_payload_rx[0] == 0x00);
 
                 if (mdb_payload_rx[0] == 0x00 /*Just Reset*/) {
-                    write_9(ACK | BIT_MODE_SET);
 
                     mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
                     mdb_payload_tx[1] = 0x00; 			// Config Data
@@ -160,6 +161,8 @@ void mdb_vmc_loop(void *pvParameters) {
 
                     len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(30));
                     assert(len == 9);
+
+                    write_9(ACK | BIT_MODE_SET);
 
                     reader0x10.featureLevel = mdb_payload_rx[1];
                     reader0x10.countryCode = (mdb_payload_rx[2] << 8) | mdb_payload_rx[3];
@@ -296,9 +299,9 @@ void mdb_vmc_loop(void *pvParameters) {
                     len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 4, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 4);
 
-					uint16_t vendAmount = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
-
 					write_9(ACK | BIT_MODE_SET);
+
+					uint16_t vendAmount = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
 
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x02; // Vend Success
@@ -346,9 +349,9 @@ void mdb_vmc_loop(void *pvParameters) {
                     len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 4, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 4);
 
-					uint16_t fundsAvailable = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
-
 					write_9(ACK | BIT_MODE_SET);
+
+					uint16_t fundsAvailable = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
 
 					reader0x10.machineState = IDLE_STATE;
 
@@ -357,6 +360,8 @@ void mdb_vmc_loop(void *pvParameters) {
 
                     len += uart_read_bytes(UART_NUM_2, mdb_payload_rx + len, 1, pdMS_TO_TICKS(30)); // CHK*
 					assert(len == 2);
+
+                    write_9(ACK | BIT_MODE_SET);
 
 					reader0x10.machineState = INACTIVE_STATE;
 
