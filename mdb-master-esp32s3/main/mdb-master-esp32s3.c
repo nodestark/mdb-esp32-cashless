@@ -205,9 +205,9 @@ void mdb_vmc_loop(void *pvParameters) {
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (EXPANSION & BIT_CMD_SET);
 			mdb_payload_tx[1] = 0x00; // Request ID
 
-			mdb_payload_tx[2] = ' '; // Manufacturer code
-			mdb_payload_tx[3] = ' ';
-			mdb_payload_tx[4] = ' ';
+			mdb_payload_tx[2] = 'V'; // Manufacturer code
+			mdb_payload_tx[3] = 'M';
+			mdb_payload_tx[4] = 'F';
 
 			mdb_payload_tx[5] = ' '; // Serial Number
 			mdb_payload_tx[6] = ' ';
@@ -235,8 +235,8 @@ void mdb_vmc_loop(void *pvParameters) {
 			mdb_payload_tx[27] = ' ';
 			mdb_payload_tx[28] = ' ';
 
-			mdb_payload_tx[29] = ' '; // Software Version
-			mdb_payload_tx[30] = ' ';
+			mdb_payload_tx[29] = '0'; // Software Version
+			mdb_payload_tx[30] = '1';
 
 			write_payload_9(mdb_payload_tx, 31);
 
@@ -244,6 +244,11 @@ void mdb_vmc_loop(void *pvParameters) {
             assert(len == 31);
 
 			write_9(ACK | BIT_MODE_SET);
+
+            ESP_LOGI( TAG, "Manufacture code: %.*s", 3, &mdb_payload_rx[1]);
+            ESP_LOGI( TAG, "Serial number: %.*s", 12, &mdb_payload_rx[4]);
+            ESP_LOGI( TAG, "Model number: %.*s", 12, &mdb_payload_rx[16]);
+            ESP_LOGI( TAG, "Software version: %.*s", 2, &mdb_payload_rx[28]);
 
 			ESP_LOGI( TAG, "Reader Enable");
 
