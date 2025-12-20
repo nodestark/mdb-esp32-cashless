@@ -14,3 +14,5 @@
 - **Device Registration**: register telemetry boards connected to your system.
 - **Wi-Fi Configuration**: remotely configure the Wi-Fi network of your devices.
 - **Credit Sending via Bluetooth and MQTT**: interact with devices in real time.
+
+[![Get it on Google Play](https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png)](https://play.google.com/store/apps/details?id=xyz.vmflow.target)
