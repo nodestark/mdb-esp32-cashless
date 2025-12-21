@@ -551,20 +551,19 @@ void mdb_cashless_loop(void *pvParameters) {
 					switch (read_9(&checksum)) {
 					case REQUEST_ID: {
 
-					    for(uint8_t x= 0; x < 30; x++) read_9(&checksum); // ...drop
+                        /*char manufacturerCode[3];
+                        char serialNumber[12];
+                        char modelNumber[12];
+                        char softwareVersion[2];*/
 
-						/*struct mdb_id_t {
-                            char manufacturerCode[3];
-                            char serialNumber[12];
-                            char modelNumber[12];
-                            char softwareVersion[2];
-                        } *mdb_id = (struct mdb_id_t*) &mdb_payload_rx[2];*/
+					    for(uint8_t x= 0; x < 30; x++) read_9((void*) 0); // ...drop
 
                         mdb_payload[ 0 ] = 0x09; 	                            // Peripheral ID
-                        strncpy((char*) &mdb_payload[1], "   ", 3);              // Manufacture code
-                        strncpy((char*) &mdb_payload[4], "            ", 12);    // Serial number
-                        strncpy((char*) &mdb_payload[16], "            ", 12);   // Model number
-                        strncpy((char*) &mdb_payload[28], "  ", 2);              // Software version
+
+                        memcpy( &mdb_payload[1], "VMF", 3);             // Manufacture code
+                        memcpy( &mdb_payload[4], "            ", 12);   // Serial number
+                        memcpy( &mdb_payload[16], "            ", 12);  // Model number
+                        memcpy( &mdb_payload[28], "03", 2);             // Software version
 
                         available_tx = 30;
 
@@ -588,7 +587,6 @@ void mdb_cashless_loop(void *pvParameters) {
 				// Not the intended address
 				gpio_set_level(pin_mdb_led, 0);
 			}
-
 		}
 	}
 }
