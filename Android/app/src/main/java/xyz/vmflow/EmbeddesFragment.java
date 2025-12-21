@@ -182,11 +182,8 @@ public class EmbeddesFragment extends Fragment {
 
                 holder.deviceNameText.setText(String.format("Machine: %06d", jsonEmbedded.getInt("subdomain")));
 
-                if ("online".equals(jsonEmbedded.getString("status"))) {
-
-                    int color = ContextCompat.getColor(getContext(), R.color.green);
-                    holder.viewDeviceOffline.setBackgroundColor(color);
-                }
+                int color = ContextCompat.getColor(getContext(), "online".equals(jsonEmbedded.getString("status")) ? R.color.green : R.color.red);
+                holder.viewDeviceOffline.setBackgroundColor(color);
             } catch (JSONException e) {
                 throw new RuntimeException(e);
             }
