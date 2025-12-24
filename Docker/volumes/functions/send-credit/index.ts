@@ -2,8 +2,6 @@
 import { Client } from 'https://deno.land/x/mqtt/deno/mod.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE";
-
 function toScaleFactor(p: number, x: number, y: number): number {
   return p / x / Math.pow(10, -y);
 }
@@ -17,7 +15,7 @@ Deno.serve(async (req) => {
     try {
         const body = await req.json();
 
-        const supabase = createClient( "https://supabase.vmflow.xyz", SUPABASE_ANON_KEY,
+        const supabase = createClient( process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY,
             { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         )
 
@@ -50,7 +48,7 @@ Deno.serve(async (req) => {
             payload[k + 1] ^= cipher[k];
         }
 
-        const client = new Client({ url: 'mqtt://mqtt.vmflow.xyz' });
+        const client = new Client({ url: `mqtt://${process.env.MQTT_HOST}` });
         await client.connect();
 
         await client.publish(`${embeddedData[0].subdomain}.vmflow.xyz/credit`, payload);
