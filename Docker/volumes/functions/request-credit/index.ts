@@ -2,8 +2,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { decodeBase64, encodeBase64 } from 'jsr:@std/encoding/base64'
 
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE";
-
 function toScaleFactor(p: number, x: number, y: number): number {
   return p / x / Math.pow(10, -y);
 }
@@ -19,7 +17,7 @@ Deno.serve(async (req) => {
 
         const payload: Uint8Array = decodeBase64(body.payload)
 
-        const supabase = createClient( "https://supabase.vmflow.xyz", SUPABASE_ANON_KEY,
+        const supabase = createClient( process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY,
             { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         )
 

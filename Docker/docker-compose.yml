@@ -18,10 +18,10 @@ services:
     volumes:
       - ./volumes/n8n:/home/node/.n8n
     environment:
-      - N8N_HOST=n8n.vmflow.xyz
+      - N8N_HOST=${N8N_HOST}
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://n8n.vmflow.xyz/
+      - WEBHOOK_URL=https://${N8N_HOST}/
       - N8N_TRUSTED_PROXIES=loopback,linklocal,uniquelocal
       
   studio:
@@ -48,7 +48,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
       SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: https://supabase.vmflow.xyz
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
@@ -110,7 +110,7 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: https://supabase.vmflow.xyz
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
 
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
@@ -328,6 +328,7 @@ services:
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
+      MQTT_HOST: ${MQTT_HOST}
     command:
       [
         "start",
@@ -412,6 +413,10 @@ services:
     volumes:
       - ./volumes/mqtt/clients/:/clients
     working_dir: /clients
+    environment:
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      MQTT_HOST: ${MQTT_HOST}
     command: >
       sh -c "pip install --no-cache-dir supabase paho-mqtt && python mqtt_domain.py"
       
