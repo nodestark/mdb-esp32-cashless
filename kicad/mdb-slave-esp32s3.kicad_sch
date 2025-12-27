@@ -8990,7 +8990,6 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "36b1820f-8290-4ce8-b429-321942927312")
 		(property "Reference" "D4"
 			(at 217.17 229.7998 0)
@@ -9000,8 +8999,8 @@
 				)
 			)
 		)
-		(property "Value" "WS2812B-2020"
-			(at 217.17 232.3398 0)
+		(property "Value" "XL-2121RGBC-2812B"
+			(at 219.71 232.41 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12099,7 +12098,7 @@
 				(hide yes)
 			)
 		)
-		(property "MOUSER#" "356-ESP32-S3FH4R2 "
+		(property "LCSC#" "C3013940"
 			(at 124.46 134.62 0)
 			(effects
 				(font
