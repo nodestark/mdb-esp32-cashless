@@ -7273,6 +7273,12 @@
 		(uuid "6c9f9301-3462-4dc6-955c-431ee4adc37e")
 	)
 	(junction
+		(at 199.39 283.21)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "742a6f1a-1b9b-40ec-98b2-a06c03162ca8")
+	)
+	(junction
 		(at 71.12 144.78)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7427,6 +7433,10 @@
 		(uuid "a00e831b-3c8e-4c43-a393-6da140c2c9a8")
 	)
 	(no_connect
+		(at 200.66 293.37)
+		(uuid "a9a4df8b-08de-45ce-866f-e7f3c9de3469")
+	)
+	(no_connect
 		(at 165.1 186.69)
 		(uuid "ac0e24a5-0732-42ab-bada-f6b2a60101e6")
 	)
@@ -7477,6 +7487,16 @@
 			(type default)
 		)
 		(uuid "03fd618d-b94a-4c50-8fe3-6dea41633939")
+	)
+	(wire
+		(pts
+			(xy 102.87 335.28) (xy 91.44 335.28)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "04e6f29b-4344-45fc-ab5d-55fdf85facad")
 	)
 	(wire
 		(pts
@@ -7537,6 +7557,16 @@
 			(type default)
 		)
 		(uuid "08738cba-a684-44af-a57a-541228fd0372")
+	)
+	(wire
+		(pts
+			(xy 199.39 270.51) (xy 199.39 271.78)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "087662d1-d154-4044-b809-cb576203e187")
 	)
 	(wire
 		(pts
@@ -7747,6 +7777,16 @@
 			(type default)
 		)
 		(uuid "2db3825c-73f3-4c5a-b39d-b5ff63f5a6c1")
+	)
+	(wire
+		(pts
+			(xy 200.66 288.29) (xy 189.23 288.29)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2e1a5079-8914-45ea-813a-593360f091cc")
 	)
 	(wire
 		(pts
@@ -8390,6 +8430,16 @@
 	)
 	(wire
 		(pts
+			(xy 199.39 279.4) (xy 199.39 283.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "913c64ff-c172-448e-842c-ad0bc01ba12f")
+	)
+	(wire
+		(pts
 			(xy 353.06 161.29) (xy 353.06 147.32)
 		)
 		(stroke
@@ -8477,6 +8527,16 @@
 			(type default)
 		)
 		(uuid "9e55d492-8f0d-4e82-b463-39592ea305b6")
+	)
+	(wire
+		(pts
+			(xy 200.66 290.83) (xy 189.23 290.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9eb16b67-1a9c-4f04-815b-7f4538c3ea4d")
 	)
 	(wire
 		(pts
@@ -8660,6 +8720,16 @@
 	)
 	(wire
 		(pts
+			(xy 189.23 303.53) (xy 200.66 303.53)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bb8c406f-9de5-475a-9326-9f12964fc9aa")
+	)
+	(wire
+		(pts
 			(xy 525.78 120.65) (xy 530.86 120.65)
 		)
 		(stroke
@@ -8667,6 +8737,16 @@
 			(type default)
 		)
 		(uuid "bd82d5f0-e603-4e3d-8dd8-bce082536e41")
+	)
+	(wire
+		(pts
+			(xy 199.39 283.21) (xy 189.23 283.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bdf6c909-127f-4a61-a126-75c5f98e86b7")
 	)
 	(wire
 		(pts
@@ -8700,6 +8780,16 @@
 	)
 	(wire
 		(pts
+			(xy 200.66 285.75) (xy 189.23 285.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c9ac9094-65f8-494c-8918-048877265ef7")
+	)
+	(wire
+		(pts
 			(xy 499.11 125.73) (xy 510.54 125.73)
 		)
 		(stroke
@@ -8720,6 +8810,16 @@
 	)
 	(wire
 		(pts
+			(xy 91.44 332.74) (xy 102.87 332.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ce83680f-c540-4602-a047-a433d4f4f84b")
+	)
+	(wire
+		(pts
 			(xy 97.79 138.43) (xy 99.06 138.43)
 		)
 		(stroke
@@ -8737,6 +8837,26 @@
 			(type default)
 		)
 		(uuid "d69dc100-dd6b-427a-aae6-744fc3e951ee")
+	)
+	(wire
+		(pts
+			(xy 102.87 337.82) (xy 91.44 337.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d6d16c10-e343-4889-848e-fee02ca15e20")
+	)
+	(wire
+		(pts
+			(xy 102.87 340.36) (xy 91.44 340.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d7a51704-bf71-4a40-936e-94b50548784b")
 	)
 	(wire
 		(pts
@@ -8787,6 +8907,16 @@
 			(type default)
 		)
 		(uuid "e0354783-bb4b-4ad2-b710-d32b1dbcf774")
+	)
+	(wire
+		(pts
+			(xy 200.66 295.91) (xy 189.23 295.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e15aeed3-4732-4ea8-ba0e-d88cd0e28442")
 	)
 	(wire
 		(pts
@@ -8940,6 +9070,16 @@
 	)
 	(wire
 		(pts
+			(xy 200.66 283.21) (xy 199.39 283.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ef96128d-4b9d-4d00-bf28-4124e425a653")
+	)
+	(wire
+		(pts
 			(xy 381 69.85) (xy 387.35 69.85)
 		)
 		(stroke
@@ -9038,6 +9178,16 @@
 		)
 		(uuid "feed0eee-6fb2-4464-8c31-ecea71ab51b6")
 	)
+	(wire
+		(pts
+			(xy 158.75 355.6) (xy 153.67 355.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ff91a3fc-71f0-4483-a522-9529f93bb574")
+	)
 	(label "u0txd"
 		(at 167.64 115.57 0)
 		(effects
@@ -9077,6 +9227,16 @@
 			(justify left bottom)
 		)
 		(uuid "0a74c33d-7de2-499d-ae2b-347f4e60312a")
+	)
+	(label "sim_vdd"
+		(at 91.44 340.36 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0a8c10b6-352b-4a99-bca6-f5142db709a8")
 	)
 	(label "vin"
 		(at 334.01 144.78 0)
@@ -9158,6 +9318,16 @@
 		)
 		(uuid "2722a319-89d6-4fb5-88fd-2eb86c54bf9a")
 	)
+	(label "sim_rst"
+		(at 91.44 337.82 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "277962ef-e8c3-452b-9c1d-038ca382457e")
+	)
 	(label "io5"
 		(at 381 82.55 0)
 		(effects
@@ -9207,6 +9377,16 @@
 			(justify left bottom)
 		)
 		(uuid "40d98f25-d472-4fd0-b409-5dcddf2b0801")
+	)
+	(label "sim_clk"
+		(at 91.44 332.74 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "41fee031-4827-4eef-81ce-9f791bed3cf9")
 	)
 	(label "io2"
 		(at 167.64 135.89 0)
@@ -9298,6 +9478,16 @@
 		)
 		(uuid "681ee80f-2268-4b69-83f1-01ba88c066b8")
 	)
+	(label "sim_rst"
+		(at 189.23 285.75 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "688653ec-c297-4c0d-88cd-5b1bf73c8e65")
+	)
 	(label "io14"
 		(at 167.64 166.37 0)
 		(effects
@@ -9317,6 +9507,16 @@
 			(justify left bottom)
 		)
 		(uuid "785cf7c2-69a7-4d26-8bab-38a98615bdfd")
+	)
+	(label "sim_clk"
+		(at 189.23 288.29 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "7aeccd01-1e5b-47a7-b58c-55aae7136462")
 	)
 	(label "mdb_master_receive"
 		(at 519.43 66.04 0)
@@ -9428,6 +9628,16 @@
 		)
 		(uuid "aebb8e9e-f914-4cee-aa0b-b73356846c32")
 	)
+	(label "sim_data"
+		(at 91.44 335.28 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b343466d-abbe-4965-89fb-130749bba256")
+	)
 	(label "VDD3P3"
 		(at 158.75 30.48 0)
 		(effects
@@ -9447,6 +9657,16 @@
 			(justify left bottom)
 		)
 		(uuid "b5872026-0932-4d4f-bd5f-263f39b5bb01")
+	)
+	(label "sim_data"
+		(at 189.23 295.91 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "be6a4893-1883-458c-88ab-6c1fdc2d0d5a")
 	)
 	(label "io21"
 		(at 167.64 173.99 0)
@@ -9577,6 +9797,16 @@
 			(justify left bottom)
 		)
 		(uuid "de692cf6-b7b4-4f69-ae97-ff3d77e80ed3")
+	)
+	(label "sim_vdd"
+		(at 189.23 283.21 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e27cfffc-3e30-443d-b8b3-aa086a7a1e17")
 	)
 	(label "vin"
 		(at 499.11 66.04 180)
@@ -10246,7 +10476,7 @@
 	)
 	(symbol
 		(lib_id "Connector:JAE_SIM_Card_SF72S006")
-		(at 189.23 293.37 0)
+		(at 200.66 293.37 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10255,7 +10485,7 @@
 		(fields_autoplaced yes)
 		(uuid "233ce908-306f-4fd1-ac85-92e4720db85d")
 		(property "Reference" "J4"
-			(at 219.71 292.0999 0)
+			(at 231.14 292.0999 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10264,7 +10494,7 @@
 			)
 		)
 		(property "Value" "JAE_SIM_Card_SF72S006"
-			(at 219.71 294.6399 0)
+			(at 231.14 294.6399 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10273,7 +10503,7 @@
 			)
 		)
 		(property "Footprint" "Connector_JAE:JAE_SIM_Card_SF72S006"
-			(at 200.66 307.34 0)
+			(at 212.09 307.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10282,7 +10512,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.jae.com/direct/topics/topics_file_download/topics_id=68892&ext_no=06&index=0&_lang=en&v=202003111511468456809"
-			(at 203.2 293.37 0)
+			(at 214.63 293.37 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10291,7 +10521,7 @@
 			)
 		)
 		(property "Description" "Nano-SIM Card (4FF) connector with Detect Switch"
-			(at 189.23 293.37 0)
+			(at 200.66 293.37 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10300,7 +10530,7 @@
 			)
 		)
 		(property "LCSC#" "C2977286"
-			(at 189.23 293.37 0)
+			(at 200.66 293.37 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11048,6 +11278,73 @@
 	)
 	(symbol
 		(lib_id "power:GND")
+		(at 189.23 290.83 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "40fdb59f-4d04-41f4-bda5-bda166c236a3")
+		(property "Reference" "#PWR043"
+			(at 182.88 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 185.42 290.8299 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 189.23 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 189.23 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 189.23 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "4d3560ba-aa8c-468f-bc73-0c49a7ef35b2")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR043")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
 		(at 530.86 110.49 90)
 		(unit 1)
 		(exclude_from_sim no)
@@ -11374,7 +11671,7 @@
 	)
 	(symbol
 		(lib_id "SIM7080g:SIM7080G")
-		(at 127 312.42 0)
+		(at 128.27 312.42 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -11383,7 +11680,7 @@
 		(fields_autoplaced yes)
 		(uuid "500cfb88-852f-4f78-8198-2fcef800c935")
 		(property "Reference" "U2"
-			(at 127 264.16 0)
+			(at 128.27 264.16 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11391,7 +11688,7 @@
 			)
 		)
 		(property "Value" "SIM7080G"
-			(at 127 266.7 0)
+			(at 128.27 266.7 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11399,7 +11696,7 @@
 			)
 		)
 		(property "Footprint" "SIM7080G:XCVR_SIM7080G"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11409,7 +11706,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11418,7 +11715,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11427,7 +11724,7 @@
 			)
 		)
 		(property "MF" "SIMCom"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11437,7 +11734,7 @@
 			)
 		)
 		(property "MAXIMUM_PACKAGE_HEIGHT" "2.6 mm"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11447,7 +11744,7 @@
 			)
 		)
 		(property "Package" "Package"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11457,7 +11754,7 @@
 			)
 		)
 		(property "Price" "None"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11467,7 +11764,7 @@
 			)
 		)
 		(property "Check_prices" "https://www.snapeda.com/parts/SIM7080G/SIMCom/view-part/?ref=eda"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11477,7 +11774,7 @@
 			)
 		)
 		(property "STANDARD" "Manufacturer Recommendation"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11487,7 +11784,7 @@
 			)
 		)
 		(property "PARTREV" "1.04"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11497,7 +11794,7 @@
 			)
 		)
 		(property "SnapEDA_Link" "https://www.snapeda.com/parts/SIM7080G/SIMCom/view-part/?ref=snap"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11507,7 +11804,7 @@
 			)
 		)
 		(property "MP" "SIM7080G"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11517,7 +11814,7 @@
 			)
 		)
 		(property "Description_1" "Cellular, Navigation Galileo, GLONASS, GPS, GNSS, LTE Transceiver Module 1.559GHz ~ 1.576GHz, 1.575GHz ~ 1.576GHz, 1.574GHz ~ 1.606GHz, 1.598GHz ~ 1.563GHz Antenna Not Included Surface Mount"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11527,7 +11824,7 @@
 			)
 		)
 		(property "Availability" "In Stock"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11537,7 +11834,7 @@
 			)
 		)
 		(property "MANUFACTURER" "SIMCOM"
-			(at 127 312.42 0)
+			(at 128.27 312.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12855,6 +13152,73 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR023")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 158.75 355.6 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7e82a6d0-09d4-4cb3-b7ff-19321b32d4cc")
+		(property "Reference" "#PWR031"
+			(at 165.1 355.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 162.56 355.5999 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 158.75 355.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 158.75 355.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 158.75 355.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ecc3a04e-6cf0-4940-9e20-179fc5e47db6")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR031")
 					(unit 1)
 				)
 			)
@@ -14590,6 +14954,85 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 199.39 275.59 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "bd07551d-8077-4430-9a79-1e18633dc628")
+		(property "Reference" "C13"
+			(at 203.2 274.3199 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "0.1uF"
+			(at 203.2 276.8599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 198.4248 271.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 199.39 275.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 199.39 275.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C5137636"
+			(at 199.39 275.59 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b3611449-1255-4a31-880d-d27cd99be5d3")
+		)
+		(pin "2"
+			(uuid "bf649e88-aa07-4373-a021-4b29a2756c17")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "C13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:+3V3")
 		(at 78.74 38.1 180)
 		(unit 1)
@@ -14859,6 +15302,73 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR03")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 189.23 303.53 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c58ee234-bad5-4c8f-9918-04ac76eb4b64")
+		(property "Reference" "#PWR044"
+			(at 182.88 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 185.42 303.5299 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 189.23 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 189.23 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 189.23 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ebbd574e-f5e1-455f-815e-81c3727d723f")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR044")
 					(unit 1)
 				)
 			)
@@ -16143,6 +16653,72 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR040")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 199.39 270.51 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ff9f324b-0207-4e1b-b8cd-2d7ed19a7ac4")
+		(property "Reference" "#PWR045"
+			(at 199.39 264.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 199.39 265.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 199.39 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 199.39 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 199.39 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2e114207-d152-460d-9b78-6e4e8522c7a3")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR045")
 					(unit 1)
 				)
 			)
