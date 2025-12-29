@@ -1,20 +1,12 @@
-kicad/vmflow-mdb-iot-esp32/mdb-slave-esp32s3-backups
-kicad/vmflow-mdb-iot-esp32/fp-info-cache
-kicad/vmflow-mdb-iot-esp32/*.lck
+kicad/**/vmflow-mdb-esp32-backups
+kicad/**/vmflow-mdb-esp32-sim7080g-backups
+kicad/**/fp-info-cache
+kicad/**/*.lck
 
-kicad/vmflow-mdb-iot-esp32-sim7080g/mdb-slave-esp32s3-backups
-kicad/vmflow-mdb-iot-esp32-sim7080g/fp-info-cache
-kicad/vmflow-mdb-iot-esp32-sim7080g/*.lck
-
-mdb-slave-esp32s3/managed_components
-mdb-slave-esp32s3/build
-mdb-slave-esp32s3/sdkconfig.old
-mdb-slave-esp32s3/.idea/*
-
-mdb-master-esp32s3/managed_components
-mdb-master-esp32s3/build
-mdb-master-esp32s3/sdkconfig.old
-mdb-master-esp32s3/.idea/*
+**/managed_components
+**/build
+**/sdkconfig.old
+**/.idea/*
 
 .vscode/*
 

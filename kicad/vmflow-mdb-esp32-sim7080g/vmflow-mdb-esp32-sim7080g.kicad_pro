@@ -478,7 +478,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "mdb-slave-esp32s3.kicad_pro",
+    "filename": "vmflow-mdb-esp32-sim7080g.kicad_pro",
     "version": 3
   },
   "net_settings": {
