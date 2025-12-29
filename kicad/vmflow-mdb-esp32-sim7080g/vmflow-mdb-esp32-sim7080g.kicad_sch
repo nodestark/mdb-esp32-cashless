@@ -7834,6 +7834,12 @@
 		(uuid "22ca793c-095d-4b50-93f2-db5fe3e904d5")
 	)
 	(junction
+		(at 26.67 115.57)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "267ed5a9-d3cd-44d5-84fa-e3e9a8761d5d")
+	)
+	(junction
 		(at 176.53 130.81)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7906,6 +7912,12 @@
 		(uuid "77a356f6-1cb4-4cfb-84a6-b9d844fd7b66")
 	)
 	(junction
+		(at 40.64 115.57)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "7da76e3f-9f95-42a3-bc27-ff6b613e7a9e")
+	)
+	(junction
 		(at 341.63 144.78)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7934,12 +7946,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "c714397b-e7b3-4912-8ea7-1dbd96047788")
-	)
-	(junction
-		(at 36.83 115.57)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "cece4eda-3e03-4d83-b315-db0b6b30b45d")
 	)
 	(junction
 		(at 195.58 271.78)
@@ -8116,6 +8122,16 @@
 			(type default)
 		)
 		(uuid "01e79457-3542-4050-b215-00448943167d")
+	)
+	(wire
+		(pts
+			(xy 26.67 115.57) (xy 30.48 115.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "02652217-36a8-401e-9ac0-8cca8aaaefb5")
 	)
 	(wire
 		(pts
@@ -8409,16 +8425,6 @@
 	)
 	(wire
 		(pts
-			(xy 36.83 115.57) (xy 39.37 115.57)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1a1d3abc-be6e-4223-aa15-fe511b4ecd30")
-	)
-	(wire
-		(pts
 			(xy 341.63 144.78) (xy 355.6 144.78)
 		)
 		(stroke
@@ -8616,6 +8622,16 @@
 			(type default)
 		)
 		(uuid "3b901b7f-56b0-402b-9283-bcbdc5e6fc8e")
+	)
+	(wire
+		(pts
+			(xy 26.67 128.27) (xy 26.67 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3c3ca1a8-837a-427e-b5bb-6ea65ec01301")
 	)
 	(wire
 		(pts
@@ -8849,16 +8865,6 @@
 	)
 	(wire
 		(pts
-			(xy 36.83 115.57) (xy 36.83 118.11)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5789540a-e9cd-4537-88ca-c27bf17f3871")
-	)
-	(wire
-		(pts
 			(xy 246.38 170.18) (xy 246.38 172.72)
 		)
 		(stroke
@@ -9039,16 +9045,6 @@
 	)
 	(wire
 		(pts
-			(xy 36.83 125.73) (xy 36.83 127)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7071fa6d-8832-463d-ad50-94acb6266dce")
-	)
-	(wire
-		(pts
 			(xy 54.61 123.19) (xy 53.34 123.19)
 		)
 		(stroke
@@ -9059,6 +9055,16 @@
 	)
 	(wire
 		(pts
+			(xy 26.67 109.22) (xy 26.67 115.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "72add46c-feff-4723-a0f8-9955483c7b84")
+	)
+	(wire
+		(pts
 			(xy 153.67 271.78) (xy 189.23 271.78)
 		)
 		(stroke
@@ -9066,16 +9072,6 @@
 			(type default)
 		)
 		(uuid "740d10c6-00ef-4005-b3be-5f2fce05a437")
-	)
-	(wire
-		(pts
-			(xy 36.83 107.95) (xy 36.83 115.57)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7512c3ac-2d07-4b85-8fbe-9f09247d9a43")
 	)
 	(wire
 		(pts
@@ -9189,6 +9185,16 @@
 	)
 	(wire
 		(pts
+			(xy 40.64 128.27) (xy 40.64 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7f084d1f-351c-41d4-8880-796c32977547")
+	)
+	(wire
+		(pts
 			(xy 402.59 144.78) (xy 402.59 147.32)
 		)
 		(stroke
@@ -9226,6 +9232,26 @@
 			(type default)
 		)
 		(uuid "83df8173-c22e-441b-8527-a788c7441aaf")
+	)
+	(wire
+		(pts
+			(xy 40.64 115.57) (xy 99.06 115.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "852ea1b3-7289-48c2-8f4b-e5454d4b324a")
+	)
+	(wire
+		(pts
+			(xy 26.67 118.11) (xy 26.67 115.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "857b1508-0014-4222-9291-2a4e2f2ed7ad")
 	)
 	(wire
 		(pts
@@ -9476,6 +9502,16 @@
 			(type default)
 		)
 		(uuid "a32c6e10-8ea3-472d-8df9-058564617f56")
+	)
+	(wire
+		(pts
+			(xy 40.64 118.11) (xy 40.64 115.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a3c598f5-ecf3-4c27-ba58-7355a62bb8d9")
 	)
 	(wire
 		(pts
@@ -9829,6 +9865,16 @@
 	)
 	(wire
 		(pts
+			(xy 40.64 115.57) (xy 38.1 115.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d586a0d2-b85a-4305-acc7-986494b0c105")
+	)
+	(wire
+		(pts
 			(xy 292.1 132.08) (xy 298.45 132.08)
 		)
 		(stroke
@@ -10086,16 +10132,6 @@
 			(type default)
 		)
 		(uuid "e97cb4e4-c1a9-4e64-a40b-fbf2c279de5e")
-	)
-	(wire
-		(pts
-			(xy 46.99 115.57) (xy 99.06 115.57)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e994eeaf-516a-4281-8eb2-099e6ab63203")
 	)
 	(wire
 		(pts
@@ -14199,16 +14235,35 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 36.83 127 0)
+		(lib_id "Device:C")
+		(at 26.67 121.92 180)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "55b253b2-3aca-44a5-af4a-d6dcdaa35437")
-		(property "Reference" "#PWR015"
-			(at 36.83 133.35 0)
+		(fields_autoplaced yes)
+		(uuid "561444a2-6ba5-488c-b1c3-7bc1c67d57b2")
+		(property "Reference" "C22"
+			(at 30.48 120.6499 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "1.8pf"
+			(at 30.48 123.1899 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 25.7048 118.11 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14216,25 +14271,8 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "GND"
-			(at 36.83 132.08 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 36.83 127 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 36.83 127 0)
+		(property "Datasheet" "~"
+			(at 26.67 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14243,7 +14281,16 @@
 			)
 		)
 		(property "Description" ""
-			(at 36.83 127 0)
+			(at 26.67 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C376773"
+			(at 26.67 121.92 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14252,12 +14299,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "4a7388ba-9178-46a6-b2c3-7561be70e63f")
+			(uuid "36496857-9e23-4c47-87f6-37684e5b4f08")
+		)
+		(pin "2"
+			(uuid "3bd4a53a-18b2-438f-9663-a989758f29a0")
 		)
 		(instances
-			(project "mdb-slave-esp32s3"
+			(project "vmflow-mdb-esp32-sim7080g"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "#PWR015")
+					(reference "C22")
 					(unit 1)
 				)
 			)
@@ -14612,6 +14662,71 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR025")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 26.67 128.27 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "6a790969-3826-4c9f-b56c-708b1c3bd1e7")
+		(property "Reference" "#PWR060"
+			(at 26.67 134.62 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 26.67 133.35 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 26.67 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 26.67 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 26.67 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "829c35ca-f6a4-45f8-b8f2-5b4bf257757c")
+		)
+		(instances
+			(project "vmflow-mdb-esp32-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR060")
 					(unit 1)
 				)
 			)
@@ -15727,6 +15842,83 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector:Conn_Coaxial")
+		(at 429.26 290.83 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8e0cb347-ec99-4ce0-97cb-90e3a2a315a7")
+		(property "Reference" "J7"
+			(at 429.5532 284.48 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "Conn_Coaxial"
+			(at 429.5532 287.02 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical"
+			(at 429.26 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 429.26 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "coaxial connector (BNC, SMA, SMB, SMC, Cinch/RCA, LEMO, ...)"
+			(at 429.26 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C88374"
+			(at 429.26 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "77f8fba1-4d7f-41de-a249-99d3fd762a74")
+		)
+		(pin "2"
+			(uuid "d097779b-858a-4b74-9cb5-227765ba8803")
+		)
+		(instances
+			(project "vmflow-mdb-esp32-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "J7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
 		(at 48.26 261.62 90)
 		(unit 1)
@@ -15798,74 +15990,6 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "R11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:Conn_Coaxial")
-		(at 429.26 290.83 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "8e76c9c1-fda3-47f3-abce-6fbcf24b4238")
-		(property "Reference" "J6"
-			(at 429.5532 284.48 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "Conn_Coaxial"
-			(at 429.5532 287.02 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical"
-			(at 429.26 290.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 429.26 290.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "coaxial connector (BNC, SMA, SMB, SMC, Cinch/RCA, LEMO, ...)"
-			(at 429.26 290.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "4ef42100-dde9-41fe-b567-f082640d9c11")
-		)
-		(pin "2"
-			(uuid "d3001077-2753-4cfe-b427-c547fd3bc297")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "J6")
 					(unit 1)
 				)
 			)
@@ -16019,6 +16143,85 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "U1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 40.64 121.92 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "912c31cf-b3a9-4d44-821e-b648483f82a0")
+		(property "Reference" "C21"
+			(at 44.45 120.6499 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "NC"
+			(at 44.45 123.1899 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 39.6748 118.11 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 40.64 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 40.64 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C376773"
+			(at 40.64 121.92 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "4c1b4d10-6e2c-4e8b-9c14-e2fec4afaad3")
+		)
+		(pin "2"
+			(uuid "8539241e-5a18-411f-a23a-3b2258df5479")
+		)
+		(instances
+			(project "vmflow-mdb-esp32-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "C21")
 					(unit 1)
 				)
 			)
@@ -17220,73 +17423,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:Antenna")
-		(at 36.83 102.87 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "b02b8fea-f0e7-4bb2-a20a-0f220b005636")
-		(property "Reference" "AE1"
-			(at 39.37 102.235 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Antenna"
-			(at 39.37 104.775 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "RF_Antenna:Texas_SWRA117D_2.4GHz_Left"
-			(at 36.83 102.87 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 36.83 102.87 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 36.83 102.87 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "4bd65574-ca32-4dcb-b5ed-5e996c18aa86")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "AE1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:+3V3")
 		(at 205.74 271.78 270)
 		(unit 1)
@@ -17754,6 +17890,71 @@
 	)
 	(symbol
 		(lib_id "power:GND")
+		(at 40.64 128.27 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b6451755-f7b2-403b-b880-c415660aec20")
+		(property "Reference" "#PWR050"
+			(at 40.64 134.62 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 40.64 133.35 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 40.64 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 40.64 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 40.64 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2ef08397-2a7a-4afc-be6b-1c24f2a0a058")
+		)
+		(instances
+			(project "vmflow-mdb-esp32-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR050")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
 		(at 193.04 119.38 90)
 		(unit 1)
 		(exclude_from_sim no)
@@ -17866,6 +18067,15 @@
 			)
 		)
 		(property "Description" "coaxial connector (BNC, SMA, SMB, SMC, Cinch/RCA, LEMO, ...)"
+			(at 415.29 256.54 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C88374"
 			(at 415.29 256.54 0)
 			(effects
 				(font
@@ -19483,162 +19693,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:C")
-		(at 43.18 115.57 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "efcb1aef-ddba-4274-b0f2-c2607813c0ca")
-		(property "Reference" "C4"
-			(at 43.18 107.95 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "1.8pf"
-			(at 43.18 110.49 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 46.99 114.6048 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 43.18 115.57 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 43.18 115.57 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "LCSC#" "C376773"
-			(at 43.18 115.57 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "a299aafa-aaf4-4a68-b2aa-4a44996d49ad")
-		)
-		(pin "2"
-			(uuid "7109c442-f5e1-43ea-a645-46e510ab6196")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "C4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:L")
-		(at 36.83 121.92 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "eff9b5cd-feea-48ae-b0d4-7f25e47c64ed")
-		(property "Reference" "L1"
-			(at 38.1 120.65 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "2.4nh"
-			(at 38.1 123.19 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Inductor_SMD:L_0603_1608Metric"
-			(at 36.83 121.92 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 36.83 121.92 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 36.83 121.92 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "LCSC#" "C2042508"
-			(at 36.83 121.92 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "62d68d4f-0d49-49e2-8c38-8a605c168a7a")
-		)
-		(pin "2"
-			(uuid "7876f404-9bf1-4faf-93b5-17bbb98f8293")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "L1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:C_Polarized")
 		(at 341.63 153.67 0)
 		(unit 1)
@@ -19856,6 +19910,150 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "D5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:Antenna")
+		(at 26.67 104.14 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f4e3f7c1-4ade-4a62-9517-28ec75410310")
+		(property "Reference" "AE3"
+			(at 29.21 103.505 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Antenna"
+			(at 29.21 106.045 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "RF_Antenna:Texas_SWRA117D_2.4GHz_Left"
+			(at 26.67 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 26.67 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 26.67 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b07fb9cc-9956-4645-9614-eb85fd022f80")
+		)
+		(instances
+			(project "vmflow-mdb-esp32-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "AE3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:L")
+		(at 34.29 115.57 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f57645a9-7825-4d88-92e2-b7736c4bb5cd")
+		(property "Reference" "L5"
+			(at 34.29 110.49 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "2.4nh"
+			(at 34.29 113.03 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Inductor_SMD:L_0603_1608Metric"
+			(at 34.29 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 34.29 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 34.29 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C2042508"
+			(at 34.29 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "42582b16-0237-43d4-a897-e184aacb78f4")
+		)
+		(pin "2"
+			(uuid "88f3bc1c-0759-4fd8-8599-99edaad0c237")
+		)
+		(instances
+			(project "vmflow-mdb-esp32-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "L5")
 					(unit 1)
 				)
 			)
