@@ -1,10 +1,10 @@
-kicad/vmflow-mdb-iot-wifi/mdb-slave-esp32s3-backups
-kicad/vmflow-mdb-iot-wifi/fp-info-cache
-kicad/vmflow-mdb-iot-wifi/*.lck
+kicad/vmflow-mdb-iot-esp32/mdb-slave-esp32s3-backups
+kicad/vmflow-mdb-iot-esp32/fp-info-cache
+kicad/vmflow-mdb-iot-esp32/*.lck
 
-kicad/vmflow-mdb-iot-wifi-sim7080g/mdb-slave-esp32s3-backups
-kicad/vmflow-mdb-iot-wifi-sim7080g/fp-info-cache
-kicad/vmflow-mdb-iot-wifi-sim7080g/*.lck
+kicad/vmflow-mdb-iot-esp32-sim7080g/mdb-slave-esp32s3-backups
+kicad/vmflow-mdb-iot-esp32-sim7080g/fp-info-cache
+kicad/vmflow-mdb-iot-esp32-sim7080g/*.lck
 
 mdb-slave-esp32s3/managed_components
 mdb-slave-esp32s3/build
@@ -17,3 +17,5 @@ mdb-master-esp32s3/sdkconfig.old
 mdb-master-esp32s3/.idea/*
 
 .vscode/*
+
+.project
