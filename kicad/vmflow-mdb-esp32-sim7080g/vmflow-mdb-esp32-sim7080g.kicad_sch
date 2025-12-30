@@ -7687,6 +7687,12 @@
 		(uuid "3b8fe3b8-264b-4cc1-89ec-e599c78afbb9")
 	)
 	(junction
+		(at 163.83 276.86)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "3fceb7e5-da1a-4143-87ac-b29f4459ad93")
+	)
+	(junction
 		(at 81.28 133.35)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8654,6 +8660,16 @@
 	)
 	(wire
 		(pts
+			(xy 163.83 276.86) (xy 153.67 276.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "54e0e75c-8020-47cf-b7d7-9c4eb814c2a0")
+	)
+	(wire
+		(pts
 			(xy 63.5 123.19) (xy 86.36 123.19)
 		)
 		(stroke
@@ -9011,6 +9027,16 @@
 			(type default)
 		)
 		(uuid "7f54a32a-f77c-40b9-8e5b-baceb594ebe4")
+	)
+	(wire
+		(pts
+			(xy 163.83 276.86) (xy 172.72 276.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "81787152-6109-4c3c-86ea-b2d203e1f202")
 	)
 	(wire
 		(pts
@@ -9864,16 +9890,6 @@
 	)
 	(wire
 		(pts
-			(xy 157.48 276.86) (xy 153.67 276.86)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e1ad0eb2-712c-4c85-aa40-74fc4326edbc")
-	)
-	(wire
-		(pts
 			(xy 165.1 115.57) (xy 167.64 115.57)
 		)
 		(stroke
@@ -10101,6 +10117,16 @@
 			(type default)
 		)
 		(uuid "f2bd4725-7f90-4bbe-bb72-4baa0a3d5c8b")
+	)
+	(wire
+		(pts
+			(xy 163.83 275.59) (xy 163.83 276.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f2db41ae-e9a8-4d93-9d04-1aa32b7e67c4")
 	)
 	(wire
 		(pts
@@ -10633,7 +10659,7 @@
 		(uuid "785cf7c2-69a7-4d26-8bab-38a98615bdfd")
 	)
 	(label "sim_vdd_ext"
-		(at 157.48 276.86 0)
+		(at 163.83 275.59 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -13004,6 +13030,73 @@
 			(project "vmflow-mdb-esp32-sim7080g"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "R20")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 172.72 276.86 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3da2e9f9-2903-4589-9bbf-7768dde94ec8")
+		(property "Reference" "TP2"
+			(at 177.8 275.5899 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 177.8 278.1299 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 172.72 281.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 172.72 281.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 172.72 276.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "6d9f9246-686b-44bd-bed5-ad237aa9259b")
+		)
+		(instances
+			(project "vmflow-mdb-esp32-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "TP2")
 					(unit 1)
 				)
 			)
