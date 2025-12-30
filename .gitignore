@@ -1,5 +1,4 @@
-kicad/**/vmflow-mdb-esp32-backups
-kicad/**/vmflow-mdb-esp32-sim7080g-backups
+kicad/**/*-backups
 kicad/**/fp-info-cache
 kicad/**/*.lck
 
