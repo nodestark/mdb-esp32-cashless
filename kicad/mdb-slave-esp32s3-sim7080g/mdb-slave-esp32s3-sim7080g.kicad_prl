@@ -1,6 +1,6 @@
 {
   "board": {
-    "active_layer": 0,
+    "active_layer": 5,
     "active_layer_preset": "",
     "auto_track_width": false,
     "hidden_netclasses": [],
@@ -59,7 +59,7 @@
     "ssh_key": ""
   },
   "meta": {
-    "filename": "mdb-slave-esp32s3.kicad_prl",
+    "filename": "mdb-slave-esp32s3-sim7080g.kicad_prl",
     "version": 5
   },
   "net_inspector_panel": {
