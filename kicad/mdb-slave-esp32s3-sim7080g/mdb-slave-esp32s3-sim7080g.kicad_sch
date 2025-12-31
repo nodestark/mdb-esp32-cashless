@@ -7924,6 +7924,12 @@
 		(uuid "31f4649f-3f42-47ec-9477-49f78b2300b8")
 	)
 	(junction
+		(at 407.67 147.32)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "321956d1-a590-40ca-97e9-127cb860bd35")
+	)
+	(junction
 		(at 81.28 144.78)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -9293,7 +9299,7 @@
 	)
 	(wire
 		(pts
-			(xy 227.33 275.59) (xy 236.22 275.59)
+			(xy 227.33 275.59) (xy 242.57 275.59)
 		)
 		(stroke
 			(width 0)
@@ -9683,6 +9689,16 @@
 	)
 	(wire
 		(pts
+			(xy 414.02 147.32) (xy 407.67 147.32)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a943d207-b156-4cdc-b479-fca15c498869")
+	)
+	(wire
+		(pts
 			(xy 209.55 30.48) (xy 201.93 30.48)
 		)
 		(stroke
@@ -9813,7 +9829,7 @@
 	)
 	(wire
 		(pts
-			(xy 227.33 283.21) (xy 217.17 283.21)
+			(xy 236.22 283.21) (xy 217.17 283.21)
 		)
 		(stroke
 			(width 0)
@@ -10300,16 +10316,6 @@
 			(type default)
 		)
 		(uuid "e97cb4e4-c1a9-4e64-a40b-fbf2c279de5e")
-	)
-	(wire
-		(pts
-			(xy 78.74 38.1) (xy 78.74 36.83)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "eb17563d-f6f4-4c34-93ad-40d6835900cb")
 	)
 	(wire
 		(pts
@@ -12254,6 +12260,73 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 341.63 144.78 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "242db6b1-19aa-4a13-ade9-9e1998e8b19c")
+		(property "Reference" "TP4"
+			(at 344.17 140.2079 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 344.17 142.7479 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 346.71 144.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 346.71 144.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 341.63 144.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "c66f1f6b-570f-4e90-8ac3-aaf3c09f95f8")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "TP4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Graphic:Logo_Open_Hardware_Small")
 		(at 35.56 35.56 0)
 		(unit 1)
@@ -13233,7 +13306,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 236.22 275.59 270)
+		(at 242.57 275.59 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -13242,7 +13315,7 @@
 		(fields_autoplaced yes)
 		(uuid "3da2e9f9-2903-4589-9bbf-7768dde94ec8")
 		(property "Reference" "TP3"
-			(at 241.3 274.3199 90)
+			(at 245.11 271.0179 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13251,7 +13324,7 @@
 			)
 		)
 		(property "Value" "TestPoint"
-			(at 241.3 276.8599 90)
+			(at 245.11 273.5579 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13260,7 +13333,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 236.22 280.67 0)
+			(at 247.65 275.59 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13269,7 +13342,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 236.22 280.67 0)
+			(at 247.65 275.59 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13278,7 +13351,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 236.22 275.59 0)
+			(at 242.57 275.59 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16117,7 +16190,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 78.74 36.83 0)
+		(at 407.67 147.32 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -16126,7 +16199,7 @@
 		(fields_autoplaced yes)
 		(uuid "7c6a1df1-cb08-46b5-b000-277459d8b639")
 		(property "Reference" "TP1"
-			(at 81.28 32.2579 0)
+			(at 410.21 142.7479 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16135,7 +16208,7 @@
 			)
 		)
 		(property "Value" "TestPoint"
-			(at 81.28 34.7979 0)
+			(at 410.21 145.2879 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16144,7 +16217,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 83.82 36.83 0)
+			(at 412.75 147.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16153,7 +16226,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 83.82 36.83 0)
+			(at 412.75 147.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16162,7 +16235,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 78.74 36.83 0)
+			(at 407.67 147.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16174,7 +16247,7 @@
 			(uuid "c2915b53-9e14-4451-929a-e4fbc16091d0")
 		)
 		(instances
-			(project "mdb-slave-esp32s3"
+			(project "mdb-slave-esp32s3-sim7080g"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "TP1")
 					(unit 1)
@@ -16908,7 +16981,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 407.67 147.32 270)
+		(at 414.02 147.32 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -16917,7 +16990,7 @@
 		(fields_autoplaced yes)
 		(uuid "8ec4e609-43f2-4d01-9cd0-448c9cc4eb21")
 		(property "Reference" "#PWR049"
-			(at 403.86 147.32 0)
+			(at 410.21 147.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16926,7 +16999,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 411.48 147.3199 90)
+			(at 417.83 147.3199 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16935,7 +17008,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 407.67 147.32 0)
+			(at 414.02 147.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16944,7 +17017,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 407.67 147.32 0)
+			(at 414.02 147.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16953,7 +17026,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 407.67 147.32 0)
+			(at 414.02 147.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19286,72 +19359,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+3V3")
-		(at 78.74 38.1 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "be2707df-602c-4893-9ea2-66e4be94360a")
-		(property "Reference" "#PWR08"
-			(at 78.74 34.29 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 78.74 43.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 78.74 38.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 78.74 38.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 78.74 38.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "742e1815-d733-4484-94fe-8c6d38bc00a7")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "#PWR08")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 259.08 283.21 0)
 		(unit 1)
@@ -19695,7 +19702,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 227.33 283.21 270)
+		(at 236.22 283.21 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -19704,7 +19711,7 @@
 		(fields_autoplaced yes)
 		(uuid "c953f0c1-e6e7-426e-a019-a152c6201e2a")
 		(property "Reference" "TP2"
-			(at 232.41 281.9399 90)
+			(at 238.76 278.6379 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19713,7 +19720,7 @@
 			)
 		)
 		(property "Value" "TestPoint"
-			(at 232.41 284.4799 90)
+			(at 238.76 281.1779 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19722,7 +19729,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 227.33 288.29 0)
+			(at 241.3 283.21 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19731,7 +19738,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 227.33 288.29 0)
+			(at 241.3 283.21 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19740,7 +19747,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 227.33 283.21 0)
+			(at 236.22 283.21 0)
 			(effects
 				(font
 					(size 1.27 1.27)

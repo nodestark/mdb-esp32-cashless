@@ -5626,6 +5626,12 @@
 		(uuid "60162560-8cc5-4d35-bdfe-bbc008e5cf63")
 	)
 	(junction
+		(at 518.16 212.09)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "605b3c3e-efde-4088-8935-82545ae6f28b")
+	)
+	(junction
 		(at 100.33 146.05)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -6205,7 +6211,7 @@
 	)
 	(wire
 		(pts
-			(xy 516.89 212.09) (xy 511.81 212.09)
+			(xy 523.24 212.09) (xy 518.16 212.09)
 		)
 		(stroke
 			(width 0)
@@ -6825,6 +6831,16 @@
 	)
 	(wire
 		(pts
+			(xy 518.16 212.09) (xy 511.81 212.09)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a4d9f7bb-6c6b-4e30-9658-2c84cb9827a9")
+	)
+	(wire
+		(pts
 			(xy 274.32 55.88) (xy 276.86 55.88)
 		)
 		(stroke
@@ -6842,16 +6858,6 @@
 			(type default)
 		)
 		(uuid "ab4cd9de-4588-4bc4-80d7-62e916ce8f32")
-	)
-	(wire
-		(pts
-			(xy 92.71 60.96) (xy 92.71 59.69)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ab521928-fd74-417a-bd41-42f25c9cb87f")
 	)
 	(wire
 		(pts
@@ -10296,6 +10302,73 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 450.85 209.55 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "675ad33d-e5e4-46e3-9eca-248ce32e9cf8")
+		(property "Reference" "TP2"
+			(at 453.39 204.9779 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 453.39 207.5179 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 455.93 209.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 455.93 209.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 450.85 209.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "296ff081-8d54-4026-b9a3-e6af86feed6e")
+		)
+		(instances
+			(project "mdb-master-esp32s3"
+				(path "/1a9a25ce-6784-46e5-b680-57f383f3a43d"
+					(reference "TP2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C")
 		(at 201.93 59.69 180)
 		(unit 1)
@@ -10814,7 +10887,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 92.71 59.69 0)
+		(at 518.16 212.09 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10823,7 +10896,7 @@
 		(fields_autoplaced yes)
 		(uuid "7c6a1df1-cb08-46b5-b000-277459d8b639")
 		(property "Reference" "TP1"
-			(at 95.25 55.1179 0)
+			(at 520.7 207.5179 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10832,7 +10905,7 @@
 			)
 		)
 		(property "Value" "TestPoint"
-			(at 95.25 57.6579 0)
+			(at 520.7 210.0579 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10841,7 +10914,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 97.79 59.69 0)
+			(at 523.24 212.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10850,7 +10923,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 97.79 59.69 0)
+			(at 523.24 212.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10859,7 +10932,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 92.71 59.69 0)
+			(at 518.16 212.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11538,7 +11611,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 516.89 212.09 270)
+		(at 523.24 212.09 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -11547,7 +11620,7 @@
 		(fields_autoplaced yes)
 		(uuid "8ec4e609-43f2-4d01-9cd0-448c9cc4eb21")
 		(property "Reference" "#PWR043"
-			(at 513.08 212.09 0)
+			(at 519.43 212.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11556,7 +11629,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 520.7 212.0899 90)
+			(at 527.05 212.0899 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11565,7 +11638,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 516.89 212.09 0)
+			(at 523.24 212.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11574,7 +11647,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 516.89 212.09 0)
+			(at 523.24 212.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11583,7 +11656,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 516.89 212.09 0)
+			(at 523.24 212.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12615,72 +12688,6 @@
 			(project "mdb-master-esp32s3"
 				(path "/1a9a25ce-6784-46e5-b680-57f383f3a43d"
 					(reference "C9")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 92.71 60.96 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "be2707df-602c-4893-9ea2-66e4be94360a")
-		(property "Reference" "#PWR07"
-			(at 92.71 57.15 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 92.71 66.04 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 92.71 60.96 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 92.71 60.96 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 92.71 60.96 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "742e1815-d733-4484-94fe-8c6d38bc00a7")
-		)
-		(instances
-			(project "mdb-master-esp32s3"
-				(path "/1a9a25ce-6784-46e5-b680-57f383f3a43d"
-					(reference "#PWR07")
 					(unit 1)
 				)
 			)
