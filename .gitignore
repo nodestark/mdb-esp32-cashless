@@ -1,15 +1,12 @@
-kicad/mdb-slave-esp32s3-backups
-kicad/fp-info-cache
-kicad/*.lck
+kicad/**/*-backups
+kicad/**/fp-info-cache
+kicad/**/*.lck
 
-mdb-slave-esp32s3/managed_components
-mdb-slave-esp32s3/build
-mdb-slave-esp32s3/sdkconfig.old
-mdb-slave-esp32s3/.idea/*
-
-mdb-master-esp32s3/managed_components
-mdb-master-esp32s3/build
-mdb-master-esp32s3/sdkconfig.old
-mdb-master-esp32s3/.idea/*
+**/managed_components
+**/build
+**/sdkconfig.old
+**/.idea/*
 
 .vscode/*
+
+.project
