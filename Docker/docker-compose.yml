@@ -9,21 +9,6 @@ name: vmflow-docker
 
 services:
 
-  n8n:
-    image: n8nio/n8n:latest
-    restart: always
-    ports:
-      - "5678:5678"
-      - "5678:5678"
-    volumes:
-      - ./volumes/n8n:/home/node/.n8n
-    environment:
-      - N8N_HOST=${N8N_HOST}
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://${N8N_HOST}/
-      - N8N_TRUSTED_PROXIES=loopback,linklocal,uniquelocal
-      
   studio:
     #container_name: supabase-studio
     image: supabase/studio:2025.06.30-sha-6f5982d
