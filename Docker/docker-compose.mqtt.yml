@@ -20,7 +20,8 @@ services:
       #- ./volumes/mqtt/log:/mosquitto/log
 
   domain:
-    image: python:3.10-alpine
+    build: 
+      dockerfile: ../mqtt/Dockerfile
     restart: unless-stopped
     depends_on:
       - broker
@@ -31,8 +32,6 @@ services:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       MQTT_HOST: broker
-    command: >
-      sh -c "pip install --no-cache-dir supabase paho-mqtt && python mqtt_domain.py"
       
 volumes:
   db-config:
