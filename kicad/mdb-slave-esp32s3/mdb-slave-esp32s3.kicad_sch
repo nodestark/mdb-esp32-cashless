@@ -5573,6 +5573,12 @@
 		(uuid "dd779ebf-22ee-472c-aeb5-a8b04c09d402")
 	)
 	(junction
+		(at 358.14 172.72)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "eb3db6fa-376b-48b7-b40d-22ddc72db099")
+	)
+	(junction
 		(at 124.46 90.17)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5589,6 +5595,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "faa0962f-bb5e-44a8-aa88-978d3e9897ff")
+	)
+	(junction
+		(at 288.29 170.18)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "fc6bc9b9-c8ce-40cc-b5b7-879db8d0f030")
 	)
 	(no_connect
 		(at 231.14 185.42)
@@ -5922,6 +5934,16 @@
 	)
 	(wire
 		(pts
+			(xy 290.83 170.18) (xy 304.8 170.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "19faa91a-76c8-4b58-82a6-be3ec79ff8a7")
+	)
+	(wire
+		(pts
 			(xy 29.21 99.06) (xy 31.75 99.06)
 		)
 		(stroke
@@ -5929,16 +5951,6 @@
 			(type default)
 		)
 		(uuid "1a1d3abc-be6e-4223-aa15-fe511b4ecd30")
-	)
-	(wire
-		(pts
-			(xy 290.83 170.18) (xy 304.8 170.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1ae056d6-94e5-49cd-8c7f-24a1971392ae")
 	)
 	(wire
 		(pts
@@ -6072,7 +6084,7 @@
 	)
 	(wire
 		(pts
-			(xy 283.21 170.18) (xy 290.83 170.18)
+			(xy 283.21 170.18) (xy 288.29 170.18)
 		)
 		(stroke
 			(width 0)
@@ -6732,7 +6744,7 @@
 	)
 	(wire
 		(pts
-			(xy 356.87 172.72) (xy 351.79 172.72)
+			(xy 368.3 172.72) (xy 358.14 172.72)
 		)
 		(stroke
 			(width 0)
@@ -6972,6 +6984,16 @@
 	)
 	(wire
 		(pts
+			(xy 288.29 170.18) (xy 290.83 170.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cf1ba8aa-647b-4a80-8cd9-94f0c8bac942")
+	)
+	(wire
+		(pts
 			(xy 90.17 121.92) (xy 91.44 121.92)
 		)
 		(stroke
@@ -6999,6 +7021,16 @@
 			(type default)
 		)
 		(uuid "d9d6dd00-a7d5-49ee-9cd2-73a599eee597")
+	)
+	(wire
+		(pts
+			(xy 358.14 172.72) (xy 351.79 172.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "da528c47-c15c-4314-a2da-0d67193ed108")
 	)
 	(wire
 		(pts
@@ -7159,16 +7191,6 @@
 			(type default)
 		)
 		(uuid "e994eeaf-516a-4281-8eb2-099e6ab63203")
-	)
-	(wire
-		(pts
-			(xy 78.74 38.1) (xy 78.74 36.83)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "eb17563d-f6f4-4c34-93ad-40d6835900cb")
 	)
 	(wire
 		(pts
@@ -9799,6 +9821,73 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 288.29 170.18 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "5a9772df-5d7c-4fa7-b0a7-e1f7571d5a8e")
+		(property "Reference" "TP1"
+			(at 290.83 165.6079 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 290.83 168.1479 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 293.37 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 293.37 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 288.29 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "675f8da2-733e-47b0-9a19-92ecb2fcb7d5")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "TP1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
 		(at 175.26 114.3 90)
 		(unit 1)
@@ -10494,7 +10583,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 78.74 36.83 0)
+		(at 358.14 172.72 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10503,7 +10592,7 @@
 		(fields_autoplaced yes)
 		(uuid "7c6a1df1-cb08-46b5-b000-277459d8b639")
 		(property "Reference" "TP4"
-			(at 81.28 32.2579 0)
+			(at 360.68 168.1479 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10512,7 +10601,7 @@
 			)
 		)
 		(property "Value" "TestPoint"
-			(at 81.28 34.7979 0)
+			(at 360.68 170.6879 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10521,7 +10610,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 83.82 36.83 0)
+			(at 363.22 172.72 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10530,7 +10619,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 83.82 36.83 0)
+			(at 363.22 172.72 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10539,7 +10628,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 78.74 36.83 0)
+			(at 358.14 172.72 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10840,7 +10929,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 356.87 172.72 270)
+		(at 368.3 172.72 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10849,7 +10938,7 @@
 		(fields_autoplaced yes)
 		(uuid "8ec4e609-43f2-4d01-9cd0-448c9cc4eb21")
 		(property "Reference" "#PWR041"
-			(at 353.06 172.72 0)
+			(at 364.49 172.72 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10858,7 +10947,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 360.68 172.7199 90)
+			(at 372.11 172.7199 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10867,7 +10956,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 356.87 172.72 0)
+			(at 368.3 172.72 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10876,7 +10965,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 356.87 172.72 0)
+			(at 368.3 172.72 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10885,7 +10974,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 356.87 172.72 0)
+			(at 368.3 172.72 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12349,72 +12438,6 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR013")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 78.74 38.1 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "be2707df-602c-4893-9ea2-66e4be94360a")
-		(property "Reference" "#PWR032"
-			(at 78.74 34.29 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 78.74 43.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 78.74 38.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 78.74 38.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 78.74 38.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "742e1815-d733-4484-94fe-8c6d38bc00a7")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "#PWR032")
 					(unit 1)
 				)
 			)
