@@ -8065,6 +8065,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC#" "C57316"
+			(at 356.87 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "dbd5275a-3bc8-40ac-a0fb-30e89a55e747")
 		)
@@ -8538,6 +8547,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC#" "C2907113"
+			(at 325.12 92.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "563e1801-ce60-4865-b622-e242dee3e017")
 		)
@@ -8862,6 +8880,15 @@
 			)
 		)
 		(property "Description" "Resistor"
+			(at 359.41 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C2907113"
 			(at 359.41 113.03 0)
 			(effects
 				(font
@@ -9890,7 +9917,7 @@
 		(at 314.96 180.34 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -10474,7 +10501,7 @@
 		(at 382.27 182.88 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -10858,6 +10885,15 @@
 			)
 		)
 		(property "Description" "Generic connector, double row, 02x03, top/bottom pin numbering scheme (row 1: 1...pins_per_row, row2: pins_per_row+1 ... num_pins), script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 340.36 66.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C22365701"
 			(at 340.36 66.04 0)
 			(effects
 				(font
@@ -11436,6 +11472,15 @@
 		)
 		(property "Description" "Resistor"
 			(at 347.98 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C23162"
+			(at 347.98 128.27 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12450,6 +12495,15 @@
 			)
 		)
 		(property "Description" "DC Barrel Jack"
+			(at 379.73 214.63 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C7498153"
 			(at 379.73 214.63 0)
 			(effects
 				(font

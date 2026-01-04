@@ -7812,12 +7812,6 @@
 		(uuid "285ee709-1147-4da7-8dd1-dfa3d79ac2b7")
 	)
 	(junction
-		(at 86.36 123.19)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "29376b70-44b4-45e9-836f-7a86d4c47db5")
-	)
-	(junction
 		(at 269.24 152.4)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8579,7 +8573,7 @@
 	)
 	(wire
 		(pts
-			(xy 86.36 123.19) (xy 99.06 123.19)
+			(xy 63.5 123.19) (xy 99.06 123.19)
 		)
 		(stroke
 			(width 0)
@@ -8816,16 +8810,6 @@
 			(type default)
 		)
 		(uuid "54e0e75c-8020-47cf-b7d7-9c4eb814c2a0")
-	)
-	(wire
-		(pts
-			(xy 63.5 123.19) (xy 86.36 123.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "55130972-8434-4950-bd4f-12667bb5baad")
 	)
 	(wire
 		(pts
@@ -9279,7 +9263,7 @@
 	)
 	(wire
 		(pts
-			(xy 403.86 69.85) (xy 400.05 69.85)
+			(xy 411.48 69.85) (xy 400.05 69.85)
 		)
 		(stroke
 			(width 0)
@@ -10199,16 +10183,6 @@
 	)
 	(wire
 		(pts
-			(xy 86.36 120.65) (xy 86.36 123.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ecb98c35-ec5b-4350-9d14-274ae5bdbef6")
-	)
-	(wire
-		(pts
 			(xy 157.48 306.07) (xy 166.37 306.07)
 		)
 		(stroke
@@ -10427,16 +10401,6 @@
 		)
 		(uuid "00827b7d-29b9-4d1c-9d27-7c1fe1d6440c")
 	)
-	(label "reset"
-		(at 86.36 120.65 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "033232f2-8b78-4e29-a3e8-2e4629f64e19")
-	)
 	(label "io18"
 		(at 381 92.71 0)
 		(effects
@@ -10536,16 +10500,6 @@
 			(justify right bottom)
 		)
 		(uuid "20ca2781-2d90-481e-96ae-d8e0afb7f221")
-	)
-	(label "reset"
-		(at 403.86 69.85 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "20d50619-9bf0-474a-83ca-8474abb4b0ed")
 	)
 	(label "boot"
 		(at 167.64 129.54 0)
@@ -18724,6 +18678,73 @@
 			(project "vmflow-mdb-esp32-sim7080g"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "R14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 411.48 69.85 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b456d3f0-0abf-428d-a048-3f141f7a8274")
+		(property "Reference" "#PWR08"
+			(at 417.83 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 415.29 69.85 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 411.48 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 411.48 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 411.48 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "be0b188d-de93-46be-8033-8a094444c224")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR08")
 					(unit 1)
 				)
 			)

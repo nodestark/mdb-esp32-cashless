@@ -5489,12 +5489,6 @@
 		(uuid "285ee709-1147-4da7-8dd1-dfa3d79ac2b7")
 	)
 	(junction
-		(at 78.74 106.68)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "29376b70-44b4-45e9-836f-7a86d4c47db5")
-	)
-	(junction
 		(at 231.14 177.8)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5505,6 +5499,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "3b8fe3b8-264b-4cc1-89ec-e599c78afbb9")
+	)
+	(junction
+		(at 74.93 106.68)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "457f7fde-b50c-40f5-b961-7fbbae57f77b")
 	)
 	(junction
 		(at 73.66 116.84)
@@ -5984,6 +5984,16 @@
 	)
 	(wire
 		(pts
+			(xy 74.93 106.68) (xy 91.44 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2541fcc1-65a8-4af3-acbc-a9a2c4b27da0")
+	)
+	(wire
+		(pts
 			(xy 157.48 157.48) (xy 160.02 157.48)
 		)
 		(stroke
@@ -6061,16 +6071,6 @@
 			(type default)
 		)
 		(uuid "3883b368-0a5f-4c05-80d5-ba47ac30016a")
-	)
-	(wire
-		(pts
-			(xy 78.74 106.68) (xy 91.44 106.68)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "39d745f4-9f9c-472f-b130-f880ff0c5cb6")
 	)
 	(wire
 		(pts
@@ -6264,7 +6264,7 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 106.68) (xy 78.74 106.68)
+			(xy 55.88 106.68) (xy 74.93 106.68)
 		)
 		(stroke
 			(width 0)
@@ -6604,7 +6604,7 @@
 	)
 	(wire
 		(pts
-			(xy 73.66 223.52) (xy 69.85 223.52)
+			(xy 77.47 223.52) (xy 69.85 223.52)
 		)
 		(stroke
 			(width 0)
@@ -7194,16 +7194,6 @@
 	)
 	(wire
 		(pts
-			(xy 78.74 104.14) (xy 78.74 106.68)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ecb98c35-ec5b-4350-9d14-274ae5bdbef6")
-	)
-	(wire
-		(pts
 			(xy 231.14 170.18) (xy 231.14 172.72)
 		)
 		(stroke
@@ -7322,16 +7312,6 @@
 		)
 		(uuid "00827b7d-29b9-4d1c-9d27-7c1fe1d6440c")
 	)
-	(label "reset"
-		(at 78.74 104.14 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "033232f2-8b78-4e29-a3e8-2e4629f64e19")
-	)
 	(label "io18"
 		(at 50.8 246.38 0)
 		(effects
@@ -7411,16 +7391,6 @@
 			(justify right bottom)
 		)
 		(uuid "20ca2781-2d90-481e-96ae-d8e0afb7f221")
-	)
-	(label "reset"
-		(at 73.66 223.52 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "20d50619-9bf0-474a-83ca-8474abb4b0ed")
 	)
 	(label "boot"
 		(at 160.02 113.03 0)
@@ -8513,6 +8483,73 @@
 			(project ""
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "U4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 74.93 106.68 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "200fbd84-5543-4b43-8dea-e45b1f8be294")
+		(property "Reference" "TP2"
+			(at 77.47 102.1079 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 77.47 104.6479 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 80.01 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 80.01 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 74.93 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "58668fe4-c084-4c2b-94c8-04fabd1cd46c")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "TP2")
 					(unit 1)
 				)
 			)
@@ -11454,6 +11491,73 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "J1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 77.47 223.52 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9d3313d3-cdfa-44a3-82a4-fdace8b6463d")
+		(property "Reference" "#PWR031"
+			(at 83.82 223.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 81.28 223.52 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 77.47 223.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 77.47 223.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 77.47 223.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "8b6f764f-4924-4b74-a22e-6603ad9d4b0d")
+		)
+		(instances
+			(project "mdb-slave-esp32s3"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR031")
 					(unit 1)
 				)
 			)
