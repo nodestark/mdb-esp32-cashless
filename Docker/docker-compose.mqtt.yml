@@ -1,0 +1,38 @@
+# Usage
+#   Start:              docker compose up
+#   With helpers:       docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
+#   Stop:               docker compose down
+#   Destroy:            docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
+#   Reset everything:  ./reset.sh
+
+name: vmflow-docker
+
+services:
+  broker:
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT (TCP)
+      - "9001:9001"   # WebSockets (opcional)
+    volumes:
+      - ../mqtt/config:/mosquitto/config
+      - mqtt-data:/mosquitto/data
+      #- ./volumes/mqtt/log:/mosquitto/log
+
+  domain:
+    build: 
+      dockerfile: ../mqtt/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - broker
+    volumes:
+      - ../mqtt/clients:/clients
+    working_dir: /clients
+    environment:
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      MQTT_HOST: broker
+      
+volumes:
+  db-config:
+  mqtt-data:

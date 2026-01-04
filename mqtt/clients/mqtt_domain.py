@@ -11,7 +11,10 @@ import time
 
 role_key=os.environ.get('SERVICE_ROLE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q')
 
-supabase: Client = create_client(os.environ.get('SUPABASE_PUBLIC_URL', 'https://supabase.vmflow.xyz'), role_key)
+supabaseUrl=os.environ.get('SUPABASE_PUBLIC_URL', 'https://supabase.vmflow.xyz')
+print(supabaseUrl)
+print(role_key)
+supabase: Client = create_client(supabaseUrl, role_key)
 
 def to_scale_factor(p: float, x: float, y: float) -> float:
     return p / x / (10 ** -y)
@@ -22,11 +25,11 @@ def from_scale_factor(p: float, x: float, y: float) -> float:
 def on_connect(client, userdata, flags, rc):
 
     if rc == 0:
-        print(" Conectado ao broker!")
+        print(" Connected to broker!")
         client.subscribe("/domain/+/sale")
         client.subscribe("/domain/+/status")
     else:
-        print(f" Falha na conexão. Código: {rc}")
+        print(f" Connection failed. Code: {rc}")
 
 def on_message(client, userdata, msg):
     try:
@@ -72,6 +75,8 @@ client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect(os.environ.get('MQTT_HOST', 'mqtt.vmflow.xyz'), 1883, keepalive=60)
+mqttHost=os.environ.get('MQTT_HOST', 'mqtt.vmflow.xyz')
+print(mqttHost)
+client.connect(mqttHost, 1883, keepalive=60)
 client.loop_forever()
 
