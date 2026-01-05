@@ -508,8 +508,8 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "../../../../Downloads/mdb-master/",
-      "pos_files": "",
+      "plot": "../../../../../Downloads/mdb-master-gbr/",
+      "pos_files": "../../../../../Downloads/mdb-master-gbr/",
       "specctra_dsn": "",
       "step": "",
       "svg": "",
@@ -519,7 +519,7 @@
   },
   "schematic": {
     "annotate_start_num": 0,
-    "bom_export_filename": "../../../../../Downloads/mdb-master-esp32s3.csv",
+    "bom_export_filename": "../../../../../Downloads/mdb-master-gbr/mdb-master-esp32s3.csv",
     "bom_fmt_presets": [],
     "bom_fmt_settings": {
       "field_delimiter": ",",
