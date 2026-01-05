@@ -10,13 +10,27 @@
           ></v-img>
 
           <v-card-title>
-            <div class="text-center w-full">
-              <div class="text--secondary">IDF version: {{version}}</div>
-              <div class="text--secondary">ESP cores: {{cores}}</div>
-              <div class="text--secondary">WiFi SSID: {{wifi_ssid}}</div>
-              <div class="text--secondary">WiFi Password: {{wifi_password}}</div>
+            <div class="text-left w-full">
+              <div class="text--secondary">IDF version: {{systemInfo.version}}</div>
+              <div class="text--secondary">ESP cores: {{systemInfo.cores}}</div>
+              <div class="text--secondary">WiFi SSID: {{systemInfo.wifi_ssid}}</div>
+              <div class="text--secondary">WiFi Password: {{systemInfo.wifi_password}}</div>
             </div>
           </v-card-title>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="6">
+        <v-card>
+          <v-card-title>
+           WiFi Settings
+          </v-card-title>
+          <v-card-text>
+            <v-text-field v-model="wifiForm.ssid" label="SSID"></v-text-field>
+            <v-text-field v-model="wifiForm.password" label="Password"></v-text-field>
+          </v-card-text>
+          <v-card-actions>
+            <v-btn @click="saveWiFiData()">Save</v-btn>
+          </v-card-actions>
         </v-card>
       </v-col>
     </v-row>
@@ -27,10 +41,39 @@
 export default {
   data () {
     return {
-      version: null,
-      cores: null,
-      wifi_ssid: null,
-      wifi_password: null
+      wifiForm: {
+        ssid: '',
+        password: ''
+      },
+      systemInfo: {
+        version: null,
+        cores: null,
+        wifi_ssid: null,
+        wifi_password: null
+      }
+    }
+  },
+  methods: {
+    saveWiFiData: function () {
+      console.log('clicked wifi save button')
+      console.log(`SSID: ${this.wifiForm.ssid}`)
+      console.log(`Password: ${this.wifiForm.password}`)
+      const settings = {
+        'url': '/api/v1/wifi/set',
+        'method': 'POST',
+        'timeout': 0,
+        'headers': {
+          'Content-Type': 'application/json'
+        },
+        'data': JSON.stringify({
+          'ssid': this.wifiForm.ssid,
+          'password': this.wifiForm.password
+        })
+      }
+
+      this.$ajax(settings).done(function (response) {
+        console.log(response)
+      })
     }
   },
   mounted () {
@@ -40,14 +83,15 @@ export default {
       .then(response => {
         // Axios wraps data in a 'data' property
         const data = response.data
-        this.version = data.version
-        this.cores = data.cores
-        this.wifi_ssid = data.wifi_ssid
-        this.wifi_password = data.wifi_password
+        this.systemInfo.version = data.version
+        this.systemInfo.cores = data.cores
+        this.systemInfo.wifi_ssid = data.wifi_ssid
+        this.systemInfo.wifi_password = data.wifi_password
       })
       .catch(error => {
         console.error(error)
       })
   }
 }
+
 </script>

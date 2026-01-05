@@ -1313,7 +1313,7 @@ void app_main(void) {
 
 	// Check if credentials are available in NVS
 	wifi_config_t sta_config;
-	esp_err_t err = esp_wifi_get_config(WIFI_IF_STA, &sta_config);
+	esp_err_t err = esp_wifi_get_config(ESP_IF_WIFI_STA, &sta_config);
 
 	dhcp_set_captiveportal_url();
 	if (err == ESP_OK && strlen((char*)sta_config.sta.ssid) > 0) {

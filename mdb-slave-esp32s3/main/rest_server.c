@@ -119,14 +119,6 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-// Apple hotspot detect
-static esp_err_t apple_hotspot_handler(httpd_req_t *req) {
-    ESP_LOGI(REST_TAG, "Within Apple Hotspot Handler");
-    httpd_resp_set_status(req, "200 OK");
-    httpd_resp_send(req, "", 0);
-    return ESP_OK;
-}
-
 static esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err) {
     httpd_resp_set_status(req, "302 Found");
     httpd_resp_set_hdr(req, "Location", "/index.html");
@@ -155,6 +147,59 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* Simplified handler to set WiFi credentials */
+static esp_err_t wifi_set_handler(httpd_req_t *req)
+{
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int ret = httpd_req_recv(req, buf, req->content_len);
+    if (ret <= 0) {
+        return ESP_FAIL;
+    }
+    buf[ret] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    const char *ssid = cJSON_GetObjectItem(root, "ssid")->valuestring;
+    const char *pass = cJSON_GetObjectItem(root, "password")->valuestring;
+
+    ESP_LOGI(REST_TAG, "SSID=%s, PASS=%s", ssid, pass);
+
+    if (ssid && pass) {
+        esp_wifi_disconnect();
+        esp_wifi_set_mode(WIFI_MODE_STA);
+
+        wifi_config_t wifi_config = {0};
+        esp_wifi_set_storage(WIFI_STORAGE_FLASH);
+        esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config);
+
+        strcpy((char*) wifi_config.sta.ssid, ssid);
+        strcpy((char*) wifi_config.sta.password, pass);
+
+        esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+        if (err == ESP_OK) {
+            ESP_LOGI(REST_TAG, "Credentials saved to NVS. SSID: %s", ssid);
+            httpd_resp_sendstr(req, "OK");
+
+            // Verification log
+            wifi_config_t verify_cfg;
+            esp_wifi_get_config(WIFI_IF_STA, &verify_cfg);
+            ESP_LOGI(REST_TAG, "Verified NVS - SSID: %s", (char*)verify_cfg.sta.ssid);
+        } else {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save config");
+        }
+
+    } else {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing fields");
+    }
+
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
 
 esp_err_t start_rest_server(const char *base_path)
 {
@@ -179,12 +224,21 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &system_info_get_uri);
 
-    httpd_uri_t apple_hotspot = {
-        .uri = "/hotspot-detect.html",
-        .method = HTTP_GET,
-        .handler = apple_hotspot_handler
+    httpd_uri_t wifi_set_uri = {
+        .uri = "/api/v1/wifi/set",
+        .method = HTTP_POST,
+        .handler = wifi_set_handler,
+        .user_ctx = rest_context
     };
-    // httpd_register_uri_handler(server, &apple_hotspot);
+    httpd_register_uri_handler(server, &wifi_set_uri);
+
+    httpd_uri_t mqtt_set_uri = {
+        .uri = "/api/v1/mqtt/set",
+        .method = HTTP_POST,
+        .handler = mqtt_set_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &mqtt_set_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
