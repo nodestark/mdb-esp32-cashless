@@ -3,7 +3,7 @@ module.exports = {
   devServer: {
     proxy: {
       '/api': {
-        target: 'http://esp-home.local:80',
+        target: 'http://10.0.1.:80',
         changeOrigin: true,
         ws: true
       }
