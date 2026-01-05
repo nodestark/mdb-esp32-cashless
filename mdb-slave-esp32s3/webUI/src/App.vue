@@ -4,7 +4,7 @@
       <v-list dense nav>
         <v-list-item to="/" link>
           <v-list-item-icon>
-            <v-icon>mdi-home</v-icon>
+            <v-icon>{{ icons.home }}</v-icon>
           </v-list-item-icon>
           <v-list-item-content>
             <v-list-item-title>Home</v-list-item-title>
@@ -31,11 +31,16 @@
 </template>
 
 <script>
+import { mdiHome } from '@mdi/js'
+
 export default {
   name: 'App',
   data () {
     return {
-      drawer: null
+      drawer: null,
+      icons: {
+        home: mdiHome
+      }
     }
   }
 }
