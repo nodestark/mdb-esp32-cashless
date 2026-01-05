@@ -28,6 +28,8 @@
 #include "bleprph.h"
 #include "nimble.h"
 #include <time.h>
+#include <lwip/inet.h>
+#include "dns_server.h"
 
 #define TAG "mdb-target"
 
@@ -49,6 +51,11 @@
 #define BIT_MODE_SET 	0b100000000
 #define BIT_ADD_SET   	0b011111000
 #define BIT_CMD_SET   	0b000000111
+
+#define AP_SSID  "VMFlow"
+#define AP_PASS  "12345678"
+static int wifi_retry_num = 0;
+#define WIFI_MAX_RETRY 5
 
 char my_subdomain[32];
 char my_passkey[18];
@@ -1159,19 +1166,69 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	}
 }
 
+void dhcp_set_captiveportal_url(void) {
+	// get the IP of the access point to redirect to
+	esp_netif_ip_info_t ip_info;
+	esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"), &ip_info);
+
+	char ip_addr[16];
+	inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
+	ESP_LOGI(TAG, "Set up softAP with IP: %s", ip_addr);
+
+	// turn the IP into a URI
+	char* captiveportal_uri = (char*) malloc(32 * sizeof(char));
+	assert(captiveportal_uri && "Failed to allocate captiveportal_uri");
+	strcpy(captiveportal_uri, "http://");
+	strcat(captiveportal_uri, ip_addr);
+
+	// get a handle to configure DHCP with
+	esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+
+	// set the DHCP option 114
+	ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcps_stop(netif));
+	ESP_ERROR_CHECK(esp_netif_dhcps_option(netif, ESP_NETIF_OP_SET, ESP_NETIF_CAPTIVEPORTAL_URI, captiveportal_uri, strlen(captiveportal_uri)));
+	ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcps_start(netif));
+}
+
+void start_softap() {
+	wifi_config_t ap_config = {
+		.ap = {
+			.ssid = AP_SSID,
+			.ssid_len = strlen(AP_SSID),
+			.password = AP_PASS,
+			.max_connection = 4,
+			.authmode = WIFI_AUTH_WPA2_PSK
+		},
+	};
+	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
+	ESP_ERROR_CHECK(esp_wifi_start());
+	ESP_LOGI(TAG, "Soft-AP ready. SSID: %s", ap_config.ap.ssid);
+}
+
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
 
 	if (event_base == WIFI_EVENT)
 		switch (event_id) {
-		case WIFI_EVENT_STA_START:
-			esp_wifi_connect();
-			break;
-		case WIFI_EVENT_STA_CONNECTED:
-			break;
-		case WIFI_EVENT_STA_DISCONNECTED:
-			esp_mqtt_client_disconnect(mqttClient);
-			esp_wifi_connect();
-			break;
+			case WIFI_EVENT_STA_START:
+				ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
+				esp_wifi_connect();
+				break;
+			case WIFI_EVENT_STA_CONNECTED:
+				ESP_LOGI(TAG, "WIFI_EVENT_STA_CONNECTED");
+				break;
+			case WIFI_EVENT_STA_DISCONNECTED:
+				ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
+				esp_mqtt_client_disconnect(mqttClient);
+				if (wifi_retry_num < WIFI_MAX_RETRY) {
+					esp_wifi_connect();
+					wifi_retry_num++;
+					ESP_LOGI(TAG, "Connecting attempt # %d...", wifi_retry_num);
+				} else {
+					ESP_LOGW(TAG, "Connection failed. Switching to Soft-AP.");
+					start_softap();
+				}
+				break;
 		}
 
 	if (event_base == IP_EVENT)
@@ -1246,6 +1303,7 @@ void app_main(void) {
 	esp_netif_init();
 	esp_event_loop_create_default();
 	esp_netif_create_default_wifi_sta();
+	esp_netif_create_default_wifi_ap();
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	esp_wifi_init(&cfg);
@@ -1253,8 +1311,22 @@ void app_main(void) {
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
 	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
 
-	esp_wifi_set_mode(WIFI_MODE_STA);
-	esp_wifi_start();
+	// Check if credentials are available in NVS
+	wifi_config_t sta_config;
+	esp_err_t err = esp_wifi_get_config(WIFI_IF_STA, &sta_config);
+
+	dhcp_set_captiveportal_url();
+	if (err == ESP_OK && strlen((char*)sta_config.sta.ssid) > 0) {
+		ESP_LOGI(TAG, "Found credentials for SSID: %s. connecting...", sta_config.sta.ssid);
+		ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+		ESP_ERROR_CHECK(esp_wifi_start());
+	} else {
+		ESP_LOGW(TAG, "No credentials found in NVS.");
+		start_softap();
+	}
+	// Start the DNS server that will redirect all queries to the softAP IP
+	dns_server_config_t config = DNS_SERVER_CONFIG_SINGLE("*" /* all A queries */, "WIFI_AP_DEF" /* softAP netif ID */);
+	start_dns_server(&config);
 
 	// Start the REST Server
 	ESP_ERROR_CHECK(start_rest_server("/www"));

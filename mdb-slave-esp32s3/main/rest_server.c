@@ -73,8 +73,19 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
         ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
+        char host[64];
+        if (httpd_req_get_hdr_value_str(req, "Host", host, sizeof(host)) == ESP_OK) {
+            // Wenn der Host nicht 192.168.4.1 ist, kommt die Anfrage von einer
+            // Erkennungs-URL (wie google.com).
+            if (strcmp(host, "192.168.4.1") != 0) {
+                ESP_LOGI("HTTP", "Fremder Host [%s] erkannt -> Umleitung auf Captive Portal", host);
+                httpd_resp_set_status(req, "302 Found");
+                httpd_resp_set_hdr(req, "Location", "/");
+                httpd_resp_send(req, NULL, 0);
+                return ESP_OK;
+            }
+        }
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
         return ESP_FAIL;
     }
 
@@ -105,6 +116,21 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     ESP_LOGI(REST_TAG, "File sending complete");
     /* Respond with an empty chunk to signal HTTP response completion */
     httpd_resp_send_chunk(req, NULL, 0);
+    return ESP_OK;
+}
+
+// Apple hotspot detect
+static esp_err_t apple_hotspot_handler(httpd_req_t *req) {
+    ESP_LOGI(REST_TAG, "Within Apple Hotspot Handler");
+    httpd_resp_set_status(req, "200 OK");
+    httpd_resp_send(req, "", 0);
+    return ESP_OK;
+}
+
+static esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err) {
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "/index.html");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
@@ -153,6 +179,13 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &system_info_get_uri);
 
+    httpd_uri_t apple_hotspot = {
+        .uri = "/hotspot-detect.html",
+        .method = HTTP_GET,
+        .handler = apple_hotspot_handler
+    };
+    // httpd_register_uri_handler(server, &apple_hotspot);
+
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
         .uri = "/*",
@@ -161,6 +194,8 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &common_get_uri);
+
+    httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);
 
     return ESP_OK;
 err_start:
