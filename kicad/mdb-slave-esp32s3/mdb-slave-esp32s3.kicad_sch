@@ -11460,7 +11460,16 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C22365701"
+		(property "LCSC#" "C22365656"
+			(at 356.87 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC2#" "C22365701"
 			(at 356.87 68.58 0)
 			(effects
 				(font

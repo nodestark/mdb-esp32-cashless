@@ -603,6 +603,12 @@
           "label": "Descrição",
           "name": "Description",
           "show": false
+        },
+        {
+          "group_by": false,
+          "label": "LCSC2#",
+          "name": "LCSC2#",
+          "show": true
         }
       ],
       "filter_string": "",
