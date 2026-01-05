@@ -8493,7 +8493,7 @@
 		(at 74.93 106.68 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -9862,7 +9862,7 @@
 		(at 288.29 170.18 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -10623,7 +10623,7 @@
 		(at 358.14 172.72 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -11460,7 +11460,16 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C22365701"
+		(property "LCSC#" "C22365656"
+			(at 356.87 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC2#" "C22365701"
 			(at 356.87 68.58 0)
 			(effects
 				(font
