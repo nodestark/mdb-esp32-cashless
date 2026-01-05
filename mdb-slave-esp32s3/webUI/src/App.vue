@@ -1,27 +1,30 @@
 <template>
   <v-app id="inspire">
-    <v-navigation-drawer v-model="drawer" fixed app clipped>
-      <v-list dense>
-        <v-list-tile to="/">
-          <v-list-tile-action>
-            <v-icon>home</v-icon>
-          </v-list-tile-action>
-          <v-list-tile-content>
-            <v-list-tile-title>Home</v-list-tile-title>
-          </v-list-tile-content>
-        </v-list-tile>
+    <v-navigation-drawer v-model="drawer" app clipped>
+      <v-list dense nav>
+        <v-list-item to="/" link>
+          <v-list-item-icon>
+            <v-icon>mdi-home</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>Home</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
       </v-list>
     </v-navigation-drawer>
-    <v-toolbar color="red accent-4" dark fixed app clipped-left>
-      <v-toolbar-side-icon @click.stop="drawer = !drawer"></v-toolbar-side-icon>
+
+    <v-app-bar color="red accent-4" dark app clipped-left>
+      <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
       <v-toolbar-title>VMFlow</v-toolbar-title>
-    </v-toolbar>
-    <v-content>
+    </v-app-bar>
+
+    <v-main>
       <v-container fluid fill-height>
         <router-view></router-view>
       </v-container>
-    </v-content>
-    <v-footer color="red accent-4" app fixed>
+    </v-main>
+
+    <v-footer color="red accent-4" app>
       <span class="white--text">&copy; VMFlow. All rights reserved.</span>
     </v-footer>
   </v-app>
@@ -29,11 +32,11 @@
 
 <script>
 export default {
-  name: "App",
-  data() {
+  name: 'App',
+  data () {
     return {
       drawer: null
-    };
+    }
   }
-};
+}
 </script>

@@ -1,10 +1,10 @@
 import Vue from 'vue'
-import './plugins/vuetify'
+import vuetify from './plugins/vuetify'
 import App from './App.vue'
 import router from './router'
 import axios from 'axios'
 import store from './store'
-import vuetify from './plugins/vuetify';
+import '@mdi/font/css/materialdesignicons.css' // Add this line
 
 Vue.config.productionTip = false
 
