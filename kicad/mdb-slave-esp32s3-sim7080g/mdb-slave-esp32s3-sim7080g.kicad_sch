@@ -7872,12 +7872,6 @@
 		(uuid "77a356f6-1cb4-4cfb-84a6-b9d844fd7b66")
 	)
 	(junction
-		(at 40.64 115.57)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "7da76e3f-9f95-42a3-bc27-ff6b613e7a9e")
-	)
-	(junction
 		(at 341.63 144.78)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8933,7 +8927,7 @@
 	)
 	(wire
 		(pts
-			(xy 464.82 332.74) (xy 464.82 334.01)
+			(xy 464.82 332.74) (xy 464.82 335.28)
 		)
 		(stroke
 			(width 0)
@@ -9063,7 +9057,7 @@
 	)
 	(wire
 		(pts
-			(xy 480.06 299.72) (xy 480.06 297.18)
+			(xy 480.06 299.72) (xy 480.06 298.45)
 		)
 		(stroke
 			(width 0)
@@ -9143,16 +9137,6 @@
 	)
 	(wire
 		(pts
-			(xy 40.64 128.27) (xy 40.64 125.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7f084d1f-351c-41d4-8880-796c32977547")
-	)
-	(wire
-		(pts
 			(xy 402.59 144.78) (xy 402.59 147.32)
 		)
 		(stroke
@@ -9203,7 +9187,7 @@
 	)
 	(wire
 		(pts
-			(xy 40.64 115.57) (xy 99.06 115.57)
+			(xy 38.1 115.57) (xy 99.06 115.57)
 		)
 		(stroke
 			(width 0)
@@ -9453,7 +9437,7 @@
 	)
 	(wire
 		(pts
-			(xy 480.06 288.29) (xy 480.06 289.56)
+			(xy 480.06 288.29) (xy 480.06 290.83)
 		)
 		(stroke
 			(width 0)
@@ -9463,7 +9447,7 @@
 	)
 	(wire
 		(pts
-			(xy 464.82 299.72) (xy 464.82 297.18)
+			(xy 464.82 299.72) (xy 464.82 298.45)
 		)
 		(stroke
 			(width 0)
@@ -9490,16 +9474,6 @@
 			(type default)
 		)
 		(uuid "a32c6e10-8ea3-472d-8df9-058564617f56")
-	)
-	(wire
-		(pts
-			(xy 40.64 118.11) (xy 40.64 115.57)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a3c598f5-ecf3-4c27-ba58-7355a62bb8d9")
 	)
 	(wire
 		(pts
@@ -9843,7 +9817,7 @@
 	)
 	(wire
 		(pts
-			(xy 464.82 344.17) (xy 464.82 341.63)
+			(xy 464.82 344.17) (xy 464.82 342.9)
 		)
 		(stroke
 			(width 0)
@@ -9900,16 +9874,6 @@
 			(type default)
 		)
 		(uuid "d3c149a6-cc89-4e42-8ebd-9956ad7809b3")
-	)
-	(wire
-		(pts
-			(xy 40.64 115.57) (xy 38.1 115.57)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d586a0d2-b85a-4305-acc7-986494b0c105")
 	)
 	(wire
 		(pts
@@ -9983,7 +9947,7 @@
 	)
 	(wire
 		(pts
-			(xy 464.82 288.29) (xy 464.82 289.56)
+			(xy 464.82 288.29) (xy 464.82 290.83)
 		)
 		(stroke
 			(width 0)
@@ -10153,7 +10117,7 @@
 	)
 	(wire
 		(pts
-			(xy 482.6 344.17) (xy 482.6 341.63)
+			(xy 482.6 344.17) (xy 482.6 342.9)
 		)
 		(stroke
 			(width 0)
@@ -10223,7 +10187,7 @@
 	)
 	(wire
 		(pts
-			(xy 482.6 332.74) (xy 482.6 334.01)
+			(xy 482.6 332.74) (xy 482.6 335.28)
 		)
 		(stroke
 			(width 0)
@@ -12088,7 +12052,7 @@
 		(at 341.63 144.78 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -12457,7 +12421,7 @@
 				)
 			)
 		)
-		(property "Value" "10K"
+		(property "Value" "10k"
 			(at 71.12 308.61 90)
 			(effects
 				(font
@@ -13133,7 +13097,7 @@
 				)
 			)
 		)
-		(property "Value" "10K"
+		(property "Value" "10k"
 			(at 78.74 355.6 90)
 			(effects
 				(font
@@ -13193,11 +13157,90 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 464.82 294.64 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3d80a355-c3bd-475a-a65e-c9846baa3c25")
+		(property "Reference" "C2"
+			(at 468.63 293.3699 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "1.8pf"
+			(at 468.63 295.9099 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 463.8548 290.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 464.82 294.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 464.82 294.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C376773"
+			(at 464.82 294.64 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "bbb12c6f-7e11-4594-97f2-e01d1b5390d7")
+		)
+		(pin "2"
+			(uuid "415f0779-4f1d-4898-963d-252eec4d95b2")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "C2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Connector:TestPoint")
 		(at 242.57 275.59 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -13261,16 +13304,16 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 482.6 337.82 180)
+		(at 482.6 339.09 180)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3e14acf1-a31c-446e-bfd9-b07c5aff7367")
 		(property "Reference" "C21"
-			(at 486.41 336.5499 0)
+			(at 486.41 337.8199 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13279,7 +13322,7 @@
 			)
 		)
 		(property "Value" "NC"
-			(at 486.41 339.0899 0)
+			(at 486.41 340.3599 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13288,7 +13331,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 481.6348 334.01 0)
+			(at 481.6348 335.28 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13297,7 +13340,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 482.6 337.82 0)
+			(at 482.6 339.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13306,7 +13349,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 482.6 337.82 0)
+			(at 482.6 339.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13315,7 +13358,7 @@
 			)
 		)
 		(property "LCSC#" ""
-			(at 482.6 337.82 90)
+			(at 482.6 339.09 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14738,7 +14781,7 @@
 				)
 			)
 		)
-		(property "Value" "47nh"
+		(property "Value" "5.6nh"
 			(at 472.44 285.75 90)
 			(effects
 				(font
@@ -14773,7 +14816,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C2042508"
+		(property "LCSC#" "C6652920"
 			(at 472.44 288.29 0)
 			(effects
 				(font
@@ -14799,7 +14842,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 26.67 121.92 180)
+		(at 34.29 115.57 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -14808,7 +14851,7 @@
 		(fields_autoplaced yes)
 		(uuid "561444a2-6ba5-488c-b1c3-7bc1c67d57b2")
 		(property "Reference" "C1"
-			(at 30.48 120.6499 0)
+			(at 35.5601 119.38 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14817,7 +14860,7 @@
 			)
 		)
 		(property "Value" "1.8pf"
-			(at 30.48 123.1899 0)
+			(at 33.0201 119.38 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14826,7 +14869,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 25.7048 118.11 0)
+			(at 38.1 114.6048 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14835,7 +14878,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 26.67 121.92 0)
+			(at 34.29 115.57 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14844,7 +14887,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 26.67 121.92 0)
+			(at 34.29 115.57 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14853,7 +14896,7 @@
 			)
 		)
 		(property "LCSC#" "C376773"
-			(at 26.67 121.92 90)
+			(at 34.29 115.57 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15026,7 +15069,7 @@
 				)
 			)
 		)
-		(property "Value" "47nh"
+		(property "Value" "3.9nh"
 			(at 474.98 330.2 90)
 			(effects
 				(font
@@ -15061,7 +15104,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C2042508"
+		(property "LCSC#" "C317982"
 			(at 474.98 332.74 0)
 			(effects
 				(font
@@ -15163,7 +15206,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 464.82 337.82 180)
+		(at 464.82 339.09 180)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -15172,7 +15215,7 @@
 		(fields_autoplaced yes)
 		(uuid "60068e64-f764-4d86-84ef-4872ee60e429")
 		(property "Reference" "C19"
-			(at 468.63 336.5499 0)
+			(at 468.63 337.8199 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15180,8 +15223,8 @@
 				(justify right)
 			)
 		)
-		(property "Value" "27pf"
-			(at 468.63 339.0899 0)
+		(property "Value" "1.8pf"
+			(at 468.63 340.3599 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15190,7 +15233,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 463.8548 334.01 0)
+			(at 463.8548 335.28 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15199,7 +15242,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 464.82 337.82 0)
+			(at 464.82 339.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15208,7 +15251,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 464.82 337.82 0)
+			(at 464.82 339.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15216,8 +15259,8 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" ""
-			(at 464.82 337.82 90)
+		(property "LCSC#" "C376773"
+			(at 464.82 339.09 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15928,7 +15971,7 @@
 		(at 407.67 147.32 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -16868,85 +16911,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:C")
-		(at 40.64 121.92 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "912c31cf-b3a9-4d44-821e-b648483f82a0")
-		(property "Reference" "C2"
-			(at 44.45 120.6499 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "NC"
-			(at 44.45 123.1899 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 39.6748 118.11 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 40.64 121.92 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 40.64 121.92 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "LCSC#" "C376773"
-			(at 40.64 121.92 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "4c1b4d10-6e2c-4e8b-9c14-e2fec4afaad3")
-		)
-		(pin "2"
-			(uuid "8539241e-5a18-411f-a23a-3b2258df5479")
-		)
-		(instances
-			(project "vmflow-mdb-esp32-sim7080g"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "C2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 494.03 68.58 270)
 		(unit 1)
@@ -17523,85 +17487,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:C")
-		(at 464.82 293.37 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "a2dffe89-6404-4ad2-a179-c84384cc163a")
-		(property "Reference" "C18"
-			(at 468.63 292.0999 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "27pf"
-			(at 468.63 294.6399 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 463.8548 289.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 464.82 293.37 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 464.82 293.37 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "LCSC#" "C376773"
-			(at 464.82 293.37 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "cdaf7658-6630-43fc-94dc-d83bb473325c")
-		)
-		(pin "2"
-			(uuid "f93e8303-071f-4cec-8959-01424f9b379b")
-		)
-		(instances
-			(project "mdb-slave-esp32s3"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "C18")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:D_Schottky")
 		(at 386.08 153.67 270)
 		(unit 1)
@@ -17903,16 +17788,16 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 480.06 293.37 180)
+		(at 480.06 294.64 180)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "acda3bf5-b2c8-49e8-9ec5-5ae63d7dd26f")
 		(property "Reference" "C20"
-			(at 483.87 292.0999 0)
+			(at 483.87 293.3699 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17921,7 +17806,7 @@
 			)
 		)
 		(property "Value" "NC"
-			(at 483.87 294.6399 0)
+			(at 483.87 295.9099 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17930,7 +17815,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 479.0948 289.56 0)
+			(at 479.0948 290.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17939,7 +17824,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 480.06 293.37 0)
+			(at 480.06 294.64 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17948,7 +17833,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 480.06 293.37 0)
+			(at 480.06 294.64 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17957,7 +17842,7 @@
 			)
 		)
 		(property "LCSC#" "C376773"
-			(at 480.06 293.37 90)
+			(at 480.06 294.64 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18752,71 +18637,6 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 40.64 128.27 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "b6451755-f7b2-403b-b880-c415660aec20")
-		(property "Reference" "#PWR02"
-			(at 40.64 134.62 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "GND"
-			(at 40.64 133.35 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 40.64 128.27 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 40.64 128.27 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 40.64 128.27 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "2ef08397-2a7a-4afc-be6b-1c24f2a0a058")
-		)
-		(instances
-			(project "vmflow-mdb-esp32-sim7080g"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "#PWR02")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
 		(at 193.04 119.38 90)
 		(unit 1)
 		(exclude_from_sim no)
@@ -19494,7 +19314,7 @@
 		(at 236.22 283.21 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
@@ -20674,7 +20494,7 @@
 	)
 	(symbol
 		(lib_id "Device:L")
-		(at 34.29 115.57 90)
+		(at 26.67 121.92 180)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -20683,7 +20503,7 @@
 		(fields_autoplaced yes)
 		(uuid "f57645a9-7825-4d88-92e2-b7736c4bb5cd")
 		(property "Reference" "L1"
-			(at 34.29 110.49 90)
+			(at 21.59 121.92 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20691,7 +20511,7 @@
 			)
 		)
 		(property "Value" "2.4nh"
-			(at 34.29 113.03 90)
+			(at 24.13 121.92 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20699,7 +20519,7 @@
 			)
 		)
 		(property "Footprint" "Inductor_SMD:L_0603_1608Metric"
-			(at 34.29 115.57 0)
+			(at 26.67 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20708,7 +20528,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 34.29 115.57 0)
+			(at 26.67 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20717,7 +20537,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 34.29 115.57 0)
+			(at 26.67 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20726,7 +20546,7 @@
 			)
 		)
 		(property "LCSC#" "C2042508"
-			(at 34.29 115.57 0)
+			(at 26.67 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
