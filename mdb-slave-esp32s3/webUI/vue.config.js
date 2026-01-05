@@ -1,8 +1,17 @@
+const VuetifyLoaderPlugin = require('vuetify-loader/lib/plugin')
+
 module.exports = {
+  configureWebpack: {
+    plugins: [
+      new VuetifyLoaderPlugin()
+    ]
+  },
+  transpileDependencies: ['vuetify'],
+  productionSourceMap: false,
   devServer: {
     proxy: {
       '/api': {
-        target: 'http://esp-home.local:80',
+        target: 'http://10.0.1.47:80',
         changeOrigin: true,
         ws: true
       }

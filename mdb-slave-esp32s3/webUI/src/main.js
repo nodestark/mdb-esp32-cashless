@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import './plugins/vuetify'
+import vuetify from './plugins/vuetify'
 import App from './App.vue'
 import router from './router'
 import axios from 'axios'
@@ -10,6 +10,7 @@ Vue.config.productionTip = false
 Vue.prototype.$ajax = axios
 
 new Vue({
+  vuetify,
   router,
   store,
   render: h => h(App)

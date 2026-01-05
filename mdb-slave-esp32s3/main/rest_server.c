@@ -9,6 +9,7 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include <nvs_flash.h>
 #include "esp_http_server.h"
 #include "esp_chip_info.h"
 #include "esp_random.h"
@@ -73,8 +74,19 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
         ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
+        char host[64];
+        if (httpd_req_get_hdr_value_str(req, "Host", host, sizeof(host)) == ESP_OK) {
+            // Wenn der Host nicht 192.168.4.1 ist, kommt die Anfrage von einer
+            // Erkennungs-URL (wie google.com).
+            if (strcmp(host, "192.168.4.1") != 0) {
+                ESP_LOGI("HTTP", "Fremder Host [%s] erkannt -> Umleitung auf Captive Portal", host);
+                httpd_resp_set_status(req, "302 Found");
+                httpd_resp_set_hdr(req, "Location", "/");
+                httpd_resp_send(req, NULL, 0);
+                return ESP_OK;
+            }
+        }
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
         return ESP_FAIL;
     }
 
@@ -108,6 +120,13 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err) {
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "/index.html");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* Simple handler for getting system handler */
 static esp_err_t system_info_get_handler(httpd_req_t *req)
 {
@@ -117,11 +136,22 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
     esp_chip_info(&chip_info);
     wifi_config_t wifi_cfg;
     esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_cfg);
+
+    nvs_handle_t handle;
+    size_t s_len = 0;
+    char mqtt_server[32];
+    if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
+        if (nvs_get_str(handle, "mqtt_server", (void*) 0, &s_len) == ESP_OK) {
+            nvs_get_str(handle, "mqtt_server", mqtt_server, &s_len);
+        }
+    }
+
     cJSON_AddStringToObject(root, "version", IDF_VER);
     cJSON_AddNumberToObject(root, "cores", chip_info.cores);
     cJSON_AddNumberToObject(root, "model", chip_info.model);
     cJSON_AddStringToObject(root, "wifi_ssid", (char*)wifi_cfg.sta.ssid);
     cJSON_AddStringToObject(root, "wifi_password", (char*)wifi_cfg.sta.password);
+    cJSON_AddStringToObject(root, "mqtt_server", mqtt_server);
     const char *sys_info = cJSON_Print(root);
     httpd_resp_sendstr(req, sys_info);
     free((void *)sys_info);
@@ -129,6 +159,67 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* Simplified handler to set WiFi credentials */
+static esp_err_t wifi_set_handler(httpd_req_t *req)
+{
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int ret = httpd_req_recv(req, buf, req->content_len);
+    if (ret <= 0) {
+        return ESP_FAIL;
+    }
+    buf[ret] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    const char *ssid = cJSON_GetObjectItem(root, "ssid")->valuestring;
+    const char *pass = cJSON_GetObjectItem(root, "password")->valuestring;
+    const char *mqtt_server = cJSON_GetObjectItem(root, "mqtt_server")->valuestring;
+
+    ESP_LOGI(REST_TAG, "SSID=%s, PASS=%s", ssid, pass);
+
+    if (ssid && pass && mqtt_server) {
+        esp_wifi_disconnect();
+        esp_wifi_set_mode(WIFI_MODE_STA);
+
+        wifi_config_t wifi_config = {0};
+        esp_wifi_set_storage(WIFI_STORAGE_FLASH);
+        esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config);
+
+        strcpy((char*) wifi_config.sta.ssid, ssid);
+        strcpy((char*) wifi_config.sta.password, pass);
+
+        esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+        nvs_handle_t handle;
+        if (nvs_open("vmflow", NVS_READWRITE, &handle) == ESP_OK) {
+            nvs_set_str(handle, "mqtt_server", mqtt_server);
+            nvs_commit(handle);
+            nvs_close(handle);
+
+            ESP_LOGI(REST_TAG, "MQTT Server updated to: %s", buf);
+        }
+        if (err == ESP_OK) {
+            ESP_LOGI(REST_TAG, "Credentials saved to NVS. SSID: %s", ssid);
+            httpd_resp_sendstr(req, "OK");
+
+            // Verification log
+            wifi_config_t verify_cfg;
+            esp_wifi_get_config(WIFI_IF_STA, &verify_cfg);
+            ESP_LOGI(REST_TAG, "Verified NVS - SSID: %s", (char*)verify_cfg.sta.ssid);
+        } else {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save config");
+        }
+
+    } else {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing fields");
+    }
+
+    cJSON_Delete(root);
+    return ESP_OK;
+}
 
 esp_err_t start_rest_server(const char *base_path)
 {
@@ -153,6 +244,14 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &system_info_get_uri);
 
+    httpd_uri_t settings_set_uri = {
+        .uri = "/api/v1/settings/set",
+        .method = HTTP_POST,
+        .handler = wifi_set_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &settings_set_uri);
+
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
         .uri = "/*",
@@ -161,6 +260,8 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &common_get_uri);
+
+    httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);
 
     return ESP_OK;
 err_start:
