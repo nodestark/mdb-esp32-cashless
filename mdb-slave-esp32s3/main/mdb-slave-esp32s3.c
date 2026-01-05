@@ -15,7 +15,7 @@
 #include <freertos/ringbuf.h>
 #include <math.h>
 #include <mqtt_client.h>
-#include <nvs_flash.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <esp_sntp.h>
@@ -59,6 +59,7 @@ static int wifi_retry_num = 0;
 
 char my_subdomain[32];
 char my_passkey[18];
+char mqtt_server[64] = "mqtt.vmflow.xyz";
 
 // Defining MDB commands as an enum
 enum MDB_COMMAND {
@@ -1349,6 +1350,12 @@ void app_main(void) {
             nvs_get_str(handle, "passkey", my_passkey, &s_len);
 		}
 
+		if (nvs_get_str(handle, "mqtt_server", (void*) 0, &s_len) == ESP_OK) {
+			nvs_get_str(handle, "mqtt_server", mqtt_server, &s_len);
+		} else {
+			nvs_set_str(handle, "mqtt_server", mqtt_server);
+		}
+
 		nvs_close(handle);
 	}
 
@@ -1359,8 +1366,11 @@ void app_main(void) {
 	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);
 
 	// MQTT client configuration
+	char mqttServerBuf[128];
+	snprintf(mqttServerBuf, sizeof(mqttServerBuf), "mqtt://%s", mqtt_server);
+	ESP_LOGI(TAG, "Connecting to MQTT server %s...", mqttServerBuf);
 	const esp_mqtt_client_config_t mqttCfg = {
-		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
+		.broker.address.uri = mqttServerBuf,
 		.session.last_will.topic = lwt_topic, // LWT (Last Will and Testament)...
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,

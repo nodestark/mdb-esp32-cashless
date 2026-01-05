@@ -9,6 +9,7 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include <nvs_flash.h>
 #include "esp_http_server.h"
 #include "esp_chip_info.h"
 #include "esp_random.h"
@@ -135,11 +136,22 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
     esp_chip_info(&chip_info);
     wifi_config_t wifi_cfg;
     esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_cfg);
+
+    nvs_handle_t handle;
+    size_t s_len = 0;
+    char mqtt_server[32];
+    if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
+        if (nvs_get_str(handle, "mqtt_server", (void*) 0, &s_len) == ESP_OK) {
+            nvs_get_str(handle, "mqtt_server", mqtt_server, &s_len);
+        }
+    }
+
     cJSON_AddStringToObject(root, "version", IDF_VER);
     cJSON_AddNumberToObject(root, "cores", chip_info.cores);
     cJSON_AddNumberToObject(root, "model", chip_info.model);
     cJSON_AddStringToObject(root, "wifi_ssid", (char*)wifi_cfg.sta.ssid);
     cJSON_AddStringToObject(root, "wifi_password", (char*)wifi_cfg.sta.password);
+    cJSON_AddStringToObject(root, "mqtt_server", mqtt_server);
     const char *sys_info = cJSON_Print(root);
     httpd_resp_sendstr(req, sys_info);
     free((void *)sys_info);
@@ -165,10 +177,11 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
 
     const char *ssid = cJSON_GetObjectItem(root, "ssid")->valuestring;
     const char *pass = cJSON_GetObjectItem(root, "password")->valuestring;
+    const char *mqtt_server = cJSON_GetObjectItem(root, "mqtt_server")->valuestring;
 
     ESP_LOGI(REST_TAG, "SSID=%s, PASS=%s", ssid, pass);
 
-    if (ssid && pass) {
+    if (ssid && pass && mqtt_server) {
         esp_wifi_disconnect();
         esp_wifi_set_mode(WIFI_MODE_STA);
 
@@ -180,6 +193,14 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
         strcpy((char*) wifi_config.sta.password, pass);
 
         esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+        nvs_handle_t handle;
+        if (nvs_open("vmflow", NVS_READWRITE, &handle) == ESP_OK) {
+            nvs_set_str(handle, "mqtt_server", mqtt_server);
+            nvs_commit(handle);
+            nvs_close(handle);
+
+            ESP_LOGI(REST_TAG, "MQTT Server updated to: %s", buf);
+        }
         if (err == ESP_OK) {
             ESP_LOGI(REST_TAG, "Credentials saved to NVS. SSID: %s", ssid);
             httpd_resp_sendstr(req, "OK");
@@ -199,7 +220,6 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
     cJSON_Delete(root);
     return ESP_OK;
 }
-
 
 esp_err_t start_rest_server(const char *base_path)
 {
@@ -224,21 +244,13 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &system_info_get_uri);
 
-    httpd_uri_t wifi_set_uri = {
-        .uri = "/api/v1/wifi/set",
+    httpd_uri_t settings_set_uri = {
+        .uri = "/api/v1/settings/set",
         .method = HTTP_POST,
         .handler = wifi_set_handler,
         .user_ctx = rest_context
     };
-    httpd_register_uri_handler(server, &wifi_set_uri);
-
-    httpd_uri_t mqtt_set_uri = {
-        .uri = "/api/v1/mqtt/set",
-        .method = HTTP_POST,
-        .handler = mqtt_set_handler,
-        .user_ctx = rest_context
-    };
-    httpd_register_uri_handler(server, &mqtt_set_uri);
+    httpd_register_uri_handler(server, &settings_set_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
