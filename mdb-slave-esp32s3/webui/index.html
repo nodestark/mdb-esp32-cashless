@@ -1,59 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VMFlow Slave Board</title>
-    <link rel="stylesheet" href="bulma.min.css">
-    <link rel="stylesheet" href="bulma.css">
-    <script type="text/javascript" src="jquery-3.7.1.js"></script>
-</head>
-<body>
-<section class="section">
-    <div class="container">
-        <h1 class="title">
-            VMFlow
-        </h1>
-        <p class="subtitle">
-            Free the vending machine
-        </p>
-        <div class="box">
-            <h1 class="title">
-                Status
-            </h1>
-            <div class="text">IP: <span id="ipaddress">(not yet implemented)</span></div>
-            <div class="subtitle">More to come...</div>
-        </div>
-        <form id="settingsForm" class="box">
-            <h1 class="title">
-                Settings
-            </h1>
-
-            <div class="field">
-                <label class="label">WiFi SSID</label>
-                <div class="control">
-                    <input class="input" id="wifi_ssid" type="text" placeholder="WiFi Name" />
-                </div>
-            </div>
-
-            <div class="field">
-                <label class="label">WiFi Password</label>
-                <div class="control">
-                    <input class="input" id="wifi_password" type="password" placeholder="********" />
-                </div>
-            </div>
-
-            <div class="field">
-                <label class="label">MQTT Server Address</label>
-                <div class="control">
-                    <input class="input" id="mqtt_server" type="text" placeholder="mqtt.vmflow.xyz" />
-                </div>
-            </div>
-
-            <button class="button is-primary" onclick="saveClicked(); return false">Save</button>
-        </form>
-    </div>
-</section>
-<script type="text/javascript" src="index.js"></script>
-</body>
+   <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>VMFlow Target Board</title>
+   </head>
+   <body style="font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:16px">
+      
+      <div style="max-width:480px;margin:auto;background:#fff;padding:16px;border-radius:4px">
+         
+         <h1 style="margin-top:0">VMFlow</h1>
+         <p style="color:#666;font-size:14px">Free the vending machine</p>
+         
+         <div style="border:1px solid #ddd;padding:12px;margin-bottom:16px">
+            <h2 style="margin-top:0">Status</h2>
+            <div>IP: <span id="ipaddress">(not yet implemented)</span></div>
+            <div style="color:#666;font-size:14px">More to come...</div>
+         </div>
+         
+         <div style="border:1px solid #ddd;padding:12px">
+            <h2 style="margin-top:0">Settings</h2>
+            <label>WiFi SSID</label><br>
+            <input id="wifi_ssid" type="text" placeholder="WiFi Name" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box"><br>
+            <label>WiFi Password</label><br>
+            <input id="wifi_password" type="password" placeholder="********" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box"><br>
+            <label>MQTT Server Address</label><br>
+            <input id="mqtt_server" type="text" placeholder="mqtt.vmflow.xyz" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box"><br>
+            <button onclick="saveSettings()" style="padding:8px 16px">
+            Save
+            </button>
+         </div>
+         
+      </div>
+      <script>
+         function saveSettings() {
+             const payload = {
+                 ssid: document.getElementById("wifi_ssid").value,
+                 password: document.getElementById("wifi_password").value,
+                 mqtt_server: document.getElementById("mqtt_server").value
+             };
+         
+             fetch('/api/v1/settings/set', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(payload)
+             })
+             .then(r => r.json())
+             .then(d => console.log('Saved:', d))
+             .catch(e => console.error(e));
+         }
+         
+         window.addEventListener('DOMContentLoaded', () => {
+             fetch('/api/v1/system/info')
+                 .then(r => r.json())
+                 .then(d => {
+                     document.getElementById("wifi_ssid").value = d.wifi_ssid || '';
+                     document.getElementById("wifi_password").value = d.wifi_password || '';
+                     document.getElementById("mqtt_server").value = d.mqtt_server || '';
+                 })
+                 .catch(e => console.error(e));
+         });
+      </script>
+   </body>
 </html>
