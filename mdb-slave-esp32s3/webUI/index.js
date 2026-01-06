@@ -1,9 +1,7 @@
 function saveClicked(evt) {
-    console.log("save clicked")
-    // Eine Instanz des FormDate-Objekts anlegen
-    var ssid = document.getElementById("wifi_ssid").value
-    var password = document.getElementById("wifi_password").value
-    var mqttServer = document.getElementById("mqtt_server").value
+    const ssid = document.getElementById("wifi_ssid").value;
+    const password = document.getElementById("wifi_password").value;
+    const mqttServer = document.getElementById("mqtt_server").value;
 
     const formObj = {
         ssid,
@@ -21,9 +19,9 @@ function saveClicked(evt) {
             'Content-Type': 'application/json'
         },
         'data': JSON.stringify({
-            'ssid': document.getElementById('wifi_ssid').value,
-            'password':  document.getElementById('wifi_password').value,
-            'mqtt_server':  document.getElementById('mqtt_server').value,
+            'ssid': ssid,
+            'password':  password,
+            'mqtt_server':  mqttServer,
         })
     }
 
