@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VMFlow Slave Board</title>
+    <link rel="stylesheet" href="bulma.min.css">
+    <link rel="stylesheet" href="bulma.css">
+    <script type="text/javascript" src="jquery-3.7.1.js"></script>
+</head>
+<body>
+<section class="section">
+    <div class="container">
+        <h1 class="title">
+            VMFlow
+        </h1>
+        <p class="subtitle">
+            Free the vending machine
+        </p>
+        <div class="box">
+            <h1 class="title">
+                Status
+            </h1>
+            <div class="text">IP: <span id="ipaddress">(not yet implemented)</span></div>
+            <div class="subtitle">More to come...</div>
+        </div>
+        <form id="settingsForm" class="box">
+            <h1 class="title">
+                Settings
+            </h1>
+
+            <div class="field">
+                <label class="label">WiFi SSID</label>
+                <div class="control">
+                    <input class="input" id="wifi_ssid" type="text" placeholder="WiFi Name" />
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label">WiFi Password</label>
+                <div class="control">
+                    <input class="input" id="wifi_password" type="password" placeholder="********" />
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label">MQTT Server Address</label>
+                <div class="control">
+                    <input class="input" id="mqtt_server" type="text" placeholder="mqtt.vmflow.xyz" />
+                </div>
+            </div>
+
+            <button class="button is-primary" onclick="saveClicked(); return false">Save</button>
+        </form>
+    </div>
+</section>
+<script type="text/javascript" src="index.js"></script>
+</body>
+</html>
