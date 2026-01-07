@@ -22,3 +22,7 @@ services:
     working_dir: /domain
     command: >
       sh -c "pip install --no-cache-dir supabase paho-mqtt && python mqtt_domain.py"
+      
+networks:
+  vmflow-net:
+    external: true
