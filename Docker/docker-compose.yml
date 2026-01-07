@@ -1,28 +1,12 @@
 # Usage
 #   Start:              docker compose up
-#   With helpers:       docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
+#   With helpers:       docker compose -f docker-compose.yml -f docker-compose.mqtt.yml up
 #   Stop:               docker compose down
-#   Destroy:            docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
-#   Reset everything:  ./reset.sh
+#   Destroy:            docker compose -f docker-compose.yml -f docker-compose.mqtt.yml down -v --remove-orphans
 
-name: supabase-vmflow
+name: vmflow-supabase
 
 services:
-
-  n8n:
-    image: n8nio/n8n:latest
-    restart: always
-    ports:
-      - "5678:5678"
-      - "5678:5678"
-    volumes:
-      - ./volumes/n8n:/home/node/.n8n
-    environment:
-      - N8N_HOST=n8n.vmflow.xyz
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://n8n.vmflow.xyz/
-      - N8N_TRUSTED_PROXIES=loopback,linklocal,uniquelocal
       
   studio:
     #container_name: supabase-studio
@@ -48,7 +32,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
       SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: https://supabase.vmflow.xyz
+      SUPABASE_PUBLIC_URL: ${API_EXTERNAL_URL}
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
@@ -395,3 +379,7 @@ services:
 
 volumes:
   db-config:
+  
+networks:
+  vmflow-net:
+    name: vmflow-net  
