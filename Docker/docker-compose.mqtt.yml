@@ -1,11 +1,4 @@
-# Usage
-#   Start:              docker compose up
-#   With helpers:       docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
-#   Stop:               docker compose down
-#   Destroy:            docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
-#   Reset everything:  ./reset.sh
-
-name: vmflow-docker
+name: vmflow-mqtt
 
 services:
   broker:
@@ -15,24 +8,17 @@ services:
       - "1883:1883"   # MQTT (TCP)
       - "9001:9001"   # WebSockets (opcional)
     volumes:
-      - ../mqtt/config:/mosquitto/config
-      - mqtt-data:/mosquitto/data
-      #- ./volumes/mqtt/log:/mosquitto/log
+      - ./mqtt/volumes/config:/mosquitto/config
+      - ./mqtt/volumes/data:/mosquitto/data
+      - ./mqtt/volumes/log:/mosquitto/log
 
   domain:
-    build: 
-      dockerfile: ../mqtt/Dockerfile
+    image: python:3.10-alpine
     restart: unless-stopped
     depends_on:
       - broker
     volumes:
-      - ../mqtt/clients:/clients
-    working_dir: /clients
-    environment:
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
-      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-      MQTT_HOST: broker
-      
-volumes:
-  db-config:
-  mqtt-data:
+      - ./mqtt/domain/:/domain
+    working_dir: /domain
+    command: >
+      sh -c "pip install --no-cache-dir supabase paho-mqtt && python mqtt_domain.py"

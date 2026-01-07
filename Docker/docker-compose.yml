@@ -5,10 +5,25 @@
 #   Destroy:            docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
 #   Reset everything:  ./reset.sh
 
-name: vmflow-docker
+name: supabase-vmflow
 
 services:
 
+  n8n:
+    image: n8nio/n8n:latest
+    restart: always
+    ports:
+      - "5678:5678"
+      - "5678:5678"
+    volumes:
+      - ./volumes/n8n:/home/node/.n8n
+    environment:
+      - N8N_HOST=n8n.vmflow.xyz
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://n8n.vmflow.xyz/
+      - N8N_TRUSTED_PROXIES=loopback,linklocal,uniquelocal
+      
   studio:
     #container_name: supabase-studio
     image: supabase/studio:2025.06.30-sha-6f5982d
@@ -33,7 +48,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
       SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_PUBLIC_URL: https://supabase.vmflow.xyz
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
@@ -95,7 +110,7 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+      API_EXTERNAL_URL: https://supabase.vmflow.xyz
 
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
@@ -313,7 +328,6 @@ services:
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-      MQTT_HOST: ${MQTT_HOST}
     command:
       [
         "start",
@@ -378,32 +392,6 @@ services:
         "-c",
         "log_min_messages=fatal" # prevents Realtime polling queries from appearing in logs
       ]
-      
-  broker:
-    image: eclipse-mosquitto:latest
-    restart: unless-stopped
-    ports:
-      - "1883:1883"   # MQTT (TCP)
-      - "9001:9001"   # WebSockets (opcional)
-    volumes:
-      - ./volumes/mqtt/config:/mosquitto/config
-      - ./volumes/mqtt/data:/mosquitto/data
-      - ./volumes/mqtt/log:/mosquitto/log
 
-  domain:
-    image: python:3.10-alpine
-    restart: unless-stopped
-    depends_on:
-      - broker
-    volumes:
-      - ./volumes/mqtt/clients/:/clients
-    working_dir: /clients
-    environment:
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
-      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-      MQTT_HOST: ${MQTT_HOST}
-    command: >
-      sh -c "pip install --no-cache-dir supabase paho-mqtt && python mqtt_domain.py"
-      
 volumes:
   db-config:
