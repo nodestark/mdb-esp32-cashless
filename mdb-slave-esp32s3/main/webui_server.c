@@ -190,7 +190,7 @@ static esp_err_t system_info_get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-static esp_err_t generate_204_handler(httpd_req_t *req) {
+static esp_err_t captive_handler(httpd_req_t *req) {
 
     ESP_LOGI(TAG, "Captive portal redirect: %s", req->uri);
 
@@ -269,12 +269,19 @@ static void start_rest_server(void) {
     };
     httpd_register_uri_handler(rest_server, &settings_set_uri);
 
-    httpd_uri_t generate_204 = {
+    httpd_uri_t and_generate_204 = {
         .uri = "/generate_204",
         .method = HTTP_GET,
-        .handler = generate_204_handler
+        .handler = captive_handler
     };
-    httpd_register_uri_handler(rest_server, &generate_204);
+    httpd_register_uri_handler(rest_server, &and_generate_204);
+
+    httpd_uri_t ios_generate_204 = {
+        .uri = "/hotspot-detect.html",
+        .method = HTTP_GET,
+        .handler = captive_handler
+    };
+    httpd_register_uri_handler(rest_server, &ios_generate_204);
 }
 
 /* ---------- WIFI SOFTAP ---------- */
