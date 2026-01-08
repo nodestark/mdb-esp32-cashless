@@ -13,3 +13,12 @@ Each subfolder should represent a **single printed part** and contain:
 - **STL files** (`.stl`) – ready for slicing and printing  
 - **STEP files** (`.step`) – editable CAD source (if available)  
 - **README.md** – optional notes specific to the part (orientation, tolerances, etc.)
+
+
+
+## MDB-Slave
+Within the `mdb-slave` folder.
+
+Designed with Fusion360
+
+![PCB-Slave-Image](mdb-slave/MDB-Slave-Holder.png)
