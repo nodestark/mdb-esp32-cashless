@@ -9,6 +9,7 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "bleprph.h"
+#include "nimble.h"
 
 // Variáveis globais
 static uint8_t own_addr_type;

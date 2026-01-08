@@ -1,21 +1,14 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_netif.h"
 #include "esp_http_server.h"
 #include "nvs_flash.h"
 #include "cJSON.h"
 #include <esp_log.h>
-
-#include "lwip/err.h"
 #include "lwip/udp.h"
 #include "lwip/ip_addr.h"
-
-#include "esp_system.h"
-
 #include "esp_chip_info.h"
+#include "webui_server.h"
 
 #define TAG "webui"
 
@@ -201,7 +194,7 @@ static esp_err_t captive_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-static void stop_dns_server(void) {
+void stop_dns_server(void) {
 
     if (dns_pcb == NULL) {
         ESP_LOGW(TAG, "DNS captive portal não está ativo");
@@ -218,7 +211,7 @@ static void stop_dns_server(void) {
     ESP_LOGI(TAG, "DNS captive portal parado");
 }
 
-static void start_dns_server(void) {
+void start_dns_server(void) {
 
     dns_pcb = udp_new();
     udp_bind(dns_pcb, IP_ADDR_ANY, 53);
@@ -238,7 +231,7 @@ static void stop_rest_server(void) {
     rest_server = NULL;
 }
 
-static void start_rest_server(void) {
+void start_rest_server(void) {
 
     if (rest_server != NULL) {
         ESP_LOGW(TAG, "REST server already running");
@@ -285,7 +278,7 @@ static void start_rest_server(void) {
 }
 
 /* ---------- WIFI SOFTAP ---------- */
-static void start_softap(void) {
+void start_softap(void) {
 
     wifi_config_t wifi_config = {
         .ap = {

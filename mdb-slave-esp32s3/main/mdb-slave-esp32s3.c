@@ -20,14 +20,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <esp_sntp.h>
-
+#include <time.h>
 #include <rom/ets_sys.h>
 
-#include "bleprph.h"
-#include "nimble.c"
-#include <time.h>
-
-#include "webui_server.c"
+#include "nimble.h"
+#include "webui_server.h"
 
 #define TAG "mdb-target"
 
