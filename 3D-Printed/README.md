@@ -17,8 +17,9 @@ Each subfolder should represent a **single printed part** and contain:
 
 
 ## MDB-Slave
-Within the `mdb-slave` folder.
+Within the [mdb-slave](mdb-slave) folder.
 
 Designed with Fusion360
 
 ![PCB-Slave-Image](mdb-slave/MDB-Slave-Holder.png)
+![PCB-Slave-Image](mdb-slave/5404579798257963703_121.jpg)
