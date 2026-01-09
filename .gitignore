@@ -10,3 +10,5 @@ kicad/**/*.lck
 .vscode/*
 
 .project
+
+.temp
