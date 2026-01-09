@@ -533,7 +533,7 @@ void mdb_cashless_loop(void *pvParameters) {
                         char modelNumber[12];
                         char softwareVersion[2];*/
 
-					    for(uint8_t x= 0; x < 30; x++) read_9((void*) 0); // ...drop
+					    for(uint8_t x= 0; x < 29; x++) read_9((void*) 0); // ...drop
 
                         mdb_payload[ 0 ] = 0x09;                        // Peripheral ID
 
