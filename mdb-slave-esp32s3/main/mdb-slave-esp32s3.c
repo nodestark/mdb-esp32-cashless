@@ -333,7 +333,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						mdb_payload[0] = 0x00;
 						available_tx = 1;
 
-					} else if (machine_state == ENABLED_STATE && xQueueReceive(mdbSessionQueue, &fundsAvailable, 0)) {
+					} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdbSessionQueue, &fundsAvailable, 0)) {
 						// Begin session
 						session_begin_todo = false;
 
