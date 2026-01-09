@@ -10,23 +10,31 @@ services:
       - "1883:1883"   # MQTT (TCP)
       - "9001:9001"   # WebSockets (opcional)
     volumes:
-      - ./mqtt/volumes/config:/mosquitto/config
-      - ./mqtt/volumes/data:/mosquitto/data
-      - ./mqtt/volumes/log:/mosquitto/log
+      - ./mqtt/config:/mosquitto/config
+      - mqtt-data:/mosquitto/data
+      #- ./volumes/mqtt/log:/mosquitto/log
 
   domain:
-    image: python:3.10-alpine
-    networks:
-      - vmflow-net    
+    build:
+      dockerfile: ./mqtt/Dockerfile
     restart: unless-stopped
+    networks:
+      - vmflow-net
     depends_on:
       - broker
     volumes:
-      - ./mqtt/domain/:/domain
-    working_dir: /domain
-    command: >
-      sh -c "pip install --no-cache-dir supabase paho-mqtt && python mqtt_domain.py"
-      
+      - ./mqtt/clients:/clients
+    working_dir: /clients
+    environment:
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      MQTT_HOST: broker
+
+volumes:
+  db-config:
+  mqtt-data:
+
+
 networks:
   vmflow-net:
     name: vmflow-net
