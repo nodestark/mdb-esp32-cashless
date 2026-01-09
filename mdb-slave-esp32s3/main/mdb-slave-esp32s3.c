@@ -255,7 +255,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 	for (;;) {
 
-		// Checksum calculation
+		// In the MDB (Multi-Drop Bus) protocol, the last byte of a command or data packet is a checksum.
 		uint8_t checksum = 0x00;
 
 		// Read from MDB and check if the mode bit is set
@@ -278,7 +278,6 @@ void mdb_cashless_loop(void *pvParameters) {
 				switch (coming_read & BIT_CMD_SET) {
 
 				case RESET: {
-					uint8_t checksum_ = read_9((uint8_t*) 0);
 
 					if (machine_state == VEND_STATE) {
 						// Reset during VEND_STATE is interpreted as VEND_SUCCESS
@@ -298,8 +297,6 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint8_t vmcColumnsOnDisplay = read_9(&checksum);
 						uint8_t vmcRowsOnDisplay = read_9(&checksum);
 						uint8_t vmcDisplayInfo = read_9(&checksum);
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
 
 						machine_state = DISABLED_STATE;
 
@@ -321,8 +318,6 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint16_t maxPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-
 						ESP_LOGI( TAG, "MAX_MIN_PRICES");
 						break;
 					}
@@ -331,8 +326,6 @@ void mdb_cashless_loop(void *pvParameters) {
 					break;
 				}
 				case POLL: {
-
-					uint8_t checksum_ = read_9((uint8_t*) 0);
 
 					if (cashless_reset_todo) {
 						// Just reset
@@ -410,8 +403,6 @@ void mdb_cashless_loop(void *pvParameters) {
 						itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-
 						machine_state = VEND_STATE;
 
                         if(fundsAvailable && (fundsAvailable != 0xffff)){
@@ -435,17 +426,12 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					case VEND_CANCEL: {
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-
 						vend_denied_todo = true;
 						break;
 					}
 					case VEND_SUCCESS: {
 
 						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
 
 						machine_state = IDLE_STATE;
 
@@ -461,9 +447,6 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					case VEND_FAILURE: {
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-
 						machine_state = IDLE_STATE;
 
 					    /* PIPE_BLE */
@@ -476,9 +459,6 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					case SESSION_COMPLETE: {
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-
 						session_end_todo = true;
 
 			            /* PIPE_BLE */
@@ -497,9 +477,7 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-
-						if (checksum_ == checksum) {
+						if (read_9((uint8_t*) 0) == checksum) {
 
                             uint8_t payload[19];
                             payload[0] = 0x21;
@@ -523,25 +501,18 @@ void mdb_cashless_loop(void *pvParameters) {
 				case READER: {
 					switch (read_9(&checksum)) {
 					case READER_DISABLE: {
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
 						machine_state = DISABLED_STATE;
 
 						ESP_LOGI( TAG, "READER_DISABLE");
 						break;
 					}
 					case READER_ENABLE: {
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
 						machine_state = ENABLED_STATE;
 
 						ESP_LOGI( TAG, "READER_ENABLE");
 						break;
 					}
 					case READER_CANCEL: {
-
-						uint8_t checksum_ = read_9((uint8_t*) 0);
-
 						mdb_payload[ 0 ] = 0x08; // Canceled
 						available_tx = 1;
 
@@ -564,7 +535,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 					    for(uint8_t x= 0; x < 30; x++) read_9((void*) 0); // ...drop
 
-                        mdb_payload[ 0 ] = 0x09; 	                            // Peripheral ID
+                        mdb_payload[ 0 ] = 0x09;                        // Peripheral ID
 
                         memcpy( &mdb_payload[1], "VMF", 3);             // Manufacture code
                         memcpy( &mdb_payload[4], "            ", 12);   // Serial number
