@@ -3528,6 +3528,263 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Device:Thermistor_NTC"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "TH"
+				(at -4.445 0 90)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "Thermistor_NTC"
+				(at 3.175 0 90)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 1.27 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 1.27 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Temperature dependent resistor, negative temperature coefficient"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "thermistor NTC resistor sensor RTD"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "*NTC* *Thermistor* PIN?ARRAY* bornier* *Terminal?Block* R_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "Thermistor_NTC_0_1"
+				(arc
+					(start -3.175 2.413)
+					(mid -3.0506 2.3165)
+					(end -3.048 2.159)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -3.048 2.794)
+					(mid -2.9736 2.9736)
+					(end -2.794 3.048)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -2.794 3.048)
+					(mid -2.6144 2.9736)
+					(end -2.54 2.794)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -2.794 2.54)
+					(mid -2.9736 2.6144)
+					(end -3.048 2.794)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -2.794 1.905)
+					(mid -2.9736 1.9794)
+					(end -3.048 2.159)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -2.54 2.159)
+					(mid -2.6144 1.9794)
+					(end -2.794 1.905)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -2.159 2.794)
+					(mid -2.434 2.5608)
+					(end -2.794 2.54)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 2.159) (xy -2.54 2.794)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 -3.683) (xy -2.54 -1.397) (xy -2.794 -2.159) (xy -2.286 -2.159) (xy -2.54 -1.397) (xy -2.54 -1.651)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.778 2.54) (xy -1.778 1.524) (xy 1.778 -1.524) (xy 1.778 -2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.778 -1.397) (xy -1.778 -3.683) (xy -2.032 -2.921) (xy -1.524 -2.921) (xy -1.778 -3.683)
+						(xy -1.778 -3.429)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(rectangle
+					(start -1.016 2.54)
+					(end 1.016 -2.54)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "Thermistor_NTC_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 1.27)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 1.27)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Graphic:Logo_Open_Hardware_Small"
 			(exclude_from_sim no)
 			(in_bom no)
@@ -7872,6 +8129,12 @@
 		(uuid "77a356f6-1cb4-4cfb-84a6-b9d844fd7b66")
 	)
 	(junction
+		(at 207.01 148.59)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "7b71740c-8319-42ab-aacf-06cb9566e4f2")
+	)
+	(junction
 		(at 341.63 144.78)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8287,6 +8550,16 @@
 	)
 	(wire
 		(pts
+			(xy 199.39 148.59) (xy 207.01 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0e4ee45a-d76d-481b-9153-5973af6014b7")
+	)
+	(wire
+		(pts
 			(xy 402.59 149.86) (xy 402.59 147.32)
 		)
 		(stroke
@@ -8687,6 +8960,16 @@
 	)
 	(wire
 		(pts
+			(xy 165.1 148.59) (xy 167.64 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4a70eb90-d032-4498-a021-596a59771989")
+	)
+	(wire
+		(pts
 			(xy 165.1 130.81) (xy 167.64 130.81)
 		)
 		(stroke
@@ -8984,6 +9267,16 @@
 			(type default)
 		)
 		(uuid "6b545bc6-5735-4699-b59f-9ba8193f6055")
+	)
+	(wire
+		(pts
+			(xy 207.01 144.78) (xy 207.01 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d7fff29-6f32-44d8-89f1-aeeeff515f93")
 	)
 	(wire
 		(pts
@@ -9374,6 +9667,16 @@
 			(type default)
 		)
 		(uuid "979c18fb-45ac-4178-beda-56795f860c15")
+	)
+	(wire
+		(pts
+			(xy 207.01 148.59) (xy 207.01 151.13)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9838713b-f1d5-40ab-b491-3d1572f78b6c")
 	)
 	(wire
 		(pts
@@ -9857,6 +10160,16 @@
 	)
 	(wire
 		(pts
+			(xy 207.01 132.08) (xy 207.01 137.16)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d23a93fb-5d9e-493a-a3f8-486033b24991")
+	)
+	(wire
+		(pts
 			(xy 66.04 312.42) (xy 67.31 312.42)
 		)
 		(stroke
@@ -9974,16 +10287,6 @@
 			(type default)
 		)
 		(uuid "dcff0b07-d850-4dd5-9f25-5586481d83e4")
-	)
-	(wire
-		(pts
-			(xy 165.1 148.59) (xy 167.64 148.59)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e0354783-bb4b-4ad2-b710-d32b1dbcf774")
 	)
 	(wire
 		(pts
@@ -10144,6 +10447,16 @@
 			(type default)
 		)
 		(uuid "e97cb4e4-c1a9-4e64-a40b-fbf2c279de5e")
+	)
+	(wire
+		(pts
+			(xy 207.01 161.29) (xy 207.01 158.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ead5a19e-1e8e-4caa-abee-54456b01bbfe")
 	)
 	(wire
 		(pts
@@ -10364,6 +10677,16 @@
 			(justify left bottom)
 		)
 		(uuid "00827b7d-29b9-4d1c-9d27-7c1fe1d6440c")
+	)
+	(label "io7"
+		(at 199.39 148.59 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0591941c-6c8a-4fe9-8926-84ba46eb968c")
 	)
 	(label "io18"
 		(at 381 92.71 0)
@@ -15734,6 +16057,85 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R")
+		(at 207.01 154.94 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "70d5b9bb-e43e-4ad6-a422-34b81ab1bc39")
+		(property "Reference" "R15"
+			(at 209.55 153.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10k"
+			(at 209.55 156.21 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 205.232 154.94 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 207.01 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 207.01 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C98220"
+			(at 207.01 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "6e21326e-6caf-4ac2-97b4-834160000e37")
+		)
+		(pin "2"
+			(uuid "071d2bd6-b896-456c-bec2-b42785f0a160")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "R15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C")
 		(at 187.96 36.83 180)
 		(unit 1)
@@ -16972,6 +17374,85 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR057")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:Thermistor_NTC")
+		(at 207.01 140.97 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "95348844-a9a6-4953-be5d-4edc324b71a0")
+		(property "Reference" "TH1"
+			(at 209.55 140.0174 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Thermistor_NTC"
+			(at 209.55 142.5574 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 207.01 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 207.01 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Temperature dependent resistor, negative temperature coefficient"
+			(at 207.01 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C13564"
+			(at 207.01 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "fa0405c9-738f-45c1-a757-ae09acd79076")
+		)
+		(pin "1"
+			(uuid "b7e14e71-5d20-48d5-b918-cd6d4fc131db")
+		)
+		(instances
+			(project ""
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "TH1")
 					(unit 1)
 				)
 			)
@@ -19310,6 +19791,72 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 207.01 161.29 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c5cb62b7-f0c6-4be8-9c3d-6c76e6a0abf4")
+		(property "Reference" "#PWR02"
+			(at 207.01 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 207.01 164.592 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 207.01 161.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 207.01 161.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 207.01 161.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "7255b868-854e-4ef1-b2a6-f7f16f510c44")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR02")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Connector:TestPoint")
 		(at 236.22 283.21 0)
 		(unit 1)
@@ -19989,6 +20536,72 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "C14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 207.01 132.08 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e2e85143-63e1-43a3-a22c-6d4018d1993b")
+		(property "Reference" "#PWR041"
+			(at 207.01 125.73 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 207.01 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 207.01 132.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 207.01 132.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 207.01 132.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a151f632-c5ba-483b-b18b-ecf0bcb342c2")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR041")
 					(unit 1)
 				)
 			)
