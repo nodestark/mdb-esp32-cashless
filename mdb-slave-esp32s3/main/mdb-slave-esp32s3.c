@@ -23,6 +23,10 @@
 #include <time.h>
 #include <rom/ets_sys.h>
 
+#include <esp_adc/adc_oneshot.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
+
 #include "nimble.h"
 #include "webui_server.h"
 
@@ -33,6 +37,12 @@
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
 #define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
+
+// Define the ADC unit, channel, and attenuation
+#define ADC_UNIT            ADC_UNIT_1
+#define ADC_CHANNEL         ADC_CHANNEL_6           // GPIO7 on ESP32-S3
+#define ADC_ATTEN           ADC_ATTEN_DB_12         // 0 to 2600mV measurement range
+#define ADC_BITWIDTH        ADC_BITWIDTH_DEFAULT    // 12-bit resolution (0-4095)
 
 // Functions for scale factor conversion
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))   // Converts to scale factor
@@ -1199,6 +1209,19 @@ void app_main(void) {
 	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 
 	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+
+	//-------------ADC Init---------------//
+    adc_oneshot_unit_handle_t adc_handle;
+    adc_oneshot_unit_init_cfg_t init_config = { .unit_id = ADC_UNIT, };
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc_handle));
+
+    adc_oneshot_chan_cfg_t config = { .atten = ADC_ATTEN, .bitwidth = ADC_BITWIDTH, };
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, ADC_CHANNEL, &config));
+
+    int adc_raw_value;
+
+    ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL, &adc_raw_value));
+    ESP_LOGI(TAG, "ADC Raw Data: %d", adc_raw_value);
 
 	// Initialize UART1 driver and configure EVA DTS DEX/DDCMP pins
 	uart_config_t uart_config_1 = {
