@@ -35,13 +35,13 @@ Deno.serve(async (req) => {
             const itemPrice = (payload[2] << 8) | (payload[3] << 0);
             const itemNumber = (payload[4] << 8) | (payload[5] << 0);
 
-            await supabase.from("sales").insert([{ 
+            const { data: saleData, error } = await supabase.from("sales").insert([{
             	embedded_id: embeddedData[0].id,
             	item_number: itemNumber, 
             	item_price: fromScaleFactor(itemPrice, 1, 2), 
             	channel: "ble",
             	lat: (body.lat !== undefined ? body.lat : null),
-		lng: (body.lng !== undefined ? body.lng : null) }])
+		        lng: (body.lng !== undefined ? body.lng : null) }]).select("id").single()
 
             payload[0] = 0x03;
 
@@ -52,9 +52,9 @@ Deno.serve(async (req) => {
                 payload[k + 1] ^= passkey[k];
             }
 
-            return new Response(JSON.stringify({payload: encodeBase64(payload)}), { headers: { 'Content-Type': 'application/json' } })
+            return new Response(JSON.stringify({payload: encodeBase64(payload)}, sales_id = saleData.id, status: "online"), { headers: { 'Content-Type': 'application/json' } })
         }
-        return new Response(JSON.stringify({ }), { headers: { 'Content-Type': 'application/json' } })
+        return new Response(JSON.stringify({status: "offline"}), { headers: { 'Content-Type': 'application/json' } })
 
     } catch (err) {
         return new Response(JSON.stringify({ message: err?.message ?? err }), {
