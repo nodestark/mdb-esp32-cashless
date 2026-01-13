@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     try {
         const body = await req.json();
 
-        const supabase = createClient( process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY,
+        const supabase = createClient( Deno.env.get("SUPABASE_URL")!, Deno.env.get('SUPABASE_ANON_KEY')!,
             { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         )
 
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
             payload[k + 1] ^= cipher[k];
         }
 
-        const client = new Client({ url: `mqtt://${process.env.MQTT_HOST}` });
+        const client = new Client({ url: `mqtt://mqtt.vmflow.xyz` });
         await client.connect();
 
         await client.publish(`${embeddedData[0].subdomain}.vmflow.xyz/credit`, payload);
@@ -71,4 +71,3 @@ Deno.serve(async (req) => {
         })
     }
 })
-
