@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
                 payload[k + 1] ^= passkey[k];
             }
 
-            return new Response(JSON.stringify({payload: encodeBase64(payload)}, sales_id = saleData.id, status: "online"), { headers: { 'Content-Type': 'application/json' } })
+            return new Response(JSON.stringify({payload: encodeBase64(payload), sales_id: saleData.id}), { headers: { 'Content-Type': 'application/json' } })
         }
         return new Response(JSON.stringify({status: "offline"}), { headers: { 'Content-Type': 'application/json' } })
 

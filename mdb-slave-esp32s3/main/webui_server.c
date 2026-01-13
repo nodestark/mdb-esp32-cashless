@@ -141,8 +141,6 @@ static esp_err_t wifi_set_handler(httpd_req_t *req) {
 
 static esp_err_t system_info_get_handler(httpd_req_t *req) {
 
-    char json[512] = {0};
-
     /* Chip info */
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
@@ -220,7 +218,7 @@ void start_dns_server(void) {
     ESP_LOGI(TAG, "DNS captive portal iniciado");
 }
 
-static void stop_rest_server(void) {
+void stop_rest_server(void) {
 
     if (rest_server == NULL) {
         ESP_LOGW(TAG, "REST server not running");
