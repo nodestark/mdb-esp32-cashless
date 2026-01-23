@@ -27,6 +27,8 @@
 #include <esp_adc/adc_cali.h>
 #include <esp_adc/adc_cali_scheme.h>
 
+#include "led_strip.h"
+
 #include "nimble.h"
 #include "webui_server.h"
 
@@ -38,11 +40,9 @@
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
 #define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
 
-// Define the ADC unit, channel, and attenuation
+// Define the ADC unit, channel, and attenuation (NTC Thermistor)
 #define ADC_UNIT            ADC_UNIT_1
 #define ADC_CHANNEL         ADC_CHANNEL_6           // GPIO7 on ESP32-S3
-#define ADC_ATTEN           ADC_ATTEN_DB_12         // 0 to 2600mV measurement range
-#define ADC_BITWIDTH        ADC_BITWIDTH_DEFAULT    // 12-bit resolution (0-4095)
 
 // Functions for scale factor conversion
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))   // Converts to scale factor
@@ -566,13 +566,11 @@ void mdb_cashless_loop(void *pvParameters) {
 				// Transmit the prepared payload via bit-banging
 				write_payload_9((uint8_t*) &mdb_payload, available_tx);
 
-				// Intended address
-				gpio_set_level(pin_mdb_led, 1);
+				// ...intended address
 
 			} else {
 
-				// Not the intended address
-				gpio_set_level(pin_mdb_led, 0);
+				// Not the intended address...
 			}
 		}
 	}
@@ -1171,7 +1169,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 		        start_softap();
                 start_dns_server();
-                // start_rest_server();
+                start_rest_server();
 		    }
 
 			break;
@@ -1183,7 +1181,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 		    wifi_retry_num = 0;
 
-            // stop_rest_server();
+            stop_rest_server();
             stop_dns_server();
 
 		    if (!mqtt_started) {
@@ -1208,14 +1206,34 @@ void app_main(void) {
     gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
 	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 
-	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+	//--------------- Strip LED configuration ---------------//
+    led_strip_handle_t led_strip;
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = pin_mdb_led,
+        .max_leds = 1,
+        .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
+        .led_model = LED_MODEL_WS2812,
+        .flags.invert_out = false,
+    };
 
-	//-------------ADC Init---------------//
+    led_strip_rmt_config_t rmt_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000, // 10 MHz → good precision
+        .mem_block_symbols = 64,
+    };
+
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+
+    // Red
+    led_strip_set_pixel(led_strip, 0, 127, 0, 0);
+    led_strip_refresh(led_strip);
+
+	//------------- ADC Init (NTC thermistor) ---------------//
     adc_oneshot_unit_handle_t adc_handle;
     adc_oneshot_unit_init_cfg_t init_config = { .unit_id = ADC_UNIT, };
     ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc_handle));
 
-    adc_oneshot_chan_cfg_t config = { .atten = ADC_ATTEN, .bitwidth = ADC_BITWIDTH, };
+    adc_oneshot_chan_cfg_t config = { .atten = ADC_ATTEN_DB_12, .bitwidth = ADC_BITWIDTH_DEFAULT, };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, ADC_CHANNEL, &config));
 
     int adc_raw_value;
@@ -1252,8 +1270,6 @@ void app_main(void) {
 
 	esp_wifi_set_mode(WIFI_MODE_APSTA);
 	esp_wifi_start();
-
-	start_rest_server();
 
     // Initialization of Bluetooth Low Energy (BLE) with the alias
 	char myhost[64];

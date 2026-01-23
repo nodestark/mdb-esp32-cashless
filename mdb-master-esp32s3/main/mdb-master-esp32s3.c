@@ -18,13 +18,15 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "led_strip.h"
+
 #define TAG "mdb-controller"
 
 #define pin_dex_rx  	GPIO_NUM_18
 #define pin_dex_tx      GPIO_NUM_17
 #define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
-#define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
+#define pin_mdb_led 	GPIO_NUM_48 // LED to indicate MDB state
 
 #define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))
 #define from_scale_factor(p, x, y) (p * x * pow(10, -(y) ))
@@ -670,8 +672,29 @@ void eva_dts_loop(void *pvParameters) {
 
 void app_main(void) {
 
-	gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+    //--------------- Strip LED configuration ---------------//
+    led_strip_handle_t led_strip;
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = pin_mdb_led,
+        .max_leds = 1,
+        .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
+        .led_model = LED_MODEL_WS2812,
+        .flags.invert_out = false,
+    };
 
+    led_strip_rmt_config_t rmt_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000, // 10 MHz → good precision
+        .mem_block_symbols = 64,
+    };
+
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+
+    // Blue
+    led_strip_set_pixel(led_strip, 0, 0, 0, 127);
+    led_strip_refresh(led_strip);
+
+    //--------------- MDB ---------------//
 	uart_config_t uart_config_2 = {
         .baud_rate = 9600,
         .data_bits = UART_DATA_8_BITS,
