@@ -11,8 +11,6 @@ services:
   studio:
     #container_name: supabase-studio
     image: supabase/studio:2025.06.30-sha-6f5982d
-    networks:
-      - vmflow-net
     restart: unless-stopped
     healthcheck:
       test:
@@ -50,8 +48,6 @@ services:
   kong:
     #container_name: supabase-kong
     image: kong:2.8.1
-    networks:
-      - vmflow-net
     restart: unless-stopped
     ports:
       - ${KONG_HTTP_PORT}:8000/tcp
@@ -77,8 +73,6 @@ services:
   auth:
     #container_name: supabase-auth
     image: supabase/gotrue:v2.177.0
-    networks:
-      - vmflow-net
     restart: unless-stopped
     healthcheck:
       test:
@@ -160,8 +154,6 @@ services:
   rest:
     #container_name: supabase-rest
     image: postgrest/postgrest:v12.2.12
-    networks:
-      - vmflow-net
     restart: unless-stopped
     depends_on:
       db:
@@ -228,8 +220,6 @@ services:
   storage:
     #container_name: supabase-storage
     image: supabase/storage-api:v1.25.7
-    networks:
-      - vmflow-net
     restart: unless-stopped
     volumes:
       - ./volumes/storage:/var/lib/storage:z
@@ -273,8 +263,6 @@ services:
   imgproxy:
     #container_name: supabase-imgproxy
     image: darthsim/imgproxy:v3.8.0
-    networks:
-      - vmflow-net
     restart: unless-stopped
     volumes:
       - ./volumes/storage:/var/lib/storage:z
@@ -297,8 +285,6 @@ services:
   meta:
     #container_name: supabase-meta
     image: supabase/postgres-meta:v0.91.0
-    networks:
-      - vmflow-net
     restart: unless-stopped
     depends_on:
       db:
@@ -315,8 +301,6 @@ services:
   functions:
     #container_name: supabase-edge-functions
     image: supabase/edge-runtime:v1.67.4
-    networks:
-      - vmflow-net
     restart: unless-stopped
     volumes:
       - ./volumes/functions:/home/deno/functions:Z
@@ -339,8 +323,6 @@ services:
   db:
     #container_name: supabase-db
     image: supabase/postgres:15.8.1.060
-    networks:
-      - vmflow-net
     ports:
       - "[::1]:5432:5432"
       - "127.0.0.1:5432:5432"
@@ -397,7 +379,3 @@ services:
 
 volumes:
   db-config:
-  
-networks:
-  vmflow-net:
-    name: vmflow-net  

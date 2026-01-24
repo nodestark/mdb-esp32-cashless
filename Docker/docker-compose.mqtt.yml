@@ -3,8 +3,6 @@ name: vmflow-mqtt
 services:
   broker:
     image: eclipse-mosquitto:latest
-    networks:
-      - vmflow-net    
     restart: unless-stopped
     ports:
       - "1883:1883"   # MQTT (TCP)
@@ -18,8 +16,6 @@ services:
     build:
       dockerfile: ./mqtt/Dockerfile
     restart: unless-stopped
-    networks:
-      - vmflow-net
     depends_on:
       - broker
     volumes:
@@ -31,12 +27,4 @@ services:
       MQTT_HOST: broker
 
 volumes:
-  db-config:
   mqtt-data:
-
-
-networks:
-  vmflow-net:
-    name: vmflow-net
-    external: true
-

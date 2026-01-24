@@ -34,11 +34,14 @@
 
 #define TAG "mdb-target"
 
-#define pin_dex_rx  	GPIO_NUM_44
-#define pin_dex_tx  	GPIO_NUM_43
-#define pin_mdb_rx  	GPIO_NUM_4  // Pin to receive data from MDB
-#define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
-#define pin_mdb_led 	GPIO_NUM_21 // LED to indicate MDB state
+#define pin_mdb_rx          GPIO_NUM_4
+#define pin_mdb_tx          GPIO_NUM_5
+#define pin_mdb_led         GPIO_NUM_21
+#define pin_dex_rx          GPIO_NUM_44
+#define pin_dex_tx          GPIO_NUM_43
+#define pin_sim7080g_rx     GPIO_NUM_18
+#define pin_sim7080g_tx     GPIO_NUM_17
+#define pin_sim7080g_pwr    GPIO_NUM_14
 
 // Define the ADC unit, channel, and attenuation (NTC Thermistor)
 #define ADC_UNIT            ADC_UNIT_1
