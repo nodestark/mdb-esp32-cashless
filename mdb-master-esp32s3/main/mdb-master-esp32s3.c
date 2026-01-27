@@ -690,10 +690,6 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-    // Blue
-    led_strip_set_pixel(led_strip, 0, 0, 0, 127);
-    led_strip_refresh(led_strip);
-
     //--------------- MDB ---------------//
 	uart_config_t uart_config_2 = {
         .baud_rate = 9600,

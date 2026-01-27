@@ -112,6 +112,8 @@ typedef enum MACHINE_STATE {
 
 machine_state_t machine_state = INACTIVE_STATE; // Initial machine state
 
+led_strip_handle_t led_strip;
+
 // Control flags for MDB flows
 bool session_begin_todo = false;
 bool session_cancel_todo = false;
@@ -1210,7 +1212,6 @@ void app_main(void) {
 	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
 
 	//--------------- Strip LED configuration ---------------//
-    led_strip_handle_t led_strip;
     led_strip_config_t strip_config = {
         .strip_gpio_num = pin_mdb_led,
         .max_leds = 1,
@@ -1228,7 +1229,7 @@ void app_main(void) {
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
     // Red
-    led_strip_set_pixel(led_strip, 0, 127, 0, 0);
+    led_strip_set_pixel(led_strip, 0, 63, 0, 0);
     led_strip_refresh(led_strip);
 
 	//------------- ADC Init (NTC thermistor) ---------------//
