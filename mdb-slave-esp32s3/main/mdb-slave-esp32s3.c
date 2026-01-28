@@ -294,6 +294,8 @@ void mdb_cashless_loop(void *pvParameters) {
 
 				case RESET: {
 
+                    if (read_9(NULL) != checksum) continue;
+
 					if (machine_state == VEND_STATE) {
 						// Reset during VEND_STATE is interpreted as VEND_SUCCESS
 					}
@@ -312,6 +314,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint8_t vmcColumnsOnDisplay = read_9(&checksum);
 						uint8_t vmcRowsOnDisplay = read_9(&checksum);
 						uint8_t vmcDisplayInfo = read_9(&checksum);
+
+                        if (read_9(NULL) != checksum) continue;
 
 						machine_state = DISABLED_STATE;
 
@@ -333,6 +337,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint16_t maxPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 
+                        if (read_9(NULL) != checksum) continue;
+
 						ESP_LOGI( TAG, "MAX_MIN_PRICES");
 						break;
 					}
@@ -341,6 +347,8 @@ void mdb_cashless_loop(void *pvParameters) {
 					break;
 				}
 				case POLL: {
+
+				    if (read_9(NULL) != checksum) continue;
 
 					if (cashless_reset_todo) {
 						// Just reset
@@ -418,6 +426,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
+                        if (read_9(NULL) != checksum) continue;
+
 						machine_state = VEND_STATE;
 
                         if(fundsAvailable && (fundsAvailable != 0xffff)){
@@ -441,12 +451,16 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					case VEND_CANCEL: {
+                        if (read_9(NULL) != checksum) continue;
+
 						vend_denied_todo = true;
 						break;
 					}
 					case VEND_SUCCESS: {
 
 						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+
+                        if (read_9(NULL) != checksum) continue;
 
 						machine_state = IDLE_STATE;
 
@@ -462,6 +476,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					case VEND_FAILURE: {
+                        if (read_9(NULL) != checksum) continue;
+
 						machine_state = IDLE_STATE;
 
 					    /* PIPE_BLE */
@@ -474,6 +490,8 @@ void mdb_cashless_loop(void *pvParameters) {
 						break;
 					}
 					case SESSION_COMPLETE: {
+                        if (read_9(NULL) != checksum) continue;
+
 						session_end_todo = true;
 
 			            /* PIPE_BLE */
@@ -492,20 +510,19 @@ void mdb_cashless_loop(void *pvParameters) {
 						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
-						if (read_9((uint8_t*) 0) == checksum) {
+						if (read_9(NULL) != checksum) continue;
 
-                            uint8_t payload[19];
-                            payload[0] = 0x21;
+                        uint8_t payload[19];
+                        payload[0] = 0x21;
 
-						    xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+                        xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
-						  	char topic[64];
-						  	snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
+                        char topic[64];
+                        snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
 
-							esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
+                        esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
 
-							ESP_LOGI( TAG, "CASH_SALE");
-						}
+                        ESP_LOGI( TAG, "CASH_SALE");
 
 						break;
 					}
@@ -516,18 +533,24 @@ void mdb_cashless_loop(void *pvParameters) {
 				case READER: {
 					switch (read_9(&checksum)) {
 					case READER_DISABLE: {
+                        if (read_9(NULL) != checksum) continue;
+
 						machine_state = DISABLED_STATE;
 
 						ESP_LOGI( TAG, "READER_DISABLE");
 						break;
 					}
 					case READER_ENABLE: {
+                        if (read_9(NULL) != checksum) continue;
+
 						machine_state = ENABLED_STATE;
 
 						ESP_LOGI( TAG, "READER_ENABLE");
 						break;
 					}
 					case READER_CANCEL: {
+                        if (read_9(NULL) != checksum) continue;
+
 						mdb_payload[ 0 ] = 0x08; // Canceled
 						available_tx = 1;
 
@@ -548,7 +571,9 @@ void mdb_cashless_loop(void *pvParameters) {
                         char modelNumber[12];
                         char softwareVersion[2];*/
 
-					    for(uint8_t x= 0; x < 29; x++) read_9((void*) 0); // ...drop
+					    for(uint8_t x= 0; x < 29; x++) read_9(&checksum); // ...drop
+
+				        if (read_9(NULL) != checksum) continue;
 
                         mdb_payload[ 0 ] = 0x09;                        // Peripheral ID
 
