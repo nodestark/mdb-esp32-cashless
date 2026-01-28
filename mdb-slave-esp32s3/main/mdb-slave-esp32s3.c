@@ -64,11 +64,11 @@
 
 #define TURN_LED_STATUS() \
     if(_mdbOk){ \
-        led_strip_set_pixel(led_strip, 0, 0, 0, 45); \
+        led_strip_set_pixel(led_strip, 0, 0, 0, 30); \
         if(_internetOk) \
-            led_strip_set_pixel(led_strip, 0, 0, 25, 0); \
+            led_strip_set_pixel(led_strip, 0, 0, 15, 0); \
     } else { \
-        led_strip_set_pixel(led_strip, 0, 63, 0, 0); \
+        led_strip_set_pixel(led_strip, 0, 15, 0, 0); \
     } \
     led_strip_refresh(led_strip);
 
@@ -1279,8 +1279,7 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-    led_strip_set_pixel(led_strip, 0, 63, 0, 0); // Red
-    led_strip_refresh(led_strip);
+    TURN_LED_STATUS();
 
 	//------------- ADC Init (NTC thermistor) ---------------//
     adc_oneshot_unit_handle_t adc_handle;
