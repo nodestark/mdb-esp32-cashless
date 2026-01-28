@@ -63,7 +63,7 @@
 #define WIFI_MAX_RETRY  5
 
 #define TURN_LED_STATUS() \
-    if(_mdbOk){ \
+    if(_mdbOk && _installOk){ \
         led_strip_set_pixel(led_strip, 0, 0, 0, 30); \
         if(_internetOk) \
             led_strip_set_pixel(led_strip, 0, 0, 15, 0); \
@@ -74,7 +74,7 @@
 
 static int wifi_retry_num = 0;
 
-bool _internetOk, _mdbOk;
+bool _internetOk, _mdbOk, _installOk;
 
 static bool mqtt_started = false;
 static bool sntp_started = false;
@@ -1332,15 +1332,17 @@ void app_main(void) {
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
 
 	    size_t s_len = 0;
-        if (nvs_get_str(handle, "domain", (void*) 0, &s_len) == ESP_OK) {
-        	nvs_get_str(handle, "domain", my_subdomain, &s_len);
-
-			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
-		}
-
-        if (nvs_get_str(handle, "passkey", (void*) 0, &s_len) == ESP_OK) {
+	    if (nvs_get_str(handle, "passkey", (void*) 0, &s_len) == ESP_OK) {
             nvs_get_str(handle, "passkey", my_passkey, &s_len);
-		}
+
+            if (nvs_get_str(handle, "domain", (void*) 0, &s_len) == ESP_OK) {
+                nvs_get_str(handle, "domain", my_subdomain, &s_len);
+
+                snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
+
+                _installOk = true;
+            }
+        }
 
 		nvs_close(handle);
 	}
