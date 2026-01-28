@@ -62,7 +62,19 @@
 
 #define WIFI_MAX_RETRY  5
 
+#define TURN_LED_STATUS() \
+    if(_mdbOk){ \
+        led_strip_set_pixel(led_strip, 0, 0, 0, 45); \
+        if(_internetOk) \
+            led_strip_set_pixel(led_strip, 0, 0, 25, 0); \
+    } else { \
+        led_strip_set_pixel(led_strip, 0, 63, 0, 0); \
+    } \
+    led_strip_refresh(led_strip);
+
 static int wifi_retry_num = 0;
+
+bool _internetOk, _mdbOk;
 
 static bool mqtt_started = false;
 static bool sntp_started = false;
@@ -537,7 +549,11 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						machine_state = DISABLED_STATE;
 
-						ESP_LOGI( TAG, "READER_DISABLE");
+						_mdbOk = false;
+
+                        TURN_LED_STATUS();
+
+						// ESP_LOGI( TAG, "READER_DISABLE");
 						break;
 					}
 					case READER_ENABLE: {
@@ -545,7 +561,11 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						machine_state = ENABLED_STATE;
 
-						ESP_LOGI( TAG, "READER_ENABLE");
+						_mdbOk = true;
+
+                        TURN_LED_STATUS();
+
+						// ESP_LOGI( TAG, "READER_ENABLE");
 						break;
 					}
 					case READER_CANCEL: {
@@ -595,8 +615,6 @@ void mdb_cashless_loop(void *pvParameters) {
 
 				// Transmit the prepared payload via bit-banging
 				write_payload_9((uint8_t*) &mdb_payload, available_tx);
-
-				// ...intended address
 
 			} else {
 
@@ -1202,6 +1220,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                 start_rest_server();
 		    }
 
+            _internetOk = false;
+
+            TURN_LED_STATUS();
+
 			break;
 		}
 
@@ -1226,6 +1248,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
                 sntp_started = true;
             }
+
+            _internetOk = true;
+
+            TURN_LED_STATUS();
 
 			break;
 		}
@@ -1253,8 +1279,7 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-    // Red
-    led_strip_set_pixel(led_strip, 0, 63, 0, 0);
+    led_strip_set_pixel(led_strip, 0, 63, 0, 0); // Red
     led_strip_refresh(led_strip);
 
 	//------------- ADC Init (NTC thermistor) ---------------//
