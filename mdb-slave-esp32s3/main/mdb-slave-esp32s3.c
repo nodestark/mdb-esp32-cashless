@@ -214,8 +214,8 @@ void vTaskMdbEvent(void *pvParameters) {
 	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
 
-    uint8_t cfg_cashless_addr = (uint8_t) strtol(CONFIG_CASHLESS_DEV_HEX, NULL, 16);
-    uint16_t cfg_currency_code = (uint16_t) strtol(CONFIG_CURRENCY_CODE_HEX, NULL, 16);
+    uint8_t cfg_cashless_addr = (uint8_t) strtol(CONFIG_CASHLESS_DEV_HEX, NULL, 16);    // idf.py menuconfig -> MDB Cashless Device -> Peripheral Addresses
+    uint16_t cfg_currency_code = (uint16_t) strtol(CONFIG_CURRENCY_CODE_HEX, NULL, 16); // // idf.py menuconfig -> MDB Cashless Device -> Country / Currency Code
 
 	for (;;) {
 
