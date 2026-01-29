@@ -7,6 +7,7 @@
 
 #include <esp_log.h>
 
+#include <sdkconfig.h>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_wifi.h>
@@ -213,6 +214,9 @@ void vTaskMdbEvent(void *pvParameters) {
 	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
 
+    uint8_t cfg_cashless_addr = (uint8_t) strtol(CONFIG_CASHLESS_DEV_HEX, NULL, 16);
+    uint16_t cfg_currency_code = (uint16_t) strtol(CONFIG_CURRENCY_CODE_HEX, NULL, 16);
+
 	for (;;) {
 
 		// In the MDB (Multi-Drop Bus) protocol, the last byte of a command or data packet is a checksum.
@@ -229,7 +233,7 @@ void vTaskMdbEvent(void *pvParameters) {
 				// RET
 			} else if ((uint8_t) coming_read == NAK) {
 				// NAK
-			} else if ((coming_read & BIT_ADD_SET) == 0x10) {
+			} else if ((coming_read & BIT_ADD_SET) == cfg_cashless_addr) {
 
 				// Reset transmission availability
 				available_tx = 0;
@@ -265,14 +269,14 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						machine_state = DISABLED_STATE;
 
-						mdb_payload[0] = 0x01;        	// Reader Config Data
-						mdb_payload[1] = 1;           	// Reader Feature Level
-						mdb_payload[2] = 0xff;        	// Country Code High
-						mdb_payload[3] = 0xff;        	// Country Code Low
-						mdb_payload[4] = 1;           	// Scale Factor
-						mdb_payload[5] = 2;           	// Decimal Places
-						mdb_payload[6] = 3; 			// Maximum Response Time (5s)
-						mdb_payload[7] = 0b00001001;  	// Miscellaneous Options
+						mdb_payload[0] = 0x01;        	            // Reader Config Data
+						mdb_payload[1] = 1;           	            // Reader Feature Level
+						mdb_payload[2] = cfg_currency_code;         // Country Code High
+						mdb_payload[3] = cfg_currency_code >> 8;    // Country Code Low
+						mdb_payload[4] = 1;           	            // Scale Factor
+						mdb_payload[5] = 2;           	            // Decimal Places
+						mdb_payload[6] = 3; 			            // Maximum Response Time (5s)
+						mdb_payload[7] = 0b00001001;  	            // Miscellaneous Options
 						available_tx = 8;
 
 						ESP_LOGI( TAG, "CONFIG_DATA");
