@@ -62,19 +62,18 @@
 
 #define WIFI_MAX_RETRY  5
 
-#define TURN_LED_STATUS() \
-    if(_mdbOk && _installOk){ \
-        led_strip_set_pixel(led_strip, 0, 0, 0, 30); \
-        if(_internetOk) \
-            led_strip_set_pixel(led_strip, 0, 0, 15, 0); \
-    } else { \
-        led_strip_set_pixel(led_strip, 0, 15, 0, 0); \
-    } \
-    led_strip_refresh(led_strip);
-
 static int wifi_retry_num = 0;
 
-bool _internetOk, _mdbOk, _installOk;
+enum BIT_EVENTS {
+    BIT_EVT_INTERNET    = (1 << 0),
+    BIT_EVT_MDB         = (1 << 1),
+    BIT_EVT_PSSKEY      = (1 << 2),
+    BIT_EVT_DOMAIN      = (1 << 3),
+    BIT_EVT_TRIGGER     = (1 << 4),
+    MASK_EVT_INSTALLED  = (BIT_EVT_PSSKEY | BIT_EVT_DOMAIN)
+};
+
+EventGroupHandle_t xLedEventGroup;
 
 static bool mqtt_started = false;
 static bool sntp_started = false;
@@ -145,75 +144,6 @@ esp_mqtt_client_handle_t mqttClient = (void*) 0;
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = (void*) 0;
 
-// Decode payload from communication between BLE and MQTT
-uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
-
-	for(int x = 0; x < sizeof(my_passkey); x++){
-		payload[x + 1] ^= my_passkey[x];
-	}
-
-	int p_len = sizeof(my_passkey) + 1;
-
-	uint8_t chk = 0x00;
-	for(int x= 0; x < p_len - 1; x++){
-		chk += payload[x];
-	}
-
-    if(chk != payload[p_len - 1]){
-        return 0;
-    }
-
-    int32_t timestamp = ((uint32_t) payload[6] << 24) |
-						((uint32_t) payload[7] << 16) |
-						((uint32_t) payload[8] << 8)  |
-						((uint32_t) payload[9] << 0);
-
-    time_t now = time((void*) 0);
-
-    if( abs((int32_t) now - timestamp) > 8 /*sec*/){
-        return 0;
-    }
-
-    if(itemPrice)
-        *itemPrice = ((uint16_t) payload[2] << 8) | ((uint16_t) payload[3] << 0);
-
-    if(itemNumber)
-        *itemNumber = ((uint16_t) payload[4] << 8) | ((uint16_t) payload[5] << 0);
-
-    return 1;
-}
-
-// Encode payload to communication between BLE and MQTT
-void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
-
-	esp_fill_random(payload + 1, sizeof(my_passkey));
-
-	time_t now = time((void*) 0);
-
-	// payload[0] = cmd;
-	payload[1] = 0x01; 				// version v1
-	payload[2] = *itemPrice >> 8;	// itemPrice
-	payload[3] = *itemPrice;
-	payload[4] = *itemNumber >> 8;	// itemNumber
-	payload[5] = *itemNumber;
-	payload[6] = (now >> 24);		// time (sec)
-	payload[7] = (now >> 16);
-	payload[8] = (now >> 8);
-	payload[9] = (now >> 0);
-
-	int p_len = sizeof(my_passkey) + 1;
-
-	uint8_t chk = 0x00;
-	for(int x= 0; x < p_len - 1; x++){
-		chk += payload[x];
-	}
-	payload[p_len - 1] = chk;
-
-	for(int x = 0; x < sizeof(my_passkey); x++){
-		payload[x + 1] ^= my_passkey[x];
-	}
-}
-
 uint16_t read_9(uint8_t *checksum) {
 
 	uint16_t coming_read = 0;
@@ -267,8 +197,11 @@ void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(BIT_MODE_SET | checksum);
 }
 
+void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
+uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
+
 // Main MDB loop function
-void mdb_cashless_loop(void *pvParameters) {
+void vTaskMdbEvent(void *pvParameters) {
 
 	time_t session_begin_time = 0;
 
@@ -308,12 +241,13 @@ void mdb_cashless_loop(void *pvParameters) {
 
                     if (read_9(NULL) != checksum) continue;
 
-					if (machine_state == VEND_STATE) {
-						// Reset during VEND_STATE is interpreted as VEND_SUCCESS
-					}
+                    // Reset during VEND_STATE is interpreted as VEND_SUCCESS
 
 					cashless_reset_todo = true;
 					machine_state = INACTIVE_STATE;
+
+                    xEventGroupClearBits(xLedEventGroup, BIT_EVT_MDB);
+                    xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 					ESP_LOGI( TAG, "RESET");
 					break;
@@ -549,9 +483,8 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						machine_state = DISABLED_STATE;
 
-						_mdbOk = false;
-
-                        TURN_LED_STATUS();
+                        xEventGroupClearBits(xLedEventGroup, BIT_EVT_MDB);
+                        xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 						// ESP_LOGI( TAG, "READER_DISABLE");
 						break;
@@ -561,9 +494,7 @@ void mdb_cashless_loop(void *pvParameters) {
 
 						machine_state = ENABLED_STATE;
 
-						_mdbOk = true;
-
-                        TURN_LED_STATUS();
+                        xEventGroupSetBits(xLedEventGroup, BIT_EVT_MDB | BIT_EVT_TRIGGER);
 
 						// ESP_LOGI( TAG, "READER_ENABLE");
 						break;
@@ -621,6 +552,75 @@ void mdb_cashless_loop(void *pvParameters) {
 				// Not the intended address...
 			}
 		}
+	}
+}
+
+// Decode payload from communication between BLE and MQTT
+uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
+
+	for(int x = 0; x < sizeof(my_passkey); x++){
+		payload[x + 1] ^= my_passkey[x];
+	}
+
+	int p_len = sizeof(my_passkey) + 1;
+
+	uint8_t chk = 0x00;
+	for(int x= 0; x < p_len - 1; x++){
+		chk += payload[x];
+	}
+
+    if(chk != payload[p_len - 1]){
+        return 0;
+    }
+
+    int32_t timestamp = ((uint32_t) payload[6] << 24) |
+						((uint32_t) payload[7] << 16) |
+						((uint32_t) payload[8] << 8)  |
+						((uint32_t) payload[9] << 0);
+
+    time_t now = time((void*) 0);
+
+    if( abs((int32_t) now - timestamp) > 8 /*sec*/){
+        return 0;
+    }
+
+    if(itemPrice)
+        *itemPrice = ((uint16_t) payload[2] << 8) | ((uint16_t) payload[3] << 0);
+
+    if(itemNumber)
+        *itemNumber = ((uint16_t) payload[4] << 8) | ((uint16_t) payload[5] << 0);
+
+    return 1;
+}
+
+// Encode payload to communication between BLE and MQTT
+void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
+
+	esp_fill_random(payload + 1, sizeof(my_passkey));
+
+	time_t now = time((void*) 0);
+
+	// payload[0] = cmd;
+	payload[1] = 0x01; 				// version v1
+	payload[2] = *itemPrice >> 8;	// itemPrice
+	payload[3] = *itemPrice;
+	payload[4] = *itemNumber >> 8;	// itemNumber
+	payload[5] = *itemNumber;
+	payload[6] = (now >> 24);		// time (sec)
+	payload[7] = (now >> 16);
+	payload[8] = (now >> 8);
+	payload[9] = (now >> 0);
+
+	int p_len = sizeof(my_passkey) + 1;
+
+	uint8_t chk = 0x00;
+	for(int x= 0; x < p_len - 1; x++){
+		chk += payload[x];
+	}
+	payload[p_len - 1] = chk;
+
+	for(int x = 0; x < sizeof(my_passkey); x++){
+		payload[x + 1] ^= my_passkey[x];
 	}
 }
 
@@ -1048,6 +1048,25 @@ void requestTelemetryData(void *arg) {
     vRingbufferReturnItem(dexRingbuf, (void*) dex);
 }
 
+void vTaskBitEvent(void *pvParameters) {
+
+    while(1){
+        EventBits_t uxBits = xEventGroupWaitBits(xLedEventGroup, BIT_EVT_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY );
+
+        if ((uxBits & MASK_EVT_INSTALLED) != MASK_EVT_INSTALLED) {
+            led_strip_set_pixel(led_strip, 0, 255, 0, 0);
+        } else if ((uxBits & BIT_EVT_MDB) && (uxBits & BIT_EVT_INTERNET)) {
+            led_strip_set_pixel(led_strip, 0, 0, 255, 0);
+        } else if (uxBits & BIT_EVT_MDB) {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 255);
+        } else {
+            led_strip_set_pixel(led_strip, 0, 255, 0, 0);
+        }
+
+        led_strip_refresh(led_strip);
+    }
+}
+
 void ble_event_handler(char *ble_payload) {
 
     printf("ble_event_handler %x\n", (uint8_t) ble_payload[0]);
@@ -1070,6 +1089,8 @@ void ble_event_handler(char *ble_payload) {
 
 			renameBleDevice((char*) &myhost);
 
+            xEventGroupSetBits(xLedEventGroup, BIT_EVT_DOMAIN | BIT_EVT_TRIGGER);
+
 			ESP_LOGI( TAG, "HOST= %s", myhost);
 		}
 		nvs_close(handle);
@@ -1086,6 +1107,8 @@ void ble_event_handler(char *ble_payload) {
 
 			ESP_ERROR_CHECK( nvs_set_str(handle, "passkey", (char*) &my_passkey) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
+
+            xEventGroupSetBits(xLedEventGroup, BIT_EVT_PSSKEY | BIT_EVT_TRIGGER);
 
 			ESP_LOGI( TAG, "PASSKEY= %s", my_passkey);
 		}
@@ -1220,9 +1243,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                 start_rest_server();
 		    }
 
-            _internetOk = false;
-
-            TURN_LED_STATUS();
+            xEventGroupClearBits(xLedEventGroup, BIT_EVT_INTERNET);
+            xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 			break;
 		}
@@ -1249,9 +1271,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                 sntp_started = true;
             }
 
-            _internetOk = true;
-
-            TURN_LED_STATUS();
+            xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
 			break;
 		}
@@ -1279,7 +1299,8 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-    TURN_LED_STATUS();
+    xLedEventGroup = xEventGroupCreate();
+    xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 	//------------- ADC Init (NTC thermistor) ---------------//
     adc_oneshot_unit_handle_t adc_handle;
@@ -1340,7 +1361,7 @@ void app_main(void) {
 
                 snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
 
-                _installOk = true;
+                xEventGroupSetBits(xLedEventGroup, BIT_EVT_PSSKEY | BIT_EVT_DOMAIN | BIT_EVT_TRIGGER);
             }
         }
 
@@ -1380,5 +1401,7 @@ void app_main(void) {
 
 	// Creation of the queue for MDB sessions and the main MDB task
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
-	xTaskCreate(mdb_cashless_loop, "cashless_loop", 4096, (void*) 0, 1, (void*) 0);
+	xTaskCreatePinnedToCore(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 24, NULL, 1);
+
+    xTaskCreatePinnedToCore(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL, 0);
 }
