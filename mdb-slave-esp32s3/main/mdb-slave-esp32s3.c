@@ -1054,13 +1054,13 @@ void vTaskBitEvent(void *pvParameters) {
         EventBits_t uxBits = xEventGroupWaitBits(xLedEventGroup, BIT_EVT_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY );
 
         if ((uxBits & MASK_EVT_INSTALLED) != MASK_EVT_INSTALLED) {
-            led_strip_set_pixel(led_strip, 0, 255, 0, 0);
+            led_strip_set_pixel(led_strip, 0, 80, 60, 0);
         } else if ((uxBits & BIT_EVT_MDB) && (uxBits & BIT_EVT_INTERNET)) {
-            led_strip_set_pixel(led_strip, 0, 0, 255, 0);
+            led_strip_set_pixel(led_strip, 0, 10, 80, 10);
         } else if (uxBits & BIT_EVT_MDB) {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 255);
+            led_strip_set_pixel(led_strip, 0, 5, 15, 80);
         } else {
-            led_strip_set_pixel(led_strip, 0, 255, 0, 0);
+            led_strip_set_pixel(led_strip, 0, 80, 5, 5);
         }
 
         led_strip_refresh(led_strip);
