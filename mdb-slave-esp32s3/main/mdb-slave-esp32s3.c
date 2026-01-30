@@ -33,24 +33,24 @@
 #include "nimble.h"
 #include "webui_server.h"
 
-#define TAG "mdb-target"
+#define TAG "mdb_cashless"
 
-#define pin_mdb_rx          GPIO_NUM_4
-#define pin_mdb_tx          GPIO_NUM_5
-#define pin_mdb_led         GPIO_NUM_21
-#define pin_dex_rx          GPIO_NUM_44
-#define pin_dex_tx          GPIO_NUM_43
-#define pin_sim7080g_rx     GPIO_NUM_18
-#define pin_sim7080g_tx     GPIO_NUM_17
-#define pin_sim7080g_pwr    GPIO_NUM_14
+#define PIN_MDB_RX          GPIO_NUM_4
+#define PIN_MDB_TX          GPIO_NUM_5
+#define PIN_MDB_LED         GPIO_NUM_21
+#define PIN_DEX_RX          GPIO_NUM_44
+#define PIN_DEX_TX          GPIO_NUM_43
+#define PIN_SIM7080G_RX     GPIO_NUM_18
+#define PIN_SIM7080G_TX     GPIO_NUM_17
+#define PIN_SIM7080G_PWR    GPIO_NUM_14
 
 // Define the ADC unit, channel, and attenuation (NTC Thermistor)
 #define ADC_UNIT            ADC_UNIT_1
 #define ADC_CHANNEL         ADC_CHANNEL_6           // GPIO7 on ESP32-S3
 
 // Functions for scale factor conversion
-#define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))   // Converts to scale factor
-#define from_scale_factor(p, x, y) (p * x * pow(10, -(y) )) // Converts from scale factor
+#define TO_SCALE_FACTOR(p, x, y) (p / x / pow(10, -(y) ))   // Converts to scale factor
+#define FROM_SCALE_FACTOR(p, x, y) (p * x * pow(10, -(y) )) // Converts from scale factor
 
 #define ACK 	0x00  // Acknowledgment / Checksum correct
 #define RET 	0xAA  // Retransmit previously sent data. Only VMC can send this
@@ -83,13 +83,13 @@ char my_subdomain[32];
 char my_passkey[18];
 
 // Defining MDB commands as an enum
-enum MDB_COMMAND {
-	RESET = 0x00,
-	SETUP = 0x01,
-	POLL = 0x02,
-	VEND = 0x03,
-	READER = 0x04,
-	EXPANSION = 0x07
+enum MDB_COMMAND_FLOW {
+	RESET       = 0x00,
+	SETUP       = 0x01,
+	POLL        = 0x02,
+	VEND        = 0x03,
+	READER      = 0x04,
+	EXPANSION   = 0x07
 };
 
 // Defining MDB setup flow
@@ -99,17 +99,19 @@ enum MDB_SETUP_FLOW {
 
 // Defining MDB vending flow
 enum MDB_VEND_FLOW {
-	VEND_REQUEST = 0x00,
-	VEND_CANCEL = 0x01,
-	VEND_SUCCESS = 0x02,
-	VEND_FAILURE = 0x03,
-	SESSION_COMPLETE = 0x04,
-	CASH_SALE = 0x05
+	VEND_REQUEST        = 0x00,
+	VEND_CANCEL         = 0x01,
+	VEND_SUCCESS        = 0x02,
+	VEND_FAILURE        = 0x03,
+	SESSION_COMPLETE    = 0x04,
+	CASH_SALE           = 0x05
 };
 
 // Defining MDB reader flow
 enum MDB_READER_FLOW {
-	READER_DISABLE = 0x00, READER_ENABLE = 0x01, READER_CANCEL = 0x02
+	READER_DISABLE  = 0x00,
+	READER_ENABLE   = 0x01,
+	READER_CANCEL   = 0x02
 };
 
 // Defining MDB expansion flow
@@ -126,38 +128,36 @@ machine_state_t machine_state = INACTIVE_STATE; // Initial machine state
 
 led_strip_handle_t led_strip;
 
-// Control flags for MDB flows
+// MDB Control flags
 bool session_begin_todo = false;
 bool session_cancel_todo = false;
 bool session_end_todo = false;
-//
 bool vend_approved_todo = false;
 bool vend_denied_todo = false;
-//
 bool cashless_reset_todo = false;
-bool outsequence_todo = false;
+bool out_of_sequence_todo = false;
 
 RingbufHandle_t dexRingbuf;
 
 // MQTT client handle
-esp_mqtt_client_handle_t mqttClient = (void*) 0;
+esp_mqtt_client_handle_t mqttClient = NULL;
 
 // Message queues for communication
-static QueueHandle_t mdbSessionQueue = (void*) 0;
+static QueueHandle_t mdbSessionQueue = NULL;
 
 uint16_t read_9(uint8_t *checksum) {
 
 	uint16_t coming_read = 0;
 
 	// Wait start bit
-	while (gpio_get_level(pin_mdb_rx))
+	while (gpio_get_level(PIN_MDB_RX))
 		;
 
 	ets_delay_us(104);
 
 	ets_delay_us(52);
 	for(int x = 0; x < 9; x++){
-		coming_read |= (gpio_get_level(pin_mdb_rx) << x);
+		coming_read |= (gpio_get_level(PIN_MDB_RX) << x);
 		ets_delay_us(104); // 9600bps
 	}
 
@@ -169,16 +169,16 @@ uint16_t read_9(uint8_t *checksum) {
 
 void write_9(uint16_t nth9) {
 
-    gpio_set_level(pin_mdb_tx, 0);  // Start bit
+    gpio_set_level(PIN_MDB_TX, 0);  // Start bit
     ets_delay_us(104); // 9600bps
 
 	for (uint8_t x = 0; x < 9; x++) {
 
-		gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
+		gpio_set_level(PIN_MDB_TX, (nth9 >> x) & 1);
 		ets_delay_us(104); // 9600bps
 	}
 
-    gpio_set_level(pin_mdb_tx, 1);  // Stop bit
+    gpio_set_level(PIN_MDB_TX, 1);  // Stop bit
     ets_delay_us(104); // 9600bps
 }
 
@@ -348,16 +348,16 @@ void vTaskMdbEvent(void *pvParameters) {
 						available_tx = 1;
 						machine_state = ENABLED_STATE;
 
-					} else if (outsequence_todo) {
+					} else if (out_of_sequence_todo) {
 						// Command out of sequence
-						outsequence_todo = false;
+						out_of_sequence_todo = false;
 
 						mdb_payload[0] = 0x0b;
 						available_tx = 1;
 
 					} else {
 
-						time_t now = time((void*) 0);
+						time_t now = time(NULL);
 
 						if (machine_state >= IDLE_STATE && (now - session_begin_time /*elapsed*/) > 60 /*60 sec*/) {
 							session_cancel_todo = true;
@@ -470,7 +470,6 @@ void vTaskMdbEvent(void *pvParameters) {
                         esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
 
                         ESP_LOGI( TAG, "CASH_SALE");
-
 						break;
 					}
 					}
@@ -579,7 +578,7 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
 						((uint32_t) payload[8] << 8)  |
 						((uint32_t) payload[9] << 0);
 
-    time_t now = time((void*) 0);
+    time_t now = time(NULL);
 
     if( abs((int32_t) now - timestamp) > 8 /*sec*/){
         return 0;
@@ -599,7 +598,7 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 
 	esp_fill_random(payload + 1, sizeof(my_passkey));
 
-	time_t now = time((void*) 0);
+	time_t now = time(NULL);
 
 	// payload[0] = cmd;
 	payload[1] = 0x01; 				// version v1
@@ -1123,7 +1122,7 @@ void ble_event_handler(char *ble_payload) {
 		break;
 	case 0x03: /*Approve the vending session*/
 
-        if(xorDecodeWithPasskey((void*) 0, (void*) 0, (uint8_t*) ble_payload)){
+        if(xorDecodeWithPasskey(NULL, NULL, (uint8_t*) ble_payload)){
             vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
         }
         break;
@@ -1198,7 +1197,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		if (topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
 
 			uint16_t fundsAvailable;
-			if(xorDecodeWithPasskey(&fundsAvailable, (void*) 0, (uint8_t*) event->data)){
+			if(xorDecodeWithPasskey(&fundsAvailable, NULL, (uint8_t*) event->data)){
 			    xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
 
 			    ESP_LOGI( TAG, "Amount= %d", fundsAvailable);
@@ -1280,12 +1279,12 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 void app_main(void) {
 
-    gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
-	gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
+    gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
+	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
 
 	//--------------- Strip LED configuration ---------------//
     led_strip_config_t strip_config = {
-        .strip_gpio_num = pin_mdb_led,
+        .strip_gpio_num = PIN_MDB_LED,
         .max_leds = 1,
         .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
         .led_model = LED_MODEL_WS2812,
@@ -1325,8 +1324,8 @@ void app_main(void) {
 			.flow_ctrl = UART_HW_FLOWCTRL_DISABLE };
 
 	uart_param_config(UART_NUM_1, &uart_config_1);
-	uart_set_pin( UART_NUM_1, pin_dex_tx, pin_dex_rx, -1, -1);
-	uart_driver_install(UART_NUM_1, 256, 256, 0, (void*) 0, 0);
+	uart_set_pin( UART_NUM_1, PIN_DEX_TX, PIN_DEX_RX, -1, -1);
+	uart_driver_install(UART_NUM_1, 256, 256, 0, NULL, 0);
 
 	// Initialization of the network stack and event loop
 	nvs_flash_init();
@@ -1340,8 +1339,8 @@ void app_main(void) {
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	esp_wifi_init(&cfg);
 
-	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
-	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, (void*) 0, (void*) 0);
+	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
+	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
 
 	esp_wifi_set_mode(WIFI_MODE_APSTA);
 	esp_wifi_start();
@@ -1354,10 +1353,10 @@ void app_main(void) {
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
 
 	    size_t s_len = 0;
-	    if (nvs_get_str(handle, "passkey", (void*) 0, &s_len) == ESP_OK) {
+	    if (nvs_get_str(handle, "passkey", NULL, &s_len) == ESP_OK) {
             nvs_get_str(handle, "passkey", my_passkey, &s_len);
 
-            if (nvs_get_str(handle, "domain", (void*) 0, &s_len) == ESP_OK) {
+            if (nvs_get_str(handle, "domain", NULL, &s_len) == ESP_OK) {
                 nvs_get_str(handle, "domain", my_subdomain, &s_len);
 
                 snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);

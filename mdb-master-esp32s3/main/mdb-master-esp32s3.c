@@ -20,7 +20,7 @@
 
 #include "led_strip.h"
 
-#define TAG "mdb-controller"
+#define TAG "mdb_vmc"
 
 #define pin_dex_rx  	GPIO_NUM_18
 #define pin_dex_tx      GPIO_NUM_17
