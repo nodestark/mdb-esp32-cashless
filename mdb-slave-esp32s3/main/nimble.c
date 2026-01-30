@@ -135,7 +135,7 @@ void startBleDevice(char *deviceName, void* writeBleCharacteristic_) { //! Call 
     ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
 
     // Configurações de segurança simplificadas
-    ble_hs_cfg.sm_io_cap = CONFIG_EXAMPLE_IO_TYPE;
+    ble_hs_cfg.sm_io_cap = 3;
     ble_hs_cfg.sm_sc = 0;
 
     gatt_svr_init();

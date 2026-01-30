@@ -214,8 +214,8 @@ void vTaskMdbEvent(void *pvParameters) {
 	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
 
-    uint8_t cfg_cashless_addr = (uint8_t) strtol(CONFIG_CASHLESS_DEV_HEX, NULL, 16);    // idf.py menuconfig -> MDB Cashless Device -> Peripheral Addresses
-    uint16_t cfg_currency_code = (uint16_t) strtol(CONFIG_CURRENCY_CODE_HEX, NULL, 16); // // idf.py menuconfig -> MDB Cashless Device -> Country / Currency Code
+	const uint8_t cfg_cashless_addr = (uint8_t) strtol(CONFIG_CASHLESS_DEV_HEX, NULL, 16);    // idf.py menuconfig -> MDB Cashless Device -> Peripheral Addresses
+    const uint16_t cfg_currency_code = (uint16_t) strtol(CONFIG_CURRENCY_CODE_HEX, NULL, 16); // // idf.py menuconfig -> MDB Cashless Device -> Country / Currency Code
 
 	for (;;) {
 
@@ -271,8 +271,8 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						mdb_payload[0] = 0x01;        	            // Reader Config Data
 						mdb_payload[1] = 1;           	            // Reader Feature Level
-						mdb_payload[2] = cfg_currency_code;         // Country Code High
-						mdb_payload[3] = cfg_currency_code >> 8;    // Country Code Low
+						mdb_payload[2] = cfg_currency_code >> 8;    // Country Code High
+						mdb_payload[3] = cfg_currency_code;         // Country Code Low
 						mdb_payload[4] = 1;           	            // Scale Factor
 						mdb_payload[5] = 2;           	            // Decimal Places
 						mdb_payload[6] = 3; 			            // Maximum Response Time (5s)
@@ -1405,7 +1405,7 @@ void app_main(void) {
 
 	// Creation of the queue for MDB sessions and the main MDB task
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
-	xTaskCreatePinnedToCore(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 24, NULL, 1);
+	xTaskCreatePinnedToCore(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL, 1);
 
     xTaskCreatePinnedToCore(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL, 0);
 }
