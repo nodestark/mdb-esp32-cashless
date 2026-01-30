@@ -2,20 +2,20 @@ menu "MDB Cashless Device"
 
     choice
         prompt "Peripheral Addresses"
-        default CASHLESS_DEV_1
+        default CASHLESS_ADDR_1
 
-        config OP_DEVICE_1
+        config CASHLESS_ADDR_1
             bool "Cashless Device #1 - 0X10"
 
-        config OP_DEVICE_2
+        config CASHLESS_ADDR_2
             bool "Cashless Device #2 - 0X60"
 
     endchoice
 
-    config CASHLESS_DEV_HEX
-        string
-        default "0x10" if OP_DEVICE_1
-        default "0x60" if OP_DEVICE_2
+    config CASHLESS_DEVICE_ADDRESS
+        int
+        default 16 if CASHLESS_ADDR_1
+        default 96 if CASHLESS_ADDR_2
 
     choice
         prompt "Country / Currency Code"
@@ -34,11 +34,11 @@ menu "MDB Cashless Device"
             bool "UNKNOWN - 0xffff"
     endchoice
 
-    config CURRENCY_CODE_HEX
-        string
-        default "0x1978" if CURRENCY_EUR
-        default "0x1840" if CURRENCY_USD
-        default "0x1986" if CURRENCY_BRL
-        default "0xffff" if CURRENCY_UNKNOWN
+    config CURRENCY_CODE
+        int
+        default 6520 if CURRENCY_EUR
+        default 6208 if CURRENCY_USD
+        default 6534 if CURRENCY_BRL
+        default 65535 if CURRENCY_UNKNOWN
 
 endmenu # MDB Cashless Device
