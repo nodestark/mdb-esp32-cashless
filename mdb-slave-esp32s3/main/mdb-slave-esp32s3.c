@@ -1282,7 +1282,10 @@ void app_main(void) {
     gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
 	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
 
-	//--------------- Strip LED configuration ---------------//
+	//---------------- Strip LED configuration -----------------//
+	//----------------------------------------------------------//
+    xLedEventGroup = xEventGroupCreate();
+
     led_strip_config_t strip_config = {
         .strip_gpio_num = PIN_MDB_LED,
         .max_leds = 1,
@@ -1299,10 +1302,11 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-    xLedEventGroup = xEventGroupCreate();
-    xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+    led_strip_set_pixel(led_strip, 0, 20, 20, 20);
+    led_strip_refresh(led_strip);
 
-	//------------- ADC Init (NTC thermistor) ---------------//
+	//--------------- ADC Init (NTC thermistor) ----------------//
+	//----------------------------------------------------------//
     adc_oneshot_unit_handle_t adc_handle;
     adc_oneshot_unit_init_cfg_t init_config = { .unit_id = ADC_UNIT, };
     ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc_handle));
@@ -1315,7 +1319,8 @@ void app_main(void) {
     ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL, &adc_raw_value));
     ESP_LOGI(TAG, "ADC Raw Data: %d", adc_raw_value);
 
-	// Initialize UART1 driver and configure EVA DTS DEX/DDCMP pins
+	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
+	//----------------------------------------------------------//
 	uart_config_t uart_config_1 = {
 			.baud_rate = 9600,
 			.data_bits = UART_DATA_8_BITS,
@@ -1327,7 +1332,22 @@ void app_main(void) {
 	uart_set_pin( UART_NUM_1, PIN_DEX_TX, PIN_DEX_RX, -1, -1);
 	uart_driver_install(UART_NUM_1, 256, 256, 0, NULL, 0);
 
-	// Initialization of the network stack and event loop
+    // ---
+    dexRingbuf = xRingbufferCreate(8 * 1024 /*8Kb*/, RINGBUF_TYPE_BYTEBUF);
+
+    const double INTERVAL_12H_US = 12ULL * 60 * 60 * 1000000; // 12h in microseconds
+
+	const esp_timer_create_args_t periodic_timer_args = {
+		.callback = &requestTelemetryData,
+		.name = "task_dex_12h"
+	};
+
+	esp_timer_handle_t periodic_timer;
+	esp_timer_create(&periodic_timer_args, &periodic_timer);
+	esp_timer_start_periodic(periodic_timer, INTERVAL_12H_US);
+
+	//-------------------- NETWORK STACK -----------------------//
+	//----------------------------------------------------------//
 	nvs_flash_init();
 	//
 	esp_netif_init();
@@ -1345,7 +1365,8 @@ void app_main(void) {
 	esp_wifi_set_mode(WIFI_MODE_APSTA);
 	esp_wifi_start();
 
-    // Initialization of Bluetooth Low Energy (BLE) with the alias
+	//------------------------ BLUETOOTH -----------------------//
+	//----------------------------------------------------------//
 	char myhost[64];
 	strcpy(myhost, "0.vmflow.xyz"); // Default value
 
@@ -1369,11 +1390,11 @@ void app_main(void) {
 	}
 	startBleDevice(myhost, ble_event_handler);
 
-	//
+    //-------------------------- MQTT --------------------------//
+	//----------------------------------------------------------//
 	char lwt_topic[64];
 	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);
 
-	// MQTT client configuration
 	const esp_mqtt_client_config_t mqttCfg = {
 		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
 		.session.last_will.topic = lwt_topic, // LWT (Last Will and Testament)...
@@ -1385,21 +1406,8 @@ void app_main(void) {
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
 	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
 
-	// ---
-    dexRingbuf = xRingbufferCreate(8 * 1024 /*8Kb*/, RINGBUF_TYPE_BYTEBUF);
-
-    const double INTERVAL_12H_US = 12ULL * 60 * 60 * 1000000; // 12h in microseconds
-
-	const esp_timer_create_args_t periodic_timer_args = {
-		.callback = &requestTelemetryData,
-		.name = "task_dex_12h"
-	};
-
-	esp_timer_handle_t periodic_timer;
-	esp_timer_create(&periodic_timer_args, &periodic_timer);
-	esp_timer_start_periodic(periodic_timer, INTERVAL_12H_US);
-
-	// Creation of the queue for MDB sessions and the main MDB task
+    //------------------------ MAIN TASKS ----------------------//
+	//----------------------------------------------------------//
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
 	xTaskCreatePinnedToCore(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL, 1);
 
