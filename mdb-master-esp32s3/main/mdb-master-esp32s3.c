@@ -130,6 +130,8 @@ void mdb_vmc_loop(void *pvParameters) {
 
 	for (;;) {
 
+	    uart_flush(UART_NUM_2);
+
 		// 0x10 Cashless Device #1
 		if (reader0x10.machineState == INACTIVE_STATE) {
 
@@ -161,7 +163,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
                     write_payload_9(mdb_payload_tx, 6);
 
-                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(30)); // CHK*
+                    len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 9, pdMS_TO_TICKS(40)); // CHK*
                     assert(len == 9);
 
                     write_9(ACK | BIT_MODE_SET);
@@ -418,7 +420,10 @@ void mdb_vmc_loop(void *pvParameters) {
             }
 		}
 
-		/*// 0x08 Changer
+		/*
+        uart_flush(UART_NUM_2);
+
+		// 0x08 Changer
 		if (reader0x08.machineState == INACTIVE_STATE) {
 
 			mdb_payload_tx[0] = 0x08 *//*Changer*//* | 0x00 *//*RESET*//*;
@@ -498,8 +503,11 @@ void mdb_vmc_loop(void *pvParameters) {
 			}
 		}*/
 
+		uart_flush(UART_NUM_2);
+
 		// 0x60 Cashless Device #2
-	    {
+		if (reader0x60.machineState == INACTIVE_STATE) {
+
 			mdb_payload_tx[0] = (0x60 /*Cashless Device #2*/ & BIT_ADD_SET) | (RESET & BIT_CMD_SET);
 			write_payload_9(mdb_payload_tx, 1);
 
