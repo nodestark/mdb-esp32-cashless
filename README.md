@@ -23,6 +23,7 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 - Help us improve documentation by adding usage examples, installation instructions, and any other relevant information
 
 ![MDB Cashless](mdb-slave-esp32s3/mdb-slave-esp32s3_pcb_v3.jpg)
+
 [![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
 
 - Or buy the **official board** to support development:
