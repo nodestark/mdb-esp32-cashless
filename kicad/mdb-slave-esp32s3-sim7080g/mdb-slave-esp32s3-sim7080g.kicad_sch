@@ -2385,6 +2385,167 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Device:Buzzer"
+			(pin_names
+				(offset 0.0254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "BZ"
+				(at 3.81 1.27 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "Buzzer"
+				(at 3.81 -1.27 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at -0.635 2.54 90)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at -0.635 2.54 90)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Buzzer, polarized"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "quartz resonator ceramic"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "*Buzzer*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "Buzzer_0_1"
+				(polyline
+					(pts
+						(xy -1.651 1.905) (xy -1.143 1.905)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.397 2.159) (xy -1.397 1.651)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 0 3.175)
+					(mid 3.1612 0)
+					(end 0 -3.175)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 3.175) (xy 0 -3.175)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "Buzzer_1_1"
+				(pin passive line
+					(at -2.54 2.54 0)
+					(length 2.54)
+					(name "+"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -2.54 -2.54 0)
+					(length 2.54)
+					(name "-"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Device:C"
 			(pin_numbers
 				(hide yes)
@@ -8868,6 +9029,16 @@
 	)
 	(wire
 		(pts
+			(xy 341.63 46.99) (xy 341.63 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3ea6078e-803f-4cf4-9ca7-e18c49a10e9b")
+	)
+	(wire
+		(pts
 			(xy 127 86.36) (xy 127 110.49)
 		)
 		(stroke
@@ -9448,6 +9619,16 @@
 	)
 	(wire
 		(pts
+			(xy 336.55 31.75) (xy 336.55 29.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "83f9fd62-ab58-4402-a9d0-0e9a18579372")
+	)
+	(wire
+		(pts
 			(xy 38.1 115.57) (xy 99.06 115.57)
 		)
 		(stroke
@@ -9685,6 +9866,16 @@
 			(type default)
 		)
 		(uuid "9c355220-a71e-4a38-8516-3235dbf005dd")
+	)
+	(wire
+		(pts
+			(xy 341.63 29.21) (xy 341.63 34.29)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9d9397b6-54a1-41aa-b5be-bdfa003440e9")
 	)
 	(wire
 		(pts
@@ -9988,6 +10179,16 @@
 	)
 	(wire
 		(pts
+			(xy 327.66 39.37) (xy 334.01 39.37)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bd322b7b-29b6-4457-bf7b-65bc11b60042")
+	)
+	(wire
+		(pts
 			(xy 525.78 120.65) (xy 530.86 120.65)
 		)
 		(stroke
@@ -10085,6 +10286,16 @@
 			(type default)
 		)
 		(uuid "cb3c0400-2c81-4732-952f-0f868f9a4220")
+	)
+	(wire
+		(pts
+			(xy 313.69 39.37) (xy 320.04 39.37)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cb4632f0-a752-4040-a6ef-d36eda389baa")
 	)
 	(wire
 		(pts
@@ -11306,6 +11517,16 @@
 		)
 		(uuid "d7706bff-9e8f-402d-afb8-89f5814b634a")
 	)
+	(label "io12"
+		(at 313.69 39.37 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d853874a-c08f-4528-a7ef-82d8708640f7")
+	)
 	(label "u0txd"
 		(at 381 69.85 0)
 		(effects
@@ -11640,6 +11861,110 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R")
+		(at 323.85 39.37 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "0815c2eb-597e-4777-8cc3-0fb1ce203536")
+		(property "Reference" "R19"
+			(at 323.85 33.02 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "4K7"
+			(at 323.85 35.56 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 323.85 37.592 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 323.85 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 323.85 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C23162"
+			(at 323.85 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Device" ""
+			(at 323.85 39.37 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Pins" ""
+			(at 323.85 39.37 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Type" ""
+			(at 323.85 39.37 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b84e2e04-ab17-4615-bcc4-f206c9b181d5")
+		)
+		(pin "2"
+			(uuid "b5825540-7937-471a-a8a6-96a2536d96d7")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "R19")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 132.08 196.85 0)
 		(unit 1)
@@ -11833,6 +12158,73 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR047")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 336.55 31.75 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "0db8722d-a83a-4a88-ad3c-7ddcf8c3742a")
+		(property "Reference" "#PWR061"
+			(at 340.36 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 332.74 31.7499 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 336.55 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 336.55 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 336.55 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "11144f0e-9bd3-40b4-b05e-1ba13b6aa3c4")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR061")
 					(unit 1)
 				)
 			)
@@ -16095,6 +16487,85 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR014")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:Buzzer")
+		(at 339.09 26.67 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "68af0ef5-666d-4b49-804a-36f46eb0b9f7")
+		(property "Reference" "BZ1"
+			(at 342.9 24.6448 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "Buzzer"
+			(at 342.9 27.1848 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Buzzer_Beeper:Buzzer_CUI_CPT-9019S-SMT"
+			(at 336.55 27.305 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 336.55 27.305 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Buzzer, polarized"
+			(at 339.09 26.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C255327"
+			(at 339.09 26.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "5895d602-cb0f-4a32-89cc-1ff4f696259d")
+		)
+		(pin "2"
+			(uuid "cd269a81-f36f-4086-927d-71b8b029bf20")
+		)
+		(instances
+			(project ""
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "BZ1")
 					(unit 1)
 				)
 			)
@@ -22762,6 +23233,72 @@
 		)
 	)
 	(symbol
+		(lib_id "power:GND")
+		(at 341.63 46.99 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f81753a9-0d15-4247-9660-56ef32b62170")
+		(property "Reference" "#PWR045"
+			(at 341.63 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 341.63 52.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 341.63 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 341.63 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 341.63 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2fb2eb10-eceb-4723-8adf-caf978c15383")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR045")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Transistor_BJT:MMBT3904")
 		(at 81.28 314.96 90)
 		(unit 1)
@@ -23383,6 +23920,118 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "#PWR043")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Transistor_BJT:MMBT3904")
+		(at 339.09 39.37 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ffe37252-a476-4367-a85a-8cbf607acede")
+		(property "Reference" "Q4"
+			(at 344.17 38.0999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MMBT3904"
+			(at 344.17 40.6399 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 344.17 41.275 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://www.onsemi.com/pdf/datasheet/pzt3904-d.pdf"
+			(at 339.09 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" "0.2A Ic, 40V Vce, Small Signal NPN Transistor, SOT-23"
+			(at 339.09 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C916374"
+			(at 339.09 39.37 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Device" ""
+			(at 339.09 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Pins" ""
+			(at 339.09 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Type" ""
+			(at 339.09 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "3"
+			(uuid "3fddf1aa-b071-4284-9e06-4411504e1616")
+		)
+		(pin "2"
+			(uuid "e71a60bb-af0e-44e0-80e4-e64dd889f438")
+		)
+		(pin "1"
+			(uuid "9fa6d5ed-a928-4cba-9f25-04c8e52582dd")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "Q4")
 					(unit 1)
 				)
 			)
