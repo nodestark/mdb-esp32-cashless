@@ -519,7 +519,7 @@
   },
   "schematic": {
     "annotate_start_num": 0,
-    "bom_export_filename": "../../../../../Downloads/mdb-master-esp32s3.csv",
+    "bom_export_filename": "../../../../../Downloads/mdb-slave-sim7080g-gbr/mdb-master-esp32s3.csv",
     "bom_fmt_presets": [],
     "bom_fmt_settings": {
       "field_delimiter": ",",
