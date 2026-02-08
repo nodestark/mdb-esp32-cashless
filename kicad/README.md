@@ -1,6 +1,6 @@
 # MDB ESP32 Cashless Devices
 
-This repository contains open hardware projects for MDB-based cashless devices and vending machine controllers built around the ESP32 platform.
+This repository contains open hardware projects for MDB-based cashless devices built around the ESP32 platform.
 
 ## PCBWay Project Store
 You can view and order the PCBs directly from PCBWay using the link below:
@@ -14,9 +14,3 @@ You can view and order the PCBs directly from PCBWay using the link below:
 
 ### MDB ESP32 GPS/LTE-M/NB-IoT Cashless Device
 ![MDB Cashless](mdb-slave-esp32s3-sim7080g/mdb-slave-esp32s3-sim7080g.png)
-
-### MDB ESP32 Tiny Vending Machine
-![MDB Cashless](mdb-master-esp32s3/mdb-master-esp32s3.png)
-
-### MDB Target to TTL
-![MDB Cashless](mdb-slave-bridge/mdb-slave-bridge.png)
