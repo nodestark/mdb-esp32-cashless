@@ -17069,7 +17069,7 @@
 		(lib_id "Graphic:Logo_Open_Hardware_Small")
 		(at 40.64 33.02 0)
 		(unit 1)
-		(exclude_from_sim no)
+		(exclude_from_sim yes)
 		(in_bom no)
 		(on_board no)
 		(dnp no)
@@ -17112,15 +17112,6 @@
 			)
 		)
 		(property "Description" "Open Hardware logo, small"
-			(at 40.64 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Sim.Enable" "0"
 			(at 40.64 33.02 0)
 			(effects
 				(font
@@ -20794,6 +20785,15 @@
 			)
 		)
 		(property "Description" "Generic connector, double row, 02x08, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 414.02 93.98 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C41375952"
 			(at 414.02 93.98 0)
 			(effects
 				(font
