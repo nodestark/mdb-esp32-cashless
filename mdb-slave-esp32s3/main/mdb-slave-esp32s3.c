@@ -35,14 +35,15 @@
 
 #define TAG "mdb_cashless"
 
-#define PIN_MDB_RX          GPIO_NUM_4
-#define PIN_MDB_TX          GPIO_NUM_5
-#define PIN_MDB_LED         GPIO_NUM_21
-#define PIN_DEX_RX          GPIO_NUM_44
-#define PIN_DEX_TX          GPIO_NUM_43
-#define PIN_SIM7080G_RX     GPIO_NUM_18
-#define PIN_SIM7080G_TX     GPIO_NUM_17
-#define PIN_SIM7080G_PWR    GPIO_NUM_14
+#define PIN_MDB_RX              GPIO_NUM_4
+#define PIN_MDB_TX              GPIO_NUM_5
+#define PIN_MDB_LED             GPIO_NUM_21
+#define PIN_DEX_RX              GPIO_NUM_8
+#define PIN_DEX_TX              GPIO_NUM_9
+#define PIN_SIM7080G_RX         GPIO_NUM_18
+#define PIN_SIM7080G_TX         GPIO_NUM_17
+#define PIN_SIM7080G_PWR        GPIO_NUM_14
+#define PIN_BUZZER_PWR          GPIO_NUM_12
 
 // Define the ADC unit, channel, and attenuation (NTC Thermistor)
 #define ADC_UNIT            ADC_UNIT_1
