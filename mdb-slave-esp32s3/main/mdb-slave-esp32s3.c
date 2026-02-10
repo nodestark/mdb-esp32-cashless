@@ -46,8 +46,8 @@
 #define PIN_BUZZER_PWR          GPIO_NUM_12
 
 // Define the ADC unit, channel, and attenuation (NTC Thermistor)
-#define ADC_UNIT            ADC_UNIT_1
-#define ADC_CHANNEL         ADC_CHANNEL_6           // GPIO7 on ESP32-S3
+#define ADC_UNIT_THERMISTOR     ADC_UNIT_1
+#define ADC_CHANNEL_THERMISTOR  ADC_CHANNEL_6   // GPIO7 on ESP32-S3
 
 // Functions for scale factor conversion
 #define TO_SCALE_FACTOR(p, x, y) (p / x / pow(10, -(y) ))   // Converts to scale factor
@@ -263,18 +263,23 @@ void vTaskMdbEvent(void *pvParameters) {
 						uint8_t vmcRowsOnDisplay = read_9(&checksum);
 						uint8_t vmcDisplayInfo = read_9(&checksum);
 
+						(void) vmcDisplayInfo;
+						(void) vmcRowsOnDisplay;
+						(void) vmcColumnsOnDisplay;
+						(void) vmcFeatureLevel;
+
                         if (read_9(NULL) != checksum) continue;
 
 						machine_state = DISABLED_STATE;
 
-                        mdb_payload[0] = 0x01;                          // Reader Config Data
-                        mdb_payload[1] = 1;                             // Reader Feature Level
-						mdb_payload[2] = CONFIG_CURRENCY_CODE >> 8;     // Country Code High
-						mdb_payload[3] = CONFIG_CURRENCY_CODE;          // Country Code Low
-						mdb_payload[4] = 1;                             // Scale Factor
-						mdb_payload[5] = 2;                             // Decimal Places
-						mdb_payload[6] = 3;                             // Maximum Response Time (5s)
-						mdb_payload[7] = 0b00001001;                    // Miscellaneous Options
+                        mdb_payload[0] = 0x01;                                  // Reader Config Data
+                        mdb_payload[1] = 1;                                     // Reader Feature Level
+						mdb_payload[2] = (CONFIG_CURRENCY_CODE >> 8) & 0xff;    // Country Code High
+						mdb_payload[3] = CONFIG_CURRENCY_CODE & 0xff;           // Country Code Low
+						mdb_payload[4] = 1;                                     // Scale Factor
+						mdb_payload[5] = 2;                                     // Decimal Places
+						mdb_payload[6] = 3;                                     // Maximum Response Time (5s)
+						mdb_payload[7] = 0b00001001;                            // Miscellaneous Options
 						available_tx = 8;
 
 						ESP_LOGI( TAG, "CONFIG_DATA");
@@ -284,6 +289,9 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						uint16_t maxPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+
+						(void) maxPrice;
+						(void) minPrice;
 
                         if (read_9(NULL) != checksum) continue;
 
@@ -1309,15 +1317,15 @@ void app_main(void) {
 	//--------------- ADC Init (NTC thermistor) ----------------//
 	//----------------------------------------------------------//
     adc_oneshot_unit_handle_t adc_handle;
-    adc_oneshot_unit_init_cfg_t init_config = { .unit_id = ADC_UNIT, };
+    adc_oneshot_unit_init_cfg_t init_config = { .unit_id = ADC_UNIT_THERMISTOR, };
     ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc_handle));
 
     adc_oneshot_chan_cfg_t config = { .atten = ADC_ATTEN_DB_12, .bitwidth = ADC_BITWIDTH_DEFAULT, };
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, ADC_CHANNEL, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, ADC_CHANNEL_THERMISTOR, &config));
 
     int adc_raw_value;
 
-    ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL, &adc_raw_value));
+    ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL_THERMISTOR, &adc_raw_value));
     ESP_LOGI(TAG, "ADC Raw Data: %d", adc_raw_value);
 
 	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
