@@ -1064,15 +1064,14 @@ void vTaskBitEvent(void *pvParameters) {
         EventBits_t uxBits = xEventGroupWaitBits(xLedEventGroup, BIT_EVT_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY );
 
         if ((uxBits & MASK_EVT_INSTALLED) != MASK_EVT_INSTALLED) {
-            led_strip_set_pixel(led_strip, 0, 80, 60, 0);
+            led_strip_set_pixel(led_strip, 0, 80, 60, 0);   // Not installed := YELLOW
         } else if ((uxBits & BIT_EVT_MDB) && (uxBits & BIT_EVT_INTERNET)) {
-            led_strip_set_pixel(led_strip, 0, 10, 80, 10);
+            led_strip_set_pixel(led_strip, 0, 10, 80, 10);  // MDB & Internet := GREEN
         } else if (uxBits & BIT_EVT_MDB) {
-            led_strip_set_pixel(led_strip, 0, 5, 15, 80);
+            led_strip_set_pixel(led_strip, 0, 5, 15, 80);   // Only MDB := BLUE
         } else {
-            led_strip_set_pixel(led_strip, 0, 80, 5, 5);
+            led_strip_set_pixel(led_strip, 0, 80, 5, 5);    // Inactive/Disabled := RED
         }
-
         led_strip_refresh(led_strip);
 
         if(uxBits & BIT_EVT_BUZZER){
@@ -1326,9 +1325,6 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-    led_strip_set_pixel(led_strip, 0, 20, 20, 20);
-    led_strip_refresh(led_strip);
-
 	//--------------- ADC Init (NTC thermistor) ----------------//
 	//----------------------------------------------------------//
     adc_oneshot_unit_handle_t adc_handle;
@@ -1436,4 +1432,5 @@ void app_main(void) {
 	xTaskCreatePinnedToCore(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL, 1);
 
     xTaskCreatePinnedToCore(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL, 0);
+    xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 }
