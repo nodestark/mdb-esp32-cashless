@@ -71,7 +71,8 @@ enum BIT_EVENTS {
     BIT_EVT_MDB         = (1 << 1),
     BIT_EVT_PSSKEY      = (1 << 2),
     BIT_EVT_DOMAIN      = (1 << 3),
-    BIT_EVT_TRIGGER     = (1 << 4),
+    BIT_EVT_BUZZER      = (1 << 4),
+    BIT_EVT_TRIGGER     = (1 << 5),
     MASK_EVT_INSTALLED  = (BIT_EVT_PSSKEY | BIT_EVT_DOMAIN)
 };
 
@@ -1073,6 +1074,15 @@ void vTaskBitEvent(void *pvParameters) {
         }
 
         led_strip_refresh(led_strip);
+
+        if(uxBits & BIT_EVT_BUZZER){
+
+            gpio_set_level(PIN_BUZZER_PWR, 1);
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            gpio_set_level(PIN_BUZZER_PWR, 0);
+
+            xEventGroupClearBits(xLedEventGroup, BIT_EVT_BUZZER);
+        }
     }
 }
 
@@ -1209,7 +1219,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 			if(xorDecodeWithPasskey(&fundsAvailable, NULL, (uint8_t*) event->data)){
 			    xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
 
-			    ESP_LOGI( TAG, "Amount= %d", fundsAvailable);
+                xEventGroupSetBits(xLedEventGroup, BIT_EVT_BUZZER | BIT_EVT_TRIGGER);
+
+                ESP_LOGI( TAG, "Amount= %d", fundsAvailable);
 			}
 		}
 
@@ -1290,6 +1302,9 @@ void app_main(void) {
 
     gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
 	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
+
+	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
+	gpio_set_level(PIN_BUZZER_PWR, 0);
 
 	//---------------- Strip LED configuration -----------------//
 	//----------------------------------------------------------//
