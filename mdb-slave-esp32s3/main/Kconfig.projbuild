@@ -34,11 +34,31 @@ menu "MDB Cashless Device"
             bool "UNKNOWN - 0xffff"
     endchoice
 
-    config CURRENCY_CODE
+    config MDB_CURRENCY_CODE
         int
         default 6520 if CURRENCY_EUR
         default 6208 if CURRENCY_USD
         default 6534 if CURRENCY_BRL
         default 65535 if CURRENCY_UNKNOWN
+
+    config MDB_SCALE_FACTOR
+        int "Scale Factor (MDB)"
+        default 1
+        help
+            Scale factor used by the MDB cashless device.
+            Example:
+              1  -> value is sent as-is
+              10 -> multiply prices by 10
+              100 -> multiply prices by 100
+
+    config MDB_DECIMAL_PLACES
+        int "Decimal Places (MDB)"
+        default 2
+        range 0 3
+        help
+            Number of decimal places used for prices.
+            Example:
+              0 -> no decimals
+              2 -> cents
 
 endmenu # MDB Cashless Device

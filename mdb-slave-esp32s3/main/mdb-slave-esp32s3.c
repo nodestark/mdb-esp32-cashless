@@ -50,8 +50,8 @@
 #define ADC_CHANNEL_THERMISTOR  ADC_CHANNEL_6   // GPIO7 on ESP32-S3
 
 // Functions for scale factor conversion
-#define TO_SCALE_FACTOR(p, x, y) (p / x / pow(10, -(y) ))   // Converts to scale factor
-#define FROM_SCALE_FACTOR(p, x, y) (p * x * pow(10, -(y) )) // Converts from scale factor
+#define TO_SCALE_FACTOR(p, scale_to, dec_to) (p / scale_to / pow(10, -(dec_to) ))               // Converts to scale factor
+#define FROM_SCALE_FACTOR(p, scale_from, dec_from) (p * scale_from * pow(10, -(dec_from) ))     // Converts from scale factor
 
 #define ACK 	0x00  // Acknowledgment / Checksum correct
 #define RET 	0xAA  // Retransmit previously sent data. Only VMC can send this
@@ -277,11 +277,13 @@ void vTaskMdbEvent(void *pvParameters) {
                         mdb_payload[1] = 1;                                     // Reader Feature Level
 						mdb_payload[2] = (CONFIG_CURRENCY_CODE >> 8) & 0xff;    // Country Code High
 						mdb_payload[3] = CONFIG_CURRENCY_CODE & 0xff;           // Country Code Low
-						mdb_payload[4] = 1;                                     // Scale Factor
-						mdb_payload[5] = 2;                                     // Decimal Places
+						mdb_payload[4] = CONFIG_MDB_SCALE_FACTOR;               // Scale Factor
+						mdb_payload[5] = CONFIG_MDB_DECIMAL_PLACES;             // Decimal Places
 						mdb_payload[6] = 3;                                     // Maximum Response Time (5s)
 						mdb_payload[7] = 0b00001001;                            // Miscellaneous Options
 						available_tx = 8;
+
+						// idf.py menuconfig -> "MDB Cashless Device"
 
 						ESP_LOGI( TAG, "CONFIG_DATA");
 						break;
