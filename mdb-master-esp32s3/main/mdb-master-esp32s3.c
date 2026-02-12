@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <float.h>
 #include <math.h>
 #include <driver/gpio.h>
 #include <driver/uart.h>
@@ -28,8 +29,9 @@
 #define pin_mdb_tx  	GPIO_NUM_5  // Pin to transmit data to MDB
 #define pin_mdb_led 	GPIO_NUM_48 // LED to indicate MDB state
 
-#define to_scale_factor(p, x, y) (p / x / pow(10, -(y) ))
-#define from_scale_factor(p, x, y) (p * x * pow(10, -(y) ))
+// Functions for scale factor conversion
+#define TO_SCALE_FACTOR(p, scale_to, dec_to) (p / scale_to / pow(10, -(dec_to) ))               // Converts to scale factor
+#define FROM_SCALE_FACTOR(p, scale_from, dec_from) (p * scale_from * pow(10, -(dec_from) ))     // Converts from scale factor
 
 #define ACK 	0x00  // Acknowledgment / Checksum correct;
 #define RET 	0xAA  // Retransmit the previously sent data. Only the VMC can transmit this byte;
@@ -74,7 +76,14 @@ struct reader_t reader0x60 = { .machineState = INACTIVE_STATE };
 /* PA102 - Product Price
  * PA201 - Number of Products Vended Since Initialisation
  * */
-uint8_t coils[1][2] = {{100 /*PA102*/, 0 /*PA201*/}};
+typedef struct {
+    float pa102;
+    uint16_t pa201;
+} coil_t;
+
+coil_t coils[1] = {
+    {.pa102 = 1.25f, .pa201 = 0}
+};
 
 static QueueHandle_t button_receive_queue = (void*) 0;
 
@@ -183,23 +192,28 @@ void mdb_vmc_loop(void *pvParameters) {
 
 		} else if (reader0x10.machineState == DISABLED_STATE) {
 
-			uint16_t maxPrice = 0, minPrice = 0xffff;
+            float maxPrice = 0;
+            float minPrice = FLT_MAX;
 
-			for (uint8_t c = 0; c < sizeof(coils)/sizeof(coils[0]); c++) {
-				if(coils[c][0] > maxPrice) maxPrice = coils[c][0];
+            uint8_t count = sizeof(coils) / sizeof(coils[0]);
+			for (uint8_t c = 0; c < count; c++) {
 
-				if(coils[c][0] < minPrice) minPrice = coils[c][0];
+			    if (coils[c].pa102 > maxPrice)
+                    maxPrice = coils[c].pa102;
+
+                if (coils[c].pa102 < minPrice)
+                    minPrice = coils[c].pa102;
 			}
 
-			maxPrice = to_scale_factor(maxPrice / 100.0f, reader0x10.scaleFactor, reader0x10.decimalPlaces);
-			minPrice = to_scale_factor(minPrice / 100.0f, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+			uint16_t scaledMaxPrice = TO_SCALE_FACTOR(maxPrice, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+			uint16_t scaledMinPrice = TO_SCALE_FACTOR(minPrice, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
 			mdb_payload_tx[1] = 0x01; // Max|Min Prices
-			mdb_payload_tx[2] = maxPrice >> 8;
-			mdb_payload_tx[3] = maxPrice;
-			mdb_payload_tx[4] = minPrice >> 8;
-			mdb_payload_tx[5] = minPrice;
+			mdb_payload_tx[2] = scaledMaxPrice >> 8;
+			mdb_payload_tx[3] = scaledMaxPrice;
+			mdb_payload_tx[4] = scaledMinPrice >> 8;
+			mdb_payload_tx[5] = scaledMinPrice;
 
 			write_payload_9(mdb_payload_tx, 6);
 
@@ -311,6 +325,7 @@ void mdb_vmc_loop(void *pvParameters) {
 					write_9(ACK | BIT_MODE_SET);
 
 					uint16_t vendAmount = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
+					(void) vendAmount;
 
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x02; // Vend Success
@@ -324,7 +339,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					reader0x10.machineState = IDLE_STATE;
 
-					++coils[itemNumber][1];
+					++coils[itemNumber].pa201;
 
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
@@ -361,6 +376,7 @@ void mdb_vmc_loop(void *pvParameters) {
 					write_9(ACK | BIT_MODE_SET);
 
 					uint16_t fundsAvailable = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
+                    (void) fundsAvailable;
 
 					reader0x10.machineState = IDLE_STATE;
 
@@ -376,7 +392,7 @@ void mdb_vmc_loop(void *pvParameters) {
 
 				} else if (xQueueReceive(button_receive_queue, &itemNumber, 0)) {
 
-					uint16_t itemPrice = to_scale_factor(coils[itemNumber][0] / 100.0f, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+					uint16_t itemPrice = TO_SCALE_FACTOR(coils[itemNumber].pa102, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 
 					if (reader0x10.machineState == IDLE_STATE) {
 						ESP_LOGI( TAG, "Vend request");
@@ -411,7 +427,7 @@ void mdb_vmc_loop(void *pvParameters) {
 						len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
 					    assert(len == 1);
 
-						++coils[itemNumber][1];
+						++coils[itemNumber].pa201;
 					}
 				}
 
@@ -628,12 +644,12 @@ void eva_dts_loop(void *pvParameters) {
 			uart_write_bytes(UART_NUM_1, "\x10\x02", 2);
 
 			char pa1[100];
-			sprintf(pa1, "PA1*%d*%d****\x0D\x0A", c, coils[c][0]);
+			sprintf(pa1, "PA1*%d*%d****\x0D\x0A", c, (uint16_t) TO_SCALE_FACTOR(coils[c].pa102, 1, 2) );
 
 			uart_write_bytes(UART_NUM_1, &pa1, strlen(pa1));
 
 			char pa2[100];
-			sprintf(pa2, "PA2*%d*0*0*0\x0D\x0A", coils[c][1]);
+			sprintf(pa2, "PA2*%d*0*0*0\x0D\x0A", coils[c].pa201);
 
 			uart_write_bytes(UART_NUM_1, &pa2, strlen(pa2));
 
