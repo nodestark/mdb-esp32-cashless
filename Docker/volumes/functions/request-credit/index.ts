@@ -32,10 +32,14 @@ Deno.serve(async (req) => {
 
         if( payload[payload.length - 1] == (chk & 0xff) ){
 
-            const itemPrice = (payload[2] << 8) | (payload[3] << 0);
-            const itemNumber = (payload[4] << 8) | (payload[5] << 0);
+            const itemPrice =
+                (payload[2] << 24) |
+                (payload[3] << 16) |
+                (payload[4] << 8) |
+                (payload[5] << 0);
+            const itemNumber = (payload[6] << 8) | (payload[7] << 0);
 
-	    const { data: saleData, error } = await supabase.from("sales").insert([{
+	        const { data: saleData, error } = await supabase.from("sales").insert([{
             	embedded_id: embeddedData[0].id,
             	item_number: itemNumber,
             	item_price: fromScaleFactor(itemPrice, 1, 2),

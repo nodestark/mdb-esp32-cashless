@@ -55,17 +55,14 @@ def on_message(client, userdata, msg):
                 chk = sum(payload[:-1])
                 if payload[-1] == (chk & 0xFF):
 
-                    timestampSec = ((payload[6] << 24) |
-                                    (payload[7] << 16) |
-                                    (payload[8] << 8) |
-                                    (payload[9] << 0))
+                    timestampSec = int.from_bytes( payload[8:12], byteorder="big")
 
                     current_time = int(time.time())
 
                     if abs(current_time - timestampSec) <= 8:
 
-                        item_price = (payload[2] << 8) | (payload[3] << 0)
-                        item_number = (payload[4] << 8) | (payload[5] << 0)
+                        item_price = int.from_bytes(payload[2:6], byteorder="big")
+                        item_number = int.from_bytes(payload[6:8], byteorder="big")
 
                         supabase.table("sales").insert([{"owner_id":embedded["owner_id"],"embedded_id": embedded["id"],"item_number": item_number,"item_price": from_scale_factor(item_price, 1, 2),"channel": "cash"}]).execute()
     except Exception as e:

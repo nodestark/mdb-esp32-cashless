@@ -32,14 +32,16 @@ Deno.serve(async (req) => {
 
         payload[0] = 0x20;
         payload[1] = 0x01; 			            // version v1
-        payload[2] = (itemPrice >> 8) & 0xff;   // itemPrice
-        payload[3] = (itemPrice >> 0) & 0xff;
-        payload[4] = 0x00; 			            // itemNumber
-        payload[5] = 0x00;
-        payload[6] = (timestampSec >> 24) & 0xff;
-        payload[7] = (timestampSec >> 16) & 0xff;
-        payload[8] = (timestampSec >> 8) & 0xff;
-        payload[9] = (timestampSec >> 0) & 0xff;
+        payload[2] = (itemPrice >> 24) & 0xff;  // itemPrice
+        payload[3] = (itemPrice >> 16) & 0xff;
+        payload[4] = (itemPrice >> 8) & 0xff;
+        payload[5] = (itemPrice >> 0) & 0xff;
+        payload[6] = 0x00; 			            // itemNumber
+        payload[7] = 0x00;
+        payload[8] = (timestampSec >> 24) & 0xff;
+        payload[9] = (timestampSec >> 16) & 0xff;
+        payload[10] = (timestampSec >> 8) & 0xff;
+        payload[11] = (timestampSec >> 0) & 0xff;
 
         let chk = payload.slice(0, -1).reduce((acc, val) => acc + val, 0);
         payload[payload.length - 1] = chk;
