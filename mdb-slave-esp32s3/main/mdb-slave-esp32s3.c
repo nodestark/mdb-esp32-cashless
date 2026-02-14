@@ -275,8 +275,8 @@ void vTaskMdbEvent(void *pvParameters) {
 
                         mdb_payload[0] = 0x01;                                  // Reader Config Data
                         mdb_payload[1] = 1;                                     // Reader Feature Level
-						mdb_payload[2] = (CONFIG_CURRENCY_CODE >> 8) & 0xff;    // Country Code High
-						mdb_payload[3] = CONFIG_CURRENCY_CODE & 0xff;           // Country Code Low
+						mdb_payload[2] = CONFIG_MDB_CURRENCY_CODE >> 8;         // Country Code High
+						mdb_payload[3] = CONFIG_MDB_CURRENCY_CODE & 0xff;       // Country Code Low
 						mdb_payload[4] = CONFIG_MDB_SCALE_FACTOR;               // Scale Factor
 						mdb_payload[5] = CONFIG_MDB_DECIMAL_PLACES;             // Decimal Places
 						mdb_payload[6] = 3;                                     // Maximum Response Time (5s)

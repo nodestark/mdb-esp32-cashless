@@ -5,10 +5,10 @@ menu "MDB Cashless Device"
         default CASHLESS_ADDR_1
 
         config CASHLESS_ADDR_1
-            bool "Cashless Device #1 - 0X10"
+            bool "Cashless Device #1"
 
         config CASHLESS_ADDR_2
-            bool "Cashless Device #2 - 0X60"
+            bool "Cashless Device #2"
 
     endchoice
 
@@ -41,24 +41,30 @@ menu "MDB Cashless Device"
         default 6534 if CURRENCY_BRL
         default 65535 if CURRENCY_UNKNOWN
 
+    choice
+        prompt "Scale Factor (MDB)"
+        default SCALE_FACTOR_1
+
+        config SCALE_FACTOR_1
+            bool "1"
+
+        config SCALE_FACTOR_10
+            bool "10"
+
+        config SCALE_FACTOR_100
+            bool "100"
+
+    endchoice
+
     config MDB_SCALE_FACTOR
-        int "Scale Factor (MDB)"
-        default 1
-        help
-            Scale factor used by the MDB cashless device.
-            Example:
-              1  -> value is sent as-is
-              10 -> multiply prices by 10
-              100 -> multiply prices by 100
+        int
+        default 1 if SCALE_FACTOR_1
+        default 10 if SCALE_FACTOR_10
+        default 100 if SCALE_FACTOR_100
 
     config MDB_DECIMAL_PLACES
         int "Decimal Places (MDB)"
         default 2
         range 0 3
-        help
-            Number of decimal places used for prices.
-            Example:
-              0 -> no decimals
-              2 -> cents
 
 endmenu # MDB Cashless Device
