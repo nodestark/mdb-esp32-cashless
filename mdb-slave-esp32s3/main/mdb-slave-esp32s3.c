@@ -585,10 +585,10 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
         return 0;
     }
 
-    int32_t timestamp = ((uint32_t) payload[6] << 24) |
-						((uint32_t) payload[7] << 16) |
-						((uint32_t) payload[8] << 8)  |
-						((uint32_t) payload[9] << 0);
+    int32_t timestamp = ((uint32_t) payload[8] << 24) |
+						((uint32_t) payload[9] << 16) |
+						((uint32_t) payload[10] << 8)  |
+						((uint32_t) payload[11] << 0);
 
     time_t now = time(NULL);
 
@@ -596,11 +596,16 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
         return 0;
     }
 
+    int32_t itemPrice32 =   ((uint32_t) payload[2] << 24) |
+                            ((uint32_t) payload[3] << 16) |
+                            ((uint32_t) payload[4] << 8)  |
+                            ((uint32_t) payload[5] << 0);
+
     if(itemPrice)
-        *itemPrice = ((uint16_t) payload[2] << 8) | ((uint16_t) payload[3] << 0);
+        *itemPrice = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(itemPrice32, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES);
 
     if(itemNumber)
-        *itemNumber = ((uint16_t) payload[4] << 8) | ((uint16_t) payload[5] << 0);
+        *itemNumber = ((uint16_t) payload[6] << 8) | ((uint16_t) payload[7] << 0);
 
     return 1;
 }
@@ -612,16 +617,20 @@ void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *pa
 
 	time_t now = time(NULL);
 
+    int32_t itemPrice32 = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(*itemPrice, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
+
 	// payload[0] = cmd;
 	payload[1] = 0x01; 				// version v1
-	payload[2] = *itemPrice >> 8;	// itemPrice
-	payload[3] = *itemPrice;
-	payload[4] = *itemNumber >> 8;	// itemNumber
-	payload[5] = *itemNumber;
-	payload[6] = (now >> 24);		// time (sec)
-	payload[7] = (now >> 16);
-	payload[8] = (now >> 8);
-	payload[9] = (now >> 0);
+	payload[2] = itemPrice32 >> 24;	// itemPrice
+    payload[3] = itemPrice32 >> 16;
+	payload[4] = itemPrice32 >> 8;
+	payload[5] = itemPrice32;
+	payload[6] = *itemNumber >> 8;	// itemNumber
+	payload[7] = *itemNumber;
+	payload[8]  = now >> 24;		// time (sec)
+	payload[9]  = now >> 16;
+	payload[10] = now >> 8;
+	payload[11] = now;
 
 	int p_len = sizeof(my_passkey) + 1;
 
@@ -1222,7 +1231,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
                 xEventGroupSetBits(xLedEventGroup, BIT_EVT_BUZZER | BIT_EVT_TRIGGER);
 
-                ESP_LOGI( TAG, "Amount= %d", fundsAvailable);
+                ESP_LOGI( TAG, "Amount= %f", FROM_SCALE_FACTOR(fundsAvailable, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 			}
 		}
 

@@ -9,21 +9,23 @@ from supabase import create_client, Client
 from datetime import datetime, timezone
 import time
 
-role_key=os.environ.get('SERVICE_ROLE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q')
+role_key = os.environ.get('SERVICE_ROLE_KEY')
 
-supabaseUrl=os.environ.get('SUPABASE_PUBLIC_URL', 'https://supabase.vmflow.xyz')
+supabaseUrl = os.environ.get('SUPABASE_PUBLIC_URL')
 print(supabaseUrl)
 print(role_key)
 supabase: Client = create_client(supabaseUrl, role_key)
 
+
 def to_scale_factor(p: float, x: float, y: float) -> float:
     return p / x / (10 ** -y)
+
 
 def from_scale_factor(p: float, x: float, y: float) -> float:
     return p * x * (10 ** -y)
 
-def on_connect(client, userdata, flags, rc):
 
+def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print(" Connected to broker!")
         client.subscribe("/domain/+/sale")
@@ -31,12 +33,13 @@ def on_connect(client, userdata, flags, rc):
     else:
         print(f" Connection failed. Code: {rc}")
 
+
 def on_message(client, userdata, msg):
     try:
         match = re.match(r"^/domain/(\d+)/(sale|status)$", msg.topic)
         if match:
             domain_id = int(match.group(1))
-            event_type = match.group(2) # "sale" or "status"
+            event_type = match.group(2)  # "sale" or "status"
             payload = bytearray(msg.payload)
             # print(event_type)
 
@@ -55,25 +58,29 @@ def on_message(client, userdata, msg):
                 chk = sum(payload[:-1])
                 if payload[-1] == (chk & 0xFF):
 
-                    timestampSec = int.from_bytes( payload[8:12], byteorder="big")
+                    timestampSec = int.from_bytes(payload[8:12], byteorder="big")
 
                     current_time = int(time.time())
 
                     if abs(current_time - timestampSec) <= 8:
-
                         item_price = int.from_bytes(payload[2:6], byteorder="big")
                         item_number = int.from_bytes(payload[6:8], byteorder="big")
 
-                        supabase.table("sales").insert([{"owner_id":embedded["owner_id"],"embedded_id": embedded["id"],"item_number": item_number,"item_price": from_scale_factor(item_price, 1, 2),"channel": "cash"}]).execute()
+                        supabase.table("sales").insert([{"owner_id": embedded["owner_id"],
+                                                         "embedded_id": embedded["id"],
+                                                         "item_number": item_number,
+                                                         "item_price": from_scale_factor(item_price, 1, 2),
+                                                         "channel": "cash"}]).execute()
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
+
 client = mqtt.Client()
+
 client.on_connect = on_connect
 client.on_message = on_message
 
-mqttHost=os.environ.get('MQTT_HOST', 'mqtt.vmflow.xyz')
+mqttHost = os.environ.get('MQTT_HOST')
 print(mqttHost)
 client.connect(mqttHost, 1883, keepalive=60)
 client.loop_forever()
-

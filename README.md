@@ -26,10 +26,6 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 
 [![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
 
-- Or buy the **official board** to support development:
-  👉 https://store.vmflow.xyz
-
-
 ---
 
 [![Made with Supabase](https://supabase.com/badge-made-with-supabase-dark.svg)](https://supabase.com)
