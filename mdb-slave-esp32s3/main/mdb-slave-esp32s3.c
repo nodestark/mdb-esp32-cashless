@@ -35,6 +35,8 @@
 
 #define TAG "mdb_cashless"
 
+#define PIN_I2C_SDA             GPIO_NUM_13
+#define PIN_I2C_SCL             GPIO_NUM_6
 #define PIN_MDB_RX              GPIO_NUM_4
 #define PIN_MDB_TX              GPIO_NUM_5
 #define PIN_MDB_LED             GPIO_NUM_21
