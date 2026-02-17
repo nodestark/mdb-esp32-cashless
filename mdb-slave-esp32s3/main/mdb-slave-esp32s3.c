@@ -567,6 +567,21 @@ void vTaskMdbEvent(void *pvParameters) {
 	}
 }
 
+/*
+ * 19-byte payload:
+ * - Initially filled with random garbage (esp_fill_random)
+ * - Fixed fields are overwritten as defined below
+ * - Payload XOR-obfuscated with provisioning key before transmit
+ *
+ * Byte index →
+ * +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+ * |CMD |VER |    ITEM_PRICE     |ITEM_NUMB|       TIME_SEC    |               NOT_USED           |
+ * +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+ *   0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16   17   18
+ *
+ * [ random filler ] + [ structured data ] → XOR → obfuscated payload
+ */
+
 // Decode payload from communication between BLE and MQTT
 uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
 
