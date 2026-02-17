@@ -192,21 +192,21 @@ void mdb_vmc_loop(void *pvParameters) {
 
 		} else if (reader0x10.machineState == DISABLED_STATE) {
 
-            float maxPrice = 0;
-            float minPrice = FLT_MAX;
+            coil_t coilMaxPrice = coils[0];
+            coil_t coilMinPrice = coils[0];
 
             uint8_t count = sizeof(coils) / sizeof(coils[0]);
-			for (uint8_t c = 0; c < count; c++) {
+            for (uint8_t c = 0; c < count; c++) {
 
-			    if (coils[c].pa102 > maxPrice)
-                    maxPrice = coils[c].pa102;
+                if (coils[c].pa102 > coilMaxPrice.pa102)
+                    coilMaxPrice = coils[c];
 
-                if (coils[c].pa102 < minPrice)
-                    minPrice = coils[c].pa102;
-			}
+                if (coils[c].pa102 < coilMinPrice.pa102)
+                    coilMinPrice = coils[c];
+            }
 
-			uint16_t scaledMaxPrice = TO_SCALE_FACTOR(maxPrice, reader0x10.scaleFactor, reader0x10.decimalPlaces);
-			uint16_t scaledMinPrice = TO_SCALE_FACTOR(minPrice, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+			uint16_t scaledMaxPrice = TO_SCALE_FACTOR(coilMaxPrice.pa102, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+			uint16_t scaledMinPrice = TO_SCALE_FACTOR(coilMinPrice.pa102, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 
 			mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (SETUP & BIT_CMD_SET);
 			mdb_payload_tx[1] = 0x01; // Max|Min Prices
