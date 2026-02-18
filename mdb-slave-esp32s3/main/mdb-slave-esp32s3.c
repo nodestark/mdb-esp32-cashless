@@ -35,8 +35,9 @@
 
 #define TAG "mdb_cashless"
 
-#define PIN_I2C_SDA             GPIO_NUM_13
-#define PIN_I2C_SCL             GPIO_NUM_6
+#define PIN_I2C_SDA             GPIO_NUM_10
+#define PIN_I2C_SCL             GPIO_NUM_11
+#define PIN_PULSE_1             GPIO_NUM_13
 #define PIN_MDB_RX              GPIO_NUM_4
 #define PIN_MDB_TX              GPIO_NUM_5
 #define PIN_MDB_LED             GPIO_NUM_21
@@ -47,9 +48,8 @@
 #define PIN_SIM7080G_PWR        GPIO_NUM_14
 #define PIN_BUZZER_PWR          GPIO_NUM_12
 
-// Define the ADC unit, channel, and attenuation (NTC Thermistor)
 #define ADC_UNIT_THERMISTOR     ADC_UNIT_1
-#define ADC_CHANNEL_THERMISTOR  ADC_CHANNEL_6   // GPIO7 on ESP32-S3
+#define ADC_CHANNEL_THERMISTOR  ADC_CHANNEL_6   // Define the ADC unit, channel, and attenuation (NTC Thermistor)
 
 // Functions for scale factor conversion
 #define TO_SCALE_FACTOR(p, scale_to, dec_to) (p / scale_to / pow(10, -(dec_to) ))               // Converts to scale factor
