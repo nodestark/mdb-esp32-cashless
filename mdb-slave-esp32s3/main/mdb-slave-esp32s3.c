@@ -406,7 +406,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
-                        sendBleNotification((char*) &payload, sizeof(payload));
+                        ble_notify_send((char*) &payload, sizeof(payload));
 
 						ESP_LOGI( TAG, "VEND_REQUEST");
 						break;
@@ -431,7 +431,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
-                        sendBleNotification((char*) &payload, sizeof(payload));
+                        ble_notify_send((char*) &payload, sizeof(payload));
 
 						ESP_LOGI( TAG, "VEND_SUCCESS");
 						break;
@@ -447,7 +447,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
-                        sendBleNotification((char*) &payload, sizeof(payload));
+                        ble_notify_send((char*) &payload, sizeof(payload));
 						break;
 					}
 					case SESSION_COMPLETE: {
@@ -461,7 +461,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
 
-                        sendBleNotification((char*) &payload, sizeof(payload));
+                        ble_notify_send((char*) &payload, sizeof(payload));
 
 						ESP_LOGI( TAG, "SESSION_COMPLETE");
 						break;
@@ -1133,7 +1133,7 @@ void ble_event_handler(char *ble_payload) {
 			char myhost[64];
 			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
 
-			renameBleDevice((char*) &myhost);
+			ble_set_device_name((char*) &myhost);
 
             xEventGroupSetBits(xLedEventGroup, BIT_EVT_DOMAIN | BIT_EVT_TRIGGER);
 
@@ -1436,7 +1436,7 @@ void app_main(void) {
 
 		nvs_close(handle);
 	}
-	startBleDevice(myhost, ble_event_handler);
+	ble_init(myhost, ble_event_handler);
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
@@ -1461,4 +1461,6 @@ void app_main(void) {
 
     xTaskCreatePinnedToCore(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL, 0);
     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+
+    ble_scan_start(60);
 }

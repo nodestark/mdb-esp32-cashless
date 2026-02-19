@@ -11,6 +11,10 @@
 #include "bleprph.h"
 #include "nimble.h"
 
+#define TAG "mdb_cashless"
+
+static bool scanning = false;
+
 // Variáveis globais
 static uint8_t own_addr_type;
 bool notify_state;
@@ -30,10 +34,10 @@ char characteristic_received_value[500];
 // Callback externo
 void (*writeBleCharacteristic)(char*);
 
-static int bleprph_gap_event(struct ble_gap_event *event, void *arg);
+static int ble_gap_event_cb(struct ble_gap_event *event, void *arg);
 
 // Funções auxiliares
-static int gatt_svr_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max_len, void *dst, uint16_t *len) {
+static int ble_gatt_char_write(struct os_mbuf *om, uint16_t min_len, uint16_t max_len, void *dst, uint16_t *len) {
     uint16_t om_len = OS_MBUF_PKTLEN(om);
     if (om_len < min_len || om_len > max_len) {
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
@@ -43,7 +47,7 @@ static int gatt_svr_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max
 }
 
 // Callback de acesso à característica
-static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
+static int ble_gatt_char_access_cb(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg) {
 
     int rc;
 
@@ -54,7 +58,7 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle, struc
 
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
 
-        rc = gatt_svr_chr_write(ctxt->om, 1, sizeof(characteristic_received_value), characteristic_received_value, NULL);
+        rc = ble_gatt_char_write(ctxt->om, 1, sizeof(characteristic_received_value), characteristic_received_value, NULL);
 
         writeBleCharacteristic( (char*) &characteristic_received_value );
 
@@ -73,7 +77,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
         .characteristics = (struct ble_gatt_chr_def[]) {
             {
                 .uuid = &gatt_svr_chr_uuid.u,
-                .access_cb = gatt_svr_chr_access,
+                .access_cb = ble_gatt_char_access_cb,
                 .val_handle = &notification_handle,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
             },
@@ -84,7 +88,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 };
 
 // Task principal do host BLE
-void bleprph_host_task(void *param) {
+void ble_host_task(void *param) {
     ble_host_task_handle = xTaskGetCurrentTaskHandle();
     nimble_port_run();
     nimble_port_freertos_deinit();
@@ -93,7 +97,7 @@ void bleprph_host_task(void *param) {
 }
 
 // Advertising
-static void bleprph_advertise(void) {
+static void ble_adv_start(void) {
     struct ble_gap_adv_params adv_params;
     struct ble_hs_adv_fields fields;
     const char *name;
@@ -117,21 +121,21 @@ static void bleprph_advertise(void) {
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
-    ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &adv_params, bleprph_gap_event, NULL);
+    ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, NULL);
 }
 
 // Callback de sincronização
-static void bleprph_on_sync(void) {
+static void ble_on_sync_cb(void) {
     ble_hs_id_infer_auto(0, &own_addr_type);
-    bleprph_advertise();
+    ble_adv_start();
 }
 
 // Inicialização do BLE
-void startBleDevice(char *deviceName, void* writeBleCharacteristic_) { //! Call this function to start BLE
+void ble_init(char *deviceName, void* writeBleCharacteristic_) { //! Call this function to start BLE
     writeBleCharacteristic = writeBleCharacteristic_;
 
     nimble_port_init();
-    ble_hs_cfg.sync_cb = bleprph_on_sync;
+    ble_hs_cfg.sync_cb = ble_on_sync_cb;
     ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
 
     // Configurações de segurança simplificadas
@@ -141,11 +145,11 @@ void startBleDevice(char *deviceName, void* writeBleCharacteristic_) { //! Call 
     gatt_svr_init();
     ble_svc_gap_device_name_set(deviceName);
 
-    nimble_port_freertos_init(bleprph_host_task);
+    nimble_port_freertos_init(ble_host_task);
     ble_initialized = true;
 }
 
-void renameBleDevice(char *deviceName) {
+void ble_set_device_name(char *deviceName) {
     if (!ble_initialized) {
         return; // BLE não iniciado ainda
     }
@@ -154,7 +158,7 @@ void renameBleDevice(char *deviceName) {
 
     // Opcional: reiniciar advertising para refletir o novo nome
     ble_gap_adv_stop();   // para advertising atual
-    bleprph_advertise();  // inicia advertising novamente com o novo nome
+    ble_adv_start();  // inicia advertising novamente com o novo nome
 }
 
 // Callback de registro GATT
@@ -174,18 +178,18 @@ int gatt_svr_init(void) {
 }
 
 // Eventos GAP
-static int bleprph_gap_event(struct ble_gap_event *event, void *arg) {
+static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
         if (event->connect.status != 0) {
-            bleprph_advertise();
+            ble_adv_start();
         }
         conn_handle = event->connect.conn_handle;
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
         conn_handle = BLE_HS_CONN_HANDLE_NONE;
-        bleprph_advertise();
+        ble_adv_start();
         break;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
@@ -202,11 +206,112 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg) {
 }
 
 // Envio de notificações
-void sendBleNotification(char *notification, int notification_length) {
+void ble_notify_send(char *notification, int notification_length) {
     if (!notify_state || !ble_initialized || conn_handle == BLE_HS_CONN_HANDLE_NONE) {
         return;
     }
 
     struct os_mbuf *om = ble_hs_mbuf_from_flat(notification, notification_length);
     ble_gattc_notify_custom(conn_handle, notification_handle, om);
+}
+
+static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
+
+    ESP_LOGI( TAG, "ble_scan_event_cb");
+
+    switch (event->type) {
+    case BLE_GAP_EVENT_DISC:
+
+        struct ble_hs_adv_fields fields;
+
+        // Parseia os dados de advertising
+        int rc = ble_hs_adv_parse_fields(&fields, event->disc.data, event->disc.length_data);
+        if (rc != 0) {
+            return 0;
+        }
+
+        // Imprime informações do dispositivo encontrado
+        printf("\n[DEVICE FOUND]\n");
+        printf("Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+            event->disc.addr.val[5], event->disc.addr.val[4],
+            event->disc.addr.val[3], event->disc.addr.val[2],
+            event->disc.addr.val[1], event->disc.addr.val[0]);
+
+        printf("RSSI: %d dBm\n", event->disc.rssi);
+
+        if (fields.name != NULL) {
+            printf("Name: %.*s\n", fields.name_len, fields.name);
+        }
+
+        /* 1. Manufacturer Data */
+        bool is_phone = false;
+        if (fields.mfg_data_len >= 2) {
+            uint16_t cid = fields.mfg_data[1] << 8 | fields.mfg_data[0];
+
+            printf("company id: %x\n", cid);
+            if (cid == 0x004C || cid == 0x00E0 || cid == 0x0075) {
+                is_phone = true;
+            }
+        }
+
+        /* 2. Appearance */
+        if (fields.appearance_is_present) {
+            if (fields.appearance == 0x0040) { // Generic Phone
+                is_phone = true;
+            }
+        }
+
+        printf("Can be a phone: %d\n", is_phone);
+
+    break;
+
+    case BLE_GAP_EVENT_DISC_COMPLETE:
+        printf("\nScan completo!\n");
+        scanning = false;
+    break;
+
+    default:
+    break;
+    }
+
+    return 0;
+}
+
+void ble_scan_start(int duration_seconds) {
+    if (scanning) {
+        printf("Scan já está em andamento\n");
+        return;
+    }
+
+    struct ble_gap_disc_params disc_params;
+    memset(&disc_params, 0, sizeof(disc_params));
+
+    // Configurações do scan
+    disc_params.filter_duplicates = 1;  // Filtra duplicatas
+    disc_params.passive = 0;            // Active scan (pode obter mais info)
+    disc_params.itvl = 0;               // Usa valores padrão
+    disc_params.window = 0;             // Usa valores padrão
+    disc_params.filter_policy = 0;      // Sem filtro
+    disc_params.limited = 0;            // Modo de descoberta geral
+
+    int rc = ble_gap_disc(own_addr_type, duration_seconds * 1000, &disc_params, ble_scan_event_cb, NULL);
+
+    if (rc != 0) {
+        printf("Erro ao iniciar scan: %d\n", rc);
+        return;
+    }
+
+    scanning = true;
+    printf("Scan BLE iniciado por %d segundos...\n", duration_seconds);
+}
+
+// Função para parar o scan
+void ble_scan_stop(void) {
+    if (!scanning) {
+        return;
+    }
+
+    ble_gap_disc_cancel();
+    scanning = false;
+    printf("Scan BLE cancelado\n");
 }
