@@ -1113,6 +1113,10 @@ void vTaskBitEvent(void *pvParameters) {
     }
 }
 
+void ble_pax_counter_handler(int devices_count){
+    printf("ble_pax_counter_handler %x\n", devices_count);
+}
+
 void ble_event_handler(char *ble_payload) {
 
     printf("ble_event_handler %x\n", (uint8_t) ble_payload[0]);
@@ -1325,6 +1329,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 		}
 }
 
+void request_pax_counter(void *arg) {
+    ble_scan_start(PAX_SCAN_DURATION_SEC);
+}
+
 void app_main(void) {
 
     gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
@@ -1436,7 +1444,17 @@ void app_main(void) {
 
 		nvs_close(handle);
 	}
-	ble_init(myhost, ble_event_handler);
+	ble_init(myhost, ble_event_handler, ble_pax_counter_handler);
+
+    //
+	const esp_timer_create_args_t periodic_pax_timer_args = {
+		.callback = &request_pax_counter,
+		.name = "task_paxcounter"
+	};
+
+	esp_timer_handle_t periodic_pax_timer;
+	esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
+	esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
@@ -1461,6 +1479,4 @@ void app_main(void) {
 
     xTaskCreatePinnedToCore(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL, 0);
     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
-
-    ble_scan_start(60);
 }

@@ -10,10 +10,25 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "bleprph.h"
 #include "nimble.h"
+#include <time.h>
 
 #define TAG "mdb_cashless"
 
 static bool scanning = false;
+
+#define MAX_DEVICES             1024
+
+typedef struct {
+    uint8_t addr[6];
+} ble_device_t;
+
+typedef struct {
+    ble_device_t entries[MAX_DEVICES];
+    uint16_t count;
+    time_t count_begin_time;
+} ble_device_list_t;
+
+ble_device_list_t ble_device_list = { 0 };
 
 // Variáveis globais
 static uint8_t own_addr_type;
@@ -32,7 +47,8 @@ char characteristic_tosend_value[50] = "I am characteristic value";
 char characteristic_received_value[500];
 
 // Callback externo
-void (*writeBleCharacteristic)(char*);
+void (*ble_event_report_handler)(char*);
+void (*ble_hourly_report_handler)(int devices_count);
 
 static int ble_gap_event_cb(struct ble_gap_event *event, void *arg);
 
@@ -60,7 +76,7 @@ static int ble_gatt_char_access_cb(uint16_t conn_handle, uint16_t attr_handle, s
 
         rc = ble_gatt_char_write(ctxt->om, 1, sizeof(characteristic_received_value), characteristic_received_value, NULL);
 
-        writeBleCharacteristic( (char*) &characteristic_received_value );
+        ble_event_report_handler( (char*) &characteristic_received_value );
 
         return rc;
 
@@ -130,9 +146,10 @@ static void ble_on_sync_cb(void) {
     ble_adv_start();
 }
 
-// Inicialização do BLE
-void ble_init(char *deviceName, void* writeBleCharacteristic_) { //! Call this function to start BLE
-    writeBleCharacteristic = writeBleCharacteristic_;
+// Call this function to start BLE
+void ble_init(char *deviceName, void* ble_event_handler_, void* ble_hourly_report_handler_){
+    ble_event_report_handler = ble_event_handler_;
+    ble_hourly_report_handler = ble_hourly_report_handler_;
 
     nimble_port_init();
     ble_hs_cfg.sync_cb = ble_on_sync_cb;
@@ -215,14 +232,43 @@ void ble_notify_send(char *notification, int notification_length) {
     ble_gattc_notify_custom(conn_handle, notification_handle, om);
 }
 
+void ble_device_list_add(ble_device_list_t *list, const uint8_t addr[6]){
+
+    for (int i = 0; i < list->count; i++) {
+        if (memcmp(list->entries[i].addr, addr, 6) == 0) {
+            return;
+        }
+    }
+
+    if (list->count >= MAX_DEVICES) {
+        return;
+    }
+
+    ble_device_t *d = &list->entries[list->count++];
+    memcpy(d->addr, addr, 6);
+
+    // Imprime informações do dispositivo encontrado
+    printf("\n[NEW DEVICE]\n");
+    printf("Device address: %02x:%02x:%02x:%02x:%02x:%02x\n", addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
+}
+
 static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
 
-    ESP_LOGI( TAG, "ble_scan_event_cb");
+    struct ble_hs_adv_fields fields;
+
+    static const uint16_t PHONE_CID[] = {
+        0x004C, // Apple
+        0x00E0, // Google
+        0x0075, // Samsung
+        0x0006, // Microsoft
+        0x01D9, // Huawei
+        0x038F, // Xiaomi
+    };
+
+    bool is_phone = 0;
 
     switch (event->type) {
     case BLE_GAP_EVENT_DISC:
-
-        struct ble_hs_adv_fields fields;
 
         // Parseia os dados de advertising
         int rc = ble_hs_adv_parse_fields(&fields, event->disc.data, event->disc.length_data);
@@ -230,38 +276,41 @@ static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
             return 0;
         }
 
-        // Imprime informações do dispositivo encontrado
-        printf("\n[DEVICE FOUND]\n");
-        printf("Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-            event->disc.addr.val[5], event->disc.addr.val[4],
-            event->disc.addr.val[3], event->disc.addr.val[2],
-            event->disc.addr.val[1], event->disc.addr.val[0]);
-
-        printf("RSSI: %d dBm\n", event->disc.rssi);
-
-        if (fields.name != NULL) {
-            printf("Name: %.*s\n", fields.name_len, fields.name);
-        }
+        // if(event->disc.rssi <= -85) break;
 
         /* 1. Manufacturer Data */
-        bool is_phone = false;
         if (fields.mfg_data_len >= 2) {
             uint16_t cid = fields.mfg_data[1] << 8 | fields.mfg_data[0];
 
-            printf("company id: %x\n", cid);
-            if (cid == 0x004C || cid == 0x00E0 || cid == 0x0075) {
-                is_phone = true;
+            for (int i = 0; i < sizeof(PHONE_CID) / sizeof(PHONE_CID[0]); i++) {
+                if (cid == PHONE_CID[i]) {
+                    is_phone = true;
+                    break;
+                }
             }
         }
 
         /* 2. Appearance */
         if (fields.appearance_is_present) {
-            if (fields.appearance == 0x0040) { // Generic Phone
+            if (fields.appearance == 0x0040 /*Generic Phone*/ || fields.appearance == 0x0041 /*Generic Phone (variant)*/) {
                 is_phone = true;
             }
         }
 
-        printf("Can be a phone: %d\n", is_phone);
+        if(is_phone){
+            ble_device_list_add(&ble_device_list, event->disc.addr.val);
+        }
+
+        time_t now = time(NULL);
+        if((now - ble_device_list.count_begin_time /*elapsed*/) > PAX_REPORT_INTERVAL_SEC){
+
+            if(ble_device_list.count > 0){
+                ble_hourly_report_handler(ble_device_list.count);
+            }
+
+            memset(&ble_device_list, 0, sizeof(ble_device_list));
+            ble_device_list.count_begin_time = time(NULL);
+        }
 
     break;
 
