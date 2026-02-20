@@ -10,12 +10,12 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 ![MDB Cashless](1411051686640.jpg)
 
 # Key Features:
-- Implementation of the MDB protocol for communication with vending machines
-- Support for integrating cashless payment systems into vending machines
+- Implementation of the MDB protocol for communication with vending machines, offering telemetry and cashless payment
 - ESP32 hardware platform offering flexibility and advanced IoT features
-- PCB design done in KiCad, facilitating production and customization of the hardware
-- Support for EVA DTS DEX/DDCMP (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
+- PCB design done in **KiCad**, facilitating production and customization of the hardware
+- Support for **EVA DTS DEX/DDCMP** (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
 - **Real-time vending machine locations**: [📍 View on Map](https://vmflow.xyz/leaflet.html) – Displays the position of each vending machine based on sales data collected via the BLE channel
+- **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence data to estimate foot traffic and customer flow around the vending machine, enabling heatmaps, peak-hour analysis, and location performance insights
 
 # How to Contribute:
 - Contributions are welcome! Feel free to open issues, send pull requests, or propose new features
@@ -61,6 +61,16 @@ curl -X GET 'https://supabase.vmflow.xyz/rest/v1/sales' \
 
 ```bash
 curl -X GET 'https://supabase.vmflow.xyz/rest/v1/embeddeds' \
+-H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
+-H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### 5️⃣ View Paxcounter
+
+![PAX Counter](pax-counter-heatmap.png)
+
+```bash
+curl -X GET 'https://supabase.vmflow.xyz/rest/v1/paxcounter' \
 -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
