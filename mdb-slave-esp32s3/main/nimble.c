@@ -48,7 +48,7 @@ char characteristic_received_value[500];
 
 // Callback externo
 void (*ble_event_report_handler)(char*);
-void (*ble_hourly_report_handler)(int devices_count);
+void (*ble_pax_report_handler)(int devices_count);
 
 static int ble_gap_event_cb(struct ble_gap_event *event, void *arg);
 
@@ -147,9 +147,9 @@ static void ble_on_sync_cb(void) {
 }
 
 // Call this function to start BLE
-void ble_init(char *deviceName, void* ble_event_handler_, void* ble_hourly_report_handler_){
+void ble_init(char *deviceName, void* ble_event_handler_, void* ble_pax_report_handler_){
     ble_event_report_handler = ble_event_handler_;
-    ble_hourly_report_handler = ble_hourly_report_handler_;
+    ble_pax_report_handler = ble_pax_report_handler_;
 
     nimble_port_init();
     ble_hs_cfg.sync_cb = ble_on_sync_cb;
@@ -305,7 +305,7 @@ static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
         if((now - ble_device_list.count_begin_time /*elapsed*/) > PAX_REPORT_INTERVAL_SEC){
 
             if(ble_device_list.count > 0){
-                ble_hourly_report_handler(ble_device_list.count);
+                ble_pax_report_handler(ble_device_list.count);
             }
 
             memset(&ble_device_list, 0, sizeof(ble_device_list));

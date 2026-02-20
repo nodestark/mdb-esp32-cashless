@@ -202,7 +202,7 @@ void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(BIT_MODE_SET | checksum);
 }
 
-void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
+void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload);
 uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
 
 // Main MDB loop function
@@ -402,9 +402,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						/* PIPE_BLE */
 						uint8_t payload[19];
-						payload[0] = 0x0a;
-
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+						xorEncodeWithPasskey(0x0a, itemPrice, itemNumber, 0, (uint8_t*) &payload);
 
                         ble_notify_send((char*) &payload, sizeof(payload));
 
@@ -427,9 +425,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						/* PIPE_BLE */
 						uint8_t payload[19];
-						payload[0] = 0x0b;
-
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+						xorEncodeWithPasskey(0x0b, itemPrice, itemNumber, 0, (uint8_t*) &payload);
 
                         ble_notify_send((char*) &payload, sizeof(payload));
 
@@ -443,9 +439,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 					    /* PIPE_BLE */
 						uint8_t payload[19];
-						payload[0] = 0x0c;
-
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+						xorEncodeWithPasskey(0x0c, itemPrice, itemNumber, 0, (uint8_t*) &payload);
 
                         ble_notify_send((char*) &payload, sizeof(payload));
 						break;
@@ -457,9 +451,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 			            /* PIPE_BLE */
 						uint8_t payload[19];
-						payload[0] = 0x0d;
-
-						xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+						xorEncodeWithPasskey(0x0d, itemPrice, itemNumber, 0, (uint8_t*) &payload);
 
                         ble_notify_send((char*) &payload, sizeof(payload));
 
@@ -474,9 +466,7 @@ void vTaskMdbEvent(void *pvParameters) {
 						if (read_9(NULL) != checksum) continue;
 
                         uint8_t payload[19];
-                        payload[0] = 0x21;
-
-                        xorEncodeWithPasskey(&itemPrice, &itemNumber, (uint8_t*) &payload);
+                        xorEncodeWithPasskey(0x21, itemPrice, itemNumber, 0, (uint8_t*) &payload);
 
                         char topic[64];
                         snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
@@ -571,17 +561,32 @@ void vTaskMdbEvent(void *pvParameters) {
 
 /*
  * 19-byte payload:
- * - Initially filled with random garbage (esp_fill_random)
- * - Fixed fields are overwritten as defined below
- * - Payload XOR-obfuscated with provisioning key before transmit
+ * - Initially filled with random data (esp_fill_random)
+ * - Fixed fields overwritten according to CMD semantics
+ * - Payload XOR-obfuscated with provisioning/session key before TX
  *
  * Byte index →
  * +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
- * |CMD |VER |    ITEM_PRICE     |ITEM_NUMB|       TIME_SEC    |               NOT_USED           |
+ * |CMD |VER |    ITEM_PRICE     |ITEM_NUMB|       TIME_SEC    |PAX_COUNT|     NOT_USED           |
  * +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
  *   0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16   17   18
  *
- * [ random filler ] + [ structured data ] → XOR → obfuscated payload
+ * CMD (byte 0) – vmflow protocol opcode:
+ *  BLE target <- client:
+ *   0x00 SUBDOMAIN (device_id) | 0x01 PASSKEY (cipher_code) | 0x02 START_SESSION
+ *   0x03 APPROVE_SESSION       | 0x04 CLOSE_SESSION
+ *   0x06 WIFI_SSID             | 0x07 WIFI_PASSWORD
+ *
+ *  BLE target -> client:
+ *   0x0A VEND_REQUEST | 0x0B VEND_SUCCESS | 0x0C VEND_FAILURE | 0x0D SESSION_COMPLETE
+ *
+ *  MQTT target <- server:
+ *   0x20 CREDIT
+ *
+ *  MQTT target -> server:
+ *   0x21 CASH_SALE | 0x22 PAX_COUNTER
+ *
+ * [ random filler ] + [ structured fields per CMD ] → XOR → obfuscated payload
  */
 
 // Decode payload from communication between BLE and MQTT
@@ -628,26 +633,29 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
 }
 
 // Encode payload to communication between BLE and MQTT
-void xorEncodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload) {
+void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload) {
+
+    uint32_t itemPrice32 = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(itemPrice, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
 	esp_fill_random(payload + 1, sizeof(my_passkey));
 
 	time_t now = time(NULL);
 
-    int32_t itemPrice32 = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(*itemPrice, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
+    payload[0] = cmd;
 
-	// payload[0] = cmd;
 	payload[1] = 0x01; 				// version v1
 	payload[2] = itemPrice32 >> 24;	// itemPrice
     payload[3] = itemPrice32 >> 16;
 	payload[4] = itemPrice32 >> 8;
 	payload[5] = itemPrice32;
-	payload[6] = *itemNumber >> 8;	// itemNumber
-	payload[7] = *itemNumber;
+	payload[6] = itemNumber >> 8;	// itemNumber
+	payload[7] = itemNumber;
 	payload[8]  = now >> 24;		// time (sec)
 	payload[9]  = now >> 16;
 	payload[10] = now >> 8;
 	payload[11] = now;
+    payload[12] = paxCounter >> 8;	// paxCounter
+	payload[13] = paxCounter;
 
 	int p_len = sizeof(my_passkey) + 1;
 
@@ -1113,8 +1121,17 @@ void vTaskBitEvent(void *pvParameters) {
     }
 }
 
-void ble_pax_counter_handler(int devices_count){
-    printf("ble_pax_counter_handler %x\n", devices_count);
+void ble_pax_event_handler(uint16_t devices_count){
+
+    uint8_t payload[19];
+    xorEncodeWithPasskey(0x22, 0, 0, devices_count, (uint8_t*) &payload);
+
+    char topic[64];
+    snprintf(topic, sizeof(topic), "/domain/%s/paxcounter", my_subdomain);
+
+    esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
+
+    printf("ble_pax_event_handler %d\n", devices_count);
 }
 
 void ble_event_handler(char *ble_payload) {
@@ -1444,7 +1461,7 @@ void app_main(void) {
 
 		nvs_close(handle);
 	}
-	ble_init(myhost, ble_event_handler, ble_pax_counter_handler);
+	ble_init(myhost, ble_event_handler, ble_pax_event_handler);
 
     //
 	const esp_timer_create_args_t periodic_pax_timer_args = {
@@ -1463,6 +1480,10 @@ void app_main(void) {
 
 	const esp_mqtt_client_config_t mqttCfg = {
 		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
+        .credentials = {
+            .username = "vmflow", // ACL rules just
+            .authentication = { .password = "vmflow" }
+        },
 		.session.last_will.topic = lwt_topic, // LWT (Last Will and Testament)...
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,

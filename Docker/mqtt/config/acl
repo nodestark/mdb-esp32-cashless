@@ -1,0 +1,7 @@
+user admin
+topic write +/credit
+topic read /domain/+/#
+
+user vmflow
+topic read +/credit
+topic write /domain/+/#
