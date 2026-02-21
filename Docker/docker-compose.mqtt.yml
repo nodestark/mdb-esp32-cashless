@@ -9,7 +9,6 @@ services:
       - "9001:9001"   # WebSockets (opcional)
     volumes:
       - ./mqtt/config:/mosquitto/config
-      - ./mqtt/config/passwd:/etc/mosquitto/passwd
       - ./mqtt/config/acl:/etc/mosquitto/acl
       - ./mqtt/data:/mosquitto/data
 
@@ -25,4 +24,4 @@ services:
     environment:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-      MQTT_HOST: broker
+      MQTT_HOST: ${MQTT_HOST}
