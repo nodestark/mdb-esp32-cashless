@@ -1242,8 +1242,14 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 1, 1);
 
+        xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
+
 		break;
 	case MQTT_EVENT_DISCONNECTED:
+
+        xEventGroupClearBits(xLedEventGroup, BIT_EVT_INTERNET);
+        xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+
 		break;
 	case MQTT_EVENT_SUBSCRIBED:
 		break;
@@ -1310,9 +1316,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                 start_rest_server();
 		    }
 
-            xEventGroupClearBits(xLedEventGroup, BIT_EVT_INTERNET);
-            xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
-
 			break;
 		}
 
@@ -1337,8 +1340,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
                 sntp_started = true;
             }
-
-            xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
 			break;
 		}
