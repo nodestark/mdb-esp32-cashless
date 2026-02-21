@@ -2,15 +2,16 @@ name: vmflow-mqtt
 
 services:
   broker:
-    image: eclipse-mosquitto:latest
+    image: eclipse-mosquitto:2.1.2-alpine
     restart: unless-stopped
     ports:
       - "1883:1883"   # MQTT (TCP)
       - "9001:9001"   # WebSockets (opcional)
     volumes:
       - ./mqtt/config:/mosquitto/config
-      - mqtt-data:/mosquitto/data
-      #- ./volumes/mqtt/log:/mosquitto/log
+      - ./mqtt/config/passwd:/etc/mosquitto/passwd
+      - ./mqtt/config/acl:/etc/mosquitto/acl
+      - ./mqtt/data:/mosquitto/data
 
   domain:
     build:
@@ -25,6 +26,3 @@ services:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       MQTT_HOST: broker
-
-volumes:
-  mqtt-data:
