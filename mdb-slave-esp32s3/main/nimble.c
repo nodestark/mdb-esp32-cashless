@@ -247,9 +247,7 @@ void ble_device_list_add(ble_device_list_t *list, const uint8_t addr[6]){
     ble_device_t *d = &list->entries[list->count++];
     memcpy(d->addr, addr, 6);
 
-    // Imprime informações do dispositivo encontrado
-    printf("\n[NEW DEVICE]\n");
-    printf("Device address: %02x:%02x:%02x:%02x:%02x:%02x\n", addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
+    // printf("Device address: %02x:%02x:%02x:%02x:%02x:%02x\n", addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
 }
 
 static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
@@ -315,7 +313,6 @@ static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
     break;
 
     case BLE_GAP_EVENT_DISC_COMPLETE:
-        printf("\nScan completo!\n");
         scanning = false;
     break;
 
@@ -328,7 +325,6 @@ static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
 
 void ble_scan_start(int duration_seconds) {
     if (scanning) {
-        printf("Scan já está em andamento\n");
         return;
     }
 
@@ -346,12 +342,10 @@ void ble_scan_start(int duration_seconds) {
     int rc = ble_gap_disc(own_addr_type, duration_seconds * 1000, &disc_params, ble_scan_event_cb, NULL);
 
     if (rc != 0) {
-        printf("Erro ao iniciar scan: %d\n", rc);
         return;
     }
 
     scanning = true;
-    printf("Scan BLE iniciado por %d segundos...\n", duration_seconds);
 }
 
 // Função para parar o scan
@@ -362,5 +356,4 @@ void ble_scan_stop(void) {
 
     ble_gap_disc_cancel();
     scanning = false;
-    printf("Scan BLE cancelado\n");
 }

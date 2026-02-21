@@ -1130,8 +1130,6 @@ void ble_pax_event_handler(uint16_t devices_count){
     snprintf(topic, sizeof(topic), "/domain/%s/paxcounter", my_subdomain);
 
     esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
-
-    printf("ble_pax_event_handler %d\n", devices_count);
 }
 
 void ble_event_handler(char *ble_payload) {

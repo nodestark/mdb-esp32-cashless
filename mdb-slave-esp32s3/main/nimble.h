@@ -2,7 +2,7 @@
 #define NIMBLE_H
 
 #define PAX_REPORT_INTERVAL_SEC     (60*60)         // 1 hora
-#define PAX_SCAN_DURATION_SEC       (8)             // 8 segundos
+#define PAX_SCAN_DURATION_SEC       (7)             // 7 segundos
 #define PAX_SCAN_INTERVAL_US        (5*60*1000000)  // 5 minutos
 
 void ble_notify_send(char *notification, int notification_length);

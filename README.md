@@ -1,4 +1,4 @@
-# MDB Protocol Implementation for Cashless Vending Machine with ESP32 and KiCad.
+# MDB Protocol Implementation for Cashless Vending Machine with ESP32
 
 👉 **Install firmware via Web Installer:**  
 https://install.vmflow.xyz
