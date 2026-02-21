@@ -24,4 +24,4 @@ services:
     environment:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-      MQTT_HOST: ${MQTT_HOST}
+      MQTT_HOST: broker
