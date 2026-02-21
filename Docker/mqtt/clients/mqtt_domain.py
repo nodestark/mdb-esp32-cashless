@@ -97,10 +97,6 @@ def on_message(client, userdata, msg):
         print(f"An unexpected error occurred: {e}")
 
 client = mqtt.Client()
-client.username_pw_set(
-    username = "admin",
-    password = "changeme"
-)
 
 client.on_connect = on_connect
 client.on_message = on_message

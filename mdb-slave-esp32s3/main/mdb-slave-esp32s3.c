@@ -1480,10 +1480,6 @@ void app_main(void) {
 
 	const esp_mqtt_client_config_t mqttCfg = {
 		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
-        .credentials = {
-            .username = "vmflow", // ACL rules just
-            .authentication = { .password = "vmflow" }
-        },
 		.session.last_will.topic = lwt_topic, // LWT (Last Will and Testament)...
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,
