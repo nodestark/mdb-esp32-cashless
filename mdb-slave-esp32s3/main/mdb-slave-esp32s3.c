@@ -1478,6 +1478,23 @@ void app_main(void) {
 
 	const esp_mqtt_client_config_t mqttCfg = {
 		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
+        .credentials = {
+            /* MQTT connection uses username/password authentication ONLY for broker ACL control.
+             * Transport is intentionally non-TLS to reduce overhead on constrained devices.
+             *
+             * Security model:
+             * - MQTT credentials are considered public / non-secret.
+             * - Broker acts as a routing layer, not a security boundary.
+             * - Broker ACLs limit publish/subscribe scope, reducing traffic amplification
+             *   and preserving essential network operation in case of credential exposure.
+             * - All application payloads are protected using a per-device XOR-based cipher,
+             *   with a secret provisioned at installation time.
+             * - Payload signing/obfuscation ensures basic integrity validation and
+             *   prevents trivial message injection without knowledge of the device secret.
+             */
+             .username = "vmflow",
+            .authentication.password = "vmflow"
+        },
 		.session.last_will.topic = lwt_topic, // LWT (Last Will and Testament)...
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,
