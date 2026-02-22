@@ -1,6 +1,7 @@
 kicad/**/*-backups
 kicad/**/fp-info-cache
 kicad/**/*.lck
+kicad/**/*_prl
 
 **/managed_components
 **/build
