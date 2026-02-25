@@ -5403,6 +5403,26 @@
 			(embedded_fonts no)
 		)
 	)
+	(text_box "io1\nio2\nio4 	-> 	mdb/rx\nio5 	-> 	mdb/tx\nio6 	\nio7		->	thermistor\nio8 	-> 	dex/rx\nio9 	-> 	dex/tx\nio10 	->	i2c/sda\nio11	->	i2c/scl\nio12 	-> 	buzzer\nio13 	-> 	pulse\nio14 	-> 	sim7080g/pwrk\nio17 	-> 	sim7080g/rx\nio18 	-> 	sim7080g/tx\nio21 	->	led	\n"
+		(exclude_from_sim no)
+		(at 25.4 224.79 0)
+		(size 38.1 34.29)
+		(margins 0.9525 0.9525 0.9525 0.9525)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "0c53aa3e-a585-4b18-b1ba-9162f70bd503")
+	)
 	(text_box "PULSE"
 		(exclude_from_sim no)
 		(at 226.06 73.66 0)
@@ -5422,26 +5442,6 @@
 			(justify left top)
 		)
 		(uuid "492b137a-f201-4a8c-9627-2b3565e89a07")
-	)
-	(text_box "io1\nio2\nio4 	-> 	mdb/rx\nio5 	-> 	mdb/tx\nio6 	\nio7		->	thermistor\nio8 	-> 	dex/rx\nio9 	-> 	dex/tx\nio10 	->	i2c/sda\nio11	->	i2c/scl\nio12 	-> 	buzzer\nio13 	-> 	pulse\nio14 	-> 	sim7080g/pwrk\nio17 	-> 	sim7080g/tx\nio18 	-> 	sim7080g/rx\nio21 	->	led	\n"
-		(exclude_from_sim no)
-		(at 29.21 224.79 0)
-		(size 38.1 34.29)
-		(margins 0.9525 0.9525 0.9525 0.9525)
-		(stroke
-			(width 0)
-			(type solid)
-		)
-		(fill
-			(type none)
-		)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left top)
-		)
-		(uuid "a454e02e-be16-41c8-b52a-2bac31ff5421")
 	)
 	(text_box "I2C"
 		(exclude_from_sim no)
