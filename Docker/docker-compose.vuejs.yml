@@ -20,7 +20,7 @@ services:
       - vue_dist:/app/dist
     command: npm run build
 
-  nginx:
+  vue-nginx:
     image: nginx:stable-alpine
     ports:
       - "5173:5173"
