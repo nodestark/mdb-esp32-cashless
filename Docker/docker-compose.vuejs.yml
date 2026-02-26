@@ -1,0 +1,35 @@
+name: vmflow-vuejs
+
+services:
+  vue-dev:
+    build:
+      context: vuejs/
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./vuejs:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host"
+
+  vue-prod:
+    build:
+      context: vuejs/
+      dockerfile: Dockerfile.prod
+    volumes:
+      - vue_dist:/app/dist
+    command: npm run build
+
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "5173:5173"
+    volumes:
+      - vue_dist:/usr/share/nginx/html
+      - ./vuejs/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - vue-prod
+    restart: unless-stopped
+
+volumes:
+  vue_dist:
