@@ -1,38 +1,68 @@
 <template>
-  <div class="login-container">
-    <h2>Login</h2>
+  <div class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
 
-    <form @submit.prevent="login">
-      <input
-        v-model="email"
-        type="email"
-        placeholder="Email"
-        required
-      />
+    <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg">
 
-      <input
-        v-model="password"
-        type="password"
-        placeholder="Senha"
-        required
-      />
+      <h2 class="text-2xl font-bold text-center mb-6">
+        Login
+      </h2>
 
-      <button type="submit" :disabled="loading">
-        {{ loading ? 'Entrando...' : 'Entrar' }}
-      </button>
+      <form @submit.prevent="login" class="space-y-4">
 
-      <p v-if="error" class="error">{{ error }}</p>
-    </form>
+        <input
+          v-model="email"
+          type="email"
+          placeholder="Email"
+          required
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
 
-    <!-- Separador -->
-    <div class="divider">
-      <span>ou</span>
+        <input
+          v-model="password"
+          type="password"
+          placeholder="Senha"
+          required
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
+        <button
+          type="submit"
+          :disabled="loading"
+          class="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {{ loading ? 'Entrando...' : 'Entrar' }}
+        </button>
+
+        <p
+          v-if="error"
+          class="text-red-500 text-sm mt-2 text-center"
+        >
+          {{ error }}
+        </p>
+
+      </form>
+
+      <!-- Divider -->
+      <div class="relative my-8">
+        <div class="absolute inset-0 flex items-center">
+          <div class="w-full border-t border-gray-300"></div>
+        </div>
+        <div class="relative text-center">
+          <span class="bg-white px-3 text-sm text-gray-500">
+            ou
+          </span>
+        </div>
+      </div>
+
+      <!-- Register Button -->
+      <RouterLink
+        to="/register"
+        class="block w-full text-center py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition"
+      >
+        Criar uma conta
+      </RouterLink>
+
     </div>
-
-    <!-- Botão Registrar -->
-    <RouterLink to="/register" class="register-btn">
-      Criar uma conta
-    </RouterLink>
 
   </div>
 </template>
@@ -74,63 +104,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.login-container {
-  max-width: 400px;
-  margin: 100px auto;
-  display: flex;
-  flex-direction: column;
-}
-
-input {
-  margin-bottom: 10px;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-button {
-  padding: 10px;
-  cursor: pointer;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 4px;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.error {
-  color: red;
-  margin-top: 8px;
-}
-
-.divider {
-  text-align: center;
-  margin: 20px 0;
-  position: relative;
-}
-
-.divider span {
-  background: white;
-  padding: 0 10px;
-  color: #888;
-}
-
-.register-btn {
-  text-align: center;
-  padding: 10px;
-  background: #16a34a;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-}
-
-.register-btn:hover {
-  background: #15803d;
-}
-</style>

@@ -1,32 +1,55 @@
 <template>
-  <div class="dashboard">
+  <div class="flex h-screen bg-gray-100">
 
-    <!-- Menu lateral ESQUERDO -->
-    <aside class="sidebar">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-800 text-white flex flex-col justify-between p-6">
+
       <div>
-        <h3>Menu</h3>
+        <h3 class="text-lg font-semibold mb-6">
+          Menu
+        </h3>
 
-        <RouterLink to="/dashboard" class="menu-item">
-          Home
-        </RouterLink>
+        <nav class="space-y-2">
 
-        <RouterLink to="/dashboard/reports" class="menu-item">
-          Relatórios
-        </RouterLink>
+          <RouterLink
+            to="/dashboard"
+            class="block px-4 py-2 rounded-lg hover:bg-slate-700 transition"
+            active-class="bg-slate-700"
+          >
+            Home
+          </RouterLink>
 
-        <RouterLink to="/dashboard/settings" class="menu-item">
-          Configurações
-        </RouterLink>
+          <RouterLink
+            to="/dashboard/reports"
+            class="block px-4 py-2 rounded-lg hover:bg-slate-700 transition"
+            active-class="bg-slate-700"
+          >
+            Relatórios
+          </RouterLink>
+
+          <RouterLink
+            to="/dashboard/settings"
+            class="block px-4 py-2 rounded-lg hover:bg-slate-700 transition"
+            active-class="bg-slate-700"
+          >
+            Configurações
+          </RouterLink>
+
+        </nav>
       </div>
 
-      <!-- Botão Sair -->
-      <button class="logout-btn" @click="logout">
+      <!-- Logout -->
+      <button
+        @click="logout"
+        class="mt-6 w-full py-3 bg-red-600 rounded-lg hover:bg-red-700 transition"
+      >
         Sair
       </button>
+
     </aside>
 
-    <!-- Área dinâmica DIREITA -->
-    <main class="content">
+    <!-- Main Content -->
+    <main class="flex-1 p-10 overflow-y-auto">
       <RouterView />
     </main>
 
@@ -51,57 +74,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.dashboard {
-  display: flex;
-  height: 100vh;
-}
-
-/* Menu esquerdo */
-.sidebar {
-  width: 250px;
-  background: #1e293b;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between; /* mantém o botão embaixo */
-  padding: 20px;
-}
-
-/* Área direita */
-.content {
-  flex: 1;
-  padding: 30px;
-  background: #f5f5f5;
-  overflow-y: auto;
-}
-
-/* Links */
-.menu-item {
-  display: block;
-  color: white;
-  text-decoration: none;
-  margin-bottom: 10px;
-  padding: 8px;
-  border-radius: 4px;
-}
-
-.menu-item.router-link-active {
-  background: #334155;
-}
-
-/* Botão sair */
-.logout-btn {
-  background: #dc2626;
-  border: none;
-  padding: 10px;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.logout-btn:hover {
-  background: #b91c1c;
-}
-</style>

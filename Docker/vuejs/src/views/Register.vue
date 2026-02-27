@@ -1,31 +1,70 @@
 <template>
-  <div class="auth-container">
-    <h2>Registrar</h2>
+  <div class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
 
-    <form @submit.prevent="register">
-      <input
-        v-model="email"
-        type="email"
-        placeholder="Email"
-        required
-      />
+    <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg">
 
-      <input
-        v-model="password"
-        type="password"
-        placeholder="Senha"
-        required
-      />
+      <h2 class="text-2xl font-bold text-center mb-6">
+        Registrar
+      </h2>
 
-      <button type="submit" :disabled="loading">
-        {{ loading ? 'Criando...' : 'Criar Conta' }}
-      </button>
+      <form @submit.prevent="register" class="space-y-4">
 
-      <p v-if="message" class="message">{{ message }}</p>
-      <p v-if="error" class="error">{{ error }}</p>
-    </form>
+        <input
+          v-model="email"
+          type="email"
+          placeholder="Email"
+          required
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
 
-    <RouterLink to="/login">Já tem conta? Login</RouterLink>
+        <input
+          v-model="password"
+          type="password"
+          placeholder="Senha"
+          required
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+
+        <button
+          type="submit"
+          :disabled="loading"
+          class="w-full py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {{ loading ? 'Criando...' : 'Criar Conta' }}
+        </button>
+
+        <p
+          v-if="message"
+          class="text-green-600 text-sm text-center mt-2"
+        >
+          {{ message }}
+        </p>
+
+        <p
+          v-if="error"
+          class="text-red-500 text-sm text-center mt-2"
+        >
+          {{ error }}
+        </p>
+
+      </form>
+
+      <!-- Divider -->
+      <div class="relative my-8">
+        <div class="absolute inset-0 flex items-center">
+          <div class="w-full border-t border-gray-300"></div>
+        </div>
+      </div>
+
+      <RouterLink
+        to="/login"
+        class="block w-full text-center py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition"
+      >
+        Já tem conta? Login
+      </RouterLink>
+
+    </div>
+
   </div>
 </template>
 
@@ -70,29 +109,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.auth-container {
-  max-width: 400px;
-  margin: 100px auto;
-  display: flex;
-  flex-direction: column;
-}
-
-input {
-  margin-bottom: 10px;
-  padding: 8px;
-}
-
-button {
-  padding: 8px;
-}
-
-.error {
-  color: red;
-}
-
-.message {
-  color: green;
-}
-</style>
