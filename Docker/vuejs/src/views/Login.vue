@@ -1,40 +1,136 @@
 <template>
-  <div class="login">
-    <h1>Login</h1>
+  <div class="login-container">
+    <h2>Login</h2>
 
-    <input v-model="email" placeholder="Email" />
-    <input v-model="password" type="password" placeholder="Senha" />
+    <form @submit.prevent="login">
+      <input
+        v-model="email"
+        type="email"
+        placeholder="Email"
+        required
+      />
 
-    <button @click="login">Entrar</button>
+      <input
+        v-model="password"
+        type="password"
+        placeholder="Senha"
+        required
+      />
 
-    <p v-if="error">{{ error }}</p>
+      <button type="submit" :disabled="loading">
+        {{ loading ? 'Entrando...' : 'Entrar' }}
+      </button>
+
+      <p v-if="error" class="error">{{ error }}</p>
+    </form>
+
+    <!-- Separador -->
+    <div class="divider">
+      <span>ou</span>
+    </div>
+
+    <!-- Botão Registrar -->
+    <RouterLink to="/register" class="register-btn">
+      Criar uma conta
+    </RouterLink>
+
   </div>
 </template>
 
 <script>
-import { supabase } from '../lib/supabase'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'vue-router'
+import { ref } from 'vue'
 
 export default {
-  data() {
-    return {
-      email: '',
-      password: '',
-      error: null
-    }
-  },
-  methods: {
-    async login() {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: this.email,
-        password: this.password
+  setup() {
+    const router = useRouter()
+
+    const email = ref('')
+    const password = ref('')
+    const loading = ref(false)
+    const error = ref(null)
+
+    const login = async () => {
+      loading.value = true
+      error.value = null
+
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: email.value,
+        password: password.value
       })
 
-      if (error) {
-        this.error = error.message
-      } else {
-        window.location.reload()
+      loading.value = false
+
+      if (loginError) {
+        error.value = loginError.message
+        return
       }
+
+      router.push('/dashboard')
     }
+
+    return { email, password, login, loading, error }
   }
 }
 </script>
+
+<style scoped>
+.login-container {
+  max-width: 400px;
+  margin: 100px auto;
+  display: flex;
+  flex-direction: column;
+}
+
+input {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+button {
+  padding: 10px;
+  cursor: pointer;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: red;
+  margin-top: 8px;
+}
+
+.divider {
+  text-align: center;
+  margin: 20px 0;
+  position: relative;
+}
+
+.divider span {
+  background: white;
+  padding: 0 10px;
+  color: #888;
+}
+
+.register-btn {
+  text-align: center;
+  padding: 10px;
+  background: #16a34a;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.register-btn:hover {
+  background: #15803d;
+}
+</style>
