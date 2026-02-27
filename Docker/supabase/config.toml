@@ -385,20 +385,34 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 enabled = true
 verify_jwt = true
 import_map = "./functions/request-credit/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/request-credit/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/request-credit/*.html" ]
 
 [functions.send-credit]
 enabled = true
 verify_jwt = true
 import_map = "./functions/send-credit/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/send-credit/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/send-credit/*.html" ]
+
+[functions.create-organization]
+enabled = true
+verify_jwt = false
+import_map = "./functions/create-organization/deno.json"
+entrypoint = "./functions/create-organization/index.ts"
+
+[functions.invite-member]
+enabled = true
+verify_jwt = false
+import_map = "./functions/invite-member/deno.json"
+entrypoint = "./functions/invite-member/index.ts"
+
+[functions.accept-invitation]
+enabled = true
+verify_jwt = false
+import_map = "./functions/accept-invitation/deno.json"
+entrypoint = "./functions/accept-invitation/index.ts"
+
+[functions.get-my-organization]
+enabled = true
+verify_jwt = false
+import_map = "./functions/get-my-organization/deno.json"
+entrypoint = "./functions/get-my-organization/index.ts"
