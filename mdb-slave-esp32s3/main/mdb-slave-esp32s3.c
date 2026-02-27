@@ -33,6 +33,10 @@
 #include "nimble.h"
 #include "webui_server.h"
 
+#include "esp_http_client.h"
+#include "esp_crt_bundle.h"
+#include "cJSON.h"
+
 #define TAG "mdb_cashless"
 
 #define PIN_I2C_SDA             GPIO_NUM_10
@@ -1231,31 +1235,35 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 	switch ((esp_mqtt_event_id_t) event_id) {
 	case MQTT_EVENT_CONNECTED:
+		ESP_LOGW(TAG, "MQTT: connected to broker");
 
     	char topic[64];
     	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", my_subdomain);
-
+		ESP_LOGI(TAG, "MQTT: subscribing to '%s'", topic);
     	esp_mqtt_client_subscribe(mqttClient, topic, 0);
 
     	char topic_[64];
     	snprintf(topic_, sizeof(topic_), "/domain/%s/status", my_subdomain);
-
+		ESP_LOGI(TAG, "MQTT: publishing 'online' to '%s'", topic_);
 		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 1, 1);
 
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
-
+		ESP_LOGW(TAG, "MQTT: disconnected from broker");
         xEventGroupClearBits(xLedEventGroup, BIT_EVT_INTERNET);
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 		break;
 	case MQTT_EVENT_SUBSCRIBED:
+		ESP_LOGI(TAG, "MQTT: subscribed, msg_id=%d", event->msg_id);
 		break;
 	case MQTT_EVENT_UNSUBSCRIBED:
+		ESP_LOGI(TAG, "MQTT: unsubscribed, msg_id=%d", event->msg_id);
 		break;
 	case MQTT_EVENT_PUBLISHED:
+		ESP_LOGI(TAG, "MQTT: published, msg_id=%d", event->msg_id);
 		break;
 	case MQTT_EVENT_DATA:
 
@@ -1279,6 +1287,16 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		break;
 	case MQTT_EVENT_ERROR:
+		ESP_LOGE(TAG, "MQTT: error event");
+		if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
+		    ESP_LOGE(TAG, "MQTT: transport error: esp_tls_last_esp_err=0x%x, tls_stack_err=0x%x, sock_errno=%d (%s)",
+		             event->error_handle->esp_tls_last_esp_err,
+		             event->error_handle->esp_tls_stack_err,
+		             event->error_handle->esp_transport_sock_errno,
+		             strerror(event->error_handle->esp_transport_sock_errno));
+		} else if (event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) {
+		    ESP_LOGE(TAG, "MQTT: connection refused, reason=0x%x", event->error_handle->connect_return_code);
+		}
 		break;
 	default:
 	    ESP_LOGI( TAG, "Other event id: %d", event->event_id);
@@ -1286,15 +1304,167 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	}
 }
 
+/* ---------- Provisioning claim ----------
+ * Called as a FreeRTOS task after the device obtains an IP address and a
+ * prov_code is found in NVS.  POSTs to the claim-device edge function,
+ * persists the returned subdomain + passkey, erases the one-time code, then
+ * reboots so the regular startup path takes over.
+ */
+static void provision_claim_task(void *arg) {
+    char prov_code[32] = {0};
+    char srv_url[128]  = {0};
+
+    nvs_handle_t handle;
+    if (nvs_open("vmflow", NVS_READWRITE, &handle) != ESP_OK) {
+        ESP_LOGE(TAG, "PROV: NVS open failed");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    size_t len = sizeof(prov_code);
+    if (nvs_get_str(handle, "prov_code", prov_code, &len) != ESP_OK || strlen(prov_code) == 0) {
+        ESP_LOGI(TAG, "PROV: no provisioning code in NVS");
+        nvs_close(handle);
+        vTaskDelete(NULL);
+        return;
+    }
+
+    len = sizeof(srv_url);
+    nvs_get_str(handle, "srv_url", srv_url, &len);
+    nvs_close(handle);
+
+    if (strlen(srv_url) == 0) {
+        ESP_LOGE(TAG, "PROV: no server URL in NVS");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    /* MAC address */
+    uint8_t mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, mac);
+    char mac_str[18];
+    snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    /* Build request */
+    char body[128];
+    snprintf(body, sizeof(body),
+             "{\"short_code\":\"%s\",\"mac_address\":\"%s\"}", prov_code, mac_str);
+
+    char url[192];
+    snprintf(url, sizeof(url), "%s/functions/v1/claim-device", srv_url);
+
+    ESP_LOGI(TAG, "PROV: claiming device at %s body=%s", url, body);
+
+    char resp_buf[512] = {0};
+
+    bool use_tls = (strncmp(url, "https://", 8) == 0);
+
+    esp_http_client_config_t http_cfg = {
+        .url               = url,
+        .method            = HTTP_METHOD_POST,
+        .crt_bundle_attach = use_tls ? esp_crt_bundle_attach : NULL,
+        .timeout_ms        = 15000,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&http_cfg);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+
+    esp_err_t http_err = esp_http_client_open(client, strlen(body));
+    if (http_err == ESP_OK) {
+        esp_http_client_write(client, body, strlen(body));
+        int content_length = esp_http_client_fetch_headers(client);
+        int status = esp_http_client_get_status_code(client);
+
+        int read_len = esp_http_client_read_response(client, resp_buf, sizeof(resp_buf) - 1);
+        if (read_len >= 0) resp_buf[read_len] = '\0';
+
+        ESP_LOGW(TAG, "PROV: HTTP %d  body=%s", status, resp_buf);
+
+        if (status == 200) {
+            cJSON *root = cJSON_Parse(resp_buf);
+            if (root) {
+                cJSON *j_sub  = cJSON_GetObjectItem(root, "subdomain");
+                cJSON *j_pass = cJSON_GetObjectItem(root, "passkey");
+
+                if (j_sub  && cJSON_IsString(j_sub) &&
+                    j_pass && cJSON_IsString(j_pass)) {
+
+                    nvs_handle_t h;
+                    if (nvs_open("vmflow", NVS_READWRITE, &h) == ESP_OK) {
+                        nvs_set_str(h, "domain",  j_sub->valuestring);
+                        nvs_set_str(h, "passkey", j_pass->valuestring);
+                        cJSON *j_mqtt = cJSON_GetObjectItem(root, "mqtt_host");
+                        if (j_mqtt && cJSON_IsString(j_mqtt) && strlen(j_mqtt->valuestring) > 0) {
+                            nvs_set_str(h, "mqtt_host", j_mqtt->valuestring);
+                        }
+                        nvs_erase_key(h, "prov_code");
+                        nvs_commit(h);
+                        nvs_close(h);
+                    }
+
+                    ESP_LOGI(TAG, "PROV: claimed, subdomain=%s — restarting",
+                             j_sub->valuestring);
+                    cJSON_Delete(root);
+                    esp_http_client_cleanup(client);
+                    vTaskDelay(pdMS_TO_TICKS(500));
+                    esp_restart();
+                    /* not reached */
+                }
+                cJSON_Delete(root);
+            }
+        }
+    } else {
+        ESP_LOGE(TAG, "PROV: HTTP error: %s", esp_err_to_name(http_err));
+    }
+
+    esp_http_client_cleanup(client);
+    vTaskDelete(NULL);
+}
+
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
 
 	if (event_base == WIFI_EVENT)
 		switch (event_id) {
-		case WIFI_EVENT_STA_START:
+		case WIFI_EVENT_STA_START: {
 
 		    wifi_retry_num = 0;
-			esp_wifi_connect();
+		    ESP_LOGI(TAG, "WIFI STA started");
+
+		    /* Check whether there is a saved SSID before attempting to connect.
+		     * esp_wifi_connect() with an empty SSID may return ESP_OK on some
+		     * IDF versions without ever emitting STA_DISCONNECTED, leaving the
+		     * SoftAP fallback unreachable. */
+		    wifi_config_t sta_cfg = {0};
+		    esp_wifi_get_config(WIFI_IF_STA, &sta_cfg);
+		    ESP_LOGI(TAG, "Saved SSID: \"%s\"", (char *)sta_cfg.sta.ssid);
+
+		    if (strlen((char *)sta_cfg.sta.ssid) == 0) {
+		        ESP_LOGI(TAG, "No saved WiFi credentials — starting SoftAP");
+		        start_softap();
+		        start_dns_server();
+		        start_rest_server();
+		    } else {
+		        esp_err_t conn_err = esp_wifi_connect();
+		        ESP_LOGI(TAG, "esp_wifi_connect() → %s", esp_err_to_name(conn_err));
+		        if (conn_err != ESP_OK) {
+		            ESP_LOGW(TAG, "Connect failed immediately — starting SoftAP");
+		            start_softap();
+		            start_dns_server();
+		            start_rest_server();
+		        }
+		    }
 			break;
+		}
+		case WIFI_EVENT_AP_START:
+		    ESP_LOGI(TAG, "WIFI AP started — SSID \"" AP_SSID "\" should now be visible");
+		    break;
+		case WIFI_EVENT_AP_STOP:
+		    ESP_LOGI(TAG, "WIFI AP stopped");
+		    break;
+		case WIFI_EVENT_AP_STACONNECTED:
+		    ESP_LOGI(TAG, "Client connected to SoftAP");
+		    break;
 		case WIFI_EVENT_STA_CONNECTED:
 			break;
 		case WIFI_EVENT_STA_DISCONNECTED:
@@ -1321,16 +1491,43 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 	if (event_base == IP_EVENT)
 		switch (event_id) {
-		case IP_EVENT_STA_GOT_IP:
+		case IP_EVENT_STA_GOT_IP: {
+
+		    ip_event_got_ip_t *event_ip = (ip_event_got_ip_t *)event_data;
+		    ESP_LOGW(TAG, "GOT IP: " IPSTR, IP2STR(&event_ip->ip_info.ip));
 
 		    wifi_retry_num = 0;
 
             stop_rest_server();
             stop_dns_server();
 
+            // Switch to STA-only mode now that we have a connection
+            esp_wifi_set_mode(WIFI_MODE_STA);
+
+            /* If a provisioning code is waiting, claim the device first.
+             * The claim task will call esp_restart() on success, so normal
+             * MQTT startup is intentionally skipped here. */
+            {
+                nvs_handle_t pnvs;
+                size_t pc_len = 0;
+                bool needs_prov = false;
+                if (nvs_open("vmflow", NVS_READONLY, &pnvs) == ESP_OK) {
+                    needs_prov = (nvs_get_str(pnvs, "prov_code", NULL, &pc_len) == ESP_OK && pc_len > 1);
+                    nvs_close(pnvs);
+                }
+                if (needs_prov) {
+                    ESP_LOGW(TAG, "Provisioning pending — spawning claim task");
+                    xTaskCreate(provision_claim_task, "prov_claim", 8192, NULL, 5, NULL);
+                    break;
+                }
+            }
+
 		    if (!mqtt_started) {
+		        ESP_LOGW(TAG, "MQTT: starting client (subdomain='%s', client=%p)", my_subdomain, mqttClient);
                 esp_mqtt_client_start(mqttClient);
                 mqtt_started = true;
+            } else {
+                ESP_LOGW(TAG, "MQTT: already started, skipping");
             }
 
             if (!sntp_started) {
@@ -1343,10 +1540,46 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 			break;
 		}
+		}
 }
 
 void request_pax_counter(void *arg) {
     ble_scan_start(PAX_SCAN_DURATION_SEC);
+}
+
+#define PIN_BOOT_BTN        GPIO_NUM_0
+#define FACTORY_RESET_MS    5000  // hold for 5 seconds to trigger reset
+
+static void factory_reset_task(void *arg) {
+    gpio_config_t btn_cfg = {
+        .pin_bit_mask = (1ULL << PIN_BOOT_BTN),
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&btn_cfg);
+
+    while (1) {
+        // Wait for button press (active low)
+        if (gpio_get_level(PIN_BOOT_BTN) == 0) {
+            TickType_t press_start = xTaskGetTickCount();
+
+            // Wait while held
+            while (gpio_get_level(PIN_BOOT_BTN) == 0) {
+                TickType_t held_ms = (xTaskGetTickCount() - press_start) * portTICK_PERIOD_MS;
+                if (held_ms >= FACTORY_RESET_MS) {
+                    ESP_LOGW(TAG, "FACTORY RESET: button held %lu ms — erasing NVS and restarting", held_ms);
+                    nvs_flash_erase();
+                    esp_wifi_restore();
+                    vTaskDelay(pdMS_TO_TICKS(200));
+                    esp_restart();
+                }
+                vTaskDelay(pdMS_TO_TICKS(50));
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
 }
 
 void app_main(void) {
@@ -1420,7 +1653,17 @@ void app_main(void) {
 
 	//-------------------- NETWORK STACK -----------------------//
 	//----------------------------------------------------------//
-	nvs_flash_init();
+	esp_err_t nvs_err = nvs_flash_init();
+	if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+	    ESP_LOGW(TAG, "NVS partition invalid (%s), erasing and re-initialising", esp_err_to_name(nvs_err));
+	    nvs_flash_erase();
+	    nvs_err = nvs_flash_init();
+	}
+	if (nvs_err != ESP_OK) {
+	    ESP_LOGE(TAG, "NVS init failed: %s", esp_err_to_name(nvs_err));
+	} else {
+	    ESP_LOGI(TAG, "NVS initialised OK");
+	}
 	//
 	esp_netif_init();
 	esp_event_loop_create_default();
@@ -1434,10 +1677,7 @@ void app_main(void) {
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
 	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
 
-	esp_wifi_set_mode(WIFI_MODE_APSTA);
-	esp_wifi_start();
-
-	//------------------------ BLUETOOTH -----------------------//
+	//---------- NVS device config (before WiFi starts) -------//
 	//----------------------------------------------------------//
 	char myhost[64];
 	strcpy(myhost, "0.vmflow.xyz"); // Default value
@@ -1460,25 +1700,29 @@ void app_main(void) {
 
 		nvs_close(handle);
 	}
-	ble_init(myhost, ble_event_handler, ble_pax_event_handler);
-
-    //
-	const esp_timer_create_args_t periodic_pax_timer_args = {
-		.callback = &request_pax_counter,
-		.name = "task_paxcounter"
-	};
-
-	esp_timer_handle_t periodic_pax_timer;
-	esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
-	esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
 	char lwt_topic[64];
 	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);
 
+	// Read MQTT host from NVS (set via webui or claim-device), fall back to default
+	char mqtt_uri[160] = "mqtt://mqtt.vmflow.xyz";
+	{
+	    nvs_handle_t h;
+	    if (nvs_open("vmflow", NVS_READONLY, &h) == ESP_OK) {
+	        char mqtt_host[128] = {0};
+	        size_t mlen = sizeof(mqtt_host);
+	        if (nvs_get_str(h, "mqtt_host", mqtt_host, &mlen) == ESP_OK && strlen(mqtt_host) > 0) {
+	            snprintf(mqtt_uri, sizeof(mqtt_uri), "mqtt://%s", mqtt_host);
+	        }
+	        nvs_close(h);
+	    }
+	}
+	ESP_LOGI(TAG, "MQTT broker: %s", mqtt_uri);
+
 	const esp_mqtt_client_config_t mqttCfg = {
-		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
+		.broker.address.uri = mqtt_uri,
         .credentials = {
             /* MQTT connection uses username/password authentication ONLY for broker ACL control.
              * Transport is intentionally non-TLS to reduce overhead on constrained devices.
@@ -1504,6 +1748,28 @@ void app_main(void) {
 
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
 	esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+
+	//-- Start WiFi now that MQTT client is ready for events ---//
+	//----------------------------------------------------------//
+	esp_wifi_set_mode(WIFI_MODE_APSTA);
+	esp_wifi_start();
+
+	//--------------- Factory reset (BOOT button) --------------//
+	//----------------------------------------------------------//
+	xTaskCreate(factory_reset_task, "factory_rst", 4096, NULL, 5, NULL);
+
+	//------------------------ BLUETOOTH -----------------------//
+	//----------------------------------------------------------//
+	ble_init(myhost, ble_event_handler, ble_pax_event_handler);
+
+	const esp_timer_create_args_t periodic_pax_timer_args = {
+		.callback = &request_pax_counter,
+		.name = "task_paxcounter"
+	};
+
+	esp_timer_handle_t periodic_pax_timer;
+	esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
+	esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//

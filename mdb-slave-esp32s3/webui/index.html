@@ -1,65 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
-   <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>VMFlow Target Board</title>
-   </head>
-   <body style="font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:16px">
-      
-      <div style="max-width:480px;margin:auto;background:#fff;padding:16px;border-radius:4px">
-         
-         <h1 style="margin-top:0">VMFlow</h1>
-         <p style="color:#666;font-size:14px">Free the vending machine</p>
-         
-         <div style="border:1px solid #ddd;padding:12px;margin-bottom:16px">
-            <h2 style="margin-top:0">Status</h2>
-            <div>IP: <span id="ipaddress">(not yet implemented)</span></div>
-            <div style="color:#666;font-size:14px">More to come...</div>
-         </div>
-         
-         <div style="border:1px solid #ddd;padding:12px">
-            <h2 style="margin-top:0">Settings</h2>
-            <label>WiFi SSID</label><br>
-            <input id="wifi_ssid" type="text" placeholder="WiFi Name" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box"><br>
-            <label>WiFi Password</label><br>
-            <input id="wifi_password" type="password" placeholder="********" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box"><br>
-            <label>MQTT Server Address</label><br>
-            <input id="mqtt_server" type="text" placeholder="mqtt.vmflow.xyz" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box"><br>
-            <button onclick="saveSettings()" style="padding:8px 16px">
-            Save
-            </button>
-         </div>
-         
-      </div>
-      <script>
-         function saveSettings() {
-             const payload = {
-                 ssid: document.getElementById("wifi_ssid").value,
-                 password: document.getElementById("wifi_password").value,
-                 mqtt_server: document.getElementById("mqtt_server").value
-             };
-         
-             fetch('/api/v1/settings/set', {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify(payload)
-             })
-             .then(r => r.json())
-             .then(d => console.log('Saved:', d))
-             .catch(e => console.error(e));
-         }
-         
-         window.addEventListener('DOMContentLoaded', () => {
-             fetch('/api/v1/system/info')
-                 .then(r => r.json())
-                 .then(d => {
-                     document.getElementById("wifi_ssid").value = d.wifi_ssid || '';
-                     document.getElementById("wifi_password").value = d.wifi_password || '';
-                     document.getElementById("mqtt_server").value = d.mqtt_server || '';
-                 })
-                 .catch(e => console.error(e));
-         });
-      </script>
-   </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VMFlow Setup</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;background:#f0f0f0;padding:16px}
+    .card{max-width:480px;margin:0 auto;background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.1);margin-bottom:16px}
+    h1{font-size:20px;margin-bottom:4px}
+    .sub{color:#666;font-size:13px;margin-bottom:20px}
+    label{display:block;font-size:13px;font-weight:600;margin-bottom:4px;margin-top:12px}
+    input{width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:14px}
+    input:focus{outline:2px solid #0066cc;border-color:transparent}
+    .hint{font-size:12px;color:#888;margin-top:3px}
+    .divider{border:none;border-top:1px solid #eee;margin:16px 0}
+    button{display:block;width:100%;margin-top:16px;padding:10px;background:#0066cc;color:#fff;border:none;border-radius:4px;font-size:15px;cursor:pointer}
+    button:active{background:#0052a3}
+    #status{margin-top:12px;font-size:13px;min-height:18px;text-align:center}
+    .ok{color:#198754}.err{color:#dc3545}
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>VMFlow</h1>
+  <p class="sub">Device setup — connect to your network and register with your account</p>
+
+  <label>WiFi Network (SSID)</label>
+  <input id="wifi_ssid" type="text" placeholder="Your WiFi name" autocomplete="off">
+
+  <label>WiFi Password</label>
+  <input id="wifi_password" type="password" placeholder="WiFi password" autocomplete="off">
+
+  <hr class="divider">
+
+  <label>Provisioning Code
+    <span class="hint" style="font-weight:normal"> — from the management dashboard</span>
+  </label>
+  <input id="prov_code" type="text" placeholder="e.g. AB3KMNPQ" autocomplete="off"
+         style="text-transform:uppercase;letter-spacing:0.1em;font-size:18px">
+  <p class="hint">Leave empty to skip registration (use if device is already registered)</p>
+
+  <label>Server URL</label>
+  <input id="srv_url" type="text" placeholder="https://your-server.com" autocomplete="off">
+  <p class="hint">The URL of your VMFlow backend</p>
+
+  <label>MQTT Server</label>
+  <input id="mqtt_host" type="text" placeholder="mqtt.vmflow.xyz" autocomplete="off">
+  <p class="hint">MQTT broker hostname or IP (without port)</p>
+
+  <button onclick="saveSettings()">Save &amp; Connect</button>
+  <div id="status"></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  window.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/v1/system/info')
+      .then(r => r.json())
+      .then(d => {
+        $('wifi_ssid').value    = d.wifi_ssid    || '';
+        $('wifi_password').value = d.wifi_password || '';
+        $('srv_url').value      = d.srv_url       || '';
+        $('mqtt_host').value   = d.mqtt_host     || '';
+        // never pre-fill the provisioning code
+      })
+      .catch(() => {});
+  });
+
+  function saveSettings() {
+    const ssid    = $('wifi_ssid').value.trim();
+    const pass    = $('wifi_password').value;
+    const code    = $('prov_code').value.trim().toUpperCase();
+    const srvUrl  = $('srv_url').value.trim();
+    const mqtt    = $('mqtt_host').value.trim();
+
+    if (!ssid) { setStatus('WiFi SSID is required', false); return; }
+
+    setStatus('Saving…', null);
+
+    fetch('/api/v1/settings/set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ssid, password: pass, prov_code: code, srv_url: srvUrl, mqtt_host: mqtt })
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) { setStatus(d.error, false); return; }
+      if (code) {
+        setStatus('Saved! Connecting to WiFi and registering device… this may take 15 s', true);
+      } else {
+        setStatus('Saved! Connecting to WiFi…', true);
+      }
+    })
+    .catch(() => setStatus('Failed to save. Try again.', false));
+  }
+
+  function setStatus(msg, ok) {
+    const el = $('status');
+    el.textContent = msg;
+    el.className = ok === true ? 'ok' : ok === false ? 'err' : '';
+  }
+</script>
+</body>
 </html>

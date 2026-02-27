@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(cat:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(ls:*)",
+      "Bash(supabase:*)",
+      "Bash(docker ps:*)",
+      "Bash(curl:*)",
+      "Bash(docker exec:*)",
+      "Bash(source:*)"
     ]
   }
 }
