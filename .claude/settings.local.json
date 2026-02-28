@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npx nuxi:*)",
-      "Bash(psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"SELECT vm.id, vm.name, vm.embedded_id, e.id as embedded_id_from_embeddeds, e.subdomain, e.mac_address FROM \"\"vendingMachine\"\" vm LEFT JOIN embeddeds e ON vm.embedded_id = e.id WHERE vm.name ILIKE ''%lucien%'' OR vm.name ILIKE ''%test%'';\")"
+      "Bash(psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"SELECT vm.id, vm.name, vm.embedded_id, e.id as embedded_id_from_embeddeds, e.subdomain, e.mac_address FROM \"\"vendingMachine\"\" vm LEFT JOIN embeddeds e ON vm.embedded_id = e.id WHERE vm.name ILIKE ''%lucien%'' OR vm.name ILIKE ''%test%'';\")",
+      "Bash(npm install)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(python3 -c \":*)"
     ]
   }
 }

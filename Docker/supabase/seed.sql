@@ -56,7 +56,10 @@ VALUES ('be324c63-5b64-4d83-90e0-ae9f16703a69', 'VMFlow Corp');
 -- ─── 3. Link user to company ────────────────────────────────────────────────
 -- Update the row created by the auth trigger
 UPDATE public.users
-SET company = 'be324c63-5b64-4d83-90e0-ae9f16703a69'
+SET company = 'be324c63-5b64-4d83-90e0-ae9f16703a69',
+    first_name = 'Lucien',
+    last_name = 'Kerl',
+    email = 'test@test.com'
 WHERE id = '7ee6e3e3-bfe1-412c-9c0e-b0d95bf98ac6';
 
 INSERT INTO public.organization_members (company_id, user_id, role)

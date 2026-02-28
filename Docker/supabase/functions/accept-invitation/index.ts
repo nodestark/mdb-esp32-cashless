@@ -3,9 +3,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 Deno.serve(async (req) => {
   try {
     const body = await req.json()
-    const { token } = body
+    const { token: inviteToken } = body
 
-    if (!token || typeof token !== 'string') {
+    if (!inviteToken || typeof inviteToken !== 'string') {
       return new Response(JSON.stringify({ error: 'token is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -18,8 +18,8 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    const token = req.headers.get('Authorization')?.replace('Bearer ', '') ?? ''
-    const { data: { user }, error: userError } = await adminClient.auth.getUser(token)
+    const authToken = req.headers.get('Authorization')?.replace('Bearer ', '') ?? ''
+    const { data: { user }, error: userError } = await adminClient.auth.getUser(authToken)
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     const { data: invitation, error: inviteError } = await adminClient
       .from('invitations')
       .select('id, company_id, email, role, expires_at, accepted_at')
-      .eq('token', token)
+      .eq('token', inviteToken)
       .maybeSingle()
 
     if (inviteError) throw inviteError

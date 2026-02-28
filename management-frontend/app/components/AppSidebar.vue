@@ -5,7 +5,6 @@ import {
   IconHelp,
   IconInnerShadowTop,
   IconPackage,
-  IconSettings,
   IconUsers,
   IconDevices,
 } from "@tabler/icons-vue"
@@ -61,11 +60,6 @@ const navMain = computed(() => {
 })
 
 const navSecondary = [
-  {
-    title: "Settings",
-    url: "#",
-    icon: IconSettings,
-  },
   {
     title: "Get Help",
     url: "#",

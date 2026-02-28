@@ -1,9 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-import AppSidebar from '@/components/AppSidebar.vue'
-import SiteHeader from '@/components/SiteHeader.vue'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const { organization, role } = useOrganization()
@@ -171,16 +168,7 @@ function formatCurrency(amount: number | null | undefined) {
 </script>
 
 <template>
-  <SidebarProvider
-    :style="{
-      '--sidebar-width': 'calc(var(--spacing) * 72)',
-      '--header-height': 'calc(var(--spacing) * 12)',
-    }"
-  >
-    <AppSidebar variant="inset" />
-    <SidebarInset>
-      <SiteHeader />
-      <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+  <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <h1 class="text-2xl font-semibold">Products</h1>
 
         <div v-if="loading" class="text-muted-foreground">Loading…</div>
@@ -456,6 +444,4 @@ function formatCurrency(amount: number | null | undefined) {
           </form>
         </div>
       </div>
-    </SidebarInset>
-  </SidebarProvider>
 </template>

@@ -1,9 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-import AppSidebar from '@/components/AppSidebar.vue'
-import SiteHeader from '@/components/SiteHeader.vue'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -78,16 +75,7 @@ function formatCurrency(amount: number | null | undefined) {
 </script>
 
 <template>
-  <SidebarProvider
-    :style="{
-      '--sidebar-width': 'calc(var(--spacing) * 72)',
-      '--header-height': 'calc(var(--spacing) * 12)',
-    }"
-  >
-    <AppSidebar variant="inset" />
-    <SidebarInset>
-      <SiteHeader />
-      <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
+  <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
         <div class="flex items-center justify-between">
           <h1 class="text-2xl font-semibold">Vending Machines</h1>
           <button
@@ -180,9 +168,7 @@ function formatCurrency(amount: number | null | undefined) {
             </Card>
           </NuxtLink>
         </div>
-      </div>
-    </SidebarInset>
-  </SidebarProvider>
+  </div>
 
   <!-- Add Device Modal -->
   <div

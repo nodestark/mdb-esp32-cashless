@@ -1,10 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-import AppSidebar from '@/components/AppSidebar.vue'
-import SiteHeader from '@/components/SiteHeader.vue'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-
 const supabase = useSupabaseClient()
 const { role } = useOrganization()
 
@@ -18,19 +14,38 @@ const inviteEmail = ref('')
 const inviteRole = ref<'admin' | 'viewer'>('viewer')
 const inviteLoading = ref(false)
 const inviteError = ref('')
-const inviteSuccess = ref('')
+const inviteUrl = ref('')
+const copied = ref(false)
 
 const isAdmin = computed(() => role.value === 'admin')
 
 async function loadData() {
   loading.value = true
-  const [membersRes, invitesRes] = await Promise.all([
+  const [membersRes, invitesRes, usersRes] = await Promise.all([
     supabase.from('organization_members').select('id, created_at, user_id, role, invited_by'),
     supabase.from('invitations').select('id, created_at, email, role, token, expires_at, accepted_at, invited_by'),
+    supabase.from('users').select('id, first_name, last_name, email'),
   ])
-  members.value = membersRes.data ?? []
+
+  // Build user lookup map (id → { first_name, last_name, email })
+  const userMap = new Map<string, { first_name: string | null; last_name: string | null; email: string | null }>()
+  for (const u of (usersRes.data ?? []) as any[]) {
+    userMap.set(u.id, { first_name: u.first_name, last_name: u.last_name, email: u.email })
+  }
+
+  members.value = ((membersRes.data ?? []) as any[]).map(m => ({
+    ...m,
+    first_name: userMap.get(m.user_id)?.first_name ?? null,
+    last_name: userMap.get(m.user_id)?.last_name ?? null,
+    email: userMap.get(m.user_id)?.email ?? null,
+  }))
   invitations.value = (invitesRes.data ?? []).filter((i: any) => !i.accepted_at)
   loading.value = false
+}
+
+function memberDisplayName(member: any): string {
+  const parts = [member.first_name, member.last_name].filter(Boolean)
+  return parts.length > 0 ? parts.join(' ') : '—'
 }
 
 onMounted(async () => {
@@ -40,14 +55,15 @@ onMounted(async () => {
 async function sendInvite() {
   inviteLoading.value = true
   inviteError.value = ''
-  inviteSuccess.value = ''
+  inviteUrl.value = ''
+  copied.value = false
   try {
     const { data, error } = await supabase.functions.invoke('invite-member', {
       body: { email: inviteEmail.value, role: inviteRole.value },
     })
     if (error) throw error
     if (data?.error) throw new Error(data.error)
-    inviteSuccess.value = `Invitation sent. Share this token: ${data.token}`
+    inviteUrl.value = `${window.location.origin}/auth/register?token=${data.token}`
     inviteEmail.value = ''
     inviteRole.value = 'viewer'
     await loadData()
@@ -55,6 +71,24 @@ async function sendInvite() {
     inviteError.value = err instanceof Error ? err.message : 'Failed to send invitation'
   } finally {
     inviteLoading.value = false
+  }
+}
+
+async function copyInviteUrl() {
+  try {
+    await navigator.clipboard.writeText(inviteUrl.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    // Fallback for insecure contexts
+    const textarea = document.createElement('textarea')
+    textarea.value = inviteUrl.value
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
   }
 }
 
@@ -79,16 +113,7 @@ function formatDate(dt: string) {
 </script>
 
 <template>
-  <SidebarProvider
-    :style="{
-      '--sidebar-width': 'calc(var(--spacing) * 72)',
-      '--header-height': 'calc(var(--spacing) * 12)',
-    }"
-  >
-    <AppSidebar variant="inset" />
-    <SidebarInset>
-      <SiteHeader />
-      <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+  <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div class="flex items-center justify-between">
           <h1 class="text-2xl font-semibold">Members</h1>
           <button
@@ -110,7 +135,7 @@ function formatDate(dt: string) {
               <table class="w-full text-sm">
                 <thead>
                   <tr class="border-b bg-muted/50 text-left">
-                    <th class="px-4 py-3 font-medium">User ID</th>
+                    <th class="px-4 py-3 font-medium">Name</th>
                     <th class="px-4 py-3 font-medium">Role</th>
                     <th class="px-4 py-3 font-medium">Joined</th>
                     <th v-if="isAdmin" class="px-4 py-3 font-medium">Actions</th>
@@ -122,7 +147,12 @@ function formatDate(dt: string) {
                     :key="member.id"
                     class="border-b last:border-0 hover:bg-muted/30 transition-colors"
                   >
-                    <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{{ member.user_id }}</td>
+                    <td class="px-4 py-3">
+                      <div>
+                        <span class="font-medium">{{ memberDisplayName(member) }}</span>
+                        <p class="text-xs text-muted-foreground">{{ member.email ?? member.user_id }}</p>
+                      </div>
+                    </td>
                     <td class="px-4 py-3">
                       <span
                         class="rounded-full px-2 py-0.5 text-xs font-medium"
@@ -205,53 +235,80 @@ function formatDate(dt: string) {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         @click.self="showInviteModal = false"
       >
-        <div class="w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
-          <h2 class="mb-4 text-lg font-semibold">Invite a member</h2>
-          <form class="space-y-4" @submit.prevent="sendInvite">
-            <div class="space-y-1">
-              <label class="text-sm font-medium" for="invite-email">Email</label>
-              <input
-                id="invite-email"
-                v-model="inviteEmail"
-                type="email"
-                required
-                placeholder="colleague@example.com"
-                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            <div class="space-y-1">
-              <label class="text-sm font-medium" for="invite-role">Role</label>
-              <select
-                id="invite-role"
-                v-model="inviteRole"
-                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="viewer">Viewer</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <p v-if="inviteError" class="text-sm text-destructive">{{ inviteError }}</p>
-            <p v-if="inviteSuccess" class="text-sm text-green-600 break-all">{{ inviteSuccess }}</p>
-            <div class="flex gap-2">
+        <div class="w-full max-w-md rounded-xl border bg-card p-6 shadow-lg">
+          <!-- Step 1: Form -->
+          <template v-if="!inviteUrl">
+            <h2 class="mb-4 text-lg font-semibold">Invite a member</h2>
+            <form class="space-y-4" @submit.prevent="sendInvite">
+              <div class="space-y-1">
+                <label class="text-sm font-medium" for="invite-email">Email</label>
+                <input
+                  id="invite-email"
+                  v-model="inviteEmail"
+                  type="email"
+                  required
+                  placeholder="colleague@example.com"
+                  class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+              <div class="space-y-1">
+                <label class="text-sm font-medium" for="invite-role">Role</label>
+                <select
+                  id="invite-role"
+                  v-model="inviteRole"
+                  class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <p v-if="inviteError" class="text-sm text-destructive">{{ inviteError }}</p>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted"
+                  @click="showInviteModal = false"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  :disabled="inviteLoading"
+                  class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
+                >
+                  <span v-if="inviteLoading">Sending…</span>
+                  <span v-else>Send invite</span>
+                </button>
+              </div>
+            </form>
+          </template>
+
+          <!-- Step 2: Invite link -->
+          <template v-else>
+            <h2 class="mb-1 text-lg font-semibold">Invitation link</h2>
+            <p class="mb-4 text-sm text-muted-foreground">
+              Share this link with the invited user. They can register and join your organization in one step.
+            </p>
+
+            <div class="mb-4 flex items-stretch gap-2">
+              <div class="flex-1 overflow-hidden rounded-md border border-input bg-muted/50 px-3 py-2">
+                <p class="truncate font-mono text-xs text-muted-foreground">{{ inviteUrl }}</p>
+              </div>
               <button
-                type="button"
-                class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted"
-                @click="showInviteModal = false"
+                class="inline-flex shrink-0 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+                @click="copyInviteUrl"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                :disabled="inviteLoading"
-                class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
-              >
-                <span v-if="inviteLoading">Sending…</span>
-                <span v-else>Send invite</span>
+                {{ copied ? 'Copied!' : 'Copy' }}
               </button>
             </div>
-          </form>
+
+            <button
+              class="inline-flex h-9 w-full items-center justify-center rounded-md border px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted"
+              @click="showInviteModal = false; inviteUrl = ''"
+            >
+              Done
+            </button>
+          </template>
         </div>
       </div>
-    </SidebarInset>
-  </SidebarProvider>
 </template>
