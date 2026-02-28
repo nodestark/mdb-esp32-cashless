@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
             { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         )
 
-        const { data: embeddedData, error } = await supabase.from("embeddeds").select("passkey,subdomain,id").eq("subdomain", body.subdomain);
+        const { data: embeddedData, error } = await supabase.from("embedded").select("passkey,subdomain,id").eq("subdomain", body.subdomain);
 
         const passkey: number[] = [...embeddedData[0].passkey].map(c => c.charCodeAt(0));
 

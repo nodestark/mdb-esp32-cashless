@@ -43,10 +43,10 @@ def on_message(client, userdata, msg):
             # print(event_type)
 
             if event_type == "status":
-                supabase.table("embeddeds").update({"status_at": datetime.now(timezone.utc).isoformat(), "status": payload.decode('utf-8', errors='ignore')}).eq("subdomain", domain_id).execute()
+                supabase.table("embedded").update({"status_at": datetime.now(timezone.utc).isoformat(), "status": payload.decode('utf-8', errors='ignore')}).eq("subdomain", domain_id).execute()
 
             if event_type == "paxcounter":
-                res = supabase.table("embeddeds").select("passkey,subdomain,id,owner_id").eq("subdomain", domain_id).execute()
+                res = supabase.table("embedded").select("passkey,subdomain,id,owner_id").eq("subdomain", domain_id).execute()
 
                 embedded = res.data[0]
                 passkey = [ord(c) for c in embedded["passkey"]]
@@ -69,7 +69,7 @@ def on_message(client, userdata, msg):
                                                          "count": pax_counter}]).execute()
 
             if event_type == "sale":
-                res = supabase.table("embeddeds").select("passkey,subdomain,id,owner_id").eq("subdomain", domain_id).execute()
+                res = supabase.table("embedded").select("passkey,subdomain,id,owner_id").eq("subdomain", domain_id).execute()
 
                 embedded = res.data[0]
                 passkey = [ord(c) for c in embedded["passkey"]]
