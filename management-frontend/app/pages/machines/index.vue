@@ -21,12 +21,14 @@ const generating = ref(false)
 const shortCode = ref('')
 const expiresAt = ref('')
 const genError = ref('')
+const deviceName = ref('')
 
 function openModal() {
   step.value = 1
   shortCode.value = ''
   expiresAt.value = ''
   genError.value = ''
+  deviceName.value = ''
   showModal.value = true
 }
 
@@ -34,7 +36,8 @@ async function generateCode() {
   generating.value = true
   genError.value = ''
   try {
-    const { data, error } = await supabase.functions.invoke('create-provisioning-token')
+    const body = deviceName.value.trim() ? { name: deviceName.value.trim() } : undefined
+    const { data, error } = await supabase.functions.invoke('create-provisioning-token', { body })
     if (error) throw error
     if (data?.error) throw new Error(data.error)
     shortCode.value = data.short_code
@@ -156,6 +159,17 @@ function formatCurrency(amount: number | null | undefined) {
         <p class="mb-5 text-sm text-muted-foreground">
           Generate a one-time provisioning code. You'll enter it into the device's WiFi setup page.
         </p>
+        <div class="mb-4">
+          <label for="device-name" class="mb-1.5 block text-sm font-medium">Device Name</label>
+          <input
+            id="device-name"
+            v-model="deviceName"
+            type="text"
+            placeholder="e.g. Break Room Machine"
+            class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <p class="mt-1 text-xs text-muted-foreground">Optional — leave blank for a default name.</p>
+        </div>
         <p v-if="genError" class="mb-3 text-sm text-destructive">{{ genError }}</p>
         <div class="flex gap-2">
           <button

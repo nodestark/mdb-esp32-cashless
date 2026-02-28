@@ -54,6 +54,17 @@ Deno.serve(async (req) => {
       if (!existing) break
     }
 
+    // Parse optional name from request body
+    let deviceName: string | null = null
+    try {
+      const body = await req.json()
+      if (body?.name && typeof body.name === 'string' && body.name.trim()) {
+        deviceName = body.name.trim()
+      }
+    } catch {
+      // No body or invalid JSON — name stays null
+    }
+
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
 
     const { data, error } = await adminClient
@@ -63,6 +74,7 @@ Deno.serve(async (req) => {
         short_code: shortCode,
         expires_at: expiresAt,
         created_by: user.id,
+        name: deviceName,
       })
       .select('short_code, expires_at')
       .single()

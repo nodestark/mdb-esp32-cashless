@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // Look up the provisioning token
     const { data: token, error: tokenError } = await adminClient
       .from('device_provisioning')
-      .select('id, company_id, created_by, short_code, expires_at, used_at, embedded_id')
+      .select('id, company_id, created_by, short_code, expires_at, used_at, embedded_id, name')
       .eq('short_code', short_code.toUpperCase())
       .maybeSingle()
 
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       .insert({
         company: token.company_id,
         embedded: embedded.id,
-        name: mac_address ? `Device ${mac_address}` : `Device ${embedded.subdomain}`,
+        name: token.name ?? (mac_address ? `Device ${mac_address}` : `Device ${embedded.subdomain}`),
       })
 
     if (machineError) throw machineError

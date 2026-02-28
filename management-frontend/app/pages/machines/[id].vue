@@ -68,6 +68,47 @@ function formatCurrency(amount: number | null | undefined) {
   if (amount == null) return '—'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
 }
+
+// ── Inline name editing ─────────────────────────────────────────────────────
+const editingName = ref(false)
+const editName = ref('')
+const savingName = ref(false)
+
+function startEditName() {
+  editName.value = machine.value?.name ?? ''
+  editingName.value = true
+  nextTick(() => {
+    const input = document.getElementById('machine-name-input') as HTMLInputElement | null
+    input?.focus()
+    input?.select()
+  })
+}
+
+function cancelEditName() {
+  editingName.value = false
+}
+
+async function saveNameEdit() {
+  const trimmed = editName.value.trim()
+  if (!trimmed || trimmed === machine.value?.name) {
+    editingName.value = false
+    return
+  }
+  savingName.value = true
+  try {
+    const { error } = await supabase
+      .from('vendingMachine')
+      .update({ name: trimmed })
+      .eq('id', machine.value.id)
+    if (error) throw error
+    machine.value.name = trimmed
+  } catch (err: unknown) {
+    // Revert on failure — no UI noise, just keep old name
+  } finally {
+    savingName.value = false
+    editingName.value = false
+  }
+}
 </script>
 
 <template>
@@ -87,7 +128,25 @@ function formatCurrency(amount: number | null | undefined) {
           <!-- Machine info -->
           <div class="flex items-start justify-between">
             <div>
-              <h1 class="text-2xl font-semibold">{{ machine.name ?? 'Unnamed machine' }}</h1>
+              <div v-if="editingName" class="flex items-center gap-2">
+                <input
+                  id="machine-name-input"
+                  v-model="editName"
+                  type="text"
+                  class="h-9 rounded-md border bg-transparent px-3 text-2xl font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  @keydown.enter="saveNameEdit"
+                  @keydown.escape="cancelEditName"
+                  @blur="saveNameEdit"
+                />
+              </div>
+              <h1
+                v-else
+                class="group flex cursor-pointer items-center gap-2 text-2xl font-semibold"
+                @click="startEditName"
+              >
+                {{ machine.name ?? 'Unnamed machine' }}
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+              </h1>
               <p v-if="machine.location_lat && machine.location_lon" class="mt-1 text-sm text-muted-foreground">
                 {{ machine.location_lat.toFixed(5) }}, {{ machine.location_lon.toFixed(5) }}
               </p>
