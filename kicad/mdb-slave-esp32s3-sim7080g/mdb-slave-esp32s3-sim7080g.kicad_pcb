@@ -31202,8 +31202,8 @@
 			(justify left bottom mirror)
 		)
 	)
-	(gr_text "d_tx"
-		(at 172.589 87.948571 90)
+	(gr_text "tx"
+		(at 172.589 89.615238 90)
 		(layer "B.SilkS" knockout)
 		(uuid "b566f5f6-00a9-4d24-adfe-35b68060dc55")
 		(effects
@@ -31215,8 +31215,8 @@
 			(justify left bottom mirror)
 		)
 	)
-	(gr_text "d_rx"
-		(at 174.589 87.900952 90)
+	(gr_text "rx"
+		(at 174.589 89.567619 90)
 		(layer "B.SilkS" knockout)
 		(uuid "c563b564-e850-4e42-98e1-7ae7e50e140e")
 		(effects
