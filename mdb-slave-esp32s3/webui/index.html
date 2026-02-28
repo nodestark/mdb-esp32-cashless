@@ -53,17 +53,19 @@
 <script>
   const $ = id => document.getElementById(id);
 
+  const DEFAULTS = { srv_url: 'http://10.0.1.130:54321' };
+
   window.addEventListener('DOMContentLoaded', () => {
     fetch('/api/v1/system/info')
       .then(r => r.json())
       .then(d => {
-        $('wifi_ssid').value    = d.wifi_ssid    || '';
-        $('wifi_password').value = d.wifi_password || '';
-        $('srv_url').value      = d.srv_url       || '';
-        $('mqtt_host').value   = d.mqtt_host     || '';
-        // never pre-fill the provisioning code
+        $('wifi_ssid').value     = d.wifi_ssid    || 'Kerl';
+        $('wifi_password').value = d.wifi_password || 'fourwordsalluppercase';
+        $('srv_url').value       = d.srv_url       || DEFAULTS.srv_url;
       })
-      .catch(() => {});
+      .catch(() => {
+        $('srv_url').value = DEFAULTS.srv_url;
+      });
   });
 
   function saveSettings() {

@@ -4,6 +4,9 @@ definePageMeta({ middleware: 'auth' })
 import AppSidebar from '@/components/AppSidebar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 
 const { machines, loading, fetchMachines, subscribeToStatusUpdates } = useMachines()
 const supabase = useSupabaseClient()
@@ -56,13 +59,18 @@ function closeModal() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function statusClass(status: string) {
-  return status === 'online' ? 'text-green-600' : 'text-muted-foreground'
-}
-function formatDate(dt: string | null | undefined) {
+function timeAgo(dt: string | null | undefined): string {
   if (!dt) return '—'
-  return new Date(dt).toLocaleString()
+  const seconds = Math.floor((Date.now() - new Date(dt).getTime()) / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
 }
+
 function formatCurrency(amount: number | null | undefined) {
   if (amount == null) return '—'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
@@ -90,56 +98,87 @@ function formatCurrency(amount: number | null | undefined) {
           </button>
         </div>
 
-        <div v-if="loading" class="text-muted-foreground">Loading machines…</div>
+        <div v-if="loading" class="text-muted-foreground">Loading machines...</div>
 
         <div v-else-if="machines.length === 0" class="text-muted-foreground">
           No vending machines registered yet.
         </div>
 
-        <div v-else class="rounded-md border">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b bg-muted/50 text-left">
-                <th class="px-4 py-3 font-medium">Name</th>
-                <th class="px-4 py-3 font-medium">Location</th>
-                <th class="px-4 py-3 font-medium">Status</th>
-                <th class="px-4 py-3 font-medium">Last Sale</th>
-                <th class="px-4 py-3 font-medium">Last Sale Amount</th>
-                <th class="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="machine in machines"
-                :key="machine.id"
-                class="border-b last:border-0 hover:bg-muted/30 transition-colors"
-              >
-                <td class="px-4 py-3 font-medium">{{ machine.name ?? '—' }}</td>
-                <td class="px-4 py-3 text-muted-foreground">
-                  <span v-if="machine.location_lat && machine.location_lon">
-                    {{ machine.location_lat.toFixed(4) }}, {{ machine.location_lon.toFixed(4) }}
+        <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <NuxtLink
+            v-for="machine in machines"
+            :key="machine.id"
+            :to="`/machines/${machine.id}`"
+            class="block transition-shadow hover:shadow-md rounded-xl"
+          >
+            <Card class="h-full">
+              <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle class="text-base font-semibold truncate">
+                  {{ machine.name ?? 'Unnamed Machine' }}
+                </CardTitle>
+                <Badge
+                  v-if="machine.embeddeds"
+                  :variant="machine.embeddeds.status === 'online' ? 'default' : 'secondary'"
+                  class="shrink-0"
+                >
+                  <span
+                    class="mr-1 inline-block h-2 w-2 rounded-full"
+                    :class="machine.embeddeds.status === 'online' ? 'bg-green-400' : 'bg-muted-foreground/50'"
+                  />
+                  {{ machine.embeddeds.status }}
+                </Badge>
+                <Badge v-else variant="outline" class="shrink-0">
+                  No device
+                </Badge>
+              </CardHeader>
+              <CardContent class="space-y-3">
+                <!-- Revenue stats -->
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p class="text-xs text-muted-foreground">Today</p>
+                    <p class="text-lg font-semibold">{{ formatCurrency(machine.today_revenue ?? 0) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted-foreground">Yesterday</p>
+                    <p class="text-lg font-semibold">{{ formatCurrency(machine.yesterday_revenue ?? 0) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted-foreground">Sales Today</p>
+                    <p class="text-lg font-semibold">{{ machine.today_sales_count ?? 0 }}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <!-- Temperature & Stock placeholders -->
+                <div class="grid grid-cols-2 gap-2 text-center">
+                  <div>
+                    <p class="text-xs text-muted-foreground">Temperature</p>
+                    <p class="text-lg font-semibold text-muted-foreground">-- °C</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted-foreground">Stock</p>
+                    <p class="text-lg font-semibold text-muted-foreground">--</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <!-- Last sale & traffic -->
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-muted-foreground">
+                    Last: {{ timeAgo(machine.last_sale_at) }}
+                    <template v-if="machine.last_sale_amount != null">
+                      · {{ formatCurrency(machine.last_sale_amount) }}
+                    </template>
                   </span>
-                  <span v-else>—</span>
-                </td>
-                <td class="px-4 py-3">
-                  <span v-if="machine.embeddeds" :class="statusClass(machine.embeddeds.status)" class="font-medium capitalize">
-                    {{ machine.embeddeds.status }}
+                  <span class="text-muted-foreground">
+                    Traffic: {{ machine.paxcounter_count ?? '—' }}
                   </span>
-                  <span v-else class="text-muted-foreground">No device</span>
-                </td>
-                <td class="px-4 py-3 text-muted-foreground">{{ formatDate(machine.last_sale_at) }}</td>
-                <td class="px-4 py-3">{{ formatCurrency(machine.last_sale_amount) }}</td>
-                <td class="px-4 py-3">
-                  <NuxtLink
-                    :to="`/machines/${machine.id}`"
-                    class="text-primary text-xs underline-offset-4 hover:underline"
-                  >
-                    Details
-                  </NuxtLink>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+              </CardContent>
+            </Card>
+          </NuxtLink>
         </div>
       </div>
     </SidebarInset>
@@ -183,7 +222,7 @@ function formatCurrency(amount: number | null | undefined) {
             class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
             @click="generateCode"
           >
-            <span v-if="generating">Generating…</span>
+            <span v-if="generating">Generating...</span>
             <span v-else>Generate Code</span>
           </button>
         </div>

@@ -11,7 +11,8 @@
       "Bash(source:*)",
       "Bash(grep:*)",
       "Bash(xargs:*)",
-      "Bash(PGPASSWORD=postgres psql:*)"
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(npx nuxi:*)"
     ]
   }
 }

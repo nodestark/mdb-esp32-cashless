@@ -114,7 +114,14 @@ Tables:
 - `paxcounter` – foot traffic: `embedded_id`, `count`
 - `device_provisioning` – one-time provisioning codes: `short_code`, `expires_at`, `used_at`, `embedded_id`
 - `vendingMachine` – physical machine records linked to embedded devices
-- `products`, `product_category` – product catalogue per company
+- `products`, `product_category` – product catalogue per company; `products.image_path` stores the storage object path
+- `machine_trays` – per-machine tray/slot configuration: `machine_id`, `item_number` (unique per machine), `product_id`, `capacity`, `current_stock`; stock auto-decremented on sales via `decrement_tray_stock` trigger
+
+### Supabase Storage
+
+A public bucket `product-images` stores product images (PNG, JPEG, WebP, max 2MiB). Images stored as `{product_id}.{ext}`. Bucket is created in migration `20260301100000_product_images.sql` (not via `config.toml` — bucket definitions in config are unreliable). Storage RLS: public SELECT, authenticated admin INSERT/UPDATE/DELETE.
+
+To apply only pending migrations without resetting data: `supabase migration up`
 
 ### Edge Functions (`Docker/supabase/functions/`)
 
@@ -153,22 +160,26 @@ SUPABASE_KEY=<anon key>
 
 The `app/middleware/auth.ts` middleware runs on every protected route:
 1. Checks `useSupabaseUser()` → redirect to `/auth/login` if unauthenticated
-2. Calls `get-my-organization` edge function (cached in `useState('organization')`)
-3. If no organisation → redirect to `/onboarding/create-organization`
+2. **Skips org fetch on SSR** (`import.meta.server`) — the `plugins/supabase-url.client.ts` plugin rewrites the Supabase URL to the browser hostname on the client only; SSR calls would use the raw `127.0.0.1` URL and fail auth
+3. On client: calls `fetchOrganization()` from `useOrganization()` composable (cached in `useState('organization')` + `useState('org-role')`)
+4. If no organisation → redirect to `/onboarding/create-organization`
 
 Public routes (no auth check): `/auth/login`, `/auth/register`, `/onboarding/*`
 
 ### Key Composables
 
 - `useOrganization()` – wraps `get-my-organization`, exposes `organization`, `role`, `fetchOrganization()`
-- `useMachines()` – fetches `vendingMachine` joined with `embeddeds`, enriched with last sale; `subscribeToStatusUpdates()` opens a Supabase realtime channel on the `embeddeds` table
-- `useTheme()` – wraps `useDark` from `@vueuse/core`; theme persisted to `localStorage` as `color-scheme`; `plugins/theme.client.ts` applies `.dark` class before hydration to avoid flash
+- `useMachines()` – fetches `vendingMachine` joined with `embeddeds`, batch-fetches per-machine stats (today/yesterday revenue, sales count, paxcounter, last sale) via `Promise.all`; `subscribeToStatusUpdates()` opens Supabase realtime channels on `embeddeds`, `vendingMachine`, and `sales` tables (live-updates today's stats on new sales)
+- `useProducts()` – CRUD for products + categories; `uploadProductImage(productId, file)` uploads to `product-images/{id}.{ext}` with upsert; `deleteProductImage()` removes from storage + nulls `image_path`; `deleteProduct()` cleans up storage; `getProductImageUrl(path)` builds public URL; `createProduct()` returns the new product ID
+- `useMachineTrays()` – CRUD for machine tray/slot configuration; `batchCreateTrays(machineId, startSlot, count, capacity)` bulk-inserts sequential slots; `updateTray()` updates by ID (allows slot number changes); `subscribeToTrayUpdates()` for realtime stock changes; stock auto-decrements on sales via DB trigger
+- `useTheme()` – wraps `useDark` from `@vueuse/core`; theme persisted to `localStorage` as `color-scheme`
 
 ### Pages
 
 - `/` – Dashboard: KPI cards (today/week sales, machine counts) + 30-day sales chart
-- `/machines` – Table of vending machines with live status; "Add Device" modal triggers `create-provisioning-token` and shows 8-char code + setup instructions
-- `/machines/[id]` – Per-machine detail: 30-day chart + sales history table
+- `/machines` – Responsive card grid (1/2/3 cols) of vending machines showing status badge, today/yesterday revenue, sales count, temperature/stock placeholders (`--`), last sale time-ago, and paxcounter traffic; cards link to `/machines/[id]`; "Add Device" modal triggers `create-provisioning-token` and shows 8-char code + setup instructions
+- `/machines/[id]` – Per-machine detail: 30-day chart + sales history (with product image thumbnails from trays); Trays & Stock tab with tray table, batch add (sequential slots), single add/edit (editable slot numbers), refill, and delete
+- `/products` – Products tab (table with image thumbnails, add/edit modal with image upload zone, category selector) + Categories tab; image upload on form submit, preview + remove in modal
 - `/members` – Active members table + pending invitations (admin only); invite modal calls `invite-member`
 - `/onboarding/create-organization` – Calls `create-organization` edge function
 - `/onboarding/accept-invitation` – Reads `?token=` from URL, calls `accept-invitation`

@@ -3,6 +3,7 @@ import {
   IconDashboard,
   IconHelp,
   IconInnerShadowTop,
+  IconPackage,
   IconSettings,
   IconUsers,
   IconDevices,
@@ -33,6 +34,11 @@ const navMain = [
     title: "Machines",
     url: "/machines",
     icon: IconDevices,
+  },
+  {
+    title: "Products",
+    url: "/products",
+    icon: IconPackage,
   },
   {
     title: "Members",

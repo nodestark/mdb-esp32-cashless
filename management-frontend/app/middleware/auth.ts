@@ -14,18 +14,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/auth/login')
   }
 
-  // Use cached organization state when available
-  const organization = useState<any>('organization')
-  if (organization.value !== null && organization.value !== undefined) {
+  // Skip org fetch on SSR — the Supabase client URL gets rewritten
+  // client-side (supabase-url.client.ts), so server-side calls may fail.
+  if (import.meta.server) {
     return
   }
 
-  const supabase = useSupabaseClient()
+  const { organization, role, fetchOrganization } = useOrganization()
+  if (organization.value !== null && organization.value !== undefined && role.value !== null) {
+    return
+  }
+
   try {
-    const { data, error } = await supabase.functions.invoke('get-my-organization')
-    if (error) throw error
-    organization.value = data?.organization ?? null
-    if (!data?.organization) {
+    await fetchOrganization()
+    if (!organization.value) {
       return navigateTo('/onboarding/create-organization')
     }
   } catch {
