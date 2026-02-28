@@ -14,14 +14,11 @@ services:
 
   domain:
     build:
-      dockerfile: ./mqtt/Dockerfile
+      context: ./mqtt/forwarder
     restart: unless-stopped
     depends_on:
       - broker
-    volumes:
-      - ./mqtt/clients:/clients
-    working_dir: /clients
     environment:
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
-      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       MQTT_HOST: broker
+      SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+      MQTT_WEBHOOK_SECRET: ${MQTT_WEBHOOK_SECRET}

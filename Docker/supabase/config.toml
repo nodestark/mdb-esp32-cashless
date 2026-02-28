@@ -361,6 +361,7 @@ deno_version = 2
 
 [edge_runtime.secrets]
 MQTT_HOST = "env(MQTT_HOST)"
+MQTT_WEBHOOK_SECRET = "env(MQTT_WEBHOOK_SECRET)"
 
 [analytics]
 enabled = true
@@ -428,3 +429,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/claim-device/deno.json"
 entrypoint = "./functions/claim-device/index.ts"
+
+[functions.mqtt-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/mqtt-webhook/deno.json"
+entrypoint = "./functions/mqtt-webhook/index.ts"

@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
             { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         )
 
-        const { data: embeddedData, error } = await supabase.from("embeddeds").select("passkey,subdomain,status,id").eq("subdomain", body.subdomain);
+        const { data: embeddedData, error } = await supabase.from("embeddeds").select("passkey,status,id,owner_id").eq("id", body.device_id);
 
         const cipher: number[] = [...embeddedData[0].passkey].map(c => c.charCodeAt(0));
 
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         const client = new Client({ url: `mqtt://mqtt.vmflow.xyz` });
         await client.connect();
 
-        await client.publish(`${embeddedData[0].subdomain}.vmflow.xyz/credit`, payload);
+        await client.publish(`/${embeddedData[0].owner_id}/${embeddedData[0].id}/credit`, payload);
         await client.disconnect();
 
         let salesId: string | null = null;

@@ -8,7 +8,9 @@
       "Bash(docker ps:*)",
       "Bash(curl:*)",
       "Bash(docker exec:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

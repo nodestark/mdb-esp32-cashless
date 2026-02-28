@@ -87,7 +87,8 @@ EventGroupHandle_t xLedEventGroup;
 static bool mqtt_started = false;
 static bool sntp_started = false;
 
-char my_subdomain[32];
+char my_company_id[40];   // UUID from Supabase companies table
+char my_device_id[40];    // UUID from Supabase embeddeds table
 char my_passkey[18];
 
 // Defining MDB commands as an enum
@@ -472,8 +473,8 @@ void vTaskMdbEvent(void *pvParameters) {
                         uint8_t payload[19];
                         xorEncodeWithPasskey(0x21, itemPrice, itemNumber, 0, (uint8_t*) &payload);
 
-                        char topic[64];
-                        snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
+                        char topic[128];
+                        snprintf(topic, sizeof(topic), "/%s/%s/sale", my_company_id, my_device_id);
 
                         esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
 
@@ -1089,8 +1090,8 @@ void requestTelemetryData(void *arg) {
 	size_t dex_size;
 	uint8_t *dex = (uint8_t*) xRingbufferReceive(dexRingbuf, &dex_size, 0);
 
-  	char topic[64];
-	snprintf(topic, sizeof(topic), "/domain/%s/dex", my_subdomain);
+  	char topic[128];
+	snprintf(topic, sizeof(topic), "/%s/%s/dex", my_company_id, my_device_id);
 
     esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 0, 0);
     printf("%.*s", dex_size, (char*) dex);
@@ -1130,8 +1131,8 @@ void ble_pax_event_handler(uint16_t devices_count){
     uint8_t payload[19];
     xorEncodeWithPasskey(0x22, 0, 0, devices_count, (uint8_t*) &payload);
 
-    char topic[64];
-    snprintf(topic, sizeof(topic), "/domain/%s/paxcounter", my_subdomain);
+    char topic[128];
+    snprintf(topic, sizeof(topic), "/%s/%s/paxcounter", my_company_id, my_device_id);
 
     esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
 }
@@ -1146,15 +1147,15 @@ void ble_event_handler(char *ble_payload) {
 		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
 
 		size_t s_len;
-		if (nvs_get_str(handle, "domain", NULL, &s_len) != ESP_OK) {
+		if (nvs_get_str(handle, "device_id", NULL, &s_len) != ESP_OK) {
 
-			strcpy((char*) &my_subdomain, ble_payload + 1);
+			strcpy((char*) &my_device_id, ble_payload + 1);
 
-			ESP_ERROR_CHECK( nvs_set_str(handle, "domain", (char*) &my_subdomain) );
+			ESP_ERROR_CHECK( nvs_set_str(handle, "device_id", (char*) &my_device_id) );
 			ESP_ERROR_CHECK( nvs_commit(handle) );
 
 			char myhost[64];
-			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
+			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_device_id);
 
 			ble_set_device_name((char*) &myhost);
 
@@ -1237,13 +1238,13 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_CONNECTED:
 		ESP_LOGW(TAG, "MQTT: connected to broker");
 
-    	char topic[64];
-    	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", my_subdomain);
+    	char topic[128];
+    	snprintf(topic, sizeof(topic), "/%s/%s/credit", my_company_id, my_device_id);
 		ESP_LOGI(TAG, "MQTT: subscribing to '%s'", topic);
     	esp_mqtt_client_subscribe(mqttClient, topic, 0);
 
-    	char topic_[64];
-    	snprintf(topic_, sizeof(topic_), "/domain/%s/status", my_subdomain);
+    	char topic_[128];
+    	snprintf(topic_, sizeof(topic_), "/%s/%s/status", my_company_id, my_device_id);
 		ESP_LOGI(TAG, "MQTT: publishing 'online' to '%s'", topic_);
 		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 1, 1);
 
@@ -1384,16 +1385,19 @@ static void provision_claim_task(void *arg) {
         if (status == 200) {
             cJSON *root = cJSON_Parse(resp_buf);
             if (root) {
-                cJSON *j_sub  = cJSON_GetObjectItem(root, "subdomain");
-                cJSON *j_pass = cJSON_GetObjectItem(root, "passkey");
+                cJSON *j_company = cJSON_GetObjectItem(root, "company_id");
+                cJSON *j_device  = cJSON_GetObjectItem(root, "device_id");
+                cJSON *j_pass    = cJSON_GetObjectItem(root, "passkey");
 
-                if (j_sub  && cJSON_IsString(j_sub) &&
-                    j_pass && cJSON_IsString(j_pass)) {
+                if (j_company && cJSON_IsString(j_company) &&
+                    j_device  && cJSON_IsString(j_device) &&
+                    j_pass    && cJSON_IsString(j_pass)) {
 
                     nvs_handle_t h;
                     if (nvs_open("vmflow", NVS_READWRITE, &h) == ESP_OK) {
-                        nvs_set_str(h, "domain",  j_sub->valuestring);
-                        nvs_set_str(h, "passkey", j_pass->valuestring);
+                        nvs_set_str(h, "company_id", j_company->valuestring);
+                        nvs_set_str(h, "device_id",  j_device->valuestring);
+                        nvs_set_str(h, "passkey",    j_pass->valuestring);
                         cJSON *j_mqtt = cJSON_GetObjectItem(root, "mqtt_host");
                         if (j_mqtt && cJSON_IsString(j_mqtt) && strlen(j_mqtt->valuestring) > 0) {
                             nvs_set_str(h, "mqtt_host", j_mqtt->valuestring);
@@ -1403,8 +1407,8 @@ static void provision_claim_task(void *arg) {
                         nvs_close(h);
                     }
 
-                    ESP_LOGI(TAG, "PROV: claimed, subdomain=%s — restarting",
-                             j_sub->valuestring);
+                    ESP_LOGI(TAG, "PROV: claimed, company=%s device=%s — restarting",
+                             j_company->valuestring, j_device->valuestring);
                     cJSON_Delete(root);
                     esp_http_client_cleanup(client);
                     vTaskDelay(pdMS_TO_TICKS(500));
@@ -1523,7 +1527,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             }
 
 		    if (!mqtt_started) {
-		        ESP_LOGW(TAG, "MQTT: starting client (subdomain='%s', client=%p)", my_subdomain, mqttClient);
+		        ESP_LOGW(TAG, "MQTT: starting client (company='%s' device='%s', client=%p)", my_company_id, my_device_id, mqttClient);
                 esp_mqtt_client_start(mqttClient);
                 mqtt_started = true;
             } else {
@@ -1679,7 +1683,7 @@ void app_main(void) {
 
 	//---------- NVS device config (before WiFi starts) -------//
 	//----------------------------------------------------------//
-	char myhost[64];
+	char myhost[96];
 	strcpy(myhost, "0.vmflow.xyz"); // Default value
 
     nvs_handle_t handle;
@@ -1689,12 +1693,18 @@ void app_main(void) {
 	    if (nvs_get_str(handle, "passkey", NULL, &s_len) == ESP_OK) {
             nvs_get_str(handle, "passkey", my_passkey, &s_len);
 
-            if (nvs_get_str(handle, "domain", NULL, &s_len) == ESP_OK) {
-                nvs_get_str(handle, "domain", my_subdomain, &s_len);
+            s_len = 0;
+            if (nvs_get_str(handle, "company_id", NULL, &s_len) == ESP_OK) {
+                nvs_get_str(handle, "company_id", my_company_id, &s_len);
 
-                snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
+                s_len = 0;
+                if (nvs_get_str(handle, "device_id", NULL, &s_len) == ESP_OK) {
+                    nvs_get_str(handle, "device_id", my_device_id, &s_len);
 
-                xEventGroupSetBits(xLedEventGroup, BIT_EVT_PSSKEY | BIT_EVT_DOMAIN | BIT_EVT_TRIGGER);
+                    snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_device_id);
+
+                    xEventGroupSetBits(xLedEventGroup, BIT_EVT_PSSKEY | BIT_EVT_DOMAIN | BIT_EVT_TRIGGER);
+                }
             }
         }
 
@@ -1703,8 +1713,8 @@ void app_main(void) {
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
-	char lwt_topic[64];
-	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);
+	char lwt_topic[128];
+	snprintf(lwt_topic, sizeof(lwt_topic), "/%s/%s/status", my_company_id, my_device_id);
 
 	// Read MQTT host from NVS (set via webui or claim-device), fall back to default
 	char mqtt_uri[160] = "mqtt://mqtt.vmflow.xyz";

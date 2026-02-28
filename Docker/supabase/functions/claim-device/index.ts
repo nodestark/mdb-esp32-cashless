@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // Look up the provisioning token
     const { data: token, error: tokenError } = await adminClient
       .from('device_provisioning')
-      .select('id, company_id, created_by, short_code, expires_at, used_at')
+      .select('id, company_id, created_by, short_code, expires_at, used_at, embedded_id')
       .eq('short_code', short_code.toUpperCase())
       .maybeSingle()
 
@@ -45,6 +45,28 @@ Deno.serve(async (req) => {
         status: 404, headers: { 'Content-Type': 'application/json' },
       })
     }
+
+    // Idempotent retry: token already used but device exists — return existing credentials
+    if (token.used_at && token.embedded_id) {
+      const { data: existing, error: existingError } = await adminClient
+        .from('embeddeds')
+        .select('id, passkey')
+        .eq('id', token.embedded_id)
+        .single()
+
+      if (existingError) throw existingError
+
+      return new Response(
+        JSON.stringify({
+          company_id: token.company_id,
+          device_id: existing.id,
+          passkey: existing.passkey,
+          mqtt_host: Deno.env.get('MQTT_HOST') ?? 'mqtt.vmflow.xyz',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
     if (token.used_at) {
       return new Response(JSON.stringify({ error: 'Provisioning code already used' }), {
         status: 409, headers: { 'Content-Type': 'application/json' },
@@ -94,7 +116,8 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        subdomain: String(embedded.subdomain),
+        company_id: token.company_id,
+        device_id: embedded.id,
         passkey,
         mqtt_host: Deno.env.get('MQTT_HOST') ?? 'mqtt.vmflow.xyz',
       }),
