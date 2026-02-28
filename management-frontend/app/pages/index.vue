@@ -23,6 +23,63 @@ const salesChartData = ref<{ date: Date; total: number }[]>([])
 onMounted(async () => {
   await fetchOrganization()
   await loadDashboard()
+
+  // Subscribe to live updates
+  const channel = supabase
+    .channel('dashboard-realtime')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'sales' },
+      (payload) => {
+        const sale = payload.new as Record<string, any>
+        const price = sale.item_price ?? 0
+
+        // Update KPI totals
+        const saleDate = new Date(sale.created_at)
+        const now = new Date()
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+        if (saleDate >= todayStart) todaySales.value += price
+        if (saleDate >= weekStart) weekSales.value += price
+
+        // Update chart data
+        const day = saleDate.toISOString().slice(0, 10)
+        const existing = salesChartData.value.find(
+          (d) => d.date.toISOString().slice(0, 10) === day
+        )
+        if (existing) {
+          existing.total += price
+          salesChartData.value = [...salesChartData.value]
+        } else {
+          salesChartData.value = [
+            ...salesChartData.value,
+            { date: new Date(day), total: price },
+          ].sort((a, b) => a.date.getTime() - b.date.getTime())
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'embeddeds' },
+      (payload) => {
+        const oldStatus = payload.old?.status
+        const newStatus = payload.new?.status
+        if (oldStatus === newStatus) return
+        if (newStatus === 'online') machinesOnline.value++
+        if (oldStatus === 'online') machinesOnline.value = Math.max(0, machinesOnline.value - 1)
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'vendingMachine' },
+      () => {
+        totalMachines.value++
+      }
+    )
+    .subscribe()
+
+  onUnmounted(() => supabase.removeChannel(channel))
 })
 
 async function loadDashboard() {

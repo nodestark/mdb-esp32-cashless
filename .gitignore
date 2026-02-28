@@ -13,3 +13,5 @@ kicad/**/*_prl
 .project
 
 .temp
+
+.cache

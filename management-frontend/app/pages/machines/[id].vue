@@ -37,6 +37,41 @@ onMounted(async () => {
 
       if (salesError) throw salesError
       sales.value = salesData ?? []
+
+      // Subscribe to live status + sales updates for this device
+      const channel = supabase
+        .channel(`machine-realtime-${machineData.embeddeds.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'embeddeds',
+            filter: `id=eq.${machineData.embeddeds.id}`,
+          },
+          (payload) => {
+            if (machine.value?.embeddeds) {
+              machine.value.embeddeds.status = payload.new.status
+              machine.value.embeddeds.status_at = payload.new.status_at
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'sales',
+            filter: `embedded_id=eq.${machineData.embeddeds.id}`,
+          },
+          (payload) => {
+            const newSale = payload.new as Record<string, any>
+            sales.value.unshift(newSale)
+          }
+        )
+        .subscribe()
+
+      onUnmounted(() => supabase.removeChannel(channel))
     }
   } catch (err: unknown) {
     errorMsg.value = err instanceof Error ? err.message : 'Failed to load machine'

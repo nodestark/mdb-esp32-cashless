@@ -59,7 +59,7 @@ export function useMachines() {
   function subscribeToStatusUpdates() {
     const supabase = useSupabaseClient()
     const channel = supabase
-      .channel('embeddeds-status')
+      .channel('machines-realtime')
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'embeddeds' },
@@ -72,7 +72,47 @@ export function useMachines() {
           }
         }
       )
-      .subscribe()
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'vendingMachine' },
+        () => {
+          fetchMachines()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'vendingMachine' },
+        (payload) => {
+          const updated = payload.new as Record<string, any>
+          const machine = machines.value.find(m => m.id === updated.id)
+          if (machine) {
+            machine.name = updated.name
+            machine.location_lat = updated.location_lat
+            machine.location_lon = updated.location_lon
+            // If embedded link changed, re-fetch to get the joined data
+            if (machine.embedded !== updated.embedded) {
+              fetchMachines()
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sales' },
+        (payload) => {
+          const sale = payload.new as Record<string, any>
+          const machine = machines.value.find(m => m.embeddeds?.id === sale.embedded_id)
+          if (machine) {
+            machine.last_sale_at = sale.created_at
+            machine.last_sale_amount = sale.item_price
+          }
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[realtime] machines channel error:', err)
+        }
+      })
 
     return () => supabase.removeChannel(channel)
   }

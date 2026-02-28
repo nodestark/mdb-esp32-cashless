@@ -91,7 +91,6 @@ static esp_err_t wifi_set_handler(httpd_req_t *req) {
     cJSON *j_password  = cJSON_GetObjectItem(root, "password");
     cJSON *j_prov_code = cJSON_GetObjectItem(root, "prov_code");
     cJSON *j_srv_url   = cJSON_GetObjectItem(root, "srv_url");
-    cJSON *j_mqtt_host = cJSON_GetObjectItem(root, "mqtt_host");
 
     if (!j_ssid || !cJSON_IsString(j_ssid) || strlen(j_ssid->valuestring) == 0) {
         cJSON_Delete(root);
@@ -123,11 +122,6 @@ static esp_err_t wifi_set_handler(httpd_req_t *req) {
             ESP_LOGI(TAG, "Server URL saved: %s", j_srv_url->valuestring);
         }
 
-        if (j_mqtt_host && cJSON_IsString(j_mqtt_host) && strlen(j_mqtt_host->valuestring) > 0) {
-            nvs_set_str(handle, "mqtt_host", j_mqtt_host->valuestring);
-            ESP_LOGI(TAG, "MQTT host saved: %s", j_mqtt_host->valuestring);
-        }
-
         nvs_commit(handle);
         nvs_close(handle);
     }
@@ -151,13 +145,10 @@ static esp_err_t system_info_get_handler(httpd_req_t *req) {
     esp_wifi_get_config(WIFI_IF_STA, &wifi_cfg);
 
     char srv_url[128] = "";
-    char mqtt_host[128] = "";
     nvs_handle_t handle;
     size_t s_len = sizeof(srv_url);
-    size_t m_len = sizeof(mqtt_host);
     if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
         nvs_get_str(handle, "srv_url", srv_url, &s_len);
-        nvs_get_str(handle, "mqtt_host", mqtt_host, &m_len);
         nvs_close(handle);
     }
 
@@ -168,7 +159,6 @@ static esp_err_t system_info_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "wifi_ssid",     (char *)wifi_cfg.sta.ssid);
     cJSON_AddStringToObject(root, "wifi_password", (char *)wifi_cfg.sta.password);
     cJSON_AddStringToObject(root, "srv_url",       srv_url);
-    cJSON_AddStringToObject(root, "mqtt_host",     mqtt_host);
 
     char *json_str = cJSON_PrintUnformatted(root);
     httpd_resp_set_type(req, "application/json");
