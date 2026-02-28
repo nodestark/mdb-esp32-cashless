@@ -256,7 +256,7 @@ public class EmbeddesFragment extends Fragment {
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
-                        .url(SUPABASE_URL + "/rest/v1/embeddeds")
+                        .url(SUPABASE_URL + "/rest/v1/embedded")
                         .addHeader("apikey", SUPABASE_KEY)
                         .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                         .addHeader("Content-Type", "application/json")
@@ -334,7 +334,7 @@ public class EmbeddesFragment extends Fragment {
 
                     JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
-                    Request request = new Request.Builder().url(SUPABASE_URL + "/rest/v1/embeddeds")
+                    Request request = new Request.Builder().url(SUPABASE_URL + "/rest/v1/embedded")
                             .post(requestBody)
                             .addHeader("apikey", SUPABASE_KEY)
                             .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
