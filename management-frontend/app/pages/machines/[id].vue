@@ -12,6 +12,7 @@ const supabase = useSupabaseClient()
 const { role } = useOrganization()
 const { products, categories, fetchProducts } = useProducts()
 const { trays, loading: traysLoading, fetchTrays, upsertTray, updateTray, batchCreateTrays, refillTray, deleteTray, subscribeToTrayUpdates } = useMachineTrays()
+const { fetchUnassignedEmbeddeds, swapDevice } = useMachines()
 
 const isAdmin = computed(() => role.value === 'admin')
 
@@ -25,34 +26,56 @@ onMounted(async () => {
   try {
     const { data: machineData, error: machineError } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embeddeds(id, status, status_at, subdomain)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address)')
       .eq('id', id)
       .single()
 
     if (machineError) throw machineError
     machine.value = machineData
 
-    // Fetch trays and products in parallel with sales
-    const promises: PromiseLike<any>[] = [fetchTrays(id), fetchProducts()]
+    // Fetch trays, products, and sales in parallel — sales query uses machine_id (not embedded_id)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const promises: PromiseLike<any>[] = [
+      fetchTrays(id),
+      fetchProducts(),
+      supabase
+        .from('sales')
+        .select('created_at, item_price, item_number, channel')
+        .eq('machine_id', id)
+        .gte('created_at', thirtyDaysAgo)
+        .order('created_at', { ascending: false })
+        .then(({ data: salesData, error: salesError }: any) => {
+          if (salesError) throw salesError
+          sales.value = salesData ?? []
+        }),
+    ]
 
-    if (machineData.embeddeds?.id) {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-      promises.push(
-        supabase
-          .from('sales')
-          .select('created_at, item_price, item_number, channel')
-          .eq('embedded_id', (machineData as any).embeddeds.id)
-          .gte('created_at', thirtyDaysAgo)
-          .order('created_at', { ascending: false })
-          .then(({ data: salesData, error: salesError }: any) => {
-            if (salesError) throw salesError
-            sales.value = salesData ?? []
-          })
+    await Promise.all(promises)
+
+    // Subscribe to live sales updates (by machine_id — works regardless of current device)
+    const salesChannel = supabase
+      .channel(`machine-sales-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'sales',
+          filter: `machine_id=eq.${id}`,
+        },
+        (payload) => {
+          const newSale = payload.new as Record<string, any>
+          sales.value.unshift(newSale)
+        }
       )
+      .subscribe()
 
-      // Subscribe to live status + sales updates for this device
-      const channel = supabase
-        .channel(`machine-realtime-${machineData.embeddeds.id}`)
+    onUnmounted(() => supabase.removeChannel(salesChannel))
+
+    // Subscribe to embedded status updates (only if a device is assigned)
+    if (machineData.embeddeds?.id) {
+      const statusChannel = supabase
+        .channel(`machine-status-${machineData.embeddeds.id}`)
         .on(
           'postgres_changes',
           {
@@ -68,29 +91,14 @@ onMounted(async () => {
             }
           }
         )
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'sales',
-            filter: `embedded_id=eq.${machineData.embeddeds.id}`,
-          },
-          (payload) => {
-            const newSale = payload.new as Record<string, any>
-            sales.value.unshift(newSale)
-          }
-        )
         .subscribe()
 
-      onUnmounted(() => supabase.removeChannel(channel))
+      onUnmounted(() => supabase.removeChannel(statusChannel))
     }
 
     // Subscribe to tray realtime updates
     const unsubTrays = subscribeToTrayUpdates(id)
     onUnmounted(unsubTrays)
-
-    await Promise.all(promises)
   } catch (err: unknown) {
     errorMsg.value = err instanceof Error ? err.message : 'Failed to load machine'
   } finally {
@@ -186,6 +194,63 @@ async function saveNameEdit() {
   } finally {
     savingName.value = false
     editingName.value = false
+  }
+}
+
+// ── Device swap ─────────────────────────────────────────────────────────────
+const showDeviceModal = ref(false)
+const availableDevices = ref<any[]>([])
+const selectedDeviceId = ref('')
+const deviceSwapLoading = ref(false)
+const deviceSwapError = ref('')
+
+async function openDeviceModal() {
+  deviceSwapError.value = ''
+  selectedDeviceId.value = ''
+  deviceSwapLoading.value = false
+  showDeviceModal.value = true
+  try {
+    availableDevices.value = await fetchUnassignedEmbeddeds()
+  } catch {
+    deviceSwapError.value = 'Failed to load available devices'
+  }
+}
+
+async function submitDeviceSwap() {
+  if (!selectedDeviceId.value) return
+  deviceSwapLoading.value = true
+  deviceSwapError.value = ''
+  try {
+    await swapDevice(machine.value.id, selectedDeviceId.value)
+    // Re-fetch machine to get updated embeddeds join
+    const { data } = await supabase
+      .from('vendingMachine')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address)')
+      .eq('id', machine.value.id)
+      .single()
+    if (data) machine.value = data
+    showDeviceModal.value = false
+  } catch (err: unknown) {
+    deviceSwapError.value = err instanceof Error ? err.message : 'Failed to swap device'
+  } finally {
+    deviceSwapLoading.value = false
+  }
+}
+
+async function detachDevice() {
+  deviceSwapLoading.value = true
+  try {
+    await swapDevice(machine.value.id, null)
+    const { data } = await supabase
+      .from('vendingMachine')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address)')
+      .eq('id', machine.value.id)
+      .single()
+    if (data) machine.value = data
+  } catch (err: unknown) {
+    // silent
+  } finally {
+    deviceSwapLoading.value = false
   }
 }
 
@@ -384,16 +449,50 @@ function stockColor(percent: number) {
                 {{ machine.location_lat.toFixed(5) }}, {{ machine.location_lon.toFixed(5) }}
               </p>
             </div>
-            <div v-if="machine.embeddeds" class="text-right">
-              <span
-                class="rounded-full px-3 py-1 text-xs font-medium"
-                :class="machine.embeddeds.status === 'online'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-muted text-muted-foreground'"
-              >
-                {{ machine.embeddeds.status }}
-              </span>
-              <p class="mt-1 text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
+            <!-- Device info + swap controls -->
+            <div class="text-right">
+              <template v-if="machine.embeddeds">
+                <span
+                  class="rounded-full px-3 py-1 text-xs font-medium"
+                  :class="machine.embeddeds.status === 'online'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-muted text-muted-foreground'"
+                >
+                  {{ machine.embeddeds.status }}
+                </span>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  {{ machine.embeddeds.mac_address ?? `Subdomain ${machine.embeddeds.subdomain}` }}
+                </p>
+                <p class="text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
+                <div v-if="isAdmin" class="mt-2 flex justify-end gap-2">
+                  <button
+                    class="text-xs text-primary hover:underline"
+                    @click="openDeviceModal"
+                  >
+                    Change device
+                  </button>
+                  <button
+                    class="text-xs text-destructive hover:underline"
+                    :disabled="deviceSwapLoading"
+                    @click="detachDevice"
+                  >
+                    Detach
+                  </button>
+                </div>
+              </template>
+              <template v-else>
+                <span class="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                  No device
+                </span>
+                <div v-if="isAdmin" class="mt-2">
+                  <button
+                    class="text-xs text-primary hover:underline"
+                    @click="openDeviceModal"
+                  >
+                    Assign device
+                  </button>
+                </div>
+              </template>
             </div>
           </div>
 
@@ -554,6 +653,54 @@ function stockColor(percent: number) {
             </TabsContent>
           </Tabs>
         </template>
+      </div>
+
+      <!-- Device swap/assign modal -->
+      <div
+        v-if="showDeviceModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        @click.self="showDeviceModal = false"
+      >
+        <div class="w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
+          <h2 class="mb-4 text-lg font-semibold">{{ machine.embeddeds ? 'Change device' : 'Assign device' }}</h2>
+          <p class="mb-4 text-sm text-muted-foreground">
+            Select an available device to assign to this machine. The machine configuration (trays, products, sales history) will be preserved.
+          </p>
+          <form class="space-y-4" @submit.prevent="submitDeviceSwap">
+            <div class="space-y-1">
+              <label class="text-sm font-medium" for="device-select">Available devices</label>
+              <select
+                id="device-select"
+                v-model="selectedDeviceId"
+                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="" disabled>Select a device</option>
+                <option v-for="d in availableDevices" :key="d.id" :value="d.id">
+                  {{ d.mac_address ?? 'Unknown MAC' }} — subdomain {{ d.subdomain }} ({{ d.status }})
+                </option>
+              </select>
+              <p v-if="availableDevices.length === 0" class="text-xs text-muted-foreground">No unassigned devices available. Provision a new device first.</p>
+            </div>
+            <p v-if="deviceSwapError" class="text-sm text-destructive">{{ deviceSwapError }}</p>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted"
+                @click="showDeviceModal = false"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                :disabled="deviceSwapLoading || !selectedDeviceId"
+                class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                <span v-if="deviceSwapLoading">Assigning…</span>
+                <span v-else>Assign</span>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
       <!-- Add/Edit Tray modal -->

@@ -54,15 +54,19 @@ Deno.serve(async (req) => {
       if (!existing) break
     }
 
-    // Parse optional name from request body
+    // Parse optional fields from request body
     let deviceName: string | null = null
+    let deviceOnly = false
     try {
       const body = await req.json()
       if (body?.name && typeof body.name === 'string' && body.name.trim()) {
         deviceName = body.name.trim()
       }
+      if (body?.device_only === true) {
+        deviceOnly = true
+      }
     } catch {
-      // No body or invalid JSON — name stays null
+      // No body or invalid JSON — defaults apply
     }
 
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
@@ -75,6 +79,7 @@ Deno.serve(async (req) => {
         expires_at: expiresAt,
         created_by: user.id,
         name: deviceName,
+        device_only: deviceOnly,
       })
       .select('short_code, expires_at')
       .single()

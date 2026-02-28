@@ -23,6 +23,11 @@ grant select, insert, update, delete on public.machine_trays to authenticated;
 grant select, insert, update, delete on public.machine_trays to service_role;
 
 -- B. RLS policies for machine_trays (via join to vendingMachine.company)
+drop policy if exists "machine_trays_select" on public.machine_trays;
+drop policy if exists "machine_trays_insert" on public.machine_trays;
+drop policy if exists "machine_trays_update" on public.machine_trays;
+drop policy if exists "machine_trays_delete" on public.machine_trays;
+
 create policy "machine_trays_select" on public.machine_trays
   for select to authenticated
   using (
@@ -124,6 +129,13 @@ create policy "products_delete" on public.products
   for delete to authenticated
   using (company = public.my_company_id() and public.i_am_admin());
 
--- E. Realtime for machine_trays
-alter table public.machine_trays replica identity full;
-alter publication supabase_realtime add table public.machine_trays;
+-- E. Realtime for machine_trays (skip if already added by earlier migration)
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'machine_trays'
+  ) then
+    alter publication supabase_realtime add table public.machine_trays;
+  end if;
+end $$;

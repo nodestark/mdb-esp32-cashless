@@ -5,6 +5,7 @@ interface Embedded {
   status: string
   status_at: string
   subdomain: number
+  mac_address?: string
 }
 
 interface VendingMachine {
@@ -41,12 +42,9 @@ export function useMachines() {
       if (error) throw error
       machines.value = (data ?? []) as VendingMachine[]
 
-      // Collect embedded IDs for batch queries
-      const ids = machines.value
-        .map(m => m.embeddeds?.id)
-        .filter((id): id is string => !!id)
+      const machineIds = machines.value.map(m => m.id)
 
-      if (ids.length === 0) {
+      if (machineIds.length === 0) {
         loading.value = false
         return
       }
@@ -56,71 +54,71 @@ export function useMachines() {
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
       const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString()
 
-      // Batch queries in parallel
+      // Batch queries in parallel — use machine_id instead of embedded_id
       const [todaySalesRes, yesterdaySalesRes, paxRes, ...lastSaleResults] = await Promise.all([
         // Today's sales
         supabase
           .from('sales')
-          .select('embedded_id, item_price')
-          .in('embedded_id', ids)
+          .select('machine_id, item_price')
+          .in('machine_id', machineIds)
           .gte('created_at', todayStart),
         // Yesterday's sales
         supabase
           .from('sales')
-          .select('embedded_id, item_price')
-          .in('embedded_id', ids)
+          .select('machine_id, item_price')
+          .in('machine_id', machineIds)
           .gte('created_at', yesterdayStart)
           .lt('created_at', todayStart),
-        // Latest paxcounter per device
+        // Latest paxcounter per machine
         supabase
           .from('paxcounter')
-          .select('embedded_id, count')
-          .in('embedded_id', ids)
+          .select('machine_id, count')
+          .in('machine_id', machineIds)
           .order('created_at', { ascending: false }),
         // Last sale per machine
-        ...machines.value
-          .filter(m => m.embeddeds?.id)
-          .map(m =>
-            supabase
-              .from('sales')
-              .select('created_at, item_price, item_number')
-              .eq('embedded_id', m.embeddeds!.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle()
-          ),
+        ...machines.value.map(m =>
+          supabase
+            .from('sales')
+            .select('created_at, item_price, item_number')
+            .eq('machine_id', m.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        ),
       ])
 
-      // Aggregate today's sales per device
+      // Aggregate today's sales per machine
       const todayMap = new Map<string, { revenue: number; count: number }>()
-      const todayRows = (todaySalesRes.data ?? []) as { embedded_id: string; item_price: number }[]
+      const todayRows = (todaySalesRes.data ?? []) as { machine_id: string; item_price: number }[]
       for (const row of todayRows) {
-        const entry = todayMap.get(row.embedded_id) ?? { revenue: 0, count: 0 }
+        if (!row.machine_id) continue
+        const entry = todayMap.get(row.machine_id) ?? { revenue: 0, count: 0 }
         entry.revenue += row.item_price ?? 0
         entry.count += 1
-        todayMap.set(row.embedded_id, entry)
+        todayMap.set(row.machine_id, entry)
       }
 
-      // Aggregate yesterday's sales per device
+      // Aggregate yesterday's sales per machine
       const yesterdayMap = new Map<string, number>()
-      const yesterdayRows = (yesterdaySalesRes.data ?? []) as { embedded_id: string; item_price: number }[]
+      const yesterdayRows = (yesterdaySalesRes.data ?? []) as { machine_id: string; item_price: number }[]
       for (const row of yesterdayRows) {
-        yesterdayMap.set(row.embedded_id, (yesterdayMap.get(row.embedded_id) ?? 0) + (row.item_price ?? 0))
+        if (!row.machine_id) continue
+        yesterdayMap.set(row.machine_id, (yesterdayMap.get(row.machine_id) ?? 0) + (row.item_price ?? 0))
       }
 
-      // Dedupe paxcounter to latest per device
+      // Dedupe paxcounter to latest per machine
       const paxMap = new Map<string, number>()
-      const paxRows = (paxRes.data ?? []) as { embedded_id: string; count: number }[]
+      const paxRows = (paxRes.data ?? []) as { machine_id: string; count: number }[]
       for (const row of paxRows) {
-        if (!paxMap.has(row.embedded_id)) {
-          paxMap.set(row.embedded_id, row.count)
+        if (!row.machine_id) continue
+        if (!paxMap.has(row.machine_id)) {
+          paxMap.set(row.machine_id, row.count)
         }
       }
 
       // Apply last sale results
-      const machinesWithEmbedded = machines.value.filter(m => m.embeddeds?.id)
-      for (let i = 0; i < machinesWithEmbedded.length; i++) {
-        const machine = machinesWithEmbedded[i]!
+      for (let i = 0; i < machines.value.length; i++) {
+        const machine = machines.value[i]!
         const saleData = lastSaleResults[i]?.data as { created_at: string; item_price: number; item_number: number } | null
         machine.last_sale_at = saleData?.created_at ?? null
         machine.last_sale_amount = saleData?.item_price ?? null
@@ -129,17 +127,56 @@ export function useMachines() {
 
       // Apply aggregated data to machines
       for (const machine of machines.value) {
-        const eid = machine.embeddeds?.id
-        if (!eid) continue
-        const todayStats = todayMap.get(eid)
+        const todayStats = todayMap.get(machine.id)
         machine.today_revenue = todayStats?.revenue ?? 0
         machine.today_sales_count = todayStats?.count ?? 0
-        machine.yesterday_revenue = yesterdayMap.get(eid) ?? 0
-        machine.paxcounter_count = paxMap.get(eid) ?? null
+        machine.yesterday_revenue = yesterdayMap.get(machine.id) ?? 0
+        machine.paxcounter_count = paxMap.get(machine.id) ?? null
       }
     } finally {
       loading.value = false
     }
+  }
+
+  async function fetchUnassignedEmbeddeds() {
+    const supabase = useSupabaseClient()
+
+    const [allRes, assignedRes] = await Promise.all([
+      supabase
+        .from('embeddeds')
+        .select('id, mac_address, subdomain, status, status_at'),
+      supabase
+        .from('vendingMachine')
+        .select('embedded')
+        .not('embedded', 'is', null),
+    ])
+
+    const assignedIds = new Set(
+      (assignedRes.data ?? []).map((m: any) => m.embedded).filter(Boolean)
+    )
+
+    return ((allRes.data ?? []) as Embedded[]).filter(e => !assignedIds.has(e.id))
+  }
+
+  async function swapDevice(machineId: string, newEmbeddedId: string | null) {
+    const supabase = useSupabaseClient()
+
+    if (newEmbeddedId) {
+      // Unassign this device from any other machine first
+      await supabase
+        .from('vendingMachine')
+        .update({ embedded: null } as any)
+        .eq('embedded', newEmbeddedId)
+    }
+
+    // Assign to target machine (or detach if null)
+    const { error } = await supabase
+      .from('vendingMachine')
+      .update({ embedded: newEmbeddedId } as any)
+      .eq('id', machineId)
+
+    if (error) throw error
+    await fetchMachines()
   }
 
   function subscribeToStatusUpdates() {
@@ -187,7 +224,7 @@ export function useMachines() {
         { event: 'INSERT', schema: 'public', table: 'sales' },
         (payload) => {
           const sale = payload.new as Record<string, any>
-          const machine = machines.value.find(m => m.embeddeds?.id === sale.embedded_id)
+          const machine = machines.value.find(m => m.id === sale.machine_id)
           if (machine) {
             machine.last_sale_at = sale.created_at
             machine.last_sale_amount = sale.item_price
@@ -215,5 +252,5 @@ export function useMachines() {
     return () => supabase.removeChannel(channel)
   }
 
-  return { machines, loading, fetchMachines, subscribeToStatusUpdates }
+  return { machines, loading, fetchMachines, fetchUnassignedEmbeddeds, swapDevice, subscribeToStatusUpdates }
 }

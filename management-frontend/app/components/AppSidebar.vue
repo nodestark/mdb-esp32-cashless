@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  IconCpu,
   IconDashboard,
   IconHelp,
   IconInnerShadowTop,
@@ -22,30 +23,42 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-const { organization } = useOrganization()
+const { organization, role } = useOrganization()
 
-const navMain = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: IconDashboard,
-  },
-  {
-    title: "Machines",
-    url: "/machines",
-    icon: IconDevices,
-  },
-  {
-    title: "Products",
-    url: "/products",
-    icon: IconPackage,
-  },
-  {
-    title: "Members",
-    url: "/members",
-    icon: IconUsers,
-  },
-]
+const navMain = computed(() => {
+  const items = [
+    {
+      title: "Dashboard",
+      url: "/",
+      icon: IconDashboard,
+    },
+    {
+      title: "Machines",
+      url: "/machines",
+      icon: IconDevices,
+    },
+    {
+      title: "Products",
+      url: "/products",
+      icon: IconPackage,
+    },
+    {
+      title: "Members",
+      url: "/members",
+      icon: IconUsers,
+    },
+  ]
+
+  if (role.value === 'admin') {
+    items.push({
+      title: "Devices",
+      url: "/devices",
+      icon: IconCpu,
+    })
+  }
+
+  return items
+})
 
 const navSecondary = [
   {

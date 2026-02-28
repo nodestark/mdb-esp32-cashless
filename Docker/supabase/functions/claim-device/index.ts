@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // Look up the provisioning token
     const { data: token, error: tokenError } = await adminClient
       .from('device_provisioning')
-      .select('id, company_id, created_by, short_code, expires_at, used_at, embedded_id, name')
+      .select('id, company_id, created_by, short_code, expires_at, used_at, embedded_id, name, device_only')
       .eq('short_code', short_code.toUpperCase())
       .maybeSingle()
 
@@ -95,16 +95,18 @@ Deno.serve(async (req) => {
 
     if (embeddedError) throw embeddedError
 
-    // Create vendingMachine row linked to the new embedded device
-    const { error: machineError } = await adminClient
-      .from('vendingMachine')
-      .insert({
-        company: token.company_id,
-        embedded: embedded.id,
-        name: token.name ?? (mac_address ? `Device ${mac_address}` : `Device ${embedded.subdomain}`),
-      })
+    // Create vendingMachine row linked to the new embedded device (unless device_only)
+    if (!token.device_only) {
+      const { error: machineError } = await adminClient
+        .from('vendingMachine')
+        .insert({
+          company: token.company_id,
+          embedded: embedded.id,
+          name: token.name ?? (mac_address ? `Device ${mac_address}` : `Device ${embedded.subdomain}`),
+        })
 
-    if (machineError) throw machineError
+      if (machineError) throw machineError
+    }
 
     // Mark token as used
     const { error: updateError } = await adminClient
