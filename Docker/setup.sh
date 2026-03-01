@@ -438,6 +438,19 @@ ENVEOF
 
 success ".env written successfully"
 
+# ─── Write management-frontend .env ─────────────────────────────────────────
+FRONTEND_ENV="${SCRIPT_DIR}/../management-frontend/.env"
+if [ -d "${SCRIPT_DIR}/../management-frontend" ]; then
+    info "Writing management-frontend/.env ..."
+    cat > "$FRONTEND_ENV" << FEENVEOF
+SUPABASE_URL=${SUPABASE_PUBLIC_URL}
+SUPABASE_KEY=${ANON_KEY}
+FEENVEOF
+    success "management-frontend/.env written"
+else
+    warn "management-frontend/ directory not found — skipping frontend .env"
+fi
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Step 3: Start the Docker Stack
 # ═══════════════════════════════════════════════════════════════════════════════
