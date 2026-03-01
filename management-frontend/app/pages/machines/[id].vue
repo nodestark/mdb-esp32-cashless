@@ -8,7 +8,7 @@ const route = useRoute()
 const supabase = useSupabaseClient()
 const { role } = useOrganization()
 const { products, categories, fetchProducts } = useProducts()
-const { trays, loading: traysLoading, fetchTrays, upsertTray, updateTray, batchCreateTrays, refillTray, deleteTray, subscribeToTrayUpdates } = useMachineTrays()
+const { trays, loading: traysLoading, fetchTrays, upsertTray, updateTray, batchCreateTrays, refillToFull, refillAll, deleteTray, subscribeToTrayUpdates } = useMachineTrays()
 const { fetchUnassignedEmbeddeds, swapDevice } = useMachines()
 
 const isAdmin = computed(() => role.value === 'admin')
@@ -413,13 +413,14 @@ function handleProductKeydown(event: KeyboardEvent, trayId: string) {
   // Shift+Tab: let default behaviour move focus backwards; blur handler closes the dropdown
 }
 
-async function saveInlineField(trayId: string, field: 'capacity' | 'current_stock', value: number) {
+async function saveInlineField(trayId: string, field: 'capacity' | 'current_stock' | 'min_stock', value: number) {
   const tray = trays.value.find(t => t.id === trayId)
   if (!tray) return
 
   // Validate
   if (field === 'capacity' && value < 1) return
   if (field === 'current_stock' && (value < 0 || value > (tray.capacity ?? 100))) return
+  if (field === 'min_stock' && value < 0) return
 
   // Skip save if value unchanged
   if (tray[field] === value) return
@@ -453,6 +454,23 @@ function handleCapacityKeydown(event: KeyboardEvent, trayId: string) {
     event.preventDefault()
     const val = parseInt((event.target as HTMLInputElement).value) || 1
     saveInlineField(trayId, 'capacity', val)
+    // Advance to min-stock input
+    nextTick(() => {
+      const el = document.getElementById(`min-stock-${trayId}`) as HTMLInputElement | null
+      el?.focus()
+      el?.select()
+    })
+  }
+  if (event.key === 'Escape') {
+    (event.target as HTMLInputElement).blur()
+  }
+}
+
+function handleMinStockKeydown(event: KeyboardEvent, trayId: string) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    const val = parseInt((event.target as HTMLInputElement).value) || 0
+    saveInlineField(trayId, 'min_stock', val)
     // Advance to next row's product button (or blur if last row)
     const idx = trays.value.findIndex(t => t.id === trayId)
     const nextTray = trays.value[idx + 1]
@@ -514,37 +532,81 @@ async function submitBatch() {
   }
 }
 
-// Refill modal
-const showRefillModal = ref(false)
-const refillTarget = ref<any>(null)
-const refillStock = ref(0)
-const refillLoading = ref(false)
-
-function openRefill(tray: any) {
-  refillTarget.value = tray
-  refillStock.value = tray.current_stock
-  showRefillModal.value = true
+// One-click "Full" refill
+async function handleRefillFull(trayId: string) {
+  try {
+    await refillToFull(trayId, machine.value.id)
+  } catch {
+    // silent
+  }
 }
 
-async function submitRefill() {
-  if (!refillTarget.value) return
-  refillLoading.value = true
+// Quick +/- stock adjustment (mobile)
+async function adjustStock(trayId: string, delta: number) {
+  const tray = trays.value.find(t => t.id === trayId)
+  if (!tray) return
+  const newVal = Math.max(0, Math.min(tray.capacity, tray.current_stock + delta))
+  if (newVal === tray.current_stock) return
+  tray.current_stock = newVal // optimistic
   try {
-    await refillTray(refillTarget.value.id, machine.value.id, refillStock.value)
-    showRefillModal.value = false
-  } catch (err: unknown) {
+    await updateTray(trayId, machine.value.id, { current_stock: newVal })
+  } catch {
+    // reverts via fetchTrays
+  }
+}
+
+// Refill all below-minimum trays
+const refillAllLoading = ref(false)
+async function handleRefillAll() {
+  refillAllLoading.value = true
+  try {
+    await refillAll(machine.value.id)
+  } catch {
     // silent
   } finally {
-    refillLoading.value = false
+    refillAllLoading.value = false
   }
 }
 
 async function handleDeleteTray(trayId: string) {
   try {
     await deleteTray(trayId, machine.value.id)
-  } catch (err: unknown) {
+  } catch {
     // silent
   }
+}
+
+// Summary computed
+const lowStockCount = computed(() =>
+  trays.value.filter(t => t.min_stock > 0 && t.current_stock <= t.min_stock).length
+)
+
+// Packing list: group needed items by product for low-stock trays, ordered by first slot appearance
+const packingList = computed(() => {
+  const map = new Map<string, { name: string; needed: number; image_url: string | null; firstSlot: number }>()
+  for (const tray of trays.value) {
+    if (!isLowStock(tray)) continue
+    const deficit = tray.capacity - tray.current_stock
+    if (deficit <= 0) continue
+    const key = tray.product_id || `slot-${tray.item_number}`
+    const name = tray.product_name || `Slot #${tray.item_number}`
+    const existing = map.get(key)
+    if (existing) {
+      existing.needed += deficit
+    } else {
+      const product = products.value.find(p => p.id === tray.product_id)
+      map.set(key, { name, needed: deficit, image_url: product?.image_url ?? null, firstSlot: tray.item_number })
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.firstSlot - b.firstSlot)
+})
+
+function isLowStock(tray: any) {
+  return tray.min_stock > 0 && tray.current_stock <= tray.min_stock
+}
+
+function trayDeficit(tray: any) {
+  return Math.max(0, tray.capacity - tray.current_stock)
 }
 
 function stockPercent(tray: any) {
@@ -552,9 +614,16 @@ function stockPercent(tray: any) {
   return Math.round((tray.current_stock / tray.capacity) * 100)
 }
 
-function stockColor(percent: number) {
-  if (percent > 50) return 'bg-green-500'
-  if (percent > 20) return 'bg-yellow-500'
+function minStockPercent(tray: any) {
+  if (tray.capacity === 0 || !tray.min_stock) return 0
+  return Math.round((tray.min_stock / tray.capacity) * 100)
+}
+
+function stockColor(tray: any) {
+  if (isLowStock(tray)) return 'bg-red-500'
+  const pct = stockPercent(tray)
+  if (pct > 50) return 'bg-green-500'
+  if (pct > 20) return 'bg-yellow-500'
   return 'bg-red-500'
 }
 </script>
@@ -565,14 +634,14 @@ function stockColor(percent: number) {
         <div v-else-if="errorMsg" class="text-destructive">{{ errorMsg }}</div>
         <template v-else-if="machine">
           <!-- Machine info -->
-          <div class="flex items-start justify-between">
-            <div>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
               <div v-if="editingName" class="flex items-center gap-2">
                 <input
                   id="machine-name-input"
                   v-model="editName"
                   type="text"
-                  class="h-9 rounded-md border bg-transparent px-3 text-2xl font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  class="h-9 w-full rounded-md border bg-transparent px-3 text-xl font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-2xl"
                   @keydown.enter="saveNameEdit"
                   @keydown.escape="cancelEditName"
                   @blur="saveNameEdit"
@@ -580,7 +649,7 @@ function stockColor(percent: number) {
               </div>
               <h1
                 v-else
-                class="group flex cursor-pointer items-center gap-2 text-2xl font-semibold"
+                class="group flex cursor-pointer items-center gap-2 text-xl font-semibold sm:text-2xl"
                 @click="startEditName"
               >
                 {{ machine.name ?? 'Unnamed machine' }}
@@ -591,24 +660,26 @@ function stockColor(percent: number) {
               </p>
             </div>
             <!-- Device info + swap controls -->
-            <div class="text-right">
+            <div class="sm:text-right">
               <template v-if="machine.embeddeds">
-                <span
-                  class="rounded-full px-3 py-1 text-xs font-medium"
-                  :class="{
-                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
-                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': machine.embeddeds.status === 'ota_updating',
-                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': machine.embeddeds.status === 'ota_failed',
-                    'bg-muted text-muted-foreground': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
-                  }"
-                >
-                  {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
-                </span>
+                <div class="flex items-center gap-2 sm:justify-end">
+                  <span
+                    class="rounded-full px-3 py-1 text-xs font-medium"
+                    :class="{
+                      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
+                      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': machine.embeddeds.status === 'ota_updating',
+                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': machine.embeddeds.status === 'ota_failed',
+                      'bg-muted text-muted-foreground': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
+                    }"
+                  >
+                    {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
+                  </span>
+                </div>
                 <p class="mt-1 text-xs text-muted-foreground">
                   {{ machine.embeddeds.mac_address ?? `Subdomain ${machine.embeddeds.subdomain}` }}
                   <template v-if="machine.embeddeds.firmware_version">
                     <span class="ml-1 font-mono">v{{ machine.embeddeds.firmware_version }}</span>
-                    <span v-if="machine.embeddeds.firmware_build_date" class="ml-1">(built {{ new Date(machine.embeddeds.firmware_build_date).toLocaleString() }})</span>
+                    <span v-if="machine.embeddeds.firmware_build_date" class="hidden sm:inline ml-1">(built {{ new Date(machine.embeddeds.firmware_build_date).toLocaleString() }})</span>
                   </template>
                 </p>
                 <p class="text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
@@ -723,7 +794,48 @@ function stockColor(percent: number) {
 
             <!-- Trays & Stock tab -->
             <TabsContent value="trays" class="mt-4">
-              <div class="mb-4 flex items-center justify-between">
+              <!-- Refill summary banner + packing list -->
+              <div v-if="lowStockCount > 0" class="mb-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
+                <!-- Header row -->
+                <div class="flex items-center gap-3 px-4 py-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                  <span class="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    {{ lowStockCount }} tray{{ lowStockCount > 1 ? 's' : '' }} below minimum stock
+                  </span>
+                  <button
+                    v-if="isAdmin"
+                    :disabled="refillAllLoading"
+                    class="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white shadow-sm transition-colors hover:bg-amber-700 disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-500"
+                    @click="handleRefillAll"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                    <span v-if="refillAllLoading">Refilling…</span>
+                    <span v-else>Refill all ({{ lowStockCount }})</span>
+                  </button>
+                </div>
+                <!-- Packing list -->
+                <div v-if="packingList.length > 0" class="flex flex-wrap gap-2 border-t border-amber-200 px-4 py-3 dark:border-amber-800">
+                  <div
+                    v-for="item in packingList"
+                    :key="item.name"
+                    class="inline-flex items-center gap-2 rounded-full bg-white/70 py-1 pl-1 pr-3 text-sm shadow-sm dark:bg-black/20"
+                  >
+                    <img
+                      v-if="item.image_url"
+                      :src="item.image_url"
+                      :alt="item.name"
+                      class="h-6 w-6 rounded-full object-cover"
+                    />
+                    <div v-else class="flex h-6 w-6 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-700 dark:bg-amber-800 dark:text-amber-200">
+                      {{ item.name.charAt(0) }}
+                    </div>
+                    <span class="font-medium text-amber-900 dark:text-amber-100">{{ item.name }}</span>
+                    <span class="rounded-full bg-amber-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">{{ item.needed }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h2 class="text-base font-medium">Tray Configuration</h2>
                 <div v-if="isAdmin" class="flex items-center gap-2">
                   <button
@@ -743,28 +855,29 @@ function stockColor(percent: number) {
 
               <div v-if="traysLoading" class="text-sm text-muted-foreground">Loading trays…</div>
               <div v-else-if="trays.length === 0" class="text-sm text-muted-foreground">No trays configured. Add trays to track stock levels.</div>
-              <div v-else class="rounded-md border overflow-visible">
-                <table class="w-full text-sm">
-                  <thead>
-                    <tr class="border-b bg-muted/50 text-left">
-                      <th class="w-20 px-4 py-3 font-medium">Slot #</th>
-                      <th class="px-4 py-3 font-medium">Product</th>
-                      <th class="w-36 px-4 py-3 font-medium">Stock</th>
-                      <th class="w-32 px-4 py-3 font-medium">Level</th>
-                      <th v-if="isAdmin" class="w-24 px-4 py-3 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="tray in trays"
-                      :key="tray.id"
-                      class="border-b last:border-0 hover:bg-muted/30 transition-colors"
-                    >
-                      <!-- Slot # (read-only) -->
-                      <td class="px-4 py-2 font-mono">{{ tray.item_number }}</td>
-
-                      <!-- Product (inline autocomplete for admins) -->
-                      <td class="px-4 py-2 relative">
+              <template v-else>
+                <!-- ── Mobile card layout ── -->
+                <div class="space-y-3 md:hidden">
+                  <div
+                    v-for="tray in trays"
+                    :key="'m-' + tray.id"
+                    class="rounded-lg border p-3 transition-colors"
+                    :class="isLowStock(tray) ? 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20' : 'bg-card'"
+                  >
+                    <!-- Row 1: image + slot + product + actions -->
+                    <div class="flex items-center gap-3">
+                      <!-- Product image -->
+                      <img
+                        v-if="trayProductMap.get(tray.item_number)?.image_url"
+                        :src="trayProductMap.get(tray.item_number)!.image_url!"
+                        :alt="tray.product_name ?? ''"
+                        class="h-10 w-10 shrink-0 rounded-lg object-cover"
+                      />
+                      <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
+                        {{ tray.item_number }}
+                      </div>
+                      <!-- Product name + slot -->
+                      <div class="min-w-0 flex-1">
                         <template v-if="isAdmin">
                           <div v-if="activeAutocompleteTrayId === tray.id" class="relative">
                             <input
@@ -812,77 +925,266 @@ function stockColor(percent: number) {
                             v-else
                             :id="`product-btn-${tray.id}`"
                             type="button"
-                            class="w-full text-left transition-colors hover:text-primary"
+                            class="block truncate text-sm font-medium transition-colors hover:text-primary"
                             @click="openProductAutocomplete(tray)"
-                            @keydown.enter.prevent="openProductAutocomplete(tray)"
                           >
                             {{ tray.product_name ?? '—' }}
                           </button>
                         </template>
-                        <span v-else>{{ tray.product_name ?? '—' }}</span>
-                      </td>
+                        <span v-else class="block truncate text-sm font-medium">{{ tray.product_name ?? '—' }}</span>
+                        <span class="text-xs text-muted-foreground">Slot {{ tray.item_number }}</span>
+                      </div>
+                      <!-- Actions: Full only on mobile -->
+                      <button
+                        v-if="isAdmin"
+                        class="inline-flex h-8 shrink-0 items-center rounded-md px-3 text-xs font-medium transition-colors"
+                        :class="tray.current_stock < tray.capacity
+                          ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                          : 'text-muted-foreground cursor-default opacity-50'"
+                        :disabled="tray.current_stock >= tray.capacity"
+                        @click="handleRefillFull(tray.id)"
+                      >
+                        Full
+                      </button>
+                    </div>
+                    <!-- Row 2: level bar -->
+                    <div class="relative mt-2 h-2 w-full rounded-full bg-muted">
+                      <div
+                        class="h-2 rounded-full transition-all"
+                        :class="stockColor(tray)"
+                        :style="{ width: `${stockPercent(tray)}%` }"
+                      />
+                      <div
+                        v-if="tray.min_stock > 0 && minStockPercent(tray) > 0 && minStockPercent(tray) < 100"
+                        class="absolute top-0 h-2 w-0.5 bg-amber-600 dark:bg-amber-400"
+                        :style="{ left: `${minStockPercent(tray)}%` }"
+                      />
+                    </div>
+                    <!-- Row 3: +/- stock controls + info -->
+                    <div class="mt-2 flex items-center justify-between">
+                      <template v-if="isAdmin">
+                        <div class="flex items-center gap-2">
+                          <button
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md border text-lg font-medium transition-colors hover:bg-muted active:bg-muted/80"
+                            :disabled="tray.current_stock <= 0"
+                            :class="tray.current_stock <= 0 ? 'opacity-30' : ''"
+                            @click="adjustStock(tray.id, -1)"
+                          >
+                            −
+                          </button>
+                          <span class="min-w-[3.5rem] text-center text-sm font-semibold tabular-nums">
+                            {{ tray.current_stock }} / {{ tray.capacity }}
+                          </span>
+                          <button
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md border text-lg font-medium transition-colors hover:bg-muted active:bg-muted/80"
+                            :disabled="tray.current_stock >= tray.capacity"
+                            :class="tray.current_stock >= tray.capacity ? 'opacity-30' : ''"
+                            @click="adjustStock(tray.id, 1)"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </template>
+                      <span v-else class="text-xs text-muted-foreground">{{ tray.current_stock }} / {{ tray.capacity }}</span>
+                      <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span v-if="tray.min_stock">Min: {{ tray.min_stock }}</span>
+                        <span
+                          v-if="trayDeficit(tray) > 0 && isLowStock(tray)"
+                          class="font-semibold text-red-600 dark:text-red-400"
+                        >
+                          -{{ trayDeficit(tray) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                      <!-- Stock (inline editable for admins) -->
-                      <td class="px-4 py-2">
-                        <template v-if="isAdmin">
-                          <div class="flex items-center gap-1">
+                <!-- ── Desktop table layout ── -->
+                <div class="hidden md:block rounded-md border overflow-visible">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="border-b bg-muted/50 text-left">
+                        <th class="w-20 px-4 py-3 font-medium">Slot #</th>
+                        <th class="px-4 py-3 font-medium">Product</th>
+                        <th class="w-36 px-4 py-3 font-medium">Stock</th>
+                        <th class="w-16 px-4 py-3 font-medium">Min</th>
+                        <th class="w-32 px-4 py-3 font-medium">Level</th>
+                        <th v-if="isAdmin" class="w-24 px-4 py-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="tray in trays"
+                        :key="tray.id"
+                        class="border-b last:border-0 transition-colors"
+                        :class="isLowStock(tray) ? 'bg-amber-50/60 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/40' : 'hover:bg-muted/30'"
+                      >
+                        <!-- Slot # (read-only) -->
+                        <td class="px-4 py-2 font-mono">{{ tray.item_number }}</td>
+
+                        <!-- Product (inline autocomplete for admins) -->
+                        <td class="px-4 py-2 relative">
+                          <template v-if="isAdmin">
+                            <div v-if="activeAutocompleteTrayId === tray.id" class="relative">
+                              <input
+                                :id="`product-input-${tray.id}`"
+                                v-model="productQuery"
+                                type="text"
+                                placeholder="Search products…"
+                                role="combobox"
+                                aria-expanded="true"
+                                aria-autocomplete="list"
+                                autocomplete="off"
+                                class="h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                @blur="handleProductBlur(tray.id)"
+                                @keydown="(e: KeyboardEvent) => handleProductKeydown(e, tray.id)"
+                              />
+                              <div class="absolute left-0 top-full z-50 mt-1 max-h-48 w-full min-w-[200px] overflow-auto rounded-md border bg-popover shadow-md" role="listbox">
+                                <button
+                                  type="button"
+                                  tabindex="-1"
+                                  class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+                                  :class="{ 'bg-accent': highlightedIndex === 0 }"
+                                  role="option"
+                                  @mousedown.prevent="selectProduct(tray.id, null)"
+                                >
+                                  <span class="text-muted-foreground italic">None</span>
+                                </button>
+                                <button
+                                  v-for="(p, idx) in filteredProducts"
+                                  :key="p.id"
+                                  type="button"
+                                  tabindex="-1"
+                                  class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+                                  :class="{ 'bg-accent': highlightedIndex === idx + 1 }"
+                                  role="option"
+                                  @mousedown.prevent="selectProduct(tray.id, p.id)"
+                                >
+                                  {{ p.name }}
+                                </button>
+                                <div v-if="filteredProducts.length === 0 && productQuery.trim()" class="px-3 py-2 text-xs text-muted-foreground">
+                                  No products found
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              v-else
+                              :id="`product-btn-${tray.id}`"
+                              type="button"
+                              class="w-full text-left transition-colors hover:text-primary"
+                              @click="openProductAutocomplete(tray)"
+                              @keydown.enter.prevent="openProductAutocomplete(tray)"
+                            >
+                              {{ tray.product_name ?? '—' }}
+                            </button>
+                          </template>
+                          <span v-else>{{ tray.product_name ?? '—' }}</span>
+                        </td>
+
+                        <!-- Stock (inline editable for admins) -->
+                        <td class="px-4 py-2">
+                          <template v-if="isAdmin">
+                            <div class="flex items-center gap-1">
+                              <input
+                                :id="`stock-${tray.id}`"
+                                type="number"
+                                :value="tray.current_stock"
+                                min="0"
+                                :max="tray.capacity"
+                                class="h-7 w-12 rounded border border-transparent bg-transparent px-1 text-center text-sm hover:border-input focus:border-input focus:bg-background focus:shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                @change="(e: Event) => saveInlineField(tray.id, 'current_stock', parseInt((e.target as HTMLInputElement).value) || 0)"
+                                @keydown="(e: KeyboardEvent) => handleStockKeydown(e, tray.id)"
+                              />
+                              <span class="text-muted-foreground">/</span>
+                              <input
+                                :id="`capacity-${tray.id}`"
+                                type="number"
+                                :value="tray.capacity"
+                                min="1"
+                                class="h-7 w-12 rounded border border-transparent bg-transparent px-1 text-center text-sm hover:border-input focus:border-input focus:bg-background focus:shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                @change="(e: Event) => saveInlineField(tray.id, 'capacity', parseInt((e.target as HTMLInputElement).value) || 1)"
+                                @keydown="(e: KeyboardEvent) => handleCapacityKeydown(e, tray.id)"
+                              />
+                              <span
+                                v-if="trayDeficit(tray) > 0 && isLowStock(tray)"
+                                class="ml-1 text-xs font-semibold text-red-600 dark:text-red-400"
+                                :title="`${trayDeficit(tray)} items needed to fill`"
+                              >
+                                -{{ trayDeficit(tray) }}
+                              </span>
+                            </div>
+                          </template>
+                          <div v-else class="flex items-center gap-1">
+                            <span class="text-muted-foreground">{{ tray.current_stock }} / {{ tray.capacity }}</span>
+                            <span
+                              v-if="trayDeficit(tray) > 0 && isLowStock(tray)"
+                              class="ml-1 text-xs font-semibold text-red-600 dark:text-red-400"
+                            >
+                              -{{ trayDeficit(tray) }}
+                            </span>
+                          </div>
+                        </td>
+
+                        <!-- Min stock threshold -->
+                        <td class="px-4 py-2">
+                          <template v-if="isAdmin">
                             <input
-                              :id="`stock-${tray.id}`"
+                              :id="`min-stock-${tray.id}`"
                               type="number"
-                              :value="tray.current_stock"
+                              :value="tray.min_stock"
                               min="0"
                               :max="tray.capacity"
                               class="h-7 w-12 rounded border border-transparent bg-transparent px-1 text-center text-sm hover:border-input focus:border-input focus:bg-background focus:shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                              @change="(e: Event) => saveInlineField(tray.id, 'current_stock', parseInt((e.target as HTMLInputElement).value) || 0)"
-                              @keydown="(e: KeyboardEvent) => handleStockKeydown(e, tray.id)"
+                              @change="(e: Event) => saveInlineField(tray.id, 'min_stock', parseInt((e.target as HTMLInputElement).value) || 0)"
+                              @keydown="(e: KeyboardEvent) => handleMinStockKeydown(e, tray.id)"
                             />
-                            <span class="text-muted-foreground">/</span>
-                            <input
-                              :id="`capacity-${tray.id}`"
-                              type="number"
-                              :value="tray.capacity"
-                              min="1"
-                              class="h-7 w-12 rounded border border-transparent bg-transparent px-1 text-center text-sm hover:border-input focus:border-input focus:bg-background focus:shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                              @change="(e: Event) => saveInlineField(tray.id, 'capacity', parseInt((e.target as HTMLInputElement).value) || 1)"
-                              @keydown="(e: KeyboardEvent) => handleCapacityKeydown(e, tray.id)"
+                          </template>
+                          <span v-else class="text-muted-foreground">{{ tray.min_stock || '—' }}</span>
+                        </td>
+
+                        <!-- Level bar with threshold marker -->
+                        <td class="px-4 py-2">
+                          <div class="relative h-2 w-full rounded-full bg-muted">
+                            <div
+                              class="h-2 rounded-full transition-all"
+                              :class="stockColor(tray)"
+                              :style="{ width: `${stockPercent(tray)}%` }"
+                            />
+                            <div
+                              v-if="tray.min_stock > 0 && minStockPercent(tray) > 0 && minStockPercent(tray) < 100"
+                              class="absolute top-0 h-2 w-0.5 bg-amber-600 dark:bg-amber-400"
+                              :style="{ left: `${minStockPercent(tray)}%` }"
+                              :title="`Min stock: ${tray.min_stock}`"
                             />
                           </div>
-                        </template>
-                        <span v-else class="text-muted-foreground">{{ tray.current_stock }} / {{ tray.capacity }}</span>
-                      </td>
+                        </td>
 
-                      <!-- Level bar -->
-                      <td class="px-4 py-2">
-                        <div class="h-2 w-full rounded-full bg-muted">
-                          <div
-                            class="h-2 rounded-full transition-all"
-                            :class="stockColor(stockPercent(tray))"
-                            :style="{ width: `${stockPercent(tray)}%` }"
-                          />
-                        </div>
-                      </td>
-
-                      <!-- Actions (Refill + Remove only) -->
-                      <td v-if="isAdmin" class="px-4 py-2">
-                        <div class="flex items-center gap-2">
-                          <button
-                            class="text-xs text-primary hover:underline"
-                            @click="openRefill(tray)"
-                          >
-                            Refill
-                          </button>
-                          <button
-                            class="text-xs text-destructive hover:underline"
-                            @click="handleDeleteTray(tray.id)"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                        <!-- Actions (Full + Remove) -->
+                        <td v-if="isAdmin" class="px-4 py-2">
+                          <div class="flex items-center gap-2">
+                            <button
+                              class="inline-flex h-7 items-center rounded px-2 text-xs font-medium transition-colors"
+                              :class="tray.current_stock < tray.capacity
+                                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'text-muted-foreground cursor-default opacity-50'"
+                              :disabled="tray.current_stock >= tray.capacity"
+                              @click="handleRefillFull(tray.id)"
+                            >
+                              Full
+                            </button>
+                            <button
+                              class="text-xs text-destructive hover:underline"
+                              @click="handleDeleteTray(tray.id)"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
             </TabsContent>
           </Tabs>
         </template>
@@ -1012,52 +1314,6 @@ function stockColor(percent: number) {
         </div>
       </div>
 
-      <!-- Refill modal -->
-      <div
-        v-if="showRefillModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-        @click.self="showRefillModal = false"
-      >
-        <div class="w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
-          <h2 class="mb-4 text-lg font-semibold">Refill tray</h2>
-          <p class="mb-4 text-sm text-muted-foreground">
-            Slot #{{ refillTarget?.item_number }}
-            <span v-if="refillTarget?.product_name"> — {{ refillTarget.product_name }}</span>
-          </p>
-          <form class="space-y-4" @submit.prevent="submitRefill">
-            <div class="space-y-1">
-              <label class="text-sm font-medium" for="refill-stock">New stock level</label>
-              <input
-                id="refill-stock"
-                v-model.number="refillStock"
-                type="number"
-                min="0"
-                :max="refillTarget?.capacity ?? 100"
-                required
-                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-              <p class="text-xs text-muted-foreground">Max capacity: {{ refillTarget?.capacity }}</p>
-            </div>
-            <div class="flex gap-2">
-              <button
-                type="button"
-                class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted"
-                @click="showRefillModal = false"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                :disabled="refillLoading"
-                class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
-              >
-                <span v-if="refillLoading">Updating…</span>
-                <span v-else>Update stock</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
       <!-- Batch add trays modal -->
       <div
         v-if="showBatchModal"

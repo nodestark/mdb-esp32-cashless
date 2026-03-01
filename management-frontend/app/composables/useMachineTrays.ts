@@ -8,6 +8,7 @@ interface Tray {
   product_name: string | null
   capacity: number
   current_stock: number
+  min_stock: number
 }
 
 export function useMachineTrays() {
@@ -20,7 +21,7 @@ export function useMachineTrays() {
       const supabase = useSupabaseClient()
       const { data, error } = await supabase
         .from('machine_trays')
-        .select('id, machine_id, item_number, product_id, capacity, current_stock, products(name)')
+        .select('id, machine_id, item_number, product_id, capacity, current_stock, min_stock, products(name)')
         .eq('machine_id', machineId)
         .order('item_number')
 
@@ -34,6 +35,7 @@ export function useMachineTrays() {
         product_name: t.products?.name ?? null,
         capacity: t.capacity,
         current_stock: t.current_stock,
+        min_stock: t.min_stock ?? 0,
       }))
     } finally {
       if (!silent) loading.value = false
@@ -61,7 +63,7 @@ export function useMachineTrays() {
     await fetchTrays(machineId, { silent: true })
   }
 
-  async function updateTray(trayId: string, machineId: string, updates: { item_number?: number; product_id?: string | null; capacity?: number; current_stock?: number }) {
+  async function updateTray(trayId: string, machineId: string, updates: { item_number?: number; product_id?: string | null; capacity?: number; current_stock?: number; min_stock?: number }) {
     const supabase = useSupabaseClient()
     const { error } = await supabase
       .from('machine_trays')
@@ -69,6 +71,41 @@ export function useMachineTrays() {
       .eq('id', trayId)
 
     if (error) throw error
+    await fetchTrays(machineId, { silent: true })
+  }
+
+  /** Set a single tray's stock to its capacity (one-click "Full") */
+  async function refillToFull(trayId: string, machineId: string) {
+    const tray = trays.value.find(t => t.id === trayId)
+    if (!tray) return
+    // Optimistically update UI immediately
+    tray.current_stock = tray.capacity
+    await refillTray(trayId, machineId, tray.capacity)
+  }
+
+  /** Set all below-minimum trays to their capacity */
+  async function refillAll(machineId: string) {
+    const supabase = useSupabaseClient()
+    const lowTrays = trays.value.filter(t => t.min_stock > 0 && t.current_stock <= t.min_stock)
+    if (lowTrays.length === 0) return
+
+    // Optimistically update UI
+    for (const t of lowTrays) t.current_stock = t.capacity
+
+    // Parallel DB updates
+    const results = await Promise.all(lowTrays.map(tray =>
+      supabase
+        .from('machine_trays')
+        .update({ current_stock: tray.capacity })
+        .eq('id', tray.id)
+    ))
+
+    const hasError = results.some(r => r.error)
+    if (hasError) {
+      // Re-fetch to get accurate state
+      await fetchTrays(machineId, { silent: true })
+      throw new Error('Some trays failed to update')
+    }
     await fetchTrays(machineId, { silent: true })
   }
 
@@ -118,6 +155,7 @@ export function useMachineTrays() {
             tray.current_stock = updated.current_stock
             tray.capacity = updated.capacity
             tray.product_id = updated.product_id
+            tray.min_stock = updated.min_stock ?? 0
           }
         }
       )
@@ -151,5 +189,5 @@ export function useMachineTrays() {
     return () => supabase.removeChannel(channel)
   }
 
-  return { trays, loading, fetchTrays, upsertTray, updateTray, batchCreateTrays, refillTray, deleteTray, subscribeToTrayUpdates }
+  return { trays, loading, fetchTrays, upsertTray, updateTray, batchCreateTrays, refillTray, refillToFull, refillAll, deleteTray, subscribeToTrayUpdates }
 }
