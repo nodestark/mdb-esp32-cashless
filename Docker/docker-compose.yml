@@ -45,7 +45,7 @@ services:
       - broker
     environment:
       MQTT_HOST: broker
-      SUPABASE_URL: http://kong:8000
+      SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
       MQTT_WEBHOOK_SECRET: ${MQTT_WEBHOOK_SECRET}
 
   # ==========================================================================
