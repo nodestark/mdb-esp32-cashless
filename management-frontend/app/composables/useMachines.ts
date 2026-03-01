@@ -26,6 +26,15 @@ interface VendingMachine {
   paxcounter_count?: number | null
 }
 
+interface PendingToken {
+  id: string
+  short_code: string
+  name: string | null
+  created_at: string
+  expires_at: string
+  device_only: boolean
+}
+
 export function useMachines() {
   const machines = useState<VendingMachine[]>('machines', () => [])
   const loading = ref(false)
@@ -260,5 +269,40 @@ export function useMachines() {
     return () => supabase.removeChannel(channel)
   }
 
-  return { machines, loading, fetchMachines, fetchUnassignedEmbeddeds, swapDevice, subscribeToStatusUpdates }
+  async function createMachine(name: string, companyId: string) {
+    const supabase = useSupabaseClient()
+    const { error } = await supabase
+      .from('vendingMachine')
+      .insert({ name, company: companyId } as any)
+    if (error) throw error
+    await fetchMachines()
+  }
+
+  const pendingTokens = useState<PendingToken[]>('pending-tokens', () => [])
+
+  async function fetchPendingTokens() {
+    const supabase = useSupabaseClient()
+    const { data, error } = await supabase
+      .from('device_provisioning')
+      .select('id, short_code, name, created_at, expires_at, device_only')
+      .is('used_at', null)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    pendingTokens.value = (data ?? []) as PendingToken[]
+  }
+
+  async function deletePendingToken(id: string) {
+    const supabase = useSupabaseClient()
+    const { error } = await supabase
+      .from('device_provisioning')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+    await fetchPendingTokens()
+  }
+
+  return {
+    machines, loading, fetchMachines, fetchUnassignedEmbeddeds, swapDevice, subscribeToStatusUpdates,
+    createMachine, pendingTokens, fetchPendingTokens, deletePendingToken,
+  }
 }

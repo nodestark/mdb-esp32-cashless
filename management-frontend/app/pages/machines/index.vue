@@ -5,17 +5,50 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 
-const { machines, loading, fetchMachines, subscribeToStatusUpdates } = useMachines()
+const { organization } = useOrganization()
+const {
+  machines, loading, fetchMachines, subscribeToStatusUpdates,
+  createMachine, pendingTokens, fetchPendingTokens, deletePendingToken,
+} = useMachines()
 const supabase = useSupabaseClient()
 
 onMounted(async () => {
-  await fetchMachines()
+  await Promise.all([fetchMachines(), fetchPendingTokens()])
   const unsubscribe = subscribeToStatusUpdates()
   onUnmounted(unsubscribe)
 })
 
-// ── Add Device modal ──────────────────────────────────────────────────────────
-const showModal = ref(false)
+// ── Add Machine modal ────────────────────────────────────────────────────────
+const showMachineModal = ref(false)
+const machineName = ref('')
+const machineError = ref('')
+const creatingMachine = ref(false)
+
+function openMachineModal() {
+  machineName.value = ''
+  machineError.value = ''
+  showMachineModal.value = true
+}
+
+async function submitCreateMachine() {
+  if (!machineName.value.trim()) {
+    machineError.value = 'Name is required'
+    return
+  }
+  creatingMachine.value = true
+  machineError.value = ''
+  try {
+    await createMachine(machineName.value.trim(), organization.value!.id)
+    showMachineModal.value = false
+  } catch (err: unknown) {
+    machineError.value = err instanceof Error ? err.message : 'Failed to create machine'
+  } finally {
+    creatingMachine.value = false
+  }
+}
+
+// ── Provision Device modal ───────────────────────────────────────────────────
+const showProvisionModal = ref(false)
 const step = ref<1 | 2>(1)
 const generating = ref(false)
 const shortCode = ref('')
@@ -23,13 +56,13 @@ const expiresAt = ref('')
 const genError = ref('')
 const deviceName = ref('')
 
-function openModal() {
+function openProvisionModal() {
   step.value = 1
   shortCode.value = ''
   expiresAt.value = ''
   genError.value = ''
   deviceName.value = ''
-  showModal.value = true
+  showProvisionModal.value = true
 }
 
 async function generateCode() {
@@ -50,12 +83,40 @@ async function generateCode() {
   }
 }
 
-function closeModal() {
-  showModal.value = false
-  if (step.value === 2) fetchMachines()
+function closeProvisionModal() {
+  showProvisionModal.value = false
+  if (step.value === 2) {
+    fetchMachines()
+    fetchPendingTokens()
+  }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Pending token helpers ────────────────────────────────────────────────────
+function isExpired(expiresAt: string) {
+  return new Date(expiresAt).getTime() < Date.now()
+}
+
+function expiresIn(expiresAt: string): string {
+  const diff = new Date(expiresAt).getTime() - Date.now()
+  if (diff <= 0) return 'Expired'
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 60) return `${minutes}m left`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ${minutes % 60}m left`
+}
+
+const deletingTokenId = ref<string | null>(null)
+
+async function handleDeleteToken(id: string) {
+  deletingTokenId.value = id
+  try {
+    await deletePendingToken(id)
+  } finally {
+    deletingTokenId.value = null
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(dt: string | null | undefined): string {
   if (!dt) return '—'
   const seconds = Math.floor((Date.now() - new Date(dt).getTime()) / 1000)
@@ -78,12 +139,54 @@ function formatCurrency(amount: number | null | undefined) {
   <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
         <div class="flex items-center justify-between">
           <h1 class="text-2xl font-semibold">Vending Machines</h1>
-          <button
-            class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-            @click="openModal"
-          >
-            Add Device
-          </button>
+          <div class="flex gap-2">
+            <button
+              class="inline-flex h-9 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+              @click="openProvisionModal"
+            >
+              Provision Device
+            </button>
+            <button
+              class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+              @click="openMachineModal"
+            >
+              Add Machine
+            </button>
+          </div>
+        </div>
+
+        <!-- Pending provisioning tokens -->
+        <div v-if="pendingTokens.length > 0" class="space-y-2">
+          <h2 class="text-sm font-medium text-muted-foreground">Pending Device Claims</h2>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+            <div
+              v-for="token in pendingTokens"
+              :key="token.id"
+              class="flex items-center justify-between rounded-lg border border-dashed p-3"
+              :class="isExpired(token.expires_at) ? 'border-muted opacity-60' : 'border-primary/30'"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <span
+                  class="font-mono text-sm font-semibold tracking-wider"
+                  :class="isExpired(token.expires_at) ? 'text-muted-foreground line-through' : 'text-primary'"
+                >
+                  {{ token.short_code }}
+                </span>
+                <div class="min-w-0">
+                  <p v-if="token.name" class="text-sm truncate">{{ token.name }}</p>
+                  <p class="text-xs text-muted-foreground">{{ expiresIn(token.expires_at) }}</p>
+                </div>
+              </div>
+              <button
+                class="shrink-0 ml-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                :disabled="deletingTokenId === token.id"
+                @click="handleDeleteToken(token.id)"
+                title="Revoke token"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div v-if="loading" class="text-muted-foreground">Loading machines...</div>
@@ -175,17 +278,59 @@ function formatCurrency(amount: number | null | undefined) {
         </div>
   </div>
 
-  <!-- Add Device Modal -->
+  <!-- Add Machine Modal -->
   <div
-    v-if="showModal"
+    v-if="showMachineModal"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-    @click.self="closeModal"
+    @click.self="showMachineModal = false"
+  >
+    <div class="w-full max-w-md rounded-xl border bg-card p-6 shadow-lg">
+      <h2 class="mb-1 text-lg font-semibold">Add Machine</h2>
+      <p class="mb-5 text-sm text-muted-foreground">
+        Create a vending machine. You can assign a device to it later.
+      </p>
+      <div class="mb-4">
+        <label for="machine-name" class="mb-1.5 block text-sm font-medium">Machine Name</label>
+        <input
+          id="machine-name"
+          v-model="machineName"
+          type="text"
+          placeholder="e.g. Break Room Machine"
+          class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          @keydown.enter="submitCreateMachine"
+        />
+      </div>
+      <p v-if="machineError" class="mb-3 text-sm text-destructive">{{ machineError }}</p>
+      <div class="flex gap-2">
+        <button
+          class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+          @click="showMachineModal = false"
+        >
+          Cancel
+        </button>
+        <button
+          :disabled="creatingMachine"
+          class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+          @click="submitCreateMachine"
+        >
+          <span v-if="creatingMachine">Creating...</span>
+          <span v-else>Create</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Provision Device Modal -->
+  <div
+    v-if="showProvisionModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    @click.self="closeProvisionModal"
   >
     <div class="w-full max-w-md rounded-xl border bg-card p-6 shadow-lg">
 
       <!-- Step 1: Generate code -->
       <template v-if="step === 1">
-        <h2 class="mb-1 text-lg font-semibold">Add a Device</h2>
+        <h2 class="mb-1 text-lg font-semibold">Provision a Device</h2>
         <p class="mb-5 text-sm text-muted-foreground">
           Generate a one-time provisioning code. You'll enter it into the device's WiFi setup page.
         </p>
@@ -204,7 +349,7 @@ function formatCurrency(amount: number | null | undefined) {
         <div class="flex gap-2">
           <button
             class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
-            @click="closeModal"
+            @click="closeProvisionModal"
           >
             Cancel
           </button>
@@ -251,7 +396,7 @@ function formatCurrency(amount: number | null | undefined) {
 
         <button
           class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
-          @click="closeModal"
+          @click="closeProvisionModal"
         >
           Done
         </button>

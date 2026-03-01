@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "nuxt-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "3002"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "source ~/.nvm/nvm.sh && nvm use 22 && npm run dev -- --port 3002"],
       "port": 3002,
       "cwd": "management-frontend"
     }

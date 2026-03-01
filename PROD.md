@@ -384,24 +384,83 @@ If the update fails, the device rolls back to the previous firmware and reports 
 
 ## 9. Updating the Platform
 
+Use the dedicated update script:
+
 ```bash
-git pull origin main
 cd Docker
-docker compose build
-bash setup.sh
+bash update.sh
 ```
 
-When you re-run `setup.sh` and an `.env` already exists, choose "keep existing .env" — the script will skip configuration and go straight to restarting the stack and applying any new migrations.
+The script handles the full update process:
 
-Alternatively, apply migrations manually:
+1. **Pulls latest code** — `git pull --ff-only` (fast-forward only, won't auto-merge)
+2. **Applies new migrations** — uses a `_migrations` tracking table to skip already-applied SQL files, so only new migrations run
+3. **Rebuilds services** — rebuilds the frontend Docker image (multi-stage Nuxt build) and the MQTT forwarder, then restarts edge functions
+4. **Health check** — verifies services came back up
+
+### What gets updated
+
+| Component | How it updates |
+|-----------|---------------|
+| **Frontend** | Docker image rebuilt from source (`docker compose build frontend`), container restarted |
+| **Edge functions** | Mounted from `supabase/functions/` volume — container restart picks up changes |
+| **Database schema** | New migration `.sql` files applied in order |
+| **MQTT forwarder** | Docker image rebuilt, container restarted |
+| **Supabase services** | Not rebuilt (use pinned upstream images). To upgrade Supabase itself, update image tags in `docker-compose.yml` and run `docker compose up -d` |
+
+### Migration tracking
+
+The update script tracks applied migrations in a `public._migrations` table. This is created automatically by the `20260302500000_migration_tracking.sql` migration (applied during setup or on the first update). Only migration files not yet in this table are executed, so updates are safe to re-run.
+
+### Manual alternative
+
+If you prefer to update step by step:
 
 ```bash
+# Pull code
+cd /path/to/mdb-esp32-cashless
+git pull
+
+# Apply only new migrations
 cd Docker
-docker compose up -d
 for f in supabase/migrations/*.sql; do
-  docker compose exec -T db psql -U postgres -d postgres < "$f"
+  fname=$(basename "$f")
+  already=$(docker compose exec -T db psql -U postgres -d postgres -tAc \
+    "SELECT 1 FROM public._migrations WHERE name = '${fname}'" 2>/dev/null)
+  if [ "$already" != "1" ]; then
+    echo "Applying $fname..."
+    docker compose exec -T db psql -U postgres -d postgres < "$f"
+    docker compose exec -T db psql -U postgres -d postgres -c \
+      "INSERT INTO public._migrations (name) VALUES ('${fname}') ON CONFLICT DO NOTHING"
+  fi
 done
+
+# Rebuild and restart frontend
+docker compose build frontend
+docker compose up -d --no-deps frontend
+
+# Restart edge functions
+docker compose restart functions
 ```
+
+### Rollback
+
+If an update causes issues:
+
+```bash
+# Revert to the previous commit
+cd /path/to/mdb-esp32-cashless
+git log --oneline -5          # find the commit to revert to
+git checkout <commit-hash>
+
+# Rebuild and restart
+cd Docker
+docker compose build frontend
+docker compose up -d --no-deps frontend
+docker compose restart functions
+```
+
+> **Note**: Database migrations cannot be automatically rolled back. If a migration causes issues, write a corrective migration or restore from a backup.
 
 ---
 
