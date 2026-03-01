@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-This guide covers deploying VMflow to a production server. A single `docker compose up` deploys the entire stack.
+This guide covers deploying VMflow to a production server. A single `bash setup.sh` configures, starts, and initializes everything.
 
 ## Architecture Overview
 
@@ -46,11 +46,9 @@ cd mdb-esp32-cashless
 
 ---
 
-## 2. Configure Environment Variables
+## 2. Run the Setup Script
 
-### Option A: Interactive setup script (recommended)
-
-The setup script generates all secrets, asks for your domain/MQTT/SMTP settings, and writes a complete `.env` file:
+A single script handles everything: environment configuration, secret generation, stack startup, and database migrations.
 
 ```bash
 cd Docker
@@ -58,98 +56,46 @@ bash setup.sh
 ```
 
 The script will:
-- Auto-generate all cryptographic secrets (passwords, JWT keys, tokens)
-- Ask for your domain name and derive all URLs (`supabase.yourdomain.com`, `app.yourdomain.com`)
-- Optionally configure SMTP (can be skipped and added later)
-- Ask for Supabase Studio dashboard credentials
-- Optionally start the stack and apply database migrations
+1. **Configure** — ask for your domain, MQTT host, SMTP (optional), and dashboard credentials
+2. **Generate secrets** — all passwords, JWT keys, and tokens are auto-generated via `openssl`
+3. **Start the stack** — runs `docker compose up -d` (Supabase, MQTT, frontend)
+4. **Apply migrations** — waits for PostgreSQL to be healthy, then applies all SQL migrations
+5. **Print summary** — shows URLs, credentials, and next steps
 
-### Option B: Manual configuration
+If you re-run `setup.sh` and an `.env` already exists, it will offer to back it up. If you keep the existing `.env`, it skips straight to starting the stack and applying migrations — useful after pulling new code with additional migration files.
 
-If you prefer to configure manually, copy and edit the `.env` file:
+### Manual alternative
+
+If you prefer to configure manually instead of using the setup script:
 
 ```bash
 cd Docker
 cp .env .env.backup
-```
 
-Generate secrets using the Supabase utility script:
-
-```bash
+# Generate secrets
 bash <(curl -s https://raw.githubusercontent.com/supabase/supabase/refs/heads/master/docker/utils/generate-keys.sh)
-```
 
-Then edit `Docker/.env` with the generated values and set your domain, MQTT host, and SMTP configuration. See the comments in `.env` for guidance on each variable.
+# Edit .env with generated values + your domain, MQTT host, SMTP config
+nano .env
 
----
+# Start everything
+docker compose up -d
 
-## 3. Database Migrations
-
-Before starting services for the first time, you need to apply database migrations. The Supabase Docker image initializes a bare PostgreSQL database -- migrations create your application schema.
-
-### Option A: Using Supabase CLI (recommended)
-
-If the Supabase CLI is installed on the server:
-
-```bash
-cd Docker
-
-# Start only Postgres first
-docker compose up db -d
-
-# Wait for it to be healthy
+# Wait for the database, then apply migrations
 docker compose exec db pg_isready -U postgres
-
-# Apply migrations
-cd supabase
-supabase db push --db-url postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:5432/postgres
-```
-
-### Option B: Manual migration
-
-```bash
-cd Docker
-
-# Start only Postgres
-docker compose up db -d
-docker compose exec db pg_isready -U postgres
-
-# Apply each migration file in order
 for f in supabase/migrations/*.sql; do
-  echo "Applying $f..."
   docker compose exec -T db psql -U postgres -d postgres < "$f"
 done
-```
-
-### Applying future migrations
-
-When you pull new code with additional migration files:
-
-```bash
-# With Supabase CLI
-cd Docker/supabase
-supabase db push --db-url postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:5432/postgres
-
-# Or manually
-docker compose exec -T db psql -U postgres -d postgres < supabase/migrations/<new-migration>.sql
 ```
 
 > **Warning**: Do NOT run `supabase db reset` in production. It drops and recreates the entire database.
 
 ---
 
-## 4. Start the Stack
-
-A single command deploys everything (Supabase, MQTT, and the management frontend):
+## 3. Verify the Stack
 
 ```bash
 cd Docker
-docker compose up -d
-```
-
-Verify services are running:
-
-```bash
 docker compose ps
 ```
 
@@ -168,7 +114,7 @@ Open `http://<your-server-ip>:3000` in a browser (before setting up the reverse 
 
 ---
 
-## 5. Reverse Proxy & TLS
+## 4. Reverse Proxy & TLS
 
 You need a reverse proxy to terminate TLS and route traffic.
 
@@ -248,7 +194,7 @@ sudo systemctl restart nginx
 
 ---
 
-## 6. MQTT Security (Production)
+## 5. MQTT Security (Production)
 
 The default Mosquitto config allows anonymous connections. For production, harden it.
 
@@ -298,7 +244,7 @@ sudo ufw enable
 
 ---
 
-## 7. Backups
+## 6. Backups
 
 ### Database backups
 
@@ -328,7 +274,7 @@ Product images are stored in `Docker/volumes/storage/`. Back up this directory a
 
 ---
 
-## 8. Monitoring & Logs
+## 7. Monitoring & Logs
 
 ### View service logs
 
@@ -351,7 +297,7 @@ Studio is available at `http://localhost:8000` (via Kong) with the `DASHBOARD_US
 
 ---
 
-## 9. OTA Firmware Updates
+## 8. OTA Firmware Updates
 
 The management dashboard supports over-the-air firmware updates to ESP32 devices in the field.
 
@@ -436,31 +382,25 @@ If the update fails, the device rolls back to the previous firmware and reports 
 
 ---
 
-## 10. Updating the Platform
-
-### Pull latest code
+## 9. Updating the Platform
 
 ```bash
 git pull origin main
+cd Docker
+docker compose build
+bash setup.sh
 ```
 
-### Apply new migrations
+When you re-run `setup.sh` and an `.env` already exists, choose "keep existing .env" — the script will skip configuration and go straight to restarting the stack and applying any new migrations.
 
-```bash
-cd Docker/supabase
-supabase db push --db-url postgresql://postgres:<PASSWORD>@127.0.0.1:5432/postgres
-```
-
-### Rebuild and restart services
+Alternatively, apply migrations manually:
 
 ```bash
 cd Docker
-
-# Rebuild images (frontend, forwarder)
-docker compose build
-
-# Restart with new images
 docker compose up -d
+for f in supabase/migrations/*.sql; do
+  docker compose exec -T db psql -U postgres -d postgres < "$f"
+done
 ```
 
 ---
