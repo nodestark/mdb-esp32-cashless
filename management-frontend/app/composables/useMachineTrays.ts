@@ -14,8 +14,8 @@ export function useMachineTrays() {
   const trays = ref<Tray[]>([])
   const loading = ref(false)
 
-  async function fetchTrays(machineId: string) {
-    loading.value = true
+  async function fetchTrays(machineId: string, { silent = false } = {}) {
+    if (!silent) loading.value = true
     try {
       const supabase = useSupabaseClient()
       const { data, error } = await supabase
@@ -36,7 +36,7 @@ export function useMachineTrays() {
         current_stock: t.current_stock,
       }))
     } finally {
-      loading.value = false
+      if (!silent) loading.value = false
     }
   }
 
@@ -47,7 +47,7 @@ export function useMachineTrays() {
       .upsert(tray, { onConflict: 'machine_id,item_number' })
 
     if (error) throw error
-    await fetchTrays(tray.machine_id)
+    await fetchTrays(tray.machine_id, { silent: true })
   }
 
   async function refillTray(trayId: string, machineId: string, newStock: number) {
@@ -58,7 +58,7 @@ export function useMachineTrays() {
       .eq('id', trayId)
 
     if (error) throw error
-    await fetchTrays(machineId)
+    await fetchTrays(machineId, { silent: true })
   }
 
   async function updateTray(trayId: string, machineId: string, updates: { item_number?: number; product_id?: string | null; capacity?: number; current_stock?: number }) {
@@ -69,7 +69,7 @@ export function useMachineTrays() {
       .eq('id', trayId)
 
     if (error) throw error
-    await fetchTrays(machineId)
+    await fetchTrays(machineId, { silent: true })
   }
 
   async function batchCreateTrays(machineId: string, startSlot: number, count: number, capacity: number) {
@@ -85,7 +85,7 @@ export function useMachineTrays() {
       .upsert(rows, { onConflict: 'machine_id,item_number', ignoreDuplicates: true })
 
     if (error) throw error
-    await fetchTrays(machineId)
+    await fetchTrays(machineId, { silent: true })
   }
 
   async function deleteTray(trayId: string, machineId: string) {
@@ -96,7 +96,7 @@ export function useMachineTrays() {
       .eq('id', trayId)
 
     if (error) throw error
-    await fetchTrays(machineId)
+    await fetchTrays(machineId, { silent: true })
   }
 
   function subscribeToTrayUpdates(machineId: string) {

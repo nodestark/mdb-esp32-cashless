@@ -259,26 +259,15 @@ async function detachDevice() {
 
 // ── Tray management ─────────────────────────────────────────────────────────
 const showTrayModal = ref(false)
-const editingTray = ref<any>(null)
-const trayForm = ref({ item_number: 1, product_id: '', capacity: 10, current_stock: 0 })
+const trayForm = ref({ item_number: 0, product_id: '', capacity: 10, current_stock: 0 })
 const trayLoading = ref(false)
 const trayError = ref('')
 
 function openAddTray() {
-  editingTray.value = null
-  trayForm.value = { item_number: 1, product_id: '', capacity: 10, current_stock: 0 }
-  trayError.value = ''
-  showTrayModal.value = true
-}
-
-function openEditTray(tray: any) {
-  editingTray.value = tray
-  trayForm.value = {
-    item_number: tray.item_number,
-    product_id: tray.product_id ?? '',
-    capacity: tray.capacity,
-    current_stock: tray.current_stock,
-  }
+  const maxSlot = trays.value.length > 0
+    ? Math.max(...trays.value.map(t => t.item_number)) + 1
+    : 0
+  trayForm.value = { item_number: maxSlot, product_id: '', capacity: 10, current_stock: 0 }
   trayError.value = ''
   showTrayModal.value = true
 }
@@ -299,27 +288,185 @@ async function submitTray() {
   trayLoading.value = true
   trayError.value = ''
   try {
-    if (editingTray.value) {
-      await updateTray(editingTray.value.id, machine.value.id, {
-        item_number: trayForm.value.item_number,
-        product_id: trayForm.value.product_id || null,
-        capacity: trayForm.value.capacity,
-        current_stock: trayForm.value.current_stock,
-      })
-    } else {
-      await upsertTray({
-        machine_id: machine.value.id,
-        item_number: trayForm.value.item_number,
-        product_id: trayForm.value.product_id || null,
-        capacity: trayForm.value.capacity,
-        current_stock: trayForm.value.current_stock,
-      })
-    }
+    await upsertTray({
+      machine_id: machine.value.id,
+      item_number: trayForm.value.item_number,
+      product_id: trayForm.value.product_id || null,
+      capacity: trayForm.value.capacity,
+      current_stock: trayForm.value.current_stock,
+    })
     showTrayModal.value = false
   } catch (err: unknown) {
     trayError.value = err instanceof Error ? err.message : 'Failed to save tray'
   } finally {
     trayLoading.value = false
+  }
+}
+
+// ── Inline tray editing ─────────────────────────────────────────────────────
+const activeAutocompleteTrayId = ref<string | null>(null)
+const productQuery = ref('')
+const highlightedIndex = ref(-1)
+
+const filteredProducts = computed(() => {
+  const q = productQuery.value.toLowerCase().trim()
+  if (!q) return products.value
+  return products.value.filter(p => p.name.toLowerCase().includes(q))
+})
+
+// Auto-highlight best match as the user types
+watch(productQuery, () => {
+  if (!activeAutocompleteTrayId.value) return
+  const q = productQuery.value.toLowerCase().trim()
+  if (q && filteredProducts.value.length > 0) {
+    // Prefer "starts with" match; fall back to first contains match
+    const startsIdx = filteredProducts.value.findIndex(p => p.name.toLowerCase().startsWith(q))
+    highlightedIndex.value = startsIdx >= 0 ? startsIdx + 1 : 1 // +1 because 0 = "None"
+  } else {
+    highlightedIndex.value = -1
+  }
+})
+
+function openProductAutocomplete(tray: any) {
+  activeAutocompleteTrayId.value = tray.id
+  productQuery.value = ''
+  highlightedIndex.value = -1
+  nextTick(() => {
+    const input = document.getElementById(`product-input-${tray.id}`) as HTMLInputElement | null
+    input?.focus()
+  })
+}
+
+async function selectProduct(trayId: string, productId: string | null) {
+  activeAutocompleteTrayId.value = null
+  // Focus stock input immediately so keyboard flow continues
+  nextTick(() => {
+    const el = document.getElementById(`stock-${trayId}`) as HTMLInputElement | null
+    el?.focus()
+    el?.select()
+  })
+  try {
+    await updateTray(trayId, machine.value.id, { product_id: productId })
+  } catch {
+    // silent — tray reverts to previous value via fetchTrays
+  }
+}
+
+function handleProductBlur(trayId: string) {
+  // Delay to allow click on dropdown item to register first
+  setTimeout(() => {
+    if (activeAutocompleteTrayId.value === trayId) {
+      activeAutocompleteTrayId.value = null
+    }
+  }, 200)
+}
+
+function handleProductKeydown(event: KeyboardEvent, trayId: string) {
+  const itemCount = filteredProducts.value.length + 1 // +1 for "None" option
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    activeAutocompleteTrayId.value = null
+    // Return focus to the product button
+    nextTick(() => {
+      const btn = document.getElementById(`product-btn-${trayId}`) as HTMLElement | null
+      btn?.focus()
+    })
+    return
+  }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    highlightedIndex.value = Math.min(highlightedIndex.value + 1, itemCount - 1)
+    return
+  }
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    highlightedIndex.value = Math.max(highlightedIndex.value - 1, 0)
+    return
+  }
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    if (highlightedIndex.value === 0) {
+      selectProduct(trayId, null)
+    } else if (highlightedIndex.value > 0 && highlightedIndex.value <= filteredProducts.value.length) {
+      selectProduct(trayId, filteredProducts.value[highlightedIndex.value - 1].id)
+    }
+    return
+  }
+  if (event.key === 'Tab' && !event.shiftKey) {
+    event.preventDefault()
+    // Auto-select highlighted product and advance to stock
+    if (highlightedIndex.value === 0) {
+      selectProduct(trayId, null)
+    } else if (highlightedIndex.value > 0 && highlightedIndex.value <= filteredProducts.value.length) {
+      selectProduct(trayId, filteredProducts.value[highlightedIndex.value - 1].id)
+    } else {
+      // Nothing highlighted — just close and advance to stock
+      activeAutocompleteTrayId.value = null
+      nextTick(() => {
+        const el = document.getElementById(`stock-${trayId}`) as HTMLInputElement | null
+        el?.focus()
+        el?.select()
+      })
+    }
+    return
+  }
+  // Shift+Tab: let default behaviour move focus backwards; blur handler closes the dropdown
+}
+
+async function saveInlineField(trayId: string, field: 'capacity' | 'current_stock', value: number) {
+  const tray = trays.value.find(t => t.id === trayId)
+  if (!tray) return
+
+  // Validate
+  if (field === 'capacity' && value < 1) return
+  if (field === 'current_stock' && (value < 0 || value > (tray.capacity ?? 100))) return
+
+  // Skip save if value unchanged
+  if (tray[field] === value) return
+
+  try {
+    await updateTray(trayId, machine.value.id, { [field]: value })
+  } catch {
+    // silent — reverts via fetchTrays
+  }
+}
+
+function handleStockKeydown(event: KeyboardEvent, trayId: string) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    const val = parseInt((event.target as HTMLInputElement).value) || 0
+    saveInlineField(trayId, 'current_stock', val)
+    // Advance to capacity input
+    nextTick(() => {
+      const el = document.getElementById(`capacity-${trayId}`) as HTMLInputElement | null
+      el?.focus()
+      el?.select()
+    })
+  }
+  if (event.key === 'Escape') {
+    (event.target as HTMLInputElement).blur()
+  }
+}
+
+function handleCapacityKeydown(event: KeyboardEvent, trayId: string) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    const val = parseInt((event.target as HTMLInputElement).value) || 1
+    saveInlineField(trayId, 'capacity', val)
+    // Advance to next row's product button (or blur if last row)
+    const idx = trays.value.findIndex(t => t.id === trayId)
+    const nextTray = trays.value[idx + 1]
+    if (nextTray) {
+      nextTick(() => {
+        const el = document.getElementById(`product-btn-${nextTray.id}`) as HTMLElement | null
+        el?.focus()
+      })
+    } else {
+      (event.target as HTMLInputElement).blur()
+    }
+  }
+  if (event.key === 'Escape') {
+    (event.target as HTMLInputElement).blur()
   }
 }
 
@@ -596,15 +743,15 @@ function stockColor(percent: number) {
 
               <div v-if="traysLoading" class="text-sm text-muted-foreground">Loading trays…</div>
               <div v-else-if="trays.length === 0" class="text-sm text-muted-foreground">No trays configured. Add trays to track stock levels.</div>
-              <div v-else class="rounded-md border">
+              <div v-else class="rounded-md border overflow-visible">
                 <table class="w-full text-sm">
                   <thead>
                     <tr class="border-b bg-muted/50 text-left">
-                      <th class="px-4 py-3 font-medium">Slot #</th>
+                      <th class="w-20 px-4 py-3 font-medium">Slot #</th>
                       <th class="px-4 py-3 font-medium">Product</th>
-                      <th class="px-4 py-3 font-medium">Stock</th>
+                      <th class="w-36 px-4 py-3 font-medium">Stock</th>
                       <th class="w-32 px-4 py-3 font-medium">Level</th>
-                      <th v-if="isAdmin" class="px-4 py-3 font-medium">Actions</th>
+                      <th v-if="isAdmin" class="w-24 px-4 py-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -613,10 +760,99 @@ function stockColor(percent: number) {
                       :key="tray.id"
                       class="border-b last:border-0 hover:bg-muted/30 transition-colors"
                     >
-                      <td class="px-4 py-3 font-mono">{{ tray.item_number }}</td>
-                      <td class="px-4 py-3">{{ tray.product_name ?? '—' }}</td>
-                      <td class="px-4 py-3 text-muted-foreground">{{ tray.current_stock }} / {{ tray.capacity }}</td>
-                      <td class="px-4 py-3">
+                      <!-- Slot # (read-only) -->
+                      <td class="px-4 py-2 font-mono">{{ tray.item_number }}</td>
+
+                      <!-- Product (inline autocomplete for admins) -->
+                      <td class="px-4 py-2 relative">
+                        <template v-if="isAdmin">
+                          <div v-if="activeAutocompleteTrayId === tray.id" class="relative">
+                            <input
+                              :id="`product-input-${tray.id}`"
+                              v-model="productQuery"
+                              type="text"
+                              placeholder="Search products…"
+                              role="combobox"
+                              aria-expanded="true"
+                              aria-autocomplete="list"
+                              autocomplete="off"
+                              class="h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              @blur="handleProductBlur(tray.id)"
+                              @keydown="(e: KeyboardEvent) => handleProductKeydown(e, tray.id)"
+                            />
+                            <div class="absolute left-0 top-full z-50 mt-1 max-h-48 w-full min-w-[200px] overflow-auto rounded-md border bg-popover shadow-md" role="listbox">
+                              <button
+                                type="button"
+                                tabindex="-1"
+                                class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+                                :class="{ 'bg-accent': highlightedIndex === 0 }"
+                                role="option"
+                                @mousedown.prevent="selectProduct(tray.id, null)"
+                              >
+                                <span class="text-muted-foreground italic">None</span>
+                              </button>
+                              <button
+                                v-for="(p, idx) in filteredProducts"
+                                :key="p.id"
+                                type="button"
+                                tabindex="-1"
+                                class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+                                :class="{ 'bg-accent': highlightedIndex === idx + 1 }"
+                                role="option"
+                                @mousedown.prevent="selectProduct(tray.id, p.id)"
+                              >
+                                {{ p.name }}
+                              </button>
+                              <div v-if="filteredProducts.length === 0 && productQuery.trim()" class="px-3 py-2 text-xs text-muted-foreground">
+                                No products found
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            v-else
+                            :id="`product-btn-${tray.id}`"
+                            type="button"
+                            class="w-full text-left transition-colors hover:text-primary"
+                            @click="openProductAutocomplete(tray)"
+                            @keydown.enter.prevent="openProductAutocomplete(tray)"
+                          >
+                            {{ tray.product_name ?? '—' }}
+                          </button>
+                        </template>
+                        <span v-else>{{ tray.product_name ?? '—' }}</span>
+                      </td>
+
+                      <!-- Stock (inline editable for admins) -->
+                      <td class="px-4 py-2">
+                        <template v-if="isAdmin">
+                          <div class="flex items-center gap-1">
+                            <input
+                              :id="`stock-${tray.id}`"
+                              type="number"
+                              :value="tray.current_stock"
+                              min="0"
+                              :max="tray.capacity"
+                              class="h-7 w-12 rounded border border-transparent bg-transparent px-1 text-center text-sm hover:border-input focus:border-input focus:bg-background focus:shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              @change="(e: Event) => saveInlineField(tray.id, 'current_stock', parseInt((e.target as HTMLInputElement).value) || 0)"
+                              @keydown="(e: KeyboardEvent) => handleStockKeydown(e, tray.id)"
+                            />
+                            <span class="text-muted-foreground">/</span>
+                            <input
+                              :id="`capacity-${tray.id}`"
+                              type="number"
+                              :value="tray.capacity"
+                              min="1"
+                              class="h-7 w-12 rounded border border-transparent bg-transparent px-1 text-center text-sm hover:border-input focus:border-input focus:bg-background focus:shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              @change="(e: Event) => saveInlineField(tray.id, 'capacity', parseInt((e.target as HTMLInputElement).value) || 1)"
+                              @keydown="(e: KeyboardEvent) => handleCapacityKeydown(e, tray.id)"
+                            />
+                          </div>
+                        </template>
+                        <span v-else class="text-muted-foreground">{{ tray.current_stock }} / {{ tray.capacity }}</span>
+                      </td>
+
+                      <!-- Level bar -->
+                      <td class="px-4 py-2">
                         <div class="h-2 w-full rounded-full bg-muted">
                           <div
                             class="h-2 rounded-full transition-all"
@@ -625,19 +861,15 @@ function stockColor(percent: number) {
                           />
                         </div>
                       </td>
-                      <td v-if="isAdmin" class="px-4 py-3">
+
+                      <!-- Actions (Refill + Remove only) -->
+                      <td v-if="isAdmin" class="px-4 py-2">
                         <div class="flex items-center gap-2">
                           <button
                             class="text-xs text-primary hover:underline"
                             @click="openRefill(tray)"
                           >
                             Refill
-                          </button>
-                          <button
-                            class="text-xs text-primary hover:underline"
-                            @click="openEditTray(tray)"
-                          >
-                            Edit
                           </button>
                           <button
                             class="text-xs text-destructive hover:underline"
@@ -704,14 +936,14 @@ function stockColor(percent: number) {
         </div>
       </div>
 
-      <!-- Add/Edit Tray modal -->
+      <!-- Add Tray modal -->
       <div
         v-if="showTrayModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         @click.self="showTrayModal = false"
       >
         <div class="w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
-          <h2 class="mb-4 text-lg font-semibold">{{ editingTray ? 'Edit tray' : 'Add tray' }}</h2>
+          <h2 class="mb-4 text-lg font-semibold">Add tray</h2>
           <form class="space-y-4" @submit.prevent="submitTray">
             <div class="space-y-1">
               <label class="text-sm font-medium" for="tray-slot">Slot number</label>
@@ -772,8 +1004,8 @@ function stockColor(percent: number) {
                 :disabled="trayLoading"
                 class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
-                <span v-if="trayLoading">Saving…</span>
-                <span v-else>{{ editingTray ? 'Save' : 'Create' }}</span>
+                <span v-if="trayLoading">Creating…</span>
+                <span v-else>Create</span>
               </button>
             </div>
           </form>
