@@ -7,7 +7,7 @@ This guide walks you through setting up the full VMflow development environment 
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Docker & Docker Compose | v2+ | Backend services (Supabase, MQTT, PostgreSQL) |
-| Node.js | 18+ | Management frontend (local dev) |
+| Node.js | 22+ (LTS) | Management frontend (local dev) |
 | npm | 9+ | Package management |
 | Supabase CLI | latest | Local Supabase dev (migrations, seed, studio) |
 | ESP-IDF | v5.x | Firmware compilation (only if working on firmware) |
