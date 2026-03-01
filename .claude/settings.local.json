@@ -10,7 +10,8 @@
       "Bash(wc -l /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/supabase/migrations/*.sql)",
       "Bash(chmod +x /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/setup.sh)",
       "Bash(git rm --cached Docker/mqtt/data/mosquitto.db)",
-      "Bash(git rm --cached Docker/.env)"
+      "Bash(git rm --cached Docker/.env)",
+      "Bash(test -d /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/volumes/db/data)"
     ]
   }
 }
