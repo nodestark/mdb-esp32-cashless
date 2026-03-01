@@ -44,6 +44,16 @@
     .manual-toggle{display:inline-block;font-size:12px;color:#0066cc;cursor:pointer;margin-top:2px;border:none;background:none;padding:0;width:auto;text-decoration:underline}
     .manual-toggle:active{color:#0052a3}
     .scanning-msg{text-align:center;padding:16px;color:#888;font-size:13px}
+
+    /* QR scanner */
+    .qr-btn{display:none;width:100%;margin-top:8px;padding:10px;background:#198754;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer}
+    .qr-btn:active{background:#146c43}
+    .qr-btn.supported{display:block}
+    #qr_overlay{display:none;position:fixed;inset:0;z-index:100;background:#000;flex-direction:column}
+    #qr_overlay.active{display:flex}
+    #qr_video{flex:1;object-fit:cover}
+    #qr_close{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;z-index:101}
+    #qr_hint{position:absolute;bottom:24px;left:0;right:0;text-align:center;color:#fff;font-size:14px;text-shadow:0 1px 3px rgba(0,0,0,.8)}
   </style>
 </head>
 <body>
@@ -74,6 +84,9 @@
 
   <hr class="divider">
 
+  <button class="qr-btn" id="qr_btn" onclick="startQrScan()">Scan QR Code</button>
+  <p class="hint" id="qr_hint_text" style="display:none">Scan the QR code from the management dashboard to auto-fill provisioning code and server URL</p>
+
   <label>Provisioning Code
     <span class="hint" style="font-weight:normal"> — from the management dashboard</span>
   </label>
@@ -87,6 +100,13 @@
 
   <button onclick="saveSettings()">Save &amp; Connect</button>
   <div id="status"></div>
+</div>
+
+<!-- QR scanner overlay -->
+<div id="qr_overlay">
+  <video id="qr_video" autoplay playsinline></video>
+  <button id="qr_close" onclick="stopQrScan()">&times;</button>
+  <p id="qr_hint">Point camera at QR code</p>
 </div>
 
 <script>
@@ -231,6 +251,70 @@
     const el = $('status');
     el.textContent = msg;
     el.className = ok === true ? 'ok' : ok === false ? 'err' : '';
+  }
+
+  /* ── QR Code Scanner (BarcodeDetector API) ── */
+  let qrStream = null;
+  let qrAnimId = null;
+
+  /* Show button only if BarcodeDetector is supported */
+  if ('BarcodeDetector' in window) {
+    $('qr_btn').classList.add('supported');
+    $('qr_hint_text').style.display = '';
+  }
+
+  async function startQrScan() {
+    try {
+      const video = $('qr_video');
+      qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = qrStream;
+      $('qr_overlay').classList.add('active');
+
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      function detect() {
+        if (!qrStream) return;
+        if (video.readyState >= 2) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          detector.detect(canvas).then(codes => {
+            if (codes.length > 0) {
+              handleQrResult(codes[0].rawValue);
+              return;
+            }
+            qrAnimId = requestAnimationFrame(detect);
+          }).catch(() => { qrAnimId = requestAnimationFrame(detect); });
+        } else {
+          qrAnimId = requestAnimationFrame(detect);
+        }
+      }
+      qrAnimId = requestAnimationFrame(detect);
+    } catch (e) {
+      setStatus('Camera access denied', false);
+    }
+  }
+
+  function stopQrScan() {
+    if (qrAnimId) { cancelAnimationFrame(qrAnimId); qrAnimId = null; }
+    if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
+    $('qr_overlay').classList.remove('active');
+  }
+
+  function handleQrResult(raw) {
+    stopQrScan();
+    try {
+      const d = JSON.parse(raw);
+      if (d.code) $('prov_code').value = d.code;
+      if (d.srv_url) $('srv_url').value = d.srv_url;
+      setStatus('QR code scanned!', true);
+    } catch {
+      /* Not JSON — try as plain provisioning code */
+      $('prov_code').value = raw.trim();
+      setStatus('QR code scanned (code only)', true);
+    }
   }
 </script>
 </body>

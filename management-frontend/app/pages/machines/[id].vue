@@ -3,6 +3,7 @@ definePageMeta({ middleware: 'auth' })
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
+import { IconCreditCard, IconCash } from '@tabler/icons-vue'
 
 const route = useRoute()
 const supabase = useSupabaseClient()
@@ -770,11 +771,13 @@ function stockColor(tray: any) {
                           {{ trayProductMap.get(sale.item_number)?.name ?? `Item #${sale.item_number}` }}
                         </span>
                         <span
-                          class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                          class="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
                           :class="sale.channel === 'cashless'
                             ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                             : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'"
                         >
+                          <IconCreditCard v-if="sale.channel === 'cashless'" class="size-3" />
+                          <IconCash v-else class="size-3" />
                           {{ sale.channel }}
                         </span>
                       </div>

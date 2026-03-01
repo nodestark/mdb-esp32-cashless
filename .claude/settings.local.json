@@ -13,7 +13,8 @@
       "Bash(git rm --cached Docker/.env)",
       "Bash(test -d /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/volumes/db/data)",
       "Bash(node --version)",
-      "Bash(npm --version)"
+      "Bash(npm --version)",
+      "Bash(npm install qrcode)"
     ]
   }
 }

@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 
+import QRCode from 'qrcode'
+
 const { organization } = useOrganization()
 const {
   machines, loading, fetchMachines, subscribeToStatusUpdates,
@@ -55,6 +57,7 @@ const shortCode = ref('')
 const expiresAt = ref('')
 const genError = ref('')
 const deviceName = ref('')
+const qrDataUrl = ref('')
 
 function openProvisionModal() {
   step.value = 1
@@ -75,6 +78,9 @@ async function generateCode() {
     if (data?.error) throw new Error(data.error)
     shortCode.value = data.short_code
     expiresAt.value = new Date(data.expires_at).toLocaleTimeString()
+    const srvUrl = useRuntimeConfig().public.supabase.url as string
+    const qrPayload = JSON.stringify({ code: data.short_code, srv_url: srvUrl })
+    qrDataUrl.value = await QRCode.toDataURL(qrPayload, { width: 200, margin: 2 })
     step.value = 2
   } catch (err: unknown) {
     genError.value = err instanceof Error ? err.message : 'Failed to generate code'
@@ -369,9 +375,11 @@ function formatCurrency(amount: number | null | undefined) {
         <h2 class="mb-1 text-lg font-semibold">Provisioning Code</h2>
         <p class="mb-4 text-sm text-muted-foreground">Valid until {{ expiresAt }}. Single use.</p>
 
-        <!-- Code display -->
+        <!-- Code + QR display -->
         <div class="mb-5 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 py-4 text-center">
           <p class="font-mono text-4xl font-bold tracking-[0.3em] text-primary">{{ shortCode }}</p>
+          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" class="mx-auto mt-3" width="200" height="200" />
+          <p class="mt-1 text-xs text-muted-foreground">Scan this QR code on the device setup page</p>
         </div>
 
         <!-- Instructions -->
@@ -386,11 +394,11 @@ function formatCurrency(amount: number | null | undefined) {
           </li>
           <li class="flex gap-2">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">3</span>
-            Enter your WiFi credentials, the provisioning code above, and the server URL
+            Tap <strong class="text-foreground">Scan QR Code</strong> and scan the code above — or enter the code and server URL manually
           </li>
           <li class="flex gap-2">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">4</span>
-            Save — the device will connect and register automatically, then restart
+            Select your WiFi network and save — the device will register automatically
           </li>
         </ol>
 
