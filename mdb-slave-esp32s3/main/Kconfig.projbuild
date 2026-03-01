@@ -67,22 +67,20 @@ menu "MDB Cashless Device"
         default 2
         range 0 3
 
-    config MDB_SNIFF_CASHLESS2
-        bool "Sniff Cashless Device #2 (credit card detection)"
-        default n
+    config MDB_SNIFF_OTHER_CASHLESS
+        bool "Sniff other cashless device (credit card detection)"
+        default y
         help
-            Passively listen to MDB traffic addressed to a second cashless
+            Passively listen to MDB traffic addressed to the other cashless
             device (e.g. Nayax credit card terminal). When a vend succeeds
             on that device, a CARD_SALE (0x23) is published via MQTT.
+            The sniffed address is automatically set to the opposite of
+            this device's address (0x10 ↔ 0x60).
             The device never transmits on the sniffed address.
 
-    config MDB_SNIFF_CASHLESS2_ADDRESS
-        int "Sniffed cashless device address"
-        default 96
-        depends on MDB_SNIFF_CASHLESS2
-        help
-            MDB peripheral address to sniff. Default 96 (0x60) is the
-            standard Cashless Device #2 address. Use 16 (0x10) only if
-            this device itself is configured as Cashless Device #2.
+    config MDB_SNIFF_ADDRESS
+        int
+        default 96 if CASHLESS_ADDR_1
+        default 16 if CASHLESS_ADDR_2
 
 endmenu # MDB Cashless Device

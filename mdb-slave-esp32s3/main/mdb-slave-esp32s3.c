@@ -229,7 +229,7 @@ void vTaskMdbEvent(void *pvParameters) {
 	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
 
-#ifdef CONFIG_MDB_SNIFF_CASHLESS2
+#ifdef CONFIG_MDB_SNIFF_OTHER_CASHLESS
 	// State for passively sniffed Cashless Device #2 (e.g. Nayax credit card terminal)
 	uint16_t sniff_itemPrice = 0;
 	uint16_t sniff_itemNumber = 0;
@@ -569,8 +569,8 @@ void vTaskMdbEvent(void *pvParameters) {
 				write_payload_9((uint8_t*) &mdb_payload, available_tx);
 
 			}
-#ifdef CONFIG_MDB_SNIFF_CASHLESS2
-			else if ((coming_read & BIT_ADD_SET) == CONFIG_MDB_SNIFF_CASHLESS2_ADDRESS) {
+#ifdef CONFIG_MDB_SNIFF_OTHER_CASHLESS
+			else if ((coming_read & BIT_ADD_SET) == CONFIG_MDB_SNIFF_ADDRESS) {
 
 				// Passively sniff Cashless Device #2 traffic (read-only, never transmit)
 				switch (coming_read & BIT_CMD_SET) {
