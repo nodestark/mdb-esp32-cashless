@@ -1571,6 +1571,10 @@ static void provision_claim_task(void *arg) {
                         if (j_mqtt && cJSON_IsString(j_mqtt) && strlen(j_mqtt->valuestring) > 0) {
                             nvs_set_str(h, "mqtt_host", j_mqtt->valuestring);
                         }
+                        cJSON *j_mqtt_port = cJSON_GetObjectItem(root, "mqtt_port");
+                        if (j_mqtt_port && cJSON_IsString(j_mqtt_port) && strlen(j_mqtt_port->valuestring) > 0) {
+                            nvs_set_str(h, "mqtt_port", j_mqtt_port->valuestring);
+                        }
                         nvs_erase_key(h, "prov_code");
                         nvs_commit(h);
                         nvs_close(h);
@@ -1897,20 +1901,42 @@ void app_main(void) {
 	char lwt_topic[128];
 	snprintf(lwt_topic, sizeof(lwt_topic), "/%s/%s/status", my_company_id, my_device_id);
 
-	// Read MQTT host from NVS (set via webui or claim-device), fall back to default
+	// Read MQTT settings from NVS (set via webui or claim-device), fall back to defaults
 	char mqtt_uri[160] = "mqtt://mqtt.vmflow.xyz";
+	char mqtt_user[64] = "vmflow";
+	char mqtt_pass[64] = "vmflow";
 	{
 	    nvs_handle_t h;
 	    if (nvs_open("vmflow", NVS_READONLY, &h) == ESP_OK) {
 	        char mqtt_host[128] = {0};
 	        size_t mlen = sizeof(mqtt_host);
 	        if (nvs_get_str(h, "mqtt_host", mqtt_host, &mlen) == ESP_OK && strlen(mqtt_host) > 0) {
-	            snprintf(mqtt_uri, sizeof(mqtt_uri), "mqtt://%s", mqtt_host);
+	            char mqtt_port_str[8] = {0};
+	            size_t plen = sizeof(mqtt_port_str);
+	            if (nvs_get_str(h, "mqtt_port", mqtt_port_str, &plen) == ESP_OK && strlen(mqtt_port_str) > 0) {
+	                snprintf(mqtt_uri, sizeof(mqtt_uri), "mqtt://%s:%s", mqtt_host, mqtt_port_str);
+	            } else {
+	                snprintf(mqtt_uri, sizeof(mqtt_uri), "mqtt://%s", mqtt_host);
+	            }
+	        } else {
+	            // No mqtt_host set — check if port override applies to default host
+	            char mqtt_port_str[8] = {0};
+	            size_t plen = sizeof(mqtt_port_str);
+	            if (nvs_get_str(h, "mqtt_port", mqtt_port_str, &plen) == ESP_OK && strlen(mqtt_port_str) > 0) {
+	                snprintf(mqtt_uri, sizeof(mqtt_uri), "mqtt://mqtt.vmflow.xyz:%s", mqtt_port_str);
+	            }
 	        }
+
+	        size_t ulen = sizeof(mqtt_user);
+	        nvs_get_str(h, "mqtt_user", mqtt_user, &ulen);
+
+	        size_t pwlen = sizeof(mqtt_pass);
+	        nvs_get_str(h, "mqtt_pass", mqtt_pass, &pwlen);
+
 	        nvs_close(h);
 	    }
 	}
-	ESP_LOGI(TAG, "MQTT broker: %s", mqtt_uri);
+	ESP_LOGI(TAG, "MQTT broker: %s (user=%s)", mqtt_uri, mqtt_user);
 
 	const esp_mqtt_client_config_t mqttCfg = {
 		.broker.address.uri = mqtt_uri,
@@ -1928,8 +1954,8 @@ void app_main(void) {
              * - Payload signing/obfuscation ensures basic integrity validation and
              *   prevents trivial message injection without knowledge of the device secret.
              */
-             .username = "vmflow",
-            .authentication.password = "vmflow"
+            .username = mqtt_user,
+            .authentication.password = mqtt_pass
         },
 		.session.last_will.topic = lwt_topic, // LWT (Last Will and Testament)...
 		.session.last_will.msg = "offline",
