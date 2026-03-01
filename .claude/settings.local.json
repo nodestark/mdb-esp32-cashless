@@ -9,7 +9,8 @@
       "Bash(docker image inspect supabase/postgres:15.8.1.060)",
       "Bash(wc -l /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/supabase/migrations/*.sql)",
       "Bash(chmod +x /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/setup.sh)",
-      "Bash(git rm --cached Docker/mqtt/data/mosquitto.db)"
+      "Bash(git rm --cached Docker/mqtt/data/mosquitto.db)",
+      "Bash(git rm --cached Docker/.env)"
     ]
   }
 }
