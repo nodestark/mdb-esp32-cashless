@@ -76,6 +76,8 @@ const onlineDevices = computed(() => {
       name: m.name ?? 'Unnamed',
       status: m.embeddeds.status,
       mac: m.embeddeds.mac_address,
+      firmware_version: m.embeddeds.firmware_version ?? null,
+      firmware_build_date: m.embeddeds.firmware_build_date ?? null,
     }))
 })
 
@@ -289,9 +291,7 @@ function timeAgo(dt: string) {
           >
             <option value="" disabled>Select a device</option>
             <option v-for="d in onlineDevices" :key="d.id" :value="d.id">
-              {{ d.name }} — {{ d.mac ?? 'No MAC' }}
-              <template v-if="d.status === 'online'"> (online)</template>
-              <template v-else> ({{ d.status }})</template>
+              {{ d.name }} — {{ d.mac ?? 'No MAC' }} ({{ d.status }}{{ d.firmware_version ? `, v${d.firmware_version}` : '' }}{{ d.firmware_build_date ? `, built ${new Date(d.firmware_build_date).toLocaleString()}` : '' }})
             </option>
           </select>
           <p v-if="onlineDevices.length === 0" class="text-xs text-muted-foreground">No devices with assigned machines found.</p>

@@ -23,7 +23,7 @@ onMounted(async () => {
   try {
     const { data: machineData, error: machineError } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date)')
       .eq('id', id)
       .single()
 
@@ -85,6 +85,12 @@ onMounted(async () => {
             if (machine.value?.embeddeds) {
               machine.value.embeddeds.status = payload.new.status
               machine.value.embeddeds.status_at = payload.new.status_at
+              if (payload.new.firmware_version) {
+                machine.value.embeddeds.firmware_version = payload.new.firmware_version
+              }
+              if (payload.new.firmware_build_date) {
+                machine.value.embeddeds.firmware_build_date = payload.new.firmware_build_date
+              }
             }
           }
         )
@@ -222,7 +228,7 @@ async function submitDeviceSwap() {
     // Re-fetch machine to get updated embeddeds join
     const { data } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date)')
       .eq('id', machine.value.id)
       .single()
     if (data) machine.value = data
@@ -240,7 +246,7 @@ async function detachDevice() {
     await swapDevice(machine.value.id, null)
     const { data } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date)')
       .eq('id', machine.value.id)
       .single()
     if (data) machine.value = data
@@ -442,14 +448,21 @@ function stockColor(percent: number) {
               <template v-if="machine.embeddeds">
                 <span
                   class="rounded-full px-3 py-1 text-xs font-medium"
-                  :class="machine.embeddeds.status === 'online'
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-muted text-muted-foreground'"
+                  :class="{
+                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
+                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': machine.embeddeds.status === 'ota_updating',
+                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': machine.embeddeds.status === 'ota_failed',
+                    'bg-muted text-muted-foreground': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
+                  }"
                 >
-                  {{ machine.embeddeds.status }}
+                  {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
                 </span>
                 <p class="mt-1 text-xs text-muted-foreground">
                   {{ machine.embeddeds.mac_address ?? `Subdomain ${machine.embeddeds.subdomain}` }}
+                  <template v-if="machine.embeddeds.firmware_version">
+                    <span class="ml-1 font-mono">v{{ machine.embeddeds.firmware_version }}</span>
+                    <span v-if="machine.embeddeds.firmware_build_date" class="ml-1">(built {{ new Date(machine.embeddeds.firmware_build_date).toLocaleString() }})</span>
+                  </template>
                 </p>
                 <p class="text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
                 <div v-if="isAdmin" class="mt-2 flex justify-end gap-2">
@@ -664,7 +677,7 @@ function stockColor(percent: number) {
               >
                 <option value="" disabled>Select a device</option>
                 <option v-for="d in availableDevices" :key="d.id" :value="d.id">
-                  {{ d.mac_address ?? 'Unknown MAC' }} — subdomain {{ d.subdomain }} ({{ d.status }})
+                  {{ d.mac_address ?? 'Unknown MAC' }} — subdomain {{ d.subdomain }} ({{ d.status }}{{ d.firmware_version ? `, v${d.firmware_version}` : '' }})
                 </option>
               </select>
               <p v-if="availableDevices.length === 0" class="text-xs text-muted-foreground">No unassigned devices available. Provision a new device first.</p>

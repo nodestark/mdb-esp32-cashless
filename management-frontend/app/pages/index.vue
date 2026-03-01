@@ -60,8 +60,12 @@ onMounted(async () => {
         const oldStatus = payload.old?.status
         const newStatus = payload.new?.status
         if (oldStatus === newStatus) return
-        if (newStatus === 'online') machinesOnline.value++
-        if (oldStatus === 'online') machinesOnline.value = Math.max(0, machinesOnline.value - 1)
+        // Treat online + OTA states as "connected"
+        const isConnected = (s: string | undefined) => s != null && s !== 'offline'
+        const wasConnected = isConnected(oldStatus)
+        const nowConnected = isConnected(newStatus)
+        if (!wasConnected && nowConnected) machinesOnline.value++
+        if (wasConnected && !nowConnected) machinesOnline.value = Math.max(0, machinesOnline.value - 1)
       }
     )
     .on(
@@ -106,7 +110,7 @@ async function loadDashboard() {
   // Machine counts
   const machines = machinesRes.data ?? []
   totalMachines.value = machines.length
-  machinesOnline.value = machines.filter((m: any) => m.embeddeds?.status === 'online').length
+  machinesOnline.value = machines.filter((m: any) => m.embeddeds?.status && m.embeddeds.status !== 'offline').length
 
   // Aggregate sales by day
   const byDay: Record<string, number> = {}

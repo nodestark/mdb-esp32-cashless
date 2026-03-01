@@ -24,6 +24,7 @@
 #include <time.h>
 #include <rom/ets_sys.h>
 
+
 #include <esp_adc/adc_oneshot.h>
 #include <esp_adc/adc_cali.h>
 #include <esp_adc/adc_cali_scheme.h>
@@ -1351,8 +1352,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     	snprintf(topic_, sizeof(topic_), "/%s/%s/status", my_company_id, my_device_id);
 
 		const esp_app_desc_t *app_desc = esp_app_get_description();
-		char status_msg[64];
-		snprintf(status_msg, sizeof(status_msg), "online|v:%s", app_desc->version);
+		char status_msg[128];
+		snprintf(status_msg, sizeof(status_msg), "online|v:%s|b:%s %s %s", app_desc->version, app_desc->date, app_desc->time, BUILD_TIMEZONE);
 		ESP_LOGI(TAG, "MQTT: publishing '%s' to '%s'", status_msg, topic_);
 		esp_mqtt_client_publish(mqttClient, topic_, status_msg, 0, 1, 1);
 

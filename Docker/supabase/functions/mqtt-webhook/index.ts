@@ -34,13 +34,47 @@ Deno.serve(async (req) => {
     );
 
     // Status event: simple UTF-8 payload, no encryption
+    // Formats: "online|v:1.0.0|b:Mar  1 2026 14:30:00 +0100", "offline", "ota_updating", "ota_success", "ota_failed"
     if (eventType === 'status') {
       const statusBytes = decodeBase64(payloadB64);
-      const status = new TextDecoder().decode(statusBytes);
+      const rawStatus = new TextDecoder().decode(statusBytes);
+
+      // Parse "online|v:1.0.0|b:Mar  1 2026 14:30:00 +0100"
+      // → status = "online", firmware_version = "1.0.0", build_date = ISO timestamp
+      const parts = rawStatus.split('|');
+      const status = parts[0];
+      let firmwareVersion: string | undefined;
+      let firmwareBuildDate: string | undefined;
+
+      for (let i = 1; i < parts.length; i++) {
+        if (parts[i].startsWith('v:')) {
+          firmwareVersion = parts[i].substring(2);
+        } else if (parts[i].startsWith('b:')) {
+          // C __DATE__ __TIME__ + CMake %z offset: "Mar  1 2026 14:30:00 +0100"
+          const raw = parts[i].substring(2);
+          const parsed = new Date(raw);
+          if (!isNaN(parsed.getTime())) {
+            firmwareBuildDate = parsed.toISOString();
+          }
+        }
+      }
+
+      const updatePayload: Record<string, any> = {
+        status,
+        status_at: new Date().toISOString(),
+      };
+
+      // Only update firmware fields when present (don't clear on offline/ota states)
+      if (firmwareVersion) {
+        updatePayload.firmware_version = firmwareVersion;
+      }
+      if (firmwareBuildDate) {
+        updatePayload.firmware_build_date = firmwareBuildDate;
+      }
 
       const { error } = await adminClient
         .from('embeddeds')
-        .update({ status, status_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq('id', deviceId);
 
       if (error) throw error;

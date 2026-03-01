@@ -21,6 +21,8 @@ interface EmbeddedDevice {
   mac_address: string | null
   status: string
   status_at: string
+  firmware_version: string | null
+  firmware_build_date: string | null
   machine_name: string | null
   machine_id: string | null
 }
@@ -34,7 +36,7 @@ async function fetchDevices() {
     // Fetch all embedded devices with their linked vendingMachine (if any)
     const { data, error } = await supabase
       .from('embeddeds')
-      .select('id, created_at, subdomain, mac_address, status, status_at')
+      .select('id, created_at, subdomain, mac_address, status, status_at, firmware_version, firmware_build_date')
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -173,6 +175,7 @@ function timeAgo(dt: string | null | undefined): string {
                 <th class="px-4 py-3 font-medium">Subdomain</th>
                 <th class="px-4 py-3 font-medium">MAC Address</th>
                 <th class="px-4 py-3 font-medium">Status</th>
+                <th class="px-4 py-3 font-medium">Firmware</th>
                 <th class="px-4 py-3 font-medium">Assigned Machine</th>
                 <th class="px-4 py-3 font-medium">Last Seen</th>
                 <th class="px-4 py-3 font-medium">Registered</th>
@@ -191,14 +194,29 @@ function timeAgo(dt: string | null | undefined): string {
                 </td>
                 <td class="px-4 py-3">
                   <Badge
-                    :variant="device.status === 'online' ? 'default' : 'secondary'"
+                    :variant="device.status === 'online' ? 'default' : device.status?.startsWith('ota_') ? 'default' : 'secondary'"
                   >
                     <span
                       class="mr-1 inline-block h-2 w-2 rounded-full"
-                      :class="device.status === 'online' ? 'bg-green-400' : 'bg-muted-foreground/50'"
+                      :class="{
+                        'bg-green-400': device.status === 'online',
+                        'bg-yellow-400': device.status === 'ota_updating',
+                        'bg-green-400 animate-pulse': device.status === 'ota_success',
+                        'bg-red-400': device.status === 'ota_failed',
+                        'bg-muted-foreground/50': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(device.status),
+                      }"
                     />
-                    {{ device.status }}
+                    {{ device.status === 'ota_updating' ? 'updating' : device.status === 'ota_success' ? 'updated' : device.status === 'ota_failed' ? 'update failed' : device.status }}
                   </Badge>
+                </td>
+                <td class="px-4 py-3 text-muted-foreground">
+                  <template v-if="device.firmware_version">
+                    <span class="font-mono">{{ device.firmware_version }}</span>
+                    <span v-if="device.firmware_build_date" class="ml-1 text-xs">
+                      ({{ new Date(device.firmware_build_date).toLocaleString() }})
+                    </span>
+                  </template>
+                  <span v-else>—</span>
                 </td>
                 <td class="px-4 py-3">
                   <NuxtLink

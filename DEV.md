@@ -7,7 +7,7 @@ This guide walks you through setting up the full VMflow development environment 
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Docker & Docker Compose | v2+ | Backend services (Supabase, MQTT, PostgreSQL) |
-| Node.js | 18+ | Management frontend (local dev) |
+| Node.js | 22+ (LTS) | Management frontend (local dev) |
 | npm | 9+ | Package management |
 | Supabase CLI | latest | Local Supabase dev (migrations, seed, studio) |
 | ESP-IDF | v5.x | Firmware compilation (only if working on firmware) |
@@ -55,6 +55,18 @@ This starts:
 | Inbucket (Email) | `http://127.0.0.1:54324` |
 
 After startup, the CLI prints your local **anon key** and **service_role key**. You'll need the anon key for the frontend `.env`.
+
+### Edge function environment variables
+
+Edge functions need additional environment variables configured in `Docker/supabase/.env`:
+
+```env
+MQTT_HOST=10.0.1.130                        # LAN IP of the MQTT broker
+MQTT_WEBHOOK_SECRET=change-me-to-a-random-secret
+PUBLIC_SUPABASE_URL=http://10.0.1.130:54321  # LAN-reachable Supabase URL for OTA downloads
+```
+
+> **Note**: The Supabase CLI reserves the `SUPABASE_` prefix for internal use. That's why the variable is named `PUBLIC_SUPABASE_URL` (not `SUPABASE_PUBLIC_URL`). These are referenced via `env()` in `config.toml` under `[edge_runtime.secrets]`.
 
 ### Reset the database (apply all migrations + seed data)
 
@@ -183,6 +195,31 @@ idf.py menuconfig
 
 This lets you set hardware pins, WiFi credentials, and feature flags.
 
+### Firmware versioning
+
+The firmware version shown in the management UI comes from `git describe --always --tags --dirty`. This means:
+
+- **Tag the current commit** to set the version: `git tag v1.0.0`
+- If HEAD is exactly at a tag, the version is `v1.0.0`
+- If there are commits after the tag, the version is `v1.0.0-3-gabcdef` (3 commits after, at hash abcdef)
+- Uncommitted changes append `-dirty`
+
+The version is resolved at **CMake configure time**, so after adding a tag you must reconfigure:
+
+```bash
+cd mdb-slave-esp32s3
+idf.py fullclean && idf.py build
+```
+
+### Firmware build date & timezone
+
+The firmware embeds the compilation timestamp in the MQTT status message. The build date includes the build machine's UTC offset (e.g., `+0100` for CET) so it displays correctly regardless of where it was compiled or viewed.
+
+The timezone is captured at CMake configure time via `string(TIMESTAMP BUILD_TIMEZONE "%z")` in `main/CMakeLists.txt`. If you change timezones, run `idf.py fullclean && idf.py build` to pick up the new offset.
+
+The full MQTT status message format is: `online|v:<version>|b:<date> <time> <tz_offset>`
+Example: `online|v:1.0.0|b:Mar  1 2026 12:30:00 +0100`
+
 ### Firmware provisioning flow
 
 1. On first boot (no saved WiFi), the device starts a SoftAP + captive portal
@@ -263,6 +300,7 @@ Edge functions live in `Docker/supabase/functions/`. This is the single source o
 | `accept-invitation` | JWT | Joins an org via invite token |
 | `get-my-organization` | JWT | Returns user's org and role |
 | `create-provisioning-token` | Admin | Generates an 8-char one-time device code |
+| `trigger-ota` | Admin | Sends OTA firmware update URL to a device via MQTT |
 
 ### Testing edge functions locally
 
