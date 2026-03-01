@@ -1,12 +1,40 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-import { IconMoon, IconSun } from '@tabler/icons-vue'
+import { IconMoon, IconSun, IconBell, IconBellOff, IconDeviceMobile } from '@tabler/icons-vue'
+import { Switch } from '~/components/ui/switch'
+import { notificationTypes } from '~/composables/useNotifications'
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 const { organization, role } = useOrganization()
 const { isDark, toggleTheme } = useTheme()
+const {
+  permission: notifPermission,
+  isSubscribed,
+  isSupported: pushSupported,
+  needsHomescreen,
+  isIOS,
+  loading: notifLoading,
+  error: notifError,
+  subscribe: subscribePush,
+  unsubscribe: unsubscribePush,
+  isTypeEnabled,
+  togglePreference,
+  init: initNotifications,
+} = useNotifications()
+
+// Initialize notifications on client mount
+onMounted(() => { initNotifications() })
+
+// Toggle master push subscription
+async function handlePushToggle(enabled: boolean) {
+  if (enabled) {
+    await subscribePush()
+  } else {
+    await unsubscribePush()
+  }
+}
 
 // ── Profile info ─────────────────────────────────────────────────────────────
 // @nuxtjs/supabase v2 returns JWT claims (sub) not User object (id)
@@ -296,6 +324,99 @@ async function changeEmail() {
               </button>
             </div>
           </div>
+
+          <!-- Push Notifications -->
+          <ClientOnly>
+            <div class="rounded-xl border bg-card p-6 shadow-sm">
+              <div class="mb-5 flex items-center gap-2">
+                <IconBell v-if="isSubscribed" class="size-5 text-primary" />
+                <IconBellOff v-else class="size-5 text-muted-foreground" />
+                <div>
+                  <h2 class="text-lg font-semibold">Push Notifications</h2>
+                  <p class="text-sm text-muted-foreground">
+                    Receive alerts on this device even when the browser is closed.
+                  </p>
+                </div>
+              </div>
+
+              <!-- iOS homescreen guidance -->
+              <div
+                v-if="needsHomescreen"
+                class="mb-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950"
+              >
+                <IconDeviceMobile class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div class="text-sm">
+                  <p class="mb-1 font-medium text-amber-800 dark:text-amber-200">
+                    Add to Home Screen required
+                  </p>
+                  <p class="text-amber-700 dark:text-amber-300">
+                    On iOS, push notifications only work when the app is added to your Home Screen.
+                    Tap the share button
+                    <span class="inline-block rounded bg-amber-200 px-1 text-xs font-semibold dark:bg-amber-800">
+                      &#x2191;
+                    </span>
+                    in Safari, then select <strong>"Add to Home Screen"</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Not supported warning -->
+              <div
+                v-if="!pushSupported && !needsHomescreen"
+                class="mb-5 rounded-lg border border-muted bg-muted/50 p-4 text-sm text-muted-foreground"
+              >
+                Push notifications are not supported in this browser.
+              </div>
+
+              <!-- Permission denied warning -->
+              <div
+                v-if="notifPermission === 'denied'"
+                class="mb-5 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive"
+              >
+                Notification permission was blocked. Please allow notifications in your browser settings, then refresh the page.
+              </div>
+
+              <!-- Error message -->
+              <p v-if="notifError" class="mb-4 text-sm text-destructive">{{ notifError }}</p>
+
+              <!-- Master toggle -->
+              <div class="flex items-center justify-between">
+                <div class="space-y-0.5">
+                  <label class="text-sm font-medium">
+                    Enable on this device
+                  </label>
+                  <p class="text-sm text-muted-foreground">
+                    {{ isSubscribed ? 'Notifications are active' : 'Notifications are off' }}
+                  </p>
+                </div>
+                <Switch
+                  :checked="isSubscribed"
+                  :disabled="notifLoading || !pushSupported || notifPermission === 'denied'"
+                  @update:checked="handlePushToggle"
+                />
+              </div>
+
+              <!-- Per-type toggles (only visible when subscribed) -->
+              <div v-if="isSubscribed" class="mt-6 space-y-4 border-t pt-5">
+                <h3 class="text-sm font-medium text-muted-foreground">Notification types</h3>
+
+                <div
+                  v-for="nt in notificationTypes"
+                  :key="nt.key"
+                  class="flex items-center justify-between"
+                >
+                  <div class="space-y-0.5">
+                    <label class="text-sm font-medium">{{ nt.label }}</label>
+                    <p class="text-sm text-muted-foreground">{{ nt.description }}</p>
+                  </div>
+                  <Switch
+                    :checked="isTypeEnabled(nt.key)"
+                    @update:checked="(val: boolean) => togglePreference(nt.key, val)"
+                  />
+                </div>
+              </div>
+            </div>
+          </ClientOnly>
         </div>
       </div>
 </template>

@@ -285,6 +285,16 @@ POOLER_TENANT_ID=$(generate_hex 8)
 
 success "Generated all secrets"
 
+# ─── VAPID keys for Web Push notifications ──────────────────────────────────
+info "Generating VAPID keys for push notifications..."
+VAPID_PRIVKEY_PEM=$(openssl ecparam -name prime256v1 -genkey -noout 2>/dev/null)
+VAPID_PRIVATE_KEY=$(echo "$VAPID_PRIVKEY_PEM" | openssl ec -noout -text 2>/dev/null \
+  | grep -A3 'priv:' | tail -n+2 | tr -d ' :\n' | xxd -r -p | base64url_encode)
+VAPID_PUBLIC_KEY=$(echo "$VAPID_PRIVKEY_PEM" | openssl ec -pubout -outform DER 2>/dev/null \
+  | tail -c 65 | base64url_encode)
+VAPID_SUBJECT="mailto:admin@${DOMAIN}"
+success "Generated VAPID key pair"
+
 info "Generating JWT keys..."
 
 ANON_KEY=$(generate_jwt "$JWT_SECRET" "anon")
@@ -434,6 +444,14 @@ GOOGLE_PROJECT_NUMBER=GOOGLE_PROJECT_NUMBER
 
 MQTT_HOST=${MQTT_HOST}
 MQTT_WEBHOOK_SECRET=${MQTT_WEBHOOK_SECRET}
+
+##########
+# Push Notifications (VAPID)
+#########
+
+VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+VAPID_SUBJECT=${VAPID_SUBJECT}
 ENVEOF
 
 success ".env written successfully"
@@ -445,6 +463,7 @@ if [ -d "${SCRIPT_DIR}/../management-frontend" ]; then
     cat > "$FRONTEND_ENV" << FEENVEOF
 SUPABASE_URL=${SUPABASE_PUBLIC_URL}
 SUPABASE_KEY=${ANON_KEY}
+VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
 FEENVEOF
     success "management-frontend/.env written"
 else

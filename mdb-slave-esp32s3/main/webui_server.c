@@ -209,6 +209,95 @@ static esp_err_t system_info_get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+static esp_err_t wifi_scan_get_handler(httpd_req_t *req) {
+
+    wifi_scan_config_t scan_cfg = {
+        .ssid        = NULL,
+        .bssid       = NULL,
+        .channel     = 0,
+        .show_hidden = false,
+        .scan_type   = WIFI_SCAN_TYPE_ACTIVE,
+        .scan_time   = { .active = { .min = 100, .max = 300 } },
+    };
+
+    esp_err_t err = esp_wifi_scan_start(&scan_cfg, true);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "WiFi scan failed: %s", esp_err_to_name(err));
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "{\"networks\":[],\"error\":\"scan_failed\"}");
+        return ESP_OK;
+    }
+
+    uint16_t ap_count = 0;
+    esp_wifi_scan_get_ap_num(&ap_count);
+    if (ap_count > 20) ap_count = 20;
+
+    wifi_ap_record_t *ap_records = calloc(ap_count, sizeof(wifi_ap_record_t));
+    if (!ap_records) {
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "{\"networks\":[],\"error\":\"out_of_memory\"}");
+        return ESP_OK;
+    }
+    esp_wifi_scan_get_ap_records(&ap_count, ap_records);
+
+    /* Sort by RSSI descending (simple bubble sort, n<=20) */
+    for (int i = 0; i < ap_count - 1; i++) {
+        for (int j = 0; j < ap_count - i - 1; j++) {
+            if (ap_records[j].rssi < ap_records[j + 1].rssi) {
+                wifi_ap_record_t tmp = ap_records[j];
+                ap_records[j] = ap_records[j + 1];
+                ap_records[j + 1] = tmp;
+            }
+        }
+    }
+
+    /* Build deduplicated JSON array, filtering own AP and hidden networks */
+    cJSON *root = cJSON_CreateObject();
+    cJSON *networks = cJSON_AddArrayToObject(root, "networks");
+
+    char seen_ssids[20][33];
+    int seen_count = 0;
+
+    for (int i = 0; i < ap_count; i++) {
+        const char *ssid = (const char *)ap_records[i].ssid;
+
+        /* Skip empty SSIDs (hidden networks) */
+        if (strlen(ssid) == 0) continue;
+
+        /* Skip own AP */
+        if (strcmp(ssid, AP_SSID) == 0) continue;
+
+        /* Skip duplicates (already sorted by RSSI, first occurrence is strongest) */
+        bool dup = false;
+        for (int s = 0; s < seen_count; s++) {
+            if (strcmp(seen_ssids[s], ssid) == 0) { dup = true; break; }
+        }
+        if (dup) continue;
+
+        if (seen_count < 20) {
+            strncpy(seen_ssids[seen_count], ssid, 32);
+            seen_ssids[seen_count][32] = '\0';
+            seen_count++;
+        }
+
+        cJSON *net = cJSON_CreateObject();
+        cJSON_AddStringToObject(net, "ssid", ssid);
+        cJSON_AddNumberToObject(net, "rssi", ap_records[i].rssi);
+        cJSON_AddBoolToObject(net, "secure", ap_records[i].authmode != WIFI_AUTH_OPEN);
+        cJSON_AddItemToArray(networks, net);
+    }
+
+    free(ap_records);
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json_str, HTTPD_RESP_USE_STRLEN);
+    cJSON_free(json_str);
+    cJSON_Delete(root);
+
+    return ESP_OK;
+}
+
 static esp_err_t captive_handler(httpd_req_t *req) {
     ESP_LOGI(TAG, "Captive portal redirect: %s", req->uri);
     httpd_resp_set_status(req, "302 Found");
@@ -249,11 +338,12 @@ void start_rest_server(void) {
     httpd_start(&rest_server, &config);
 
     static const httpd_uri_t uris[] = {
-        { .uri = "/",                    .method = HTTP_GET,  .handler = index_get_handler      },
-        { .uri = "/api/v1/system/info",  .method = HTTP_GET,  .handler = system_info_get_handler },
-        { .uri = "/api/v1/settings/set", .method = HTTP_POST, .handler = wifi_set_handler        },
-        { .uri = "/generate_204",        .method = HTTP_GET,  .handler = captive_handler         },
-        { .uri = "/hotspot-detect.html", .method = HTTP_GET,  .handler = captive_handler         },
+        { .uri = "/",                    .method = HTTP_GET,  .handler = index_get_handler        },
+        { .uri = "/api/v1/system/info",  .method = HTTP_GET,  .handler = system_info_get_handler  },
+        { .uri = "/api/v1/settings/set", .method = HTTP_POST, .handler = wifi_set_handler         },
+        { .uri = "/api/v1/wifi/scan",    .method = HTTP_GET,  .handler = wifi_scan_get_handler    },
+        { .uri = "/generate_204",        .method = HTTP_GET,  .handler = captive_handler          },
+        { .uri = "/hotspot-detect.html", .method = HTTP_GET,  .handler = captive_handler          },
     };
 
     for (int i = 0; i < sizeof(uris) / sizeof(uris[0]); i++) {

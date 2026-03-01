@@ -464,9 +464,72 @@ docker compose restart functions
 
 ---
 
+## Push Notifications
+
+VMflow supports Web Push notifications via PWA (Progressive Web App). When a sale occurs or stock drops below the refill threshold, subscribed users receive a push notification — even when the browser is closed.
+
+### How It Works
+
+1. **PWA**: The Nuxt frontend registers a service worker and exposes an "Add to Home Screen" flow. On iOS (16.4+), the app **must** be added to the Home Screen for push to work.
+2. **VAPID keys**: The server authenticates with push services (Apple, Google, Mozilla) using a VAPID ECDSA P-256 key pair. Both the public and private keys are stored in `Docker/.env`; the public key is also in `management-frontend/.env`.
+3. **Subscription**: When a user enables notifications in Settings, the browser creates a push subscription (endpoint + encryption keys). This is stored in the `push_subscriptions` table via the `register-push` edge function.
+4. **Dispatch**: The `mqtt-webhook` edge function sends push notifications after recording a sale. It checks each user's `notification_preferences` table — if a user hasn't explicitly disabled a notification type, they receive it.
+
+### VAPID Keys
+
+VAPID keys are **automatically generated** by `setup.sh` during initial setup. For existing production servers, `update.sh` detects missing keys and generates them automatically.
+
+The same `VAPID_PUBLIC_KEY` must be present in both:
+- `Docker/.env` — used by edge functions to sign push messages
+- `management-frontend/.env` — used by the browser to subscribe
+
+**Manual generation** (if needed):
+
+```bash
+# Generate an EC P-256 key pair
+openssl ecparam -name prime256v1 -genkey -noout -out /tmp/vapid.pem
+
+# Extract the private key (base64url-encoded raw 32 bytes)
+openssl ec -in /tmp/vapid.pem -noout -text 2>/dev/null \
+  | grep -A3 'priv:' | tail -n+2 | tr -d ' :\n' \
+  | xxd -r -p | openssl base64 -A | tr '+/' '-_' | tr -d '='
+
+# Extract the public key (base64url-encoded uncompressed 65 bytes)
+openssl ec -in /tmp/vapid.pem -pubout -outform DER 2>/dev/null \
+  | tail -c 65 | openssl base64 -A | tr '+/' '-_' | tr -d '='
+
+rm /tmp/vapid.pem
+```
+
+Set `VAPID_SUBJECT` to a `mailto:` URI (e.g. `mailto:admin@yourdomain.com`).
+
+### Notification Types
+
+| Type | Trigger | Description |
+|------|---------|-------------|
+| `sale` | Every vending sale | Item number, price, and payment channel |
+| `low_stock` | Stock falls at or below `min_stock` | Product name, machine name, remaining count |
+
+New types can be added by:
+1. Adding an entry to `notificationTypes` in `management-frontend/app/composables/useNotifications.ts`
+2. Calling `sendPushToUsers()` with the new type key in the relevant edge function
+
+Users configure their preferences in **Settings > Push Notifications**. All types are enabled by default (opt-out model).
+
+### iOS Requirements
+
+- **iOS 16.4+** required for Web Push support
+- App must be **added to Home Screen** (Settings page shows guidance)
+- Site must be served over **HTTPS**
+- User must grant notification permission when prompted
+
+---
+
 ## Production Checklist
 
 - [ ] All secrets in `.env` are unique, strong, and not the defaults
+- [ ] VAPID keys generated and present in both `Docker/.env` and `management-frontend/.env`
+- [ ] Push notifications tested (subscribe in Settings, trigger a sale, verify push arrives)
 - [ ] `ENABLE_EMAIL_AUTOCONFIRM=false` -- users must verify email
 - [ ] SMTP configured with a real email provider (SendGrid, Mailgun, etc.)
 - [ ] TLS/HTTPS enabled on all public endpoints

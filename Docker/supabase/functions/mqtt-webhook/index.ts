@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { decodeBase64 } from 'jsr:@std/encoding/base64'
+import { sendPushToUsers } from '../_shared/web-push.ts'
 
 function fromScaleFactor(p: number, x: number, y: number): number {
   return p * x * Math.pow(10, -y);
@@ -139,17 +140,67 @@ Deno.serve(async (req) => {
       // 0x21 = CASH_SALE (coin/bill), 0x23 = CARD_SALE (credit card / cashless device #2)
       const channel = cmd === 0x23 ? 'card' : 'cash';
 
+      const salePrice = fromScaleFactor(itemPrice >>> 0, 1, 2);
+
       const { error: insertError } = await adminClient
         .from('sales')
         .insert([{
           owner_id: embedded.owner_id,
           embedded_id: embedded.id,
           item_number: itemNumber,
-          item_price: fromScaleFactor(itemPrice >>> 0, 1, 2),
+          item_price: salePrice,
           channel,
         }]);
 
       if (insertError) throw insertError;
+
+      // ── Push notification dispatch (best-effort, never blocks sale recording) ──
+      try {
+        // 1. Sale notification
+        await sendPushToUsers(adminClient, companyId, 'sale', {
+          title: 'New Sale',
+          body: `Item #${itemNumber} — €${salePrice.toFixed(2)} (${channel})`,
+          data: { type: 'sale', embedded_id: embedded.id },
+        });
+
+        // 2. Low stock check — the decrement_tray_stock trigger has already fired
+        const { data: machine } = await adminClient
+          .from('vendingMachine')
+          .select('id, name')
+          .eq('embedded', embedded.id)
+          .maybeSingle();
+
+        if (machine) {
+          const { data: lowTray } = await adminClient
+            .from('machine_trays')
+            .select('item_number, current_stock, min_stock, product_id')
+            .eq('machine_id', machine.id)
+            .eq('item_number', itemNumber)
+            .gt('min_stock', 0)
+            .maybeSingle();
+
+          if (lowTray && lowTray.current_stock <= lowTray.min_stock) {
+            // Try to get product name
+            let productName = `Item #${itemNumber}`;
+            if (lowTray.product_id) {
+              const { data: product } = await adminClient
+                .from('products')
+                .select('name')
+                .eq('id', lowTray.product_id)
+                .maybeSingle();
+              if (product?.name) productName = product.name;
+            }
+
+            await sendPushToUsers(adminClient, companyId, 'low_stock', {
+              title: 'Low Stock Alert',
+              body: `${productName} in ${machine.name}: ${lowTray.current_stock}/${lowTray.min_stock} remaining`,
+              data: { type: 'low_stock', machine_id: machine.id },
+            });
+          }
+        }
+      } catch (pushErr) {
+        console.error('Push notification error:', pushErr);
+      }
     }
 
     if (eventType === 'paxcounter') {

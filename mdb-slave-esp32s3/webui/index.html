@@ -19,6 +19,31 @@
     button:active{background:#0052a3}
     #status{margin-top:12px;font-size:13px;min-height:18px;text-align:center}
     .ok{color:#198754}.err{color:#dc3545}
+
+    /* WiFi scanner */
+    .wifi-header{display:flex;align-items:center;justify-content:space-between;margin-top:12px;margin-bottom:4px}
+    .wifi-header label{margin:0}
+    .scan-btn{display:inline-block;width:auto;margin:0;padding:4px 12px;font-size:12px;background:#e9ecef;color:#333;border:1px solid #ccc;border-radius:4px;cursor:pointer}
+    .scan-btn:active{background:#d3d6d9}
+    .scan-btn:disabled{opacity:.5;cursor:not-allowed}
+    .wifi-list{max-height:220px;overflow-y:auto;border:1px solid #ddd;border-radius:4px;margin-bottom:4px}
+    .wifi-list:empty::after{content:"No networks found";display:block;text-align:center;padding:16px;color:#888;font-size:13px}
+    .wifi-item{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background .15s}
+    .wifi-item:last-child{border-bottom:none}
+    .wifi-item:hover{background:#f5f8ff}
+    .wifi-item.selected{background:#e8f0fe;font-weight:600}
+    .wifi-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .wifi-lock{font-size:12px;color:#888;flex-shrink:0}
+    .signal-bars{display:flex;align-items:flex-end;gap:1px;height:16px;flex-shrink:0}
+    .signal-bars .bar{width:3px;background:#ccc;border-radius:1px}
+    .signal-bars .bar.active{background:#0066cc}
+    .signal-bars .bar:nth-child(1){height:4px}
+    .signal-bars .bar:nth-child(2){height:8px}
+    .signal-bars .bar:nth-child(3){height:12px}
+    .signal-bars .bar:nth-child(4){height:16px}
+    .manual-toggle{display:inline-block;font-size:12px;color:#0066cc;cursor:pointer;margin-top:2px;border:none;background:none;padding:0;width:auto;text-decoration:underline}
+    .manual-toggle:active{color:#0052a3}
+    .scanning-msg{text-align:center;padding:16px;color:#888;font-size:13px}
   </style>
 </head>
 <body>
@@ -27,8 +52,22 @@
   <h1>VMFlow</h1>
   <p class="sub">Device setup — connect to your network and register with your account</p>
 
-  <label for="wifi_ssid">WiFi Network (SSID)</label>
-  <input id="wifi_ssid" type="text" placeholder="Your WiFi name" autocomplete="off">
+  <!-- WiFi network selector -->
+  <div class="wifi-header">
+    <label>WiFi Network</label>
+    <button class="scan-btn" id="scan_btn" onclick="scanWifi()">Scan</button>
+  </div>
+  <div id="wifi_list_container">
+    <div class="wifi-list" id="wifi_list">
+      <div class="scanning-msg" id="scanning_msg">Scanning…</div>
+    </div>
+    <button class="manual-toggle" onclick="toggleManual()">Enter manually</button>
+  </div>
+  <div id="wifi_manual_container" style="display:none">
+    <input id="wifi_ssid_input" type="text" placeholder="Your WiFi name" autocomplete="off">
+    <button class="manual-toggle" onclick="toggleManual()">Select from list</button>
+  </div>
+  <input type="hidden" id="wifi_ssid">
 
   <label for="wifi_password">WiFi Password</label>
   <input id="wifi_password" type="password" placeholder="WiFi password" autocomplete="off">
@@ -54,24 +93,117 @@
   const $ = id => document.getElementById(id);
 
   const DEFAULTS = { srv_url: 'https://supabase.vmflow.xyz' };
+  let manualMode = false;
+  let selectedSsid = '';
 
   window.addEventListener('DOMContentLoaded', () => {
     fetch('/api/v1/system/info')
       .then(r => r.json())
       .then(d => {
-        $('wifi_ssid').value     = d.wifi_ssid    || '';
+        selectedSsid = d.wifi_ssid || '';
+        $('wifi_ssid').value = selectedSsid;
+        $('wifi_ssid_input').value = selectedSsid;
         $('wifi_password').value = d.wifi_password || '';
         $('srv_url').value       = d.srv_url       || DEFAULTS.srv_url;
+        /* Auto-scan after loading saved settings */
+        scanWifi();
       })
       .catch(() => {
         $('srv_url').value = DEFAULTS.srv_url;
+        scanWifi();
       });
   });
 
+  function scanWifi() {
+    const btn = $('scan_btn');
+    const list = $('wifi_list');
+    btn.disabled = true;
+    btn.textContent = 'Scanning…';
+    list.innerHTML = '<div class="scanning-msg">Scanning…</div>';
+
+    fetch('/api/v1/wifi/scan')
+      .then(r => r.json())
+      .then(d => {
+        renderNetworks(d.networks || []);
+      })
+      .catch(() => {
+        list.innerHTML = '';
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Scan';
+      });
+  }
+
+  function renderNetworks(networks) {
+    const list = $('wifi_list');
+    list.innerHTML = '';
+
+    networks.forEach(net => {
+      const item = document.createElement('div');
+      item.className = 'wifi-item' + (net.ssid === selectedSsid ? ' selected' : '');
+      item.onclick = () => selectNetwork(net.ssid);
+
+      const name = document.createElement('span');
+      name.className = 'wifi-name';
+      name.textContent = net.ssid;
+
+      const lock = document.createElement('span');
+      lock.className = 'wifi-lock';
+      lock.textContent = net.secure ? '\uD83D\uDD12' : '';
+
+      const bars = signalBars(net.rssi);
+
+      item.appendChild(name);
+      item.appendChild(lock);
+      item.appendChild(bars);
+      list.appendChild(item);
+    });
+  }
+
+  function signalBars(rssi) {
+    const level = rssi > -50 ? 4 : rssi > -60 ? 3 : rssi > -70 ? 2 : 1;
+    const container = document.createElement('div');
+    container.className = 'signal-bars';
+    for (let i = 1; i <= 4; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar' + (i <= level ? ' active' : '');
+      container.appendChild(bar);
+    }
+    return container;
+  }
+
+  function selectNetwork(ssid) {
+    selectedSsid = ssid;
+    $('wifi_ssid').value = ssid;
+    $('wifi_ssid_input').value = ssid;
+    /* Update selected state */
+    const items = $('wifi_list').querySelectorAll('.wifi-item');
+    items.forEach(el => {
+      el.className = 'wifi-item' + (el.querySelector('.wifi-name').textContent === ssid ? ' selected' : '');
+    });
+    /* Focus password field for convenience */
+    $('wifi_password').focus();
+  }
+
+  function toggleManual() {
+    manualMode = !manualMode;
+    $('wifi_list_container').style.display = manualMode ? 'none' : '';
+    $('wifi_manual_container').style.display = manualMode ? '' : 'none';
+    if (manualMode) {
+      $('wifi_ssid_input').focus();
+    }
+  }
+
   function saveSettings() {
-    const ssid     = $('wifi_ssid').value.trim();
-    const pass     = $('wifi_password').value;
-    const code     = $('prov_code').value.trim().toUpperCase();
+    /* In manual mode, use the text input value */
+    if (manualMode) {
+      $('wifi_ssid').value = $('wifi_ssid_input').value.trim();
+    }
+
+    const ssid    = $('wifi_ssid').value.trim();
+    const pass    = $('wifi_password').value;
+    const code    = $('prov_code').value.trim().toUpperCase();
     const srvUrl  = $('srv_url').value.trim();
 
     if (!ssid) { setStatus('WiFi SSID is required', false); return; }

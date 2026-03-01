@@ -366,6 +366,9 @@ deno_version = 2
 MQTT_HOST = "env(MQTT_HOST)"
 MQTT_WEBHOOK_SECRET = "env(MQTT_WEBHOOK_SECRET)"
 PUBLIC_SUPABASE_URL = "env(PUBLIC_SUPABASE_URL)"
+VAPID_PUBLIC_KEY = "env(VAPID_PUBLIC_KEY)"
+VAPID_PRIVATE_KEY = "env(VAPID_PRIVATE_KEY)"
+VAPID_SUBJECT = "env(VAPID_SUBJECT)"
 
 [analytics]
 enabled = true
@@ -451,3 +454,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/import-products/deno.json"
 entrypoint = "./functions/import-products/index.ts"
+
+[functions.register-push]
+enabled = true
+verify_jwt = false
+import_map = "./functions/register-push/deno.json"
+entrypoint = "./functions/register-push/index.ts"
