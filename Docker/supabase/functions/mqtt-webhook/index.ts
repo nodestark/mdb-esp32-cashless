@@ -94,12 +94,16 @@ Deno.serve(async (req) => {
     }
 
     if (eventType === 'sale') {
+      const cmd = payload[0];
       const itemPrice =
         (payload[2] << 24) |
         (payload[3] << 16) |
         (payload[4] << 8) |
         payload[5];
       const itemNumber = (payload[6] << 8) | payload[7];
+
+      // 0x21 = CASH_SALE (coin/bill), 0x23 = CARD_SALE (credit card / cashless device #2)
+      const channel = cmd === 0x23 ? 'card' : 'cash';
 
       const { error: insertError } = await adminClient
         .from('sales')
@@ -108,7 +112,7 @@ Deno.serve(async (req) => {
           embedded_id: embedded.id,
           item_number: itemNumber,
           item_price: fromScaleFactor(itemPrice >>> 0, 1, 2),
-          channel: 'mqtt',
+          channel,
         }]);
 
       if (insertError) throw insertError;

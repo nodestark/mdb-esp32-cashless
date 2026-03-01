@@ -223,6 +223,12 @@ void vTaskMdbEvent(void *pvParameters) {
 	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
 
+#ifdef CONFIG_MDB_SNIFF_CASHLESS2
+	// State for passively sniffed Cashless Device #2 (e.g. Nayax credit card terminal)
+	uint16_t sniff_itemPrice = 0;
+	uint16_t sniff_itemNumber = 0;
+#endif
+
 	for (;;) {
 
 		// In the MDB (Multi-Drop Bus) protocol, the last byte of a command or data packet is a checksum.
@@ -556,8 +562,49 @@ void vTaskMdbEvent(void *pvParameters) {
 				// Transmit the prepared payload via bit-banging
 				write_payload_9((uint8_t*) &mdb_payload, available_tx);
 
-			} else {
+			}
+#ifdef CONFIG_MDB_SNIFF_CASHLESS2
+			else if ((coming_read & BIT_ADD_SET) == CONFIG_MDB_SNIFF_CASHLESS2_ADDRESS) {
 
+				// Passively sniff Cashless Device #2 traffic (read-only, never transmit)
+				switch (coming_read & BIT_CMD_SET) {
+				case VEND: {
+					uint8_t checksum_sniff = 0x00;
+					checksum_sniff += coming_read;
+					switch (read_9(&checksum_sniff)) {
+					case VEND_REQUEST: {
+						sniff_itemPrice = (read_9(&checksum_sniff) << 8) | read_9(&checksum_sniff);
+						sniff_itemNumber = (read_9(&checksum_sniff) << 8) | read_9(&checksum_sniff);
+						if (read_9(NULL) != checksum_sniff) continue;
+						ESP_LOGI(TAG, "SNIFF VEND_REQUEST price=%u item=%u", sniff_itemPrice, sniff_itemNumber);
+						break;
+					}
+					case VEND_SUCCESS: {
+						uint16_t sn = (read_9(&checksum_sniff) << 8) | read_9(&checksum_sniff);
+						if (read_9(NULL) != checksum_sniff) continue;
+						if (sn != 0xFFFF) sniff_itemNumber = sn;
+
+						ESP_LOGI(TAG, "SNIFF CARD_SALE price=%u item=%u", sniff_itemPrice, sniff_itemNumber);
+
+						uint8_t payload[19];
+						xorEncodeWithPasskey(0x23, sniff_itemPrice, sniff_itemNumber, 0, (uint8_t*) &payload);
+
+						char topic[128];
+						snprintf(topic, sizeof(topic), "/%s/%s/sale", my_company_id, my_device_id);
+						esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
+						break;
+					}
+					default:
+						break;
+					}
+					break;
+				}
+				default:
+					break;
+				}
+			}
+#endif
+			else {
 				// Not the intended address...
 			}
 		}
@@ -589,7 +636,7 @@ void vTaskMdbEvent(void *pvParameters) {
  *   0x20 CREDIT
  *
  *  MQTT target -> server:
- *   0x21 CASH_SALE | 0x22 PAX_COUNTER
+ *   0x21 CASH_SALE | 0x22 PAX_COUNTER | 0x23 CARD_SALE
  *
  * [ random filler ] + [ structured fields per CMD ] → XOR → obfuscated payload
  */
