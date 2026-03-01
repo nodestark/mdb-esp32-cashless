@@ -15,3 +15,8 @@ kicad/**/*_prl
 .temp
 
 .cache
+
+# Docker runtime data
+Docker/mqtt/data/
+Docker/volumes/db/data/
+Docker/volumes/storage/
