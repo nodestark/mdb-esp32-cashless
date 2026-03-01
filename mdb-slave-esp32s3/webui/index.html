@@ -53,14 +53,14 @@
 <script>
   const $ = id => document.getElementById(id);
 
-  const DEFAULTS = { srv_url: 'http://10.0.1.130:54321' };
+  const DEFAULTS = { srv_url: 'https://supabase.vmflow.xyz' };
 
   window.addEventListener('DOMContentLoaded', () => {
     fetch('/api/v1/system/info')
       .then(r => r.json())
       .then(d => {
-        $('wifi_ssid').value     = d.wifi_ssid    || 'Kerl';
-        $('wifi_password').value = d.wifi_password || 'fourwordsalluppercase';
+        $('wifi_ssid').value     = d.wifi_ssid    || '';
+        $('wifi_password').value = d.wifi_password || '';
         $('srv_url').value       = d.srv_url       || DEFAULTS.srv_url;
       })
       .catch(() => {
