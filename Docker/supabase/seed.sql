@@ -71,7 +71,7 @@ VALUES (
 
 
 -- ─── 4. Embedded device ─────────────────────────────────────────────────────
-INSERT INTO public.embeddeds (id, owner_id, mac_address, status, status_at, passkey, company)
+INSERT INTO public.embeddeds (id, owner_id, mac_address, status, status_at, passkey, company, firmware_version, firmware_build_date)
 VALUES (
   'e8f2e46c-4a97-4fc6-a01d-593e45c97276',
   '7ee6e3e3-bfe1-412c-9c0e-b0d95bf98ac6',
@@ -79,7 +79,9 @@ VALUES (
   'online',
   now(),
   'q7iGs8f>Pn9sxppb0(',
-  'be324c63-5b64-4d83-90e0-ae9f16703a69'
+  'be324c63-5b64-4d83-90e0-ae9f16703a69',
+  '1.0.0',
+  '2026-03-01T10:00:00+01:00'
 );
 
 

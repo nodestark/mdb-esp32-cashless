@@ -106,14 +106,19 @@ function formatCurrency(amount: number | null | undefined) {
                 </CardTitle>
                 <Badge
                   v-if="machine.embeddeds"
-                  :variant="machine.embeddeds.status === 'online' ? 'default' : 'secondary'"
+                  :variant="machine.embeddeds.status === 'online' || machine.embeddeds.status?.startsWith('ota_') ? 'default' : 'secondary'"
                   class="shrink-0"
                 >
                   <span
                     class="mr-1 inline-block h-2 w-2 rounded-full"
-                    :class="machine.embeddeds.status === 'online' ? 'bg-green-400' : 'bg-muted-foreground/50'"
+                    :class="{
+                      'bg-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
+                      'bg-yellow-400': machine.embeddeds.status === 'ota_updating',
+                      'bg-red-400': machine.embeddeds.status === 'ota_failed',
+                      'bg-muted-foreground/50': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
+                    }"
                   />
-                  {{ machine.embeddeds.status }}
+                  {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
                 </Badge>
                 <Badge v-else variant="outline" class="shrink-0">
                   No device

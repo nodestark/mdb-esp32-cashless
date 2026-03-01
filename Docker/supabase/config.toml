@@ -113,7 +113,7 @@ allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
 [storage.buckets.firmware]
 public = true
 file_size_limit = "5MiB"
-allowed_mime_types = ["application/octet-stream"]
+allowed_mime_types = ["application/octet-stream", "application/macbinary"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
@@ -365,6 +365,7 @@ deno_version = 2
 [edge_runtime.secrets]
 MQTT_HOST = "env(MQTT_HOST)"
 MQTT_WEBHOOK_SECRET = "env(MQTT_WEBHOOK_SECRET)"
+PUBLIC_SUPABASE_URL = "env(PUBLIC_SUPABASE_URL)"
 
 [analytics]
 enabled = true

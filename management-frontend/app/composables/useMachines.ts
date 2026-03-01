@@ -6,6 +6,8 @@ interface Embedded {
   status_at: string
   subdomain: number
   mac_address?: string
+  firmware_version?: string
+  firmware_build_date?: string
 }
 
 interface VendingMachine {
@@ -36,7 +38,7 @@ export function useMachines() {
         .from('vendingMachine')
         .select(`
           id, name, location_lat, location_lon, embedded,
-          embeddeds(id, status, status_at, subdomain)
+          embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date)
         `)
 
       if (error) throw error
@@ -144,7 +146,7 @@ export function useMachines() {
     const [allRes, assignedRes] = await Promise.all([
       supabase
         .from('embeddeds')
-        .select('id, mac_address, subdomain, status, status_at'),
+        .select('id, mac_address, subdomain, status, status_at, firmware_version, firmware_build_date'),
       supabase
         .from('vendingMachine')
         .select('embedded')
@@ -192,6 +194,12 @@ export function useMachines() {
           if (machine && machine.embeddeds) {
             machine.embeddeds.status = updated.status
             machine.embeddeds.status_at = updated.status_at
+            if (updated.firmware_version) {
+              machine.embeddeds.firmware_version = updated.firmware_version
+            }
+            if (updated.firmware_build_date) {
+              machine.embeddeds.firmware_build_date = updated.firmware_build_date
+            }
           }
         }
       )

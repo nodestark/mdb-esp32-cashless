@@ -66,8 +66,9 @@ Deno.serve(async (req) => {
     }
 
     // Construct the public download URL for the firmware binary
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const downloadUrl = `${supabaseUrl}/storage/v1/object/public/firmware/${firmware.file_path}`;
+    // Use SUPABASE_PUBLIC_URL so the ESP32 device can reach it (not the internal Docker hostname)
+    const publicUrl = Deno.env.get("PUBLIC_SUPABASE_URL") || Deno.env.get("SUPABASE_PUBLIC_URL") || Deno.env.get("SUPABASE_URL")!;
+    const downloadUrl = `${publicUrl}/storage/v1/object/public/firmware/${firmware.file_path}`;
 
     // Publish OTA command to the device's MQTT topic
     const mqttHost = Deno.env.get("MQTT_HOST") || "mqtt.vmflow.xyz";
