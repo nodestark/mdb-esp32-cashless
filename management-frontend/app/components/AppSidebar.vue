@@ -7,6 +7,7 @@ import {
   IconPackage,
   IconUsers,
   IconDevices,
+  IconCloudUpload,
 } from "@tabler/icons-vue"
 
 import NavMain from '@/components/NavMain.vue'
@@ -49,11 +50,18 @@ const navMain = computed(() => {
   ]
 
   if (role.value === 'admin') {
-    items.push({
-      title: "Devices",
-      url: "/devices",
-      icon: IconCpu,
-    })
+    items.push(
+      {
+        title: "Devices",
+        url: "/devices",
+        icon: IconCpu,
+      },
+      {
+        title: "Firmware",
+        url: "/firmware",
+        icon: IconCloudUpload,
+      },
+    )
   }
 
   return items

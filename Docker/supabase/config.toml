@@ -110,6 +110,11 @@ public = true
 file_size_limit = "2MiB"
 allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
 
+[storage.buckets.firmware]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["application/octet-stream"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
@@ -427,6 +432,12 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/claim-device/deno.json"
 entrypoint = "./functions/claim-device/index.ts"
+
+[functions.trigger-ota]
+enabled = true
+verify_jwt = false
+import_map = "./functions/trigger-ota/deno.json"
+entrypoint = "./functions/trigger-ota/index.ts"
 
 [functions.mqtt-webhook]
 enabled = true

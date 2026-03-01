@@ -35,6 +35,9 @@
 
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
+#include "esp_https_ota.h"
+#include "esp_ota_ops.h"
+#include "esp_app_desc.h"
 #include "cJSON.h"
 
 #define TAG "mdb_cashless"
@@ -86,10 +89,12 @@ EventGroupHandle_t xLedEventGroup;
 
 static bool mqtt_started = false;
 static bool sntp_started = false;
+static bool ota_in_progress = false;
 
 char my_company_id[40];   // UUID from Supabase companies table
 char my_device_id[40];    // UUID from Supabase embeddeds table
 char my_passkey[18];
+static char my_srv_url[128] = {0};  // Backend server URL for OTA downloads
 
 // Defining MDB commands as an enum
 enum MDB_COMMAND_FLOW {
@@ -1276,6 +1281,53 @@ void ble_event_handler(char *ble_payload) {
 	}
 }
 
+/* ---------- OTA firmware update ----------
+ * Spawned as a FreeRTOS task when an OTA command is received via MQTT.
+ * Downloads a firmware binary from the given URL using esp_https_ota,
+ * then reboots into the new firmware.
+ */
+static void ota_update_task(void *arg) {
+    char *url = (char *)arg;
+    ESP_LOGW(TAG, "OTA: starting firmware download from %s", url);
+
+    /* Publish OTA-in-progress status */
+    char topic[128];
+    snprintf(topic, sizeof(topic), "/%s/%s/status", my_company_id, my_device_id);
+    esp_mqtt_client_publish(mqttClient, topic, "ota_updating", 0, 1, 0);
+
+    bool use_tls = (strncmp(url, "https://", 8) == 0);
+
+    esp_http_client_config_t http_cfg = {
+        .url               = url,
+        .crt_bundle_attach = use_tls ? esp_crt_bundle_attach : NULL,
+        .timeout_ms        = 60000,
+        .buffer_size       = 1024,
+        .buffer_size_tx    = 1024,
+    };
+
+    esp_https_ota_config_t ota_cfg = {
+        .http_config = &http_cfg,
+    };
+
+    esp_err_t ret = esp_https_ota(&ota_cfg);
+
+    if (ret == ESP_OK) {
+        ESP_LOGW(TAG, "OTA: firmware update successful — restarting");
+        esp_mqtt_client_publish(mqttClient, topic, "ota_success", 0, 1, 0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        free(url);
+        esp_restart();
+        /* not reached */
+    } else {
+        ESP_LOGE(TAG, "OTA: firmware update failed: %s", esp_err_to_name(ret));
+        esp_mqtt_client_publish(mqttClient, topic, "ota_failed", 0, 1, 0);
+    }
+
+    ota_in_progress = false;
+    free(url);
+    vTaskDelete(NULL);
+}
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
 
 	esp_mqtt_event_handle_t event = event_data;
@@ -1290,10 +1342,19 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		ESP_LOGI(TAG, "MQTT: subscribing to '%s'", topic);
     	esp_mqtt_client_subscribe(mqttClient, topic, 0);
 
+    	char topic_ota[128];
+    	snprintf(topic_ota, sizeof(topic_ota), "/%s/%s/ota", my_company_id, my_device_id);
+		ESP_LOGI(TAG, "MQTT: subscribing to '%s'", topic_ota);
+    	esp_mqtt_client_subscribe(mqttClient, topic_ota, 1);
+
     	char topic_[128];
     	snprintf(topic_, sizeof(topic_), "/%s/%s/status", my_company_id, my_device_id);
-		ESP_LOGI(TAG, "MQTT: publishing 'online' to '%s'", topic_);
-		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 1, 1);
+
+		const esp_app_desc_t *app_desc = esp_app_get_description();
+		char status_msg[64];
+		snprintf(status_msg, sizeof(status_msg), "online|v:%s", app_desc->version);
+		ESP_LOGI(TAG, "MQTT: publishing '%s' to '%s'", status_msg, topic_);
+		esp_mqtt_client_publish(mqttClient, topic_, status_msg, 0, 1, 1);
 
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
@@ -1331,6 +1392,59 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
                 ESP_LOGI( TAG, "Amount= %f", FROM_SCALE_FACTOR(fundsAvailable, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 			}
+		}
+
+		/* OTA firmware update — expects JSON: {"url":"https://server/path/to/firmware.bin"} */
+		if (topic_len > 4 && strncmp(event->topic + event->topic_len - 4, "/ota", 4) == 0) {
+
+		    if (ota_in_progress) {
+		        ESP_LOGW(TAG, "OTA: update already in progress, ignoring");
+		        break;
+		    }
+
+		    /* Null-terminate the incoming data so we can parse it as a string */
+		    char *json_buf = malloc(event->data_len + 1);
+		    if (!json_buf) {
+		        ESP_LOGE(TAG, "OTA: malloc failed");
+		        break;
+		    }
+		    memcpy(json_buf, event->data, event->data_len);
+		    json_buf[event->data_len] = '\0';
+
+		    cJSON *root = cJSON_Parse(json_buf);
+		    free(json_buf);
+
+		    if (!root) {
+		        ESP_LOGE(TAG, "OTA: failed to parse JSON");
+		        break;
+		    }
+
+		    cJSON *j_url = cJSON_GetObjectItem(root, "url");
+		    if (!j_url || !cJSON_IsString(j_url) || strlen(j_url->valuestring) == 0) {
+		        ESP_LOGE(TAG, "OTA: missing or empty 'url' field");
+		        cJSON_Delete(root);
+		        break;
+		    }
+
+		    /* Validate URL starts with the trusted server URL (prevents arbitrary downloads) */
+		    if (strlen(my_srv_url) > 0 && strncmp(j_url->valuestring, my_srv_url, strlen(my_srv_url)) != 0) {
+		        ESP_LOGE(TAG, "OTA: URL '%s' does not match trusted server '%s'", j_url->valuestring, my_srv_url);
+		        cJSON_Delete(root);
+		        break;
+		    }
+
+		    /* Copy URL for the OTA task (freed inside the task) */
+		    char *ota_url = strdup(j_url->valuestring);
+		    cJSON_Delete(root);
+
+		    if (!ota_url) {
+		        ESP_LOGE(TAG, "OTA: strdup failed");
+		        break;
+		    }
+
+		    ESP_LOGW(TAG, "OTA: received update command, URL=%s", ota_url);
+		    ota_in_progress = true;
+		    xTaskCreate(ota_update_task, "ota_update", 8192, ota_url, 5, NULL);
 		}
 
 		break;
@@ -1755,7 +1869,19 @@ void app_main(void) {
             }
         }
 
+        /* Read srv_url for OTA download validation */
+        s_len = sizeof(my_srv_url);
+        if (nvs_get_str(handle, "srv_url", my_srv_url, &s_len) == ESP_OK) {
+            ESP_LOGI(TAG, "NVS: srv_url = %s", my_srv_url);
+        }
+
 		nvs_close(handle);
+	}
+
+	/* Log firmware version at boot */
+	{
+	    const esp_app_desc_t *app_desc = esp_app_get_description();
+	    ESP_LOGW(TAG, "Firmware version: %s (compiled %s %s)", app_desc->version, app_desc->date, app_desc->time);
 	}
 
     //-------------------------- MQTT --------------------------//
