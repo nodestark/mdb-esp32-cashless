@@ -15,6 +15,9 @@ services:
   frontend:
     build:
       context: ../management-frontend
+      args:
+        SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+        SUPABASE_KEY: ${ANON_KEY}
     restart: unless-stopped
     ports:
       - "3000:3000"
