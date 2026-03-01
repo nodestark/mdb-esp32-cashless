@@ -5,6 +5,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const { organization, role } = useOrganization()
 const { products, categories, loading, fetchProducts, createProduct, updateProduct, deleteProduct, uploadProductImage, deleteProductImage, createCategory, deleteCategory } = useProducts()
+const {
+  products: importProducts,
+  parsing: importParsing,
+  importing: importRunning,
+  parseError: importParseError,
+  importResult,
+  parseFile: importParseFile,
+  executeImport: importExecute,
+  toggleAll: importToggleAll,
+  reset: importReset,
+  selectedCount: importSelectedCount,
+  allSelected: importAllSelected,
+} = useImportProducts()
 
 const isAdmin = computed(() => role.value === 'admin')
 
@@ -165,6 +178,61 @@ function formatCurrency(amount: number | null | undefined) {
   if (amount == null) return '—'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
 }
+
+// ── Import modal ────────────────────────────────────────────────────────────
+const showImportModal = ref(false)
+const importStep = ref<1 | 2 | 3>(1)
+
+function openImportModal() {
+  importStep.value = 1
+  importReset()
+  showImportModal.value = true
+}
+
+function closeImportModal() {
+  showImportModal.value = false
+  if (importStep.value === 3 && importResult.value && importResult.value.created > 0) {
+    fetchProducts()
+  }
+}
+
+async function onImportFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  await importParseFile(file)
+  if (importProducts.value.length > 0) {
+    importStep.value = 2
+  }
+}
+
+async function onImportFileDrop(event: DragEvent) {
+  event.preventDefault()
+  const file = event.dataTransfer?.files?.[0]
+  if (!file) return
+  await importParseFile(file)
+  if (importProducts.value.length > 0) {
+    importStep.value = 2
+  }
+}
+
+// Bulk price helpers
+const bulkPrice = ref<number | null>(null)
+const emptyPriceCount = computed(() => importProducts.value.filter(p => p.selected && !p.sellprice).length)
+
+function applyBulkPrice() {
+  if (!bulkPrice.value) return
+  for (const p of importProducts.value) {
+    if (p.selected && !p.sellprice) {
+      p.sellprice = bulkPrice.value
+    }
+  }
+}
+
+async function runImport() {
+  await importExecute()
+  importStep.value = 3
+}
 </script>
 
 <template>
@@ -183,13 +251,20 @@ function formatCurrency(amount: number | null | undefined) {
           <TabsContent value="products" class="mt-4">
             <div class="mb-4 flex items-center justify-between">
               <h2 class="text-base font-medium">All products</h2>
-              <button
-                v-if="isAdmin"
-                class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-                @click="openAddProduct"
-              >
-                Add product
-              </button>
+              <div v-if="isAdmin" class="flex gap-2">
+                <button
+                  class="inline-flex h-9 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors hover:bg-muted"
+                  @click="openImportModal"
+                >
+                  Import
+                </button>
+                <button
+                  class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+                  @click="openAddProduct"
+                >
+                  Add product
+                </button>
+              </div>
             </div>
 
             <div v-if="products.length === 0" class="text-sm text-muted-foreground">No products yet.</div>
@@ -442,6 +517,220 @@ function formatCurrency(amount: number | null | undefined) {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- Import modal -->
+      <div
+        v-if="showImportModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        @click.self="closeImportModal"
+      >
+        <div class="w-full max-w-3xl rounded-xl border bg-card p-6 shadow-lg max-h-[80vh] flex flex-col">
+
+          <!-- Step 1: File upload -->
+          <template v-if="importStep === 1">
+            <h2 class="mb-1 text-lg font-semibold">Import Products</h2>
+            <p class="mb-5 text-sm text-muted-foreground">
+              Upload a Nayax product export (.xlsx). Products, categories, and images will be imported automatically.
+            </p>
+
+            <label
+              class="flex h-40 w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+              @dragover.prevent
+              @drop="onImportFileDrop"
+            >
+              <div class="text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto mb-2 h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                <span v-if="importParsing" class="text-sm">Parsing file…</span>
+                <template v-else>
+                  <span class="text-sm font-medium">Drop .xlsx file here or click to browse</span>
+                  <span class="mt-1 block text-xs">Supports Nayax product exports</span>
+                </template>
+              </div>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                class="hidden"
+                @change="onImportFileSelected"
+              />
+            </label>
+
+            <p v-if="importParseError" class="mt-3 text-sm text-destructive">{{ importParseError }}</p>
+
+            <div class="mt-5 flex justify-end">
+              <button
+                class="inline-flex h-9 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+                @click="closeImportModal"
+              >
+                Cancel
+              </button>
+            </div>
+          </template>
+
+          <!-- Step 2: Preview table -->
+          <template v-else-if="importStep === 2">
+            <div class="mb-4 flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold">Review Products</h2>
+                <p class="text-sm text-muted-foreground">
+                  {{ importSelectedCount }} of {{ importProducts.length }} products selected
+                  <template v-if="emptyPriceCount > 0">
+                    · <span class="text-yellow-600">{{ emptyPriceCount }} without price</span>
+                  </template>
+                </p>
+              </div>
+              <div v-if="emptyPriceCount > 0" class="flex items-center gap-2">
+                <input
+                  v-model.number="bulkPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Price"
+                  class="h-8 w-24 rounded-md border border-input bg-background px-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                <button
+                  class="inline-flex h-8 items-center justify-center rounded-md border px-3 text-xs font-medium hover:bg-muted"
+                  :disabled="!bulkPrice"
+                  @click="applyBulkPrice"
+                >
+                  Fill empty prices
+                </button>
+              </div>
+            </div>
+
+            <div class="flex-1 overflow-auto rounded-md border min-h-0">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-card z-10">
+                  <tr class="border-b bg-muted/50 text-left">
+                    <th class="w-10 px-3 py-2">
+                      <input
+                        type="checkbox"
+                        :checked="importAllSelected"
+                        class="rounded"
+                        @change="importToggleAll(($event.target as HTMLInputElement).checked)"
+                      />
+                    </th>
+                    <th class="px-3 py-2 font-medium">Name</th>
+                    <th class="px-3 py-2 font-medium">Category</th>
+                    <th class="px-3 py-2 font-medium">Price</th>
+                    <th class="w-16 px-3 py-2 font-medium text-center">Image</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(p, i) in importProducts"
+                    :key="i"
+                    class="border-b last:border-0 transition-colors"
+                    :class="p.selected ? 'hover:bg-muted/30' : 'opacity-40'"
+                  >
+                    <td class="px-3 py-2">
+                      <input
+                        v-model="p.selected"
+                        type="checkbox"
+                        class="rounded"
+                      />
+                    </td>
+                    <td class="px-3 py-2 font-medium">{{ p.name }}</td>
+                    <td class="px-3 py-2 text-muted-foreground">{{ p.category_name ?? '—' }}</td>
+                    <td class="px-3 py-1">
+                      <input
+                        v-model.number="p.sellprice"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="—"
+                        class="h-7 w-20 rounded border border-input bg-background px-2 text-sm tabular-nums transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        :class="!p.sellprice ? 'border-yellow-500/50' : ''"
+                      />
+                    </td>
+                    <td class="px-3 py-2 text-center">
+                      <span v-if="p.image_url" class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500/10 text-green-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </span>
+                      <span v-else class="text-xs text-muted-foreground">—</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="mt-4 flex gap-2">
+              <button
+                class="inline-flex h-9 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+                @click="closeImportModal"
+              >
+                Cancel
+              </button>
+              <button
+                class="inline-flex h-9 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+                @click="importStep = 1; importReset()"
+              >
+                Back
+              </button>
+              <div class="flex-1" />
+              <button
+                :disabled="importSelectedCount === 0 || importRunning"
+                class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+                @click="runImport"
+              >
+                <template v-if="importRunning">
+                  <svg class="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                  Importing…
+                </template>
+                <template v-else>
+                  Import {{ importSelectedCount }} products
+                </template>
+              </button>
+            </div>
+          </template>
+
+          <!-- Step 3: Results -->
+          <template v-else>
+            <h2 class="mb-4 text-lg font-semibold">Import Complete</h2>
+
+            <div class="space-y-3">
+              <div class="flex items-center gap-3 rounded-lg border p-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500/10">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div>
+                  <p class="font-medium">{{ importResult?.created ?? 0 }} products created</p>
+                  <p v-if="(importResult?.skipped ?? 0) > 0" class="text-sm text-muted-foreground">
+                    {{ importResult?.skipped }} skipped (already exist)
+                  </p>
+                </div>
+              </div>
+
+              <div v-if="(importResult?.image_errors ?? 0) > 0" class="flex items-center gap-3 rounded-lg border border-yellow-500/30 p-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                </div>
+                <div>
+                  <p class="font-medium">{{ importResult?.image_errors }} image downloads failed</p>
+                  <p class="text-sm text-muted-foreground">Products were created without images</p>
+                </div>
+              </div>
+
+              <details v-if="importResult?.errors?.length" class="rounded-lg border p-4">
+                <summary class="cursor-pointer text-sm font-medium text-muted-foreground">
+                  Show {{ importResult.errors.length }} error details
+                </summary>
+                <ul class="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-muted-foreground">
+                  <li v-for="(err, i) in importResult.errors" :key="i">{{ err }}</li>
+                </ul>
+              </details>
+            </div>
+
+            <div class="mt-5 flex justify-end">
+              <button
+                class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+                @click="closeImportModal"
+              >
+                Done
+              </button>
+            </div>
+          </template>
         </div>
       </div>
 </template>

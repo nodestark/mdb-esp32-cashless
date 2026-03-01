@@ -445,3 +445,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/mqtt-webhook/deno.json"
 entrypoint = "./functions/mqtt-webhook/index.ts"
+
+[functions.import-products]
+enabled = true
+verify_jwt = false
+import_map = "./functions/import-products/deno.json"
+entrypoint = "./functions/import-products/index.ts"
