@@ -198,7 +198,11 @@ void write_9(uint16_t nth9) {
 }
 
 // Function to transmit the payload via bit-banging (using MDB protocol)
+// Switches TX pin to output for the entire payload, then back to high-Z.
 void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
+
+	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
+	gpio_set_level(PIN_MDB_TX, 1);  // idle HIGH before first start bit
 
 	uint8_t checksum = 0x00;
 
@@ -211,6 +215,9 @@ void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 
 	// CHK* ACK*
 	write_9(BIT_MODE_SET | checksum);
+
+	// Release the bus — back to high-Z so we don't interfere with other peripherals
+	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_INPUT);
 }
 
 void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload);
@@ -1751,7 +1758,7 @@ static void factory_reset_task(void *arg) {
 void app_main(void) {
 
     gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
-	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
+	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_INPUT);  // idle: high-Z (tri-state)
 
 	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);
