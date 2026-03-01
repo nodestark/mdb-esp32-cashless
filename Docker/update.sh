@@ -58,8 +58,16 @@ cd "$SCRIPT_DIR"
 # ═══════════════════════════════════════════════════════════════════════════════
 step "Environment Check"
 
-# shellcheck disable=SC1091
-source .env
+# Read env vars safely (values may contain spaces, so we can't just `source .env`)
+while IFS='=' read -r key value; do
+    # Skip comments and blank lines
+    [[ "$key" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "$key" ]] && continue
+    # Trim whitespace from key
+    key=$(echo "$key" | xargs)
+    # Export the variable
+    export "$key=$value"
+done < .env
 
 # ─── VAPID keys (required for push notifications) ────────────────────────────
 if [ -z "${VAPID_PUBLIC_KEY:-}" ] || [ -z "${VAPID_PRIVATE_KEY:-}" ]; then
