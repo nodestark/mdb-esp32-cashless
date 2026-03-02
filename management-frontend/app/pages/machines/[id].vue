@@ -682,7 +682,7 @@ function stockColor(tray: any) {
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+  <div class="flex flex-1 flex-col gap-6 overflow-x-hidden p-4 md:p-6">
         <div v-if="loading" class="text-muted-foreground">Loading…</div>
         <div v-else-if="errorMsg" class="text-destructive">{{ errorMsg }}</div>
         <template v-else-if="machine">
@@ -728,14 +728,14 @@ function stockColor(tray: any) {
                     {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
                   </span>
                 </div>
-                <p class="mt-1 text-xs text-muted-foreground">
+                <p class="mt-1 truncate text-xs text-muted-foreground">
                   {{ machine.embeddeds.mac_address ?? `Subdomain ${machine.embeddeds.subdomain}` }}
                   <template v-if="machine.embeddeds.firmware_version">
                     <span class="ml-1 font-mono">v{{ machine.embeddeds.firmware_version }}</span>
                     <span v-if="machine.embeddeds.firmware_build_date" class="hidden sm:inline ml-1">(built {{ new Date(machine.embeddeds.firmware_build_date).toLocaleString() }})</span>
                   </template>
                 </p>
-                <p class="text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
+                <p class="truncate text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
                 <div v-if="isAdmin" class="mt-2 flex justify-end gap-2">
                   <button
                     class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
@@ -880,7 +880,7 @@ function stockColor(tray: any) {
                   <div
                     v-for="item in packingList"
                     :key="item.name"
-                    class="inline-flex items-center gap-2 rounded-full bg-white/70 py-1 pl-1 pr-3 text-sm shadow-sm dark:bg-black/20"
+                    class="inline-flex max-w-full items-center gap-2 rounded-full bg-white/70 py-1 pl-1 pr-3 text-sm shadow-sm dark:bg-black/20"
                   >
                     <img
                       v-if="item.image_url"
@@ -891,7 +891,7 @@ function stockColor(tray: any) {
                     <div v-else class="flex h-6 w-6 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-700 dark:bg-amber-800 dark:text-amber-200">
                       {{ item.name.charAt(0) }}
                     </div>
-                    <span class="font-medium text-amber-900 dark:text-amber-100">{{ item.name }}</span>
+                    <span class="truncate font-medium text-amber-900 dark:text-amber-100">{{ item.name }}</span>
                     <span class="rounded-full bg-amber-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">{{ item.needed }}</span>
                   </div>
                 </div>

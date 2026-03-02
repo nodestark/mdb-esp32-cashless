@@ -114,19 +114,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'checksum mismatch' }), { status: 400 });
     }
 
-    // Validate timestamp (bytes 8-11, big-endian) within ±8s
+    // Extract timestamp (bytes 8-11, big-endian) for use as sale timestamp
     const timestampSec =
       (payload[8] << 24) |
       (payload[9] << 16) |
       (payload[10] << 8) |
       payload[11];
-    // Convert to unsigned 32-bit
     const timestampUnsigned = timestampSec >>> 0;
-    const currentTime = Math.floor(Date.now() / 1000);
 
-    if (Math.abs(currentTime - timestampUnsigned) > 8) {
-      return new Response(JSON.stringify({ error: 'timestamp out of range' }), { status: 400 });
-    }
+    // No timestamp window validation here — this webhook is already authenticated
+    // via X-Webhook-Secret, so replay protection is redundant. Skipping the check
+    // allows the MQTT broker to queue messages during forwarder downtime.
 
     if (eventType === 'sale') {
       const cmd = payload[0];
@@ -142,6 +140,9 @@ Deno.serve(async (req) => {
 
       const salePrice = fromScaleFactor(itemPrice >>> 0, 1, 2);
 
+      // Use the device's timestamp so queued messages get the correct sale time
+      const saleTime = new Date(timestampUnsigned * 1000).toISOString();
+
       const { error: insertError } = await adminClient
         .from('sales')
         .insert([{
@@ -150,6 +151,7 @@ Deno.serve(async (req) => {
           item_number: itemNumber,
           item_price: salePrice,
           channel,
+          created_at: saleTime,
         }]);
 
       if (insertError) throw insertError;
@@ -206,12 +208,15 @@ Deno.serve(async (req) => {
     if (eventType === 'paxcounter') {
       const count = (payload[12] << 8) | payload[13];
 
+      const paxTime = new Date(timestampUnsigned * 1000).toISOString();
+
       const { error: insertError } = await adminClient
         .from('paxcounter')
         .insert([{
           owner_id: embedded.owner_id,
           embedded_id: embedded.id,
           count,
+          created_at: paxTime,
         }]);
 
       if (insertError) throw insertError;

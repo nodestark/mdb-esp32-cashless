@@ -7,6 +7,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar'
 
 interface NavItem {
@@ -18,6 +19,14 @@ interface NavItem {
 defineProps<{
   items: NavItem[]
 }>()
+
+const { isMobile, setOpenMobile } = useSidebar()
+
+function handleNavClick() {
+  if (isMobile.value) {
+    setOpenMobile(false)
+  }
+}
 </script>
 
 <template>
@@ -26,7 +35,7 @@ defineProps<{
       <SidebarMenu>
         <SidebarMenuItem v-for="item in items" :key="item.title">
           <SidebarMenuButton as-child :tooltip="item.title">
-            <NuxtLink :to="item.url">
+            <NuxtLink :to="item.url" @click="handleNavClick">
               <component :is="item.icon" v-if="item.icon" />
               <span>{{ item.title }}</span>
             </NuxtLink>

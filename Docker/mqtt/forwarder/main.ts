@@ -10,15 +10,22 @@ const WEBHOOK_SECRET = Deno.env.get("MQTT_WEBHOOK_SECRET") ?? "";
 const topics = ["/+/+/sale", "/+/+/status", "/+/+/paxcounter"];
 
 const client = mqtt.connect(`mqtt://${MQTT_HOST}:1883`, {
+  clientId: "vmflow-forwarder",
+  clean: false, // persistent session — broker queues QoS 1 messages while we're offline
   reconnectPeriod: 5000,
 });
 
-client.on("connect", () => {
-  console.log(`Connected to mqtt://${MQTT_HOST}:1883`);
-  client.subscribe(topics, (err) => {
-    if (err) console.error("Subscribe error:", err);
-    else console.log("Subscribed to:", topics.join(", "));
-  });
+client.on("connect", (connack: { sessionPresent: boolean }) => {
+  console.log(`Connected to mqtt://${MQTT_HOST}:1883 (session present: ${connack.sessionPresent})`);
+  if (!connack.sessionPresent) {
+    // First connect or broker lost our session — need to subscribe
+    client.subscribe(topics, { qos: 1 }, (err) => {
+      if (err) console.error("Subscribe error:", err);
+      else console.log("Subscribed to:", topics.join(", "));
+    });
+  } else {
+    console.log("Resuming existing session, subscriptions already active");
+  }
 });
 
 client.on("message", async (topic: string, payload: Buffer) => {
