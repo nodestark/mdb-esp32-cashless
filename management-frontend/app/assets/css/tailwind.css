@@ -118,3 +118,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Prevent iOS Safari auto-zoom on input focus (triggers at < 16px) */
+/* Placed outside @layer so it overrides Tailwind utility classes */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
