@@ -63,8 +63,8 @@ Deno.serve(async (req) => {
           passkey: existing.passkey,
           mqtt_host: Deno.env.get('MQTT_PUBLIC_HOST') ?? 'mqtt.vmflow.xyz',
           mqtt_port: Deno.env.get('MQTT_PUBLIC_PORT') ?? '1883',
-          mqtt_user: Deno.env.get('MQTT_DEVICE_USER') ?? 'vmflow',
-          mqtt_pass: Deno.env.get('MQTT_DEVICE_PASS') ?? 'vmflow',
+          mqtt_user: 'vmflow',
+          mqtt_pass: 'vmflow',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
@@ -126,8 +126,8 @@ Deno.serve(async (req) => {
         passkey,
         mqtt_host: Deno.env.get('MQTT_PUBLIC_HOST') ?? 'mqtt.vmflow.xyz',
         mqtt_port: Deno.env.get('MQTT_PUBLIC_PORT') ?? '1883',
-        mqtt_user: Deno.env.get('MQTT_DEVICE_USER') ?? 'vmflow',
-        mqtt_pass: Deno.env.get('MQTT_DEVICE_PASS') ?? 'vmflow',
+        mqtt_user: 'vmflow',
+        mqtt_pass: 'vmflow',
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )

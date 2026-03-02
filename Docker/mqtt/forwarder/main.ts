@@ -2,8 +2,8 @@ import mqtt from "npm:mqtt@5";
 import { encodeBase64 } from "jsr:@std/encoding/base64";
 
 const MQTT_HOST = Deno.env.get("MQTT_HOST") ?? "broker";
-const MQTT_USER = Deno.env.get("MQTT_FORWARDER_USER") ?? "forwarder";
-const MQTT_PASS = Deno.env.get("MQTT_FORWARDER_PASS") ?? "";
+const MQTT_USER = Deno.env.get("MQTT_ADMIN_USER") ?? "admin";
+const MQTT_PASS = Deno.env.get("MQTT_ADMIN_PASS") ?? "admin";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const WEBHOOK_SECRET = Deno.env.get("MQTT_WEBHOOK_SECRET") ?? "";
 

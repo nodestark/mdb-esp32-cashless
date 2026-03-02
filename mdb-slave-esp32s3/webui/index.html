@@ -45,10 +45,6 @@
     .manual-toggle:active{color:#0052a3}
     .scanning-msg{text-align:center;padding:16px;color:#888;font-size:13px}
 
-    /* QR scanner */
-    .qr-btn{width:100%;margin-top:8px;padding:10px;background:#198754;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer}
-    .qr-btn:active{background:#146c43}
-    #qr_file{display:none}
   </style>
 </head>
 <body>
@@ -79,10 +75,6 @@
 
   <hr class="divider">
 
-  <button class="qr-btn" id="qr_btn" onclick="$('qr_file').click()">Scan QR Code</button>
-  <input type="file" id="qr_file" accept="image/*" capture="environment" onchange="handleQrFile(this)">
-  <p class="hint">Take a photo of the QR code from the management dashboard</p>
-
   <label>Provisioning Code
     <span class="hint" style="font-weight:normal"> — from the management dashboard</span>
   </label>
@@ -98,7 +90,6 @@
   <div id="status"></div>
 </div>
 
-<script src="/jsqr.min.js"></script>
 <script>
   const $ = id => document.getElementById(id);
 
@@ -243,41 +234,6 @@
     el.className = ok === true ? 'ok' : ok === false ? 'err' : '';
   }
 
-  /* ── QR Code Scanner (file input + jsQR) ── */
-  function handleQrFile(input) {
-    const file = input.files[0];
-    if (!file) return;
-    setStatus('Decoding QR…', null);
-    const reader = new FileReader();
-    reader.onload = function() {
-      const img = new Image();
-      img.onload = function() {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, canvas.width, canvas.height);
-        if (code) {
-          try {
-            const d = JSON.parse(code.data);
-            if (d.code) $('prov_code').value = d.code;
-            if (d.srv_url) $('srv_url').value = d.srv_url;
-            setStatus('QR code scanned!', true);
-          } catch {
-            $('prov_code').value = code.data.trim();
-            setStatus('QR code scanned (code only)', true);
-          }
-        } else {
-          setStatus('No QR code found in image. Try again.', false);
-        }
-        input.value = '';
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  }
 </script>
 </body>
 </html>

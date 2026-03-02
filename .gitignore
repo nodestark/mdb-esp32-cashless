@@ -18,8 +18,11 @@ Docker/vuejs/package-lock.json
 
 .cache
 
-# Docker runtime data
+.claude
+
+# Docker runtime data (secrets)
 Docker/.env
+Docker/supabase/.env
 Docker/mqtt/data/
 Docker/volumes/db/data/
 Docker/volumes/storage/

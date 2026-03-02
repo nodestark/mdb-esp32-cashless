@@ -1,5 +1,5 @@
 # =============================================================================
-# MQTT ACL — Least-privilege access per client role
+# MQTT ACL — Two-user model
 # Topic pattern: /{company_id}/{device_id}/{event}
 # =============================================================================
 
@@ -13,19 +13,7 @@ topic write /+/+/dex
 topic read  /+/+/credit
 topic read  /+/+/ota
 
-# --- Forwarder (MQTT→Supabase bridge) ----------------------------------------
-# Read-only: forwards sale, status, paxcounter to the webhook
-user forwarder
-topic read /+/+/sale
-topic read /+/+/status
-topic read /+/+/paxcounter
-
-# --- Backend (edge functions: send-credit, trigger-ota) ----------------------
-# Write-only: sends commands to devices
-user backend
-topic write /+/+/credit
-topic write /+/+/ota
-
-# --- Admin (debugging / maintenance) ----------------------------------------
+# --- Admin (forwarder, edge functions, debugging) ----------------------------
+# Full access to all topics
 user admin
 topic readwrite /+/+/#

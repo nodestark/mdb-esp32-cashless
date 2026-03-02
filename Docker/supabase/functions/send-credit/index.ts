@@ -130,8 +130,8 @@ Deno.serve(async (req) => {
     }
 
     const mqttHost = Deno.env.get('MQTT_HOST') ?? 'mqtt.vmflow.xyz'
-    const mqttUser = Deno.env.get('MQTT_BACKEND_USER') ?? 'backend'
-    const mqttPass = Deno.env.get('MQTT_BACKEND_PASS') ?? ''
+    const mqttUser = Deno.env.get('MQTT_ADMIN_USER') ?? 'admin'
+    const mqttPass = Deno.env.get('MQTT_ADMIN_PASS') ?? 'admin'
     const client = new Client({ url: `mqtt://${mqttUser}:${mqttPass}@${mqttHost}` });
     await client.connect();
     await client.publish(`/${embeddedData.company}/${embeddedData.id}/credit`, payload);
