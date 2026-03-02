@@ -39,13 +39,19 @@ services:
     volumes:
       - ./mqtt/config:/mosquitto/config
       - ./mqtt/data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-p", "1883", "-u", "vmflow", "-P", "vmflow", "-t", "/healthcheck/ping/status", "-m", "ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
 
   forwarder:
     build:
       context: ./mqtt/forwarder
     restart: unless-stopped
     depends_on:
-      - broker
+      broker:
+        condition: service_healthy
     environment:
       MQTT_HOST: broker
       MQTT_ADMIN_USER: ${MQTT_ADMIN_USER:-admin}

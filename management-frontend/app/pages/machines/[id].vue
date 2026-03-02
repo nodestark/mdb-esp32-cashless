@@ -25,7 +25,7 @@ onMounted(async () => {
   try {
     const { data: machineData, error: machineError } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address)')
       .eq('id', id)
       .single()
 
@@ -92,6 +92,9 @@ onMounted(async () => {
               }
               if (payload.new.firmware_build_date) {
                 machine.value.embeddeds.firmware_build_date = payload.new.firmware_build_date
+              }
+              if (payload.new.mdb_address !== undefined) {
+                machine.value.embeddeds.mdb_address = payload.new.mdb_address
               }
             }
           }
@@ -214,7 +217,7 @@ async function submitDeviceSwap() {
     // Re-fetch machine to get updated embeddeds join
     const { data } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address)')
       .eq('id', machine.value.id)
       .single()
     if (data) machine.value = data
@@ -232,7 +235,7 @@ async function detachDevice() {
     await swapDevice(machine.value.id, null)
     const { data } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address)')
       .eq('id', machine.value.id)
       .single()
     if (data) machine.value = data
@@ -292,6 +295,39 @@ async function submitCredit() {
     creditError.value = err instanceof Error ? err.message : 'Failed to send credit'
   } finally {
     creditLoading.value = false
+  }
+}
+
+// ── MDB Address config ──────────────────────────────────────────────────────
+const mdbAddressLoading = ref(false)
+const mdbAddressError = ref('')
+
+async function setMdbAddress(address: 1 | 2) {
+  if (!machine.value?.embeddeds?.id) return
+  if ((machine.value.embeddeds as any).mdb_address === address) return
+
+  mdbAddressLoading.value = true
+  mdbAddressError.value = ''
+  try {
+    const session = useSupabaseSession()
+    const token = session.value?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const { data, error } = await useFetch('/functions/v1/send-device-config', {
+      baseURL: useRuntimeConfig().public.supabase.url,
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: { device_id: machine.value.embeddeds.id, config: { mdb_address: address } },
+    })
+
+    if (error.value) throw new Error((error.value as any).data?.error ?? error.value.message ?? 'Failed to update config')
+
+    // Optimistically update the local state
+    ;(machine.value.embeddeds as any).mdb_address = address
+  } catch (err: unknown) {
+    mdbAddressError.value = err instanceof Error ? err.message : 'Failed to update MDB address'
+  } finally {
+    mdbAddressLoading.value = false
   }
 }
 
@@ -721,6 +757,39 @@ function stockColor(tray: any) {
                   </template>
                 </p>
                 <p class="truncate text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
+                <!-- MDB Bus Address -->
+                <div class="mt-2 flex items-center gap-2">
+                  <span class="text-xs text-muted-foreground">MDB Address:</span>
+                  <template v-if="isAdmin">
+                    <div class="inline-flex rounded-md border">
+                      <button
+                        class="px-2.5 py-1 text-xs font-medium transition-colors rounded-l-md"
+                        :class="((machine.embeddeds as any).mdb_address ?? 1) === 1
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-muted'"
+                        :disabled="mdbAddressLoading"
+                        @click="setMdbAddress(1)"
+                      >
+                        #1 (0x10)
+                      </button>
+                      <button
+                        class="px-2.5 py-1 text-xs font-medium transition-colors rounded-r-md border-l"
+                        :class="(machine.embeddeds as any).mdb_address === 2
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-muted'"
+                        :disabled="mdbAddressLoading"
+                        @click="setMdbAddress(2)"
+                      >
+                        #2 (0x60)
+                      </button>
+                    </div>
+                    <span v-if="mdbAddressLoading" class="text-xs text-muted-foreground">Sending...</span>
+                  </template>
+                  <span v-else class="text-xs font-medium">
+                    Device #{{ (machine.embeddeds as any).mdb_address ?? 1 }} ({{ ((machine.embeddeds as any).mdb_address ?? 1) === 1 ? '0x10' : '0x60' }})
+                  </span>
+                </div>
+                <p v-if="mdbAddressError" class="text-xs text-destructive mt-1">{{ mdbAddressError }}</p>
                 <div v-if="isAdmin" class="mt-2 flex justify-end gap-2">
                   <button
                     class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"

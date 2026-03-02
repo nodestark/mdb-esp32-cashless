@@ -447,6 +447,12 @@ verify_jwt = false
 import_map = "./functions/trigger-ota/deno.json"
 entrypoint = "./functions/trigger-ota/index.ts"
 
+[functions.send-device-config]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-device-config/deno.json"
+entrypoint = "./functions/send-device-config/index.ts"
+
 [functions.mqtt-webhook]
 enabled = true
 verify_jwt = false

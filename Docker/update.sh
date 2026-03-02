@@ -227,8 +227,11 @@ docker compose build forwarder
 success "Forwarder image built"
 
 # Restart services that use the new images (--force-recreate ensures new .env values are picked up)
+# Note: broker is NOT recreated here to preserve persistent MQTT sessions and avoid
+# race conditions (devices send "online" status before forwarder reconnects).
+# To restart the broker, run: docker compose restart broker
 info "Restarting updated services..."
-docker compose up -d --no-deps --force-recreate frontend broker forwarder
+docker compose up -d --no-deps --force-recreate frontend forwarder
 
 # Recreate edge functions (picks up new env vars + function code from volume mount)
 info "Recreating edge functions..."

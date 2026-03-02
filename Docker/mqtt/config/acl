@@ -12,6 +12,7 @@ topic write /+/+/paxcounter
 topic write /+/+/dex
 topic read  /+/+/credit
 topic read  /+/+/ota
+topic read  /+/+/config
 
 # --- Admin (forwarder, edge functions, debugging) ----------------------------
 # Full access to all topics

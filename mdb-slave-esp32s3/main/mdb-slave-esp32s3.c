@@ -97,6 +97,12 @@ char my_device_id[40];    // UUID from Supabase embeddeds table
 char my_passkey[18];
 static char my_srv_url[128] = {0};  // Backend server URL for OTA downloads
 
+// MDB address — initialised from Kconfig, overridden by NVS at boot
+static uint8_t cashless_device_address = CONFIG_CASHLESS_DEVICE_ADDRESS;
+#ifdef CONFIG_MDB_SNIFF_OTHER_CASHLESS
+static uint8_t mdb_sniff_address = CONFIG_MDB_SNIFF_ADDRESS;
+#endif
+
 // Defining MDB commands as an enum
 enum MDB_COMMAND_FLOW {
 	RESET       = 0x00,
@@ -258,7 +264,7 @@ void vTaskMdbEvent(void *pvParameters) {
 				// RET
 			} else if ((uint8_t) coming_read == NAK) {
 				// NAK
-			} else if ((coming_read & BIT_ADD_SET) == CONFIG_CASHLESS_DEVICE_ADDRESS) {
+			} else if ((coming_read & BIT_ADD_SET) == cashless_device_address) {
 
 				// Reset transmission availability
 				available_tx = 0;
@@ -577,7 +583,7 @@ void vTaskMdbEvent(void *pvParameters) {
 
 			}
 #ifdef CONFIG_MDB_SNIFF_OTHER_CASHLESS
-			else if ((coming_read & BIT_ADD_SET) == CONFIG_MDB_SNIFF_ADDRESS) {
+			else if ((coming_read & BIT_ADD_SET) == mdb_sniff_address) {
 
 				// Passively sniff Cashless Device #2 traffic (read-only, never transmit)
 				switch (coming_read & BIT_CMD_SET) {
@@ -1355,6 +1361,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		ESP_LOGI(TAG, "MQTT: subscribing to '%s'", topic_ota);
     	esp_mqtt_client_subscribe(mqttClient, topic_ota, 1);
 
+    	char topic_config[128];
+    	snprintf(topic_config, sizeof(topic_config), "/%s/%s/config", my_company_id, my_device_id);
+		ESP_LOGI(TAG, "MQTT: subscribing to '%s'", topic_config);
+    	esp_mqtt_client_subscribe(mqttClient, topic_config, 1);
+
     	char topic_[128];
     	snprintf(topic_, sizeof(topic_), "/%s/%s/status", my_company_id, my_device_id);
 
@@ -1453,6 +1464,53 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		    ESP_LOGW(TAG, "OTA: received update command, URL=%s", ota_url);
 		    ota_in_progress = true;
 		    xTaskCreate(ota_update_task, "ota_update", 8192, ota_url, 5, NULL);
+		}
+
+		/* Device config — expects JSON: {"mdb_address": 1} or {"mdb_address": 2} */
+		if (topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/config", 7) == 0) {
+
+		    char *json_buf = malloc(event->data_len + 1);
+		    if (!json_buf) {
+		        ESP_LOGE(TAG, "CONFIG: malloc failed");
+		        break;
+		    }
+		    memcpy(json_buf, event->data, event->data_len);
+		    json_buf[event->data_len] = '\0';
+
+		    cJSON *root = cJSON_Parse(json_buf);
+		    free(json_buf);
+
+		    if (!root) {
+		        ESP_LOGE(TAG, "CONFIG: failed to parse JSON");
+		        break;
+		    }
+
+		    bool needs_restart = false;
+
+		    cJSON *j_mdb = cJSON_GetObjectItem(root, "mdb_address");
+		    if (j_mdb && cJSON_IsNumber(j_mdb)) {
+		        int addr = j_mdb->valueint;
+		        if (addr == 1 || addr == 2) {
+		            nvs_handle_t h;
+		            if (nvs_open("vmflow", NVS_READWRITE, &h) == ESP_OK) {
+		                nvs_set_u8(h, "mdb_addr", (uint8_t) addr);
+		                nvs_commit(h);
+		                nvs_close(h);
+		                ESP_LOGW(TAG, "CONFIG: mdb_address set to %d, restart required", addr);
+		                needs_restart = true;
+		            }
+		        } else {
+		            ESP_LOGE(TAG, "CONFIG: invalid mdb_address %d (must be 1 or 2)", addr);
+		        }
+		    }
+
+		    cJSON_Delete(root);
+
+		    if (needs_restart) {
+		        ESP_LOGW(TAG, "CONFIG: restarting to apply new configuration...");
+		        vTaskDelay(pdMS_TO_TICKS(500));
+		        esp_restart();
+		    }
 		}
 
 		break;
@@ -1885,6 +1943,32 @@ void app_main(void) {
         s_len = sizeof(my_srv_url);
         if (nvs_get_str(handle, "srv_url", my_srv_url, &s_len) == ESP_OK) {
             ESP_LOGI(TAG, "NVS: srv_url = %s", my_srv_url);
+        }
+
+        /* Read MDB device address from NVS (1 = 0x10, 2 = 0x60); fall back to Kconfig default */
+        {
+            uint8_t nvs_mdb_addr = 0;
+            if (nvs_get_u8(handle, "mdb_addr", &nvs_mdb_addr) == ESP_OK) {
+                if (nvs_mdb_addr == 1) {
+                    cashless_device_address = 16;   /* 0x10 */
+#ifdef CONFIG_MDB_SNIFF_OTHER_CASHLESS
+                    mdb_sniff_address = 96;         /* 0x60 */
+#endif
+                } else if (nvs_mdb_addr == 2) {
+                    cashless_device_address = 96;   /* 0x60 */
+#ifdef CONFIG_MDB_SNIFF_OTHER_CASHLESS
+                    mdb_sniff_address = 16;         /* 0x10 */
+#endif
+                }
+                ESP_LOGI(TAG, "NVS: mdb_addr = %u (cashless=0x%02X, sniff=0x%02X)",
+                         nvs_mdb_addr, cashless_device_address,
+#ifdef CONFIG_MDB_SNIFF_OTHER_CASHLESS
+                         mdb_sniff_address
+#else
+                         0
+#endif
+                );
+            }
         }
 
 		nvs_close(handle);
