@@ -4,6 +4,7 @@ definePageMeta({ middleware: 'auth' })
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
 import { IconCreditCard, IconCoins, IconSend } from '@tabler/icons-vue'
+import { timeAgo, formatCurrency } from '@/lib/utils'
 
 const route = useRoute()
 const supabase = useSupabaseClient()
@@ -127,22 +128,6 @@ type ChartPoint = { date: Date; total: number }
 function formatDate(dt: string | null | undefined) {
   if (!dt) return '—'
   return new Date(dt).toLocaleString()
-}
-
-function formatCurrency(amount: number | null | undefined) {
-  if (amount == null) return '—'
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
-}
-
-function timeAgo(dt: string) {
-  const diff = Date.now() - new Date(dt).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  return `${days}d ago`
 }
 
 // Map item_number → product info from trays

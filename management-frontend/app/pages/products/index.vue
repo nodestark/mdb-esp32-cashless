@@ -2,6 +2,7 @@
 definePageMeta({ middleware: 'auth' })
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { formatCurrency } from '@/lib/utils'
 
 const { organization, role } = useOrganization()
 const { products, categories, loading, fetchProducts, createProduct, updateProduct, deleteProduct, uploadProductImage, deleteProductImage, createCategory, deleteCategory } = useProducts()
@@ -172,11 +173,6 @@ async function handleDeleteCategory(id: string) {
   } catch (err: unknown) {
     // silent
   }
-}
-
-function formatCurrency(amount: number | null | undefined) {
-  if (amount == null) return '—'
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
 }
 
 // ── Import modal ────────────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
+import { timeAgo } from '@/lib/utils'
+
 const { role } = useOrganization()
 const { firmwareVersions, loading, fetchFirmwareVersions, uploadFirmware, triggerOta, deleteFirmwareVersion } = useFirmware()
 const { machines, fetchMachines } = useMachines()
@@ -126,16 +128,7 @@ function formatDate(dt: string) {
   return new Date(dt).toLocaleString()
 }
 
-function timeAgo(dt: string) {
-  const diff = Date.now() - new Date(dt).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  return `${days}d ago`
-}
+
 </script>
 
 <template>

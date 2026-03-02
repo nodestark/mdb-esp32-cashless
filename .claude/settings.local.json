@@ -14,7 +14,11 @@
       "Bash(test -d /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/volumes/db/data)",
       "Bash(node --version)",
       "Bash(npm --version)",
-      "Bash(npm install qrcode)"
+      "Bash(npm install qrcode)",
+      "Bash(git fetch origin main)",
+      "WebFetch(domain:app.kerl-handel.de)",
+      "WebFetch(domain:supabase.kerl-handel.de)",
+      "Bash(ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzcyMzc3NzY3LCJleHAiOjIwODc3Mzc3Njd9.5Mu3-BgmHhekSP6vm0W20iwwT3mOjcYQPjO9b-oqgwA\")"
     ]
   }
 }

@@ -261,8 +261,7 @@ export function useMachines() {
           }
         }
       )
-      .subscribe((status, err) => {
-        console.log('[realtime] machines channel status:', status)
+      .subscribe((_status, err) => {
         if (err) console.error('[realtime] machines channel error:', err)
       })
 

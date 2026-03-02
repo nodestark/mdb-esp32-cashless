@@ -75,8 +75,7 @@ onMounted(async () => {
         totalMachines.value++
       }
     )
-    .subscribe((status, err) => {
-      console.log('[realtime] dashboard channel status:', status)
+    .subscribe((_status, err) => {
       if (err) console.error('[realtime] dashboard channel error:', err)
     })
 

@@ -1,8 +1,6 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
 import * as jose from 'https://deno.land/x/jose@v4.14.4/index.ts'
 
-console.log('main function started')
-
 const JWT_SECRET = Deno.env.get('JWT_SECRET')
 const VERIFY_JWT = Deno.env.get('VERIFY_JWT') === 'true'
 
@@ -65,7 +63,6 @@ serve(async (req: Request) => {
   }
 
   const servicePath = `/home/deno/functions/${service_name}`
-  console.error(`serving the request with ${servicePath}`)
 
   const memoryLimitMb = 150
   const workerTimeoutMs = 1 * 60 * 1000

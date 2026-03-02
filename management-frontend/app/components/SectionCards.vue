@@ -2,6 +2,7 @@
 import { IconTrendingUp } from "@tabler/icons-vue"
 
 import { Badge } from '@/components/ui/badge'
+import { formatCurrency } from '@/lib/utils'
 import {
   Card,
   CardAction,
@@ -18,9 +19,7 @@ const props = defineProps<{
   totalMachines: number
 }>()
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
-}
+
 </script>
 
 <template>

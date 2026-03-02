@@ -466,3 +466,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/test-push/deno.json"
 entrypoint = "./functions/test-push/index.ts"
+
+[functions.create-api-key]
+enabled = true
+verify_jwt = false
+import_map = "./functions/create-api-key/deno.json"
+entrypoint = "./functions/create-api-key/index.ts"
