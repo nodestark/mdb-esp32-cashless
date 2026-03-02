@@ -7,6 +7,7 @@ import QRCode from 'qrcode'
 const supabase = useSupabaseClient()
 const { role } = useOrganization()
 const router = useRouter()
+const { pendingTokens, fetchPendingTokens, deletePendingToken } = useMachines()
 
 const isAdmin = computed(() => role.value === 'admin')
 
@@ -63,7 +64,10 @@ async function fetchDevices() {
   }
 }
 
-onMounted(fetchDevices)
+onMounted(() => {
+  fetchDevices()
+  fetchPendingTokens()
+})
 
 // ── Register Device modal ──────────────────────────────────────────────────
 const showModal = ref(false)
@@ -73,6 +77,7 @@ const shortCode = ref('')
 const expiresAt = ref('')
 const genError = ref('')
 const qrDataUrl = ref('')
+const qrSrvUrl = ref('')
 
 function openModal() {
   step.value = 1
@@ -93,8 +98,8 @@ async function generateCode() {
     if (data?.error) throw new Error(data.error)
     shortCode.value = data.short_code
     expiresAt.value = new Date(data.expires_at).toLocaleTimeString()
-    const srvUrl = useRuntimeConfig().public.supabase.url as string
-    const qrPayload = JSON.stringify({ code: data.short_code, srv_url: srvUrl })
+    qrSrvUrl.value = useRuntimeConfig().public.supabase.url as string
+    const qrPayload = JSON.stringify({ code: data.short_code, srv_url: qrSrvUrl.value })
     qrDataUrl.value = await QRCode.toDataURL(qrPayload, { width: 200, margin: 2 })
     step.value = 2
   } catch (err: unknown) {
@@ -106,7 +111,45 @@ async function generateCode() {
 
 function closeModal() {
   showModal.value = false
-  if (step.value === 2) fetchDevices()
+  if (step.value === 2) {
+    fetchDevices()
+    fetchPendingTokens()
+  }
+}
+
+async function showTokenQr(token: { short_code: string; expires_at: string }) {
+  shortCode.value = token.short_code
+  expiresAt.value = new Date(token.expires_at).toLocaleTimeString()
+  qrSrvUrl.value = useRuntimeConfig().public.supabase.url as string
+  const qrPayload = JSON.stringify({ code: token.short_code, srv_url: qrSrvUrl.value })
+  qrDataUrl.value = await QRCode.toDataURL(qrPayload, { width: 200, margin: 2 })
+  step.value = 2
+  showModal.value = true
+}
+
+// ── Pending token helpers ────────────────────────────────────────────────────
+function isExpired(expiresAt: string) {
+  return new Date(expiresAt).getTime() < Date.now()
+}
+
+function expiresIn(expiresAt: string): string {
+  const diff = new Date(expiresAt).getTime() - Date.now()
+  if (diff <= 0) return 'Expired'
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 60) return `${minutes}m left`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ${minutes % 60}m left`
+}
+
+const deletingTokenId = ref<string | null>(null)
+
+async function handleDeleteToken(id: string) {
+  deletingTokenId.value = id
+  try {
+    await deletePendingToken(id)
+  } finally {
+    deletingTokenId.value = null
+  }
 }
 
 // ── Delete device ────────────────────────────────────────────────────────
@@ -165,6 +208,41 @@ function timeAgo(dt: string | null | undefined): string {
           >
             Register Device
           </button>
+        </div>
+
+        <!-- Pending provisioning tokens -->
+        <div v-if="pendingTokens.length > 0" class="space-y-2">
+          <h2 class="text-sm font-medium text-muted-foreground">Pending Device Claims</h2>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+            <div
+              v-for="token in pendingTokens"
+              :key="token.id"
+              class="flex items-center justify-between rounded-lg border border-dashed p-3 cursor-pointer transition-colors hover:bg-muted/30"
+              :class="isExpired(token.expires_at) ? 'border-muted opacity-60' : 'border-primary/30'"
+              @click="!isExpired(token.expires_at) && showTokenQr(token)"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <span
+                  class="font-mono text-sm font-semibold tracking-wider"
+                  :class="isExpired(token.expires_at) ? 'text-muted-foreground line-through' : 'text-primary'"
+                >
+                  {{ token.short_code }}
+                </span>
+                <div class="min-w-0">
+                  <p v-if="token.name" class="text-sm truncate">{{ token.name }}</p>
+                  <p class="text-xs text-muted-foreground">{{ expiresIn(token.expires_at) }}</p>
+                </div>
+              </div>
+              <button
+                class="shrink-0 ml-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                :disabled="deletingTokenId === token.id"
+                @click.stop="handleDeleteToken(token.id)"
+                title="Revoke token"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div v-if="loading" class="text-muted-foreground">Loading devices...</div>
@@ -329,7 +407,8 @@ function timeAgo(dt: string | null | undefined): string {
         <div class="mb-5 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 py-4 text-center">
           <p class="font-mono text-4xl font-bold tracking-[0.3em] text-primary">{{ shortCode }}</p>
           <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" class="mx-auto mt-3" width="200" height="200" />
-          <p class="mt-1 text-xs text-muted-foreground">Scan this QR code on the device setup page</p>
+          <p class="mt-2 text-xs text-muted-foreground">Scan this QR code on the device setup page</p>
+          <p class="mt-1 text-xs text-muted-foreground">Server URL: <strong class="text-foreground font-mono">{{ qrSrvUrl }}</strong></p>
         </div>
 
         <!-- Instructions -->

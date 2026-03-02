@@ -70,8 +70,12 @@ export function useNotifications() {
   // ── Subscribe to push notifications ─────────────────────────────────────
   async function subscribe() {
     error.value = ''
-    if (!isSupported.value || !vapidPublicKey.value) {
-      error.value = 'Push notifications are not available.'
+    if (!isSupported.value) {
+      error.value = 'Push notifications are not supported in this browser.'
+      return false
+    }
+    if (!vapidPublicKey.value) {
+      error.value = 'Push notifications are not configured. VAPID_PUBLIC_KEY is missing.'
       return false
     }
 

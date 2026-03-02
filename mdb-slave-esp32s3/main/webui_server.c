@@ -17,6 +17,8 @@ static httpd_handle_t rest_server = NULL;
 
 extern const uint8_t index_html_start[] asm("_binary_index_html_start");
 extern const uint8_t index_html_end[]   asm("_binary_index_html_end");
+extern const uint8_t jsqr_min_js_start[] asm("_binary_jsqr_min_js_start");
+extern const uint8_t jsqr_min_js_end[]   asm("_binary_jsqr_min_js_end");
 
 static struct udp_pcb *dns_pcb;
 
@@ -54,6 +56,13 @@ static esp_err_t index_get_handler(httpd_req_t *req) {
     const size_t html_len = index_html_end - index_html_start;
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, (const char *)index_html_start, html_len);
+    return ESP_OK;
+}
+
+static esp_err_t jsqr_get_handler(httpd_req_t *req) {
+    const size_t js_len = jsqr_min_js_end - jsqr_min_js_start;
+    httpd_resp_set_type(req, "application/javascript");
+    httpd_resp_send(req, (const char *)jsqr_min_js_start, js_len);
     return ESP_OK;
 }
 
@@ -339,6 +348,7 @@ void start_rest_server(void) {
 
     static const httpd_uri_t uris[] = {
         { .uri = "/",                    .method = HTTP_GET,  .handler = index_get_handler        },
+        { .uri = "/jsqr.min.js",         .method = HTTP_GET,  .handler = jsqr_get_handler         },
         { .uri = "/api/v1/system/info",  .method = HTTP_GET,  .handler = system_info_get_handler  },
         { .uri = "/api/v1/settings/set", .method = HTTP_POST, .handler = wifi_set_handler         },
         { .uri = "/api/v1/wifi/scan",    .method = HTTP_GET,  .handler = wifi_scan_get_handler    },

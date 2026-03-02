@@ -26,7 +26,7 @@ export default defineNuxtConfig({
     srcDir: 'service-worker',
     filename: 'sw.ts',
     registerType: 'autoUpdate',
-    injectRegister: false,
+    injectRegister: 'auto',
     manifest: {
       name: 'VMflow',
       short_name: 'VMflow',

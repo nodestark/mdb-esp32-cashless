@@ -3,7 +3,7 @@ definePageMeta({ middleware: 'auth' })
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
-import { IconCreditCard, IconCash } from '@tabler/icons-vue'
+import { IconCreditCard, IconCoins } from '@tabler/icons-vue'
 
 const route = useRoute()
 const supabase = useSupabaseClient()
@@ -776,8 +776,8 @@ function stockColor(tray: any) {
                             ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                             : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'"
                         >
-                          <IconCreditCard v-if="sale.channel === 'cashless'" class="size-3" />
-                          <IconCash v-else class="size-3" />
+                          <IconCreditCard v-if="sale.channel === 'cashless'" class="size-3.5" />
+                          <IconCoins v-else class="size-3.5" />
                           {{ sale.channel }}
                         </span>
                       </div>

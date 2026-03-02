@@ -5,17 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 
-import QRCode from 'qrcode'
-
 const { organization } = useOrganization()
 const {
-  machines, loading, fetchMachines, subscribeToStatusUpdates,
-  createMachine, pendingTokens, fetchPendingTokens, deletePendingToken,
+  machines, loading, fetchMachines, subscribeToStatusUpdates, createMachine,
 } = useMachines()
-const supabase = useSupabaseClient()
 
 onMounted(async () => {
-  await Promise.all([fetchMachines(), fetchPendingTokens()])
+  await fetchMachines()
   const unsubscribe = subscribeToStatusUpdates()
   onUnmounted(unsubscribe)
 })
@@ -49,79 +45,6 @@ async function submitCreateMachine() {
   }
 }
 
-// ── Provision Device modal ───────────────────────────────────────────────────
-const showProvisionModal = ref(false)
-const step = ref<1 | 2>(1)
-const generating = ref(false)
-const shortCode = ref('')
-const expiresAt = ref('')
-const genError = ref('')
-const deviceName = ref('')
-const qrDataUrl = ref('')
-
-function openProvisionModal() {
-  step.value = 1
-  shortCode.value = ''
-  expiresAt.value = ''
-  genError.value = ''
-  deviceName.value = ''
-  showProvisionModal.value = true
-}
-
-async function generateCode() {
-  generating.value = true
-  genError.value = ''
-  try {
-    const body = deviceName.value.trim() ? { name: deviceName.value.trim() } : undefined
-    const { data, error } = await supabase.functions.invoke('create-provisioning-token', { body })
-    if (error) throw error
-    if (data?.error) throw new Error(data.error)
-    shortCode.value = data.short_code
-    expiresAt.value = new Date(data.expires_at).toLocaleTimeString()
-    const srvUrl = useRuntimeConfig().public.supabase.url as string
-    const qrPayload = JSON.stringify({ code: data.short_code, srv_url: srvUrl })
-    qrDataUrl.value = await QRCode.toDataURL(qrPayload, { width: 200, margin: 2 })
-    step.value = 2
-  } catch (err: unknown) {
-    genError.value = err instanceof Error ? err.message : 'Failed to generate code'
-  } finally {
-    generating.value = false
-  }
-}
-
-function closeProvisionModal() {
-  showProvisionModal.value = false
-  if (step.value === 2) {
-    fetchMachines()
-    fetchPendingTokens()
-  }
-}
-
-// ── Pending token helpers ────────────────────────────────────────────────────
-function isExpired(expiresAt: string) {
-  return new Date(expiresAt).getTime() < Date.now()
-}
-
-function expiresIn(expiresAt: string): string {
-  const diff = new Date(expiresAt).getTime() - Date.now()
-  if (diff <= 0) return 'Expired'
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 60) return `${minutes}m left`
-  const hours = Math.floor(minutes / 60)
-  return `${hours}h ${minutes % 60}m left`
-}
-
-const deletingTokenId = ref<string | null>(null)
-
-async function handleDeleteToken(id: string) {
-  deletingTokenId.value = id
-  try {
-    await deletePendingToken(id)
-  } finally {
-    deletingTokenId.value = null
-  }
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(dt: string | null | undefined): string {
   if (!dt) return '—'
@@ -145,54 +68,12 @@ function formatCurrency(amount: number | null | undefined) {
   <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
         <div class="flex items-center justify-between">
           <h1 class="text-2xl font-semibold">Vending Machines</h1>
-          <div class="flex gap-2">
-            <button
-              class="inline-flex h-9 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
-              @click="openProvisionModal"
-            >
-              Provision Device
-            </button>
-            <button
-              class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-              @click="openMachineModal"
-            >
-              Add Machine
-            </button>
-          </div>
-        </div>
-
-        <!-- Pending provisioning tokens -->
-        <div v-if="pendingTokens.length > 0" class="space-y-2">
-          <h2 class="text-sm font-medium text-muted-foreground">Pending Device Claims</h2>
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-            <div
-              v-for="token in pendingTokens"
-              :key="token.id"
-              class="flex items-center justify-between rounded-lg border border-dashed p-3"
-              :class="isExpired(token.expires_at) ? 'border-muted opacity-60' : 'border-primary/30'"
-            >
-              <div class="flex items-center gap-3 min-w-0">
-                <span
-                  class="font-mono text-sm font-semibold tracking-wider"
-                  :class="isExpired(token.expires_at) ? 'text-muted-foreground line-through' : 'text-primary'"
-                >
-                  {{ token.short_code }}
-                </span>
-                <div class="min-w-0">
-                  <p v-if="token.name" class="text-sm truncate">{{ token.name }}</p>
-                  <p class="text-xs text-muted-foreground">{{ expiresIn(token.expires_at) }}</p>
-                </div>
-              </div>
-              <button
-                class="shrink-0 ml-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                :disabled="deletingTokenId === token.id"
-                @click="handleDeleteToken(token.id)"
-                title="Revoke token"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
-            </div>
-          </div>
+          <button
+            class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+            @click="openMachineModal"
+          >
+            Add Machine
+          </button>
         </div>
 
         <div v-if="loading" class="text-muted-foreground">Loading machines...</div>
@@ -326,89 +207,4 @@ function formatCurrency(amount: number | null | undefined) {
     </div>
   </div>
 
-  <!-- Provision Device Modal -->
-  <div
-    v-if="showProvisionModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-    @click.self="closeProvisionModal"
-  >
-    <div class="w-full max-w-md rounded-xl border bg-card p-6 shadow-lg">
-
-      <!-- Step 1: Generate code -->
-      <template v-if="step === 1">
-        <h2 class="mb-1 text-lg font-semibold">Provision a Device</h2>
-        <p class="mb-5 text-sm text-muted-foreground">
-          Generate a one-time provisioning code. You'll enter it into the device's WiFi setup page.
-        </p>
-        <div class="mb-4">
-          <label for="device-name" class="mb-1.5 block text-sm font-medium">Device Name</label>
-          <input
-            id="device-name"
-            v-model="deviceName"
-            type="text"
-            placeholder="e.g. Break Room Machine"
-            class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <p class="mt-1 text-xs text-muted-foreground">Optional — leave blank for a default name.</p>
-        </div>
-        <p v-if="genError" class="mb-3 text-sm text-destructive">{{ genError }}</p>
-        <div class="flex gap-2">
-          <button
-            class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
-            @click="closeProvisionModal"
-          >
-            Cancel
-          </button>
-          <button
-            :disabled="generating"
-            class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
-            @click="generateCode"
-          >
-            <span v-if="generating">Generating...</span>
-            <span v-else>Generate Code</span>
-          </button>
-        </div>
-      </template>
-
-      <!-- Step 2: Show code + instructions -->
-      <template v-else>
-        <h2 class="mb-1 text-lg font-semibold">Provisioning Code</h2>
-        <p class="mb-4 text-sm text-muted-foreground">Valid until {{ expiresAt }}. Single use.</p>
-
-        <!-- Code + QR display -->
-        <div class="mb-5 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 py-4 text-center">
-          <p class="font-mono text-4xl font-bold tracking-[0.3em] text-primary">{{ shortCode }}</p>
-          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" class="mx-auto mt-3" width="200" height="200" />
-          <p class="mt-1 text-xs text-muted-foreground">Scan this QR code on the device setup page</p>
-        </div>
-
-        <!-- Instructions -->
-        <ol class="mb-5 space-y-2 text-sm text-muted-foreground">
-          <li class="flex gap-2">
-            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">1</span>
-            Connect your phone to the device's WiFi network: <strong class="text-foreground ml-1">VMflow</strong> (password: <strong class="text-foreground">12345678</strong>)
-          </li>
-          <li class="flex gap-2">
-            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">2</span>
-            Open <strong class="text-foreground">192.168.4.1</strong> in your browser
-          </li>
-          <li class="flex gap-2">
-            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">3</span>
-            Tap <strong class="text-foreground">Scan QR Code</strong> and scan the code above — or enter the code and server URL manually
-          </li>
-          <li class="flex gap-2">
-            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">4</span>
-            Select your WiFi network and save — the device will register automatically
-          </li>
-        </ol>
-
-        <button
-          class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
-          @click="closeProvisionModal"
-        >
-          Done
-        </button>
-      </template>
-    </div>
-  </div>
 </template>
