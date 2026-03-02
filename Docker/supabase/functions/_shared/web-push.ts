@@ -52,6 +52,7 @@ async function createVapidJwt(
   audience: string,
   subject: string,
   privateKeyRaw: Uint8Array,
+  publicKeyRaw: Uint8Array, // 65-byte uncompressed P-256 public key
 ): Promise<string> {
   const header = { typ: 'JWT', alg: 'ES256' }
   const now = Math.floor(Date.now() / 1000)
@@ -61,18 +62,19 @@ async function createVapidJwt(
   const payloadB64 = uint8ArrayToBase64url(new TextEncoder().encode(JSON.stringify(payload)))
   const signingInput = new TextEncoder().encode(`${headerB64}.${payloadB64}`)
 
-  // Import private key as ECDSA P-256
+  // Import private key via JWK using the public key x/y coordinates
+  // publicKeyRaw is 65 bytes: 0x04 || x (32 bytes) || y (32 bytes)
+  const x = uint8ArrayToBase64url(publicKeyRaw.subarray(1, 33))
+  const y = uint8ArrayToBase64url(publicKeyRaw.subarray(33, 65))
+  const d = uint8ArrayToBase64url(privateKeyRaw)
+
   const key = await crypto.subtle.importKey(
     'jwk',
-    { kty: 'EC', crv: 'P-256', d: uint8ArrayToBase64url(privateKeyRaw), x: '', y: '' },
+    { kty: 'EC', crv: 'P-256', x, y, d },
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign'],
-  ).catch(async () => {
-    // Fallback: import raw private key by constructing proper JWK with public key
-    const keyPair = await importEcPrivateKey(privateKeyRaw)
-    return keyPair
-  })
+  )
 
   const signature = await crypto.subtle.sign(
     { name: 'ECDSA', hash: 'SHA-256' },
@@ -85,45 +87,6 @@ async function createVapidJwt(
   const rawSig = derToRaw(sigBytes)
 
   return `${headerB64}.${payloadB64}.${uint8ArrayToBase64url(rawSig)}`
-}
-
-async function importEcPrivateKey(privateKeyRaw: Uint8Array): Promise<CryptoKey> {
-  // Build PKCS#8 DER from raw 32-byte private key
-  // This is the standard way to import an EC private key in Web Crypto
-  const pkcs8Header = new Uint8Array([
-    0x30, 0x81, 0x87, 0x02, 0x01, 0x00, 0x30, 0x13,
-    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
-    0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d,
-    0x03, 0x01, 0x07, 0x04, 0x6d, 0x30, 0x6b, 0x02,
-    0x01, 0x01, 0x04, 0x20,
-  ])
-  const pkcs8Footer = new Uint8Array([
-    0xa1, 0x44, 0x03, 0x42, 0x00,
-  ])
-
-  // We need the public key too. Generate from private key by doing a key generation
-  // and then re-importing. Actually, let's use a simpler approach: import as JWK.
-  // For JWK import we need x and y coordinates. We can derive them by generating
-  // a temporary key pair and extracting. But that's circular.
-  //
-  // Simpler approach: use PKCS#8 format which doesn't require the public key.
-  // Build minimal PKCS#8 without the optional public key.
-  const pkcs8Minimal = new Uint8Array([
-    0x30, 0x41, 0x02, 0x01, 0x00, 0x30, 0x13,
-    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
-    0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d,
-    0x03, 0x01, 0x07, 0x04, 0x27, 0x30, 0x25, 0x02,
-    0x01, 0x01, 0x04, 0x20,
-    ...privateKeyRaw,
-  ])
-
-  return crypto.subtle.importKey(
-    'pkcs8',
-    pkcs8Minimal,
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false,
-    ['sign'],
-  )
 }
 
 function derToRaw(der: Uint8Array): Uint8Array {
@@ -283,6 +246,7 @@ async function sendPushNotification(
   const subscriberPubKey = base64urlToUint8Array(subscription.p256dh)
   const authSecret = base64urlToUint8Array(subscription.auth)
   const vapidPrivateKey = base64urlToUint8Array(vapid.privateKey)
+  const vapidPublicKey = base64urlToUint8Array(vapid.publicKey)
 
   // Encrypt payload
   const { body } = await encryptPayload(payloadBytes, subscriberPubKey, authSecret)
@@ -290,7 +254,7 @@ async function sendPushNotification(
   // Build VAPID Authorization header
   const endpointUrl = new URL(subscription.endpoint)
   const audience = `${endpointUrl.protocol}//${endpointUrl.host}`
-  const jwt = await createVapidJwt(audience, vapid.subject, vapidPrivateKey)
+  const jwt = await createVapidJwt(audience, vapid.subject, vapidPrivateKey, vapidPublicKey)
 
   return fetch(subscription.endpoint, {
     method: 'POST',
@@ -327,44 +291,40 @@ export async function sendPushToUsers(
 
   // Query subscriptions for users in this company who want this notification type.
   // Absence of a preference row = enabled (opt-in by default).
-  const { data: subscriptions, error } = await adminClient.rpc('get_push_subscriptions', {
-    p_company_id: companyId,
-    p_notification_type: notificationType,
-  }).catch(async () => {
-    // Fallback: direct query if RPC doesn't exist yet
-    const { data, error } = await adminClient
-      .from('push_subscriptions')
-      .select('id, endpoint, p256dh, auth, user_id')
+  const { data: allSubs, error: subsError } = await adminClient
+    .from('push_subscriptions')
+    .select('id, endpoint, p256dh, auth, user_id')
 
-    if (error || !data) return { data: null, error }
+  if (subsError || !allSubs || allSubs.length === 0) {
+    return { sent: 0, expired: 0 }
+  }
 
-    // Filter by company membership and notification preferences
-    const { data: members } = await adminClient
-      .from('organization_members')
-      .select('user_id')
-      .eq('company_id', companyId)
+  // Filter by company membership
+  const { data: members } = await adminClient
+    .from('organization_members')
+    .select('user_id')
+    .eq('company_id', companyId)
 
-    if (!members) return { data: [], error: null }
+  if (!members || members.length === 0) {
+    return { sent: 0, expired: 0 }
+  }
 
-    const memberIds = new Set(members.map((m: { user_id: string }) => m.user_id))
+  const memberIds = new Set(members.map((m: { user_id: string }) => m.user_id))
 
-    // Check preferences (absence = enabled)
-    const { data: disabledPrefs } = await adminClient
-      .from('notification_preferences')
-      .select('user_id')
-      .eq('notification_type', notificationType)
-      .eq('enabled', false)
+  // Check preferences (absence = enabled)
+  const { data: disabledPrefs } = await adminClient
+    .from('notification_preferences')
+    .select('user_id')
+    .eq('notification_type', notificationType)
+    .eq('enabled', false)
 
-    const disabledUserIds = new Set((disabledPrefs ?? []).map((p: { user_id: string }) => p.user_id))
+  const disabledUserIds = new Set((disabledPrefs ?? []).map((p: { user_id: string }) => p.user_id))
 
-    const filtered = data.filter(
-      (s: { user_id: string }) => memberIds.has(s.user_id) && !disabledUserIds.has(s.user_id),
-    )
+  const subscriptions = allSubs.filter(
+    (s: { user_id: string }) => memberIds.has(s.user_id) && !disabledUserIds.has(s.user_id),
+  )
 
-    return { data: filtered, error: null }
-  })
-
-  if (error || !subscriptions || subscriptions.length === 0) {
+  if (subscriptions.length === 0) {
     return { sent: 0, expired: 0 }
   }
 
@@ -373,7 +333,7 @@ export async function sendPushToUsers(
   const expiredIds: string[] = []
 
   // Send push to each subscription in parallel
-  const results = await Promise.allSettled(
+  await Promise.allSettled(
     subscriptions.map(async (sub: PushSubscription) => {
       try {
         const response = await sendPushNotification(sub, payload, vapid)
@@ -394,11 +354,14 @@ export async function sendPushToUsers(
 
   // Clean up expired subscriptions
   if (expiredIds.length > 0) {
-    await adminClient
-      .from('push_subscriptions')
-      .delete()
-      .in('id', expiredIds)
-      .catch((err: Error) => console.warn('Failed to clean up expired subscriptions:', err))
+    try {
+      await adminClient
+        .from('push_subscriptions')
+        .delete()
+        .in('id', expiredIds)
+    } catch (err) {
+      console.warn('Failed to clean up expired subscriptions:', err)
+    }
   }
 
   return { sent, expired }

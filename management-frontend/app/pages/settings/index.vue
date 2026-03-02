@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-import { IconMoon, IconSun, IconBell, IconBellOff, IconDeviceMobile } from '@tabler/icons-vue'
+import { IconMoon, IconSun, IconBell, IconBellOff, IconDeviceMobile, IconSend } from '@tabler/icons-vue'
 import { Switch } from '~/components/ui/switch'
 import { notificationTypes } from '~/composables/useNotifications'
 
@@ -33,6 +33,29 @@ async function handlePushToggle(enabled: boolean) {
     await subscribePush()
   } else {
     await unsubscribePush()
+  }
+}
+
+// ── Test notification ─────────────────────────────────────────────────────────
+const testLoading = ref(false)
+const testResult = ref('')
+
+async function sendTestNotification() {
+  testResult.value = ''
+  testLoading.value = true
+  try {
+    const { data, error } = await supabase.functions.invoke('test-push')
+    if (error) throw error
+    const sent = data?.sent ?? 0
+    if (sent > 0) {
+      testResult.value = `Test notification sent (${sent} device${sent > 1 ? 's' : ''}).`
+    } else {
+      testResult.value = 'No subscriptions found. Make sure notifications are enabled.'
+    }
+  } catch (err: unknown) {
+    testResult.value = err instanceof Error ? err.message : 'Failed to send test notification'
+  } finally {
+    testLoading.value = false
   }
 }
 
@@ -413,6 +436,25 @@ async function changeEmail() {
                     :checked="isTypeEnabled(nt.key)"
                     @update:checked="(val: boolean) => togglePreference(nt.key, val)"
                   />
+                </div>
+
+                <!-- Test notification -->
+                <div class="flex items-center justify-between pt-2">
+                  <div class="space-y-0.5">
+                    <label class="text-sm font-medium">Test notification</label>
+                    <p class="text-sm text-muted-foreground">
+                      {{ testResult || 'Send a test push to verify the full flow.' }}
+                    </p>
+                  </div>
+                  <button
+                    :disabled="testLoading"
+                    class="inline-flex h-9 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-muted disabled:opacity-50"
+                    @click="sendTestNotification"
+                  >
+                    <IconSend class="size-3.5" />
+                    <span v-if="testLoading">Sending…</span>
+                    <span v-else>Send test</span>
+                  </button>
                 </div>
               </div>
             </div>

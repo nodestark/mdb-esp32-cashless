@@ -460,3 +460,8 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/register-push/deno.json"
 entrypoint = "./functions/register-push/index.ts"
+
+[functions.test-push]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/test-push/index.ts"
