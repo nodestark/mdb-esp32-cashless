@@ -4,6 +4,7 @@ import {
   IconDashboard,
   IconHelp,
   IconInnerShadowTop,
+  IconKey,
   IconPackage,
   IconUsers,
   IconDevices,
@@ -55,6 +56,11 @@ const navMain = computed(() => {
         title: "Devices",
         url: "/devices",
         icon: IconCpu,
+      },
+      {
+        title: "API Keys",
+        url: "/api-keys",
+        icon: IconKey,
       },
       {
         title: "Firmware",

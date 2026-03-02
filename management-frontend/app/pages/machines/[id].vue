@@ -3,7 +3,7 @@ definePageMeta({ middleware: 'auth' })
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
-import { IconCreditCard, IconCoins } from '@tabler/icons-vue'
+import { IconCreditCard, IconCoins, IconSend } from '@tabler/icons-vue'
 
 const route = useRoute()
 const supabase = useSupabaseClient()
@@ -255,6 +255,58 @@ async function detachDevice() {
     // silent
   } finally {
     deviceSwapLoading.value = false
+  }
+}
+
+// ── Send credit ─────────────────────────────────────────────────────────────
+const showCreditModal = ref(false)
+const creditAmount = ref('')
+const creditLoading = ref(false)
+const creditError = ref('')
+const creditSuccess = ref('')
+
+function openCreditModal() {
+  creditAmount.value = ''
+  creditError.value = ''
+  creditSuccess.value = ''
+  creditLoading.value = false
+  showCreditModal.value = true
+}
+
+async function submitCredit() {
+  const amount = parseFloat(creditAmount.value)
+  if (!amount || amount <= 0) {
+    creditError.value = 'Enter a valid amount'
+    return
+  }
+  creditLoading.value = true
+  creditError.value = ''
+  creditSuccess.value = ''
+  try {
+    const session = useSupabaseSession()
+    const token = session.value?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const { data, error } = await useFetch('/functions/v1/send-credit', {
+      baseURL: useRuntimeConfig().public.supabase.url,
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: { device_id: machine.value.embeddeds.id, amount },
+    })
+
+    if (error.value) throw new Error(error.value.data?.message ?? error.value.message ?? 'Failed to send credit')
+
+    const result = data.value as any
+    if (result?.status === 'online') {
+      creditSuccess.value = `Credit of ${formatCurrency(amount)} sent successfully`
+    } else {
+      creditSuccess.value = `Credit queued (device is ${result?.status ?? 'unknown'})`
+    }
+    creditAmount.value = ''
+  } catch (err: unknown) {
+    creditError.value = err instanceof Error ? err.message : 'Failed to send credit'
+  } finally {
+    creditLoading.value = false
   }
 }
 
@@ -685,6 +737,13 @@ function stockColor(tray: any) {
                 </p>
                 <p class="text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
                 <div v-if="isAdmin" class="mt-2 flex justify-end gap-2">
+                  <button
+                    class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                    @click="openCreditModal"
+                  >
+                    <IconSend class="size-3" />
+                    Send Credit
+                  </button>
                   <button
                     class="text-xs text-primary hover:underline"
                     @click="openDeviceModal"
@@ -1382,6 +1441,58 @@ function stockColor(tray: any) {
               >
                 <span v-if="batchLoading">Creating…</span>
                 <span v-else>Create {{ batchForm.count }} trays</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Send credit modal -->
+      <div
+        v-if="showCreditModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        @click.self="showCreditModal = false"
+      >
+        <div class="w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
+          <h2 class="mb-2 text-lg font-semibold">Send Credit</h2>
+          <p class="mb-4 text-sm text-muted-foreground">
+            Send a credit amount to <span class="font-medium text-foreground">{{ machine?.name ?? 'this machine' }}</span>.
+            The device will dispense the next item selected.
+          </p>
+          <form class="space-y-4" @submit.prevent="submitCredit">
+            <div class="space-y-1">
+              <label class="text-sm font-medium" for="credit-amount">Amount (EUR)</label>
+              <input
+                id="credit-amount"
+                v-model="creditAmount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="1.50"
+                required
+                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <p v-if="creditError" class="text-sm text-destructive">{{ creditError }}</p>
+            <p v-if="creditSuccess" class="text-sm text-green-600 dark:text-green-400">{{ creditSuccess }}</p>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted"
+                @click="showCreditModal = false"
+              >
+                Close
+              </button>
+              <button
+                type="submit"
+                :disabled="creditLoading"
+                class="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                <span v-if="creditLoading">Sending…</span>
+                <template v-else>
+                  <IconSend class="size-3.5" />
+                  Send
+                </template>
               </button>
             </div>
           </form>

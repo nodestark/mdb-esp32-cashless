@@ -18,6 +18,7 @@ services:
       args:
         SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
         SUPABASE_KEY: ${ANON_KEY}
+        VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -197,7 +198,6 @@ services:
 
   realtime:
     image: supabase/realtime:v2.34.47
-    scale: 0
     restart: unless-stopped
     depends_on:
       db:
