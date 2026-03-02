@@ -28,14 +28,14 @@ def from_scale_factor(p: float, x: float, y: float) -> float:
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print(" Connected to broker!")
-        client.subscribe("/domain/+/#")
+        client.subscribe("domain.vmflow.xyz/+/#")
     else:
         print(f" Connection failed. Code: {rc}")
 
 
 def on_message(client, userdata, msg):
     try:
-        match = re.match(r"^/domain/(\d+)/(sale|status|paxcounter)$", msg.topic)
+        match = re.match(r"^domain.vmflow.xyz/(\d+)/(sale|status|paxcounter)$", msg.topic)
         if match:
             domain_id = int(match.group(1))
             event_type = match.group(2)  # "sale" or "status"

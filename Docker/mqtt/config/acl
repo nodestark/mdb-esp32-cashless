@@ -1,7 +1,7 @@
 user admin
 topic write +/credit
-topic read /domain/+/#
+topic read domain.vmflow.xyz/+/#
 
 user vmflow
 topic read +/credit
-topic write /domain/+/#
+topic write domain.vmflow.xyz/+/#

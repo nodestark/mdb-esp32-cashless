@@ -469,7 +469,7 @@ void vTaskMdbEvent(void *pvParameters) {
                         xorEncodeWithPasskey(0x21, itemPrice, itemNumber, 0, (uint8_t*) &payload);
 
                         char topic[64];
-                        snprintf(topic, sizeof(topic), "/domain/%s/sale", my_subdomain);
+                        snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/sale", my_subdomain);
 
                         esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
 
@@ -1086,7 +1086,7 @@ void requestTelemetryData(void *arg) {
 	uint8_t *dex = (uint8_t*) xRingbufferReceive(dexRingbuf, &dex_size, 0);
 
   	char topic[64];
-	snprintf(topic, sizeof(topic), "/domain/%s/dex", my_subdomain);
+	snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/dex", my_subdomain);
 
     esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 0, 0);
     printf("%.*s", dex_size, (char*) dex);
@@ -1127,7 +1127,7 @@ void ble_pax_event_handler(uint16_t devices_count){
     xorEncodeWithPasskey(0x22, 0, 0, devices_count, (uint8_t*) &payload);
 
     char topic[64];
-    snprintf(topic, sizeof(topic), "/domain/%s/paxcounter", my_subdomain);
+    snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/paxcounter", my_subdomain);
 
     esp_mqtt_client_publish(mqttClient, topic, (char*) &payload, sizeof(payload), 1, 0);
 }
@@ -1238,7 +1238,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     	esp_mqtt_client_subscribe(mqttClient, topic, 0);
 
     	char topic_[64];
-    	snprintf(topic_, sizeof(topic_), "/domain/%s/status", my_subdomain);
+    	snprintf(topic_, sizeof(topic_), "domain.vmflow.xyz/%s/status", my_subdomain);
 
 		esp_mqtt_client_publish(mqttClient, topic_, "online", 0, 1, 1);
 
@@ -1475,7 +1475,7 @@ void app_main(void) {
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
 	char lwt_topic[64];
-	snprintf(lwt_topic, sizeof(lwt_topic), "/domain/%s/status", my_subdomain);
+	snprintf(lwt_topic, sizeof(lwt_topic), "domain.vmflow.xyz/%s/status", my_subdomain);
 
 	const esp_mqtt_client_config_t mqttCfg = {
 		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
