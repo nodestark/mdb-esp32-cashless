@@ -43,6 +43,35 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Debug: check each step of the push pipeline
+    const debug: Record<string, unknown> = {}
+
+    debug.vapid = {
+      publicKey: !!Deno.env.get('VAPID_PUBLIC_KEY'),
+      privateKey: !!Deno.env.get('VAPID_PRIVATE_KEY'),
+      subject: !!Deno.env.get('VAPID_SUBJECT'),
+    }
+
+    debug.userId = user.id
+    debug.companyId = membership.company_id
+
+    const { data: allSubs, error: subsError } = await adminClient
+      .from('push_subscriptions')
+      .select('id, endpoint, user_id')
+    debug.subscriptions = { count: allSubs?.length ?? 0, error: subsError?.message ?? null }
+
+    const { data: members, error: membersError } = await adminClient
+      .from('organization_members')
+      .select('user_id')
+      .eq('company_id', membership.company_id)
+    debug.members = { count: members?.length ?? 0, userIds: members?.map((m: { user_id: string }) => m.user_id) ?? [], error: membersError?.message ?? null }
+
+    if (allSubs && allSubs.length > 0) {
+      debug.subUserIds = allSubs.map((s: { user_id: string }) => s.user_id)
+      const memberIds = new Set(members?.map((m: { user_id: string }) => m.user_id) ?? [])
+      debug.matchingAfterFilter = allSubs.filter((s: { user_id: string }) => memberIds.has(s.user_id)).length
+    }
+
     // Send a test notification via the full push flow
     const result = await sendPushToUsers(adminClient, membership.company_id, 'sale', {
       title: '🔔 Test Notification',
@@ -50,7 +79,7 @@ Deno.serve(async (req) => {
       data: { type: 'test' },
     })
 
-    return new Response(JSON.stringify({ ok: true, ...result }), {
+    return new Response(JSON.stringify({ ok: true, ...result, debug }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     })
