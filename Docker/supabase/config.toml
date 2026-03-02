@@ -464,4 +464,5 @@ entrypoint = "./functions/register-push/index.ts"
 [functions.test-push]
 enabled = true
 verify_jwt = false
+import_map = "./functions/test-push/deno.json"
 entrypoint = "./functions/test-push/index.ts"
