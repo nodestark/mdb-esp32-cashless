@@ -3,6 +3,8 @@ kicad/**/fp-info-cache
 kicad/**/*.lck
 kicad/**/*_prl
 
+Docker/vuejs/package-lock.json
+
 **/managed_components
 **/build
 **/sdkconfig.old

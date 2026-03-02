@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -26,6 +27,32 @@ import xyz.vmflow.R;
 public class MainActivity extends AppCompatActivity {
 
     public boolean onOptionsItemSelected(MenuItem item) {
+
+        if (item.getItemId() == R.id.action_logout) {
+
+            new AlertDialog.Builder(this)
+                    .setTitle("Logout")
+                    .setMessage("Are you sure you want to logout?")
+                    .setPositiveButton("Yes", (dialog, which) -> {
+
+                        // Clear authentication data
+                        SharedPreferences prefs = getSharedPreferences("target_prefs", MODE_PRIVATE);
+                        SharedPreferences.Editor editor = prefs.edit();
+                        editor.clear();
+                        editor.apply();
+
+                        // Redirect to LoginActivity
+                        Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(intent);
+
+                        finish();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+
+            return true;
+        }
 
         if (item.getItemId() == R.id.action_about) {
 

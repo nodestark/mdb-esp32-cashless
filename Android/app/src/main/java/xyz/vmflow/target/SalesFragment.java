@@ -130,7 +130,7 @@ public class SalesFragment extends Fragment {
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
-                        .url(SUPABASE_URL + "/rest/v1/sales?select=*,embeddeds(subdomain)&order=created_at.desc")
+                        .url(SUPABASE_URL + "/rest/v1/sales?select=*,embedded(subdomain)&order=created_at.desc")
                         .addHeader("apikey", SUPABASE_KEY)
                         .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                         .addHeader("Content-Type", "application/json")
