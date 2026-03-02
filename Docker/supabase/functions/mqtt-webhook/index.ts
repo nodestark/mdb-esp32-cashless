@@ -158,47 +158,64 @@ Deno.serve(async (req) => {
 
       // ── Push notification dispatch (best-effort, never blocks sale recording) ──
       try {
-        // 1. Sale notification
-        await sendPushToUsers(adminClient, embedded.company, 'sale', {
-          title: 'New Sale',
-          body: `Item #${itemNumber} — €${salePrice.toFixed(2)} (${channel})`,
-          data: { type: 'sale', embedded_id: embedded.id },
-        });
-
-        // 2. Low stock check — the decrement_tray_stock trigger has already fired
+        // Look up machine + tray + product once (used by both sale and low-stock notifications)
         const { data: machine } = await adminClient
           .from('vendingMachine')
           .select('id, name')
           .eq('embedded', embedded.id)
           .maybeSingle();
 
+        let productName: string | undefined;
+        let productImageUrl: string | undefined;
+        let lowTray: { current_stock: number; min_stock: number } | undefined;
+
         if (machine) {
-          const { data: lowTray } = await adminClient
+          const { data: tray } = await adminClient
             .from('machine_trays')
-            .select('item_number, current_stock, min_stock, product_id')
+            .select('product_id, current_stock, min_stock')
             .eq('machine_id', machine.id)
             .eq('item_number', itemNumber)
-            .gt('min_stock', 0)
             .maybeSingle();
 
-          if (lowTray && lowTray.current_stock <= lowTray.min_stock) {
-            // Try to get product name
-            let productName = `Item #${itemNumber}`;
-            if (lowTray.product_id) {
-              const { data: product } = await adminClient
-                .from('products')
-                .select('name')
-                .eq('id', lowTray.product_id)
-                .maybeSingle();
-              if (product?.name) productName = product.name;
-            }
+          if (tray?.product_id) {
+            const { data: product } = await adminClient
+              .from('products')
+              .select('name, image_path')
+              .eq('id', tray.product_id)
+              .maybeSingle();
 
-            await sendPushToUsers(adminClient, embedded.company, 'low_stock', {
-              title: 'Low Stock Alert',
-              body: `${productName} in ${machine.name}: ${lowTray.current_stock}/${lowTray.min_stock} remaining`,
-              data: { type: 'low_stock', machine_id: machine.id },
-            });
+            if (product?.name) productName = product.name;
+            if (product?.image_path) {
+              const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? Deno.env.get('SUPABASE_PUBLIC_URL');
+              productImageUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${product.image_path}`;
+            }
           }
+
+          if (tray && tray.min_stock > 0 && tray.current_stock <= tray.min_stock) {
+            lowTray = { current_stock: tray.current_stock, min_stock: tray.min_stock };
+          }
+        }
+
+        // 1. Sale notification
+        const itemLabel = productName ?? `Item #${itemNumber}`;
+        const machineLabel = machine?.name ? ` · ${machine.name}` : '';
+        const saleBody = `${itemLabel} — €${salePrice.toFixed(2)} (${channel})${machineLabel}`;
+
+        await sendPushToUsers(adminClient, embedded.company, 'sale', {
+          title: 'New Sale',
+          body: saleBody,
+          icon: productImageUrl,
+          data: { type: 'sale', embedded_id: embedded.id },
+        });
+
+        // 2. Low stock notification (if applicable)
+        if (machine && lowTray) {
+          await sendPushToUsers(adminClient, embedded.company, 'low_stock', {
+            title: 'Low Stock Alert',
+            body: `${productName ?? `Item #${itemNumber}`} in ${machine.name}: ${lowTray.current_stock}/${lowTray.min_stock} remaining`,
+            icon: productImageUrl,
+            data: { type: 'low_stock', machine_id: machine.id },
+          });
         }
       } catch (pushErr) {
         console.error('Push notification error:', pushErr);

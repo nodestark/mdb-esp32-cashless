@@ -829,10 +829,10 @@ function stockColor(tray: any) {
                         Slot {{ sale.item_number }}
                       </p>
                     </div>
-                    <!-- Timestamp -->
+                    <!-- Price + Timestamp -->
                     <div class="shrink-0 text-right">
-                      <span class="text-sm text-muted-foreground">{{ timeAgo(sale.created_at) }}</span>
-                      <p class="mt-0.5 text-[11px] text-muted-foreground/60">{{ formatDate(sale.created_at) }}</p>
+                      <span class="text-sm font-medium">{{ formatCurrency(sale.item_price) }}</span>
+                      <p class="mt-0.5 text-[11px] text-muted-foreground">{{ timeAgo(sale.created_at) }} · {{ formatDate(sale.created_at) }}</p>
                     </div>
                   </div>
                 </div>

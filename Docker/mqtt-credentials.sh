@@ -115,7 +115,7 @@ docker run --rm -v "${SCRIPT_DIR}/mqtt/config:/mosquitto/config" eclipse-mosquit
     mosquitto_passwd -b /mosquitto/config/passwd admin '${MQTT_ADMIN_PASS}'
   " 2>/dev/null
 
-chmod 600 "$PASSWD_FILE"
+chmod 644 "$PASSWD_FILE"
 success "Mosquitto passwd file regenerated"
 
 # ─── Restart running containers if docker compose is active ─────────────────
