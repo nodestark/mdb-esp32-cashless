@@ -1,5 +1,31 @@
-user admin
-topic readwrite /+/+/#
+# =============================================================================
+# MQTT ACL — Least-privilege access per client role
+# Topic pattern: /{company_id}/{device_id}/{event}
+# =============================================================================
 
+# --- ESP32 devices (firmware) ------------------------------------------------
+# Publish sensor data; subscribe to commands
 user vmflow
+topic write /+/+/sale
+topic write /+/+/status
+topic write /+/+/paxcounter
+topic write /+/+/dex
+topic read  /+/+/credit
+topic read  /+/+/ota
+
+# --- Forwarder (MQTT→Supabase bridge) ----------------------------------------
+# Read-only: forwards sale, status, paxcounter to the webhook
+user forwarder
+topic read /+/+/sale
+topic read /+/+/status
+topic read /+/+/paxcounter
+
+# --- Backend (edge functions: send-credit, trigger-ota) ----------------------
+# Write-only: sends commands to devices
+user backend
+topic write /+/+/credit
+topic write /+/+/ota
+
+# --- Admin (debugging / maintenance) ----------------------------------------
+user admin
 topic readwrite /+/+/#

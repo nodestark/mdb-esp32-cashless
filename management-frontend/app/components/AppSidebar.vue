@@ -3,6 +3,7 @@ import {
   IconCpu,
   IconDashboard,
   IconHelp,
+  IconHistory,
   IconInnerShadowTop,
   IconKey,
   IconPackage,
@@ -47,6 +48,11 @@ const navMain = computed(() => {
       title: "Members",
       url: "/members",
       icon: IconUsers,
+    },
+    {
+      title: "History",
+      url: "/history",
+      icon: IconHistory,
     },
   ]
 

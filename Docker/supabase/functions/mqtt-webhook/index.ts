@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     // Look up device
     const { data: embeddedData, error: lookupError } = await adminClient
       .from('embeddeds')
-      .select('passkey, id, owner_id')
+      .select('passkey, id, owner_id, company')
       .eq('id', deviceId);
 
     if (lookupError) throw lookupError;
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
       // ── Push notification dispatch (best-effort, never blocks sale recording) ──
       try {
         // 1. Sale notification
-        await sendPushToUsers(adminClient, embedded.owner_id, 'sale', {
+        await sendPushToUsers(adminClient, embedded.company, 'sale', {
           title: 'New Sale',
           body: `Item #${itemNumber} — €${salePrice.toFixed(2)} (${channel})`,
           data: { type: 'sale', embedded_id: embedded.id },
@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
               if (product?.name) productName = product.name;
             }
 
-            await sendPushToUsers(adminClient, embedded.owner_id, 'low_stock', {
+            await sendPushToUsers(adminClient, embedded.company, 'low_stock', {
               title: 'Low Stock Alert',
               body: `${productName} in ${machine.name}: ${lowTray.current_stock}/${lowTray.min_stock} remaining`,
               data: { type: 'low_stock', machine_id: machine.id },
@@ -202,6 +202,24 @@ Deno.serve(async (req) => {
         }
       } catch (pushErr) {
         console.error('Push notification error:', pushErr);
+      }
+
+      // ── Activity log (best-effort) ──────────────────────────────────────────
+      try {
+        await adminClient.from('activity_log').insert({
+          company_id: embedded.company,
+          entity_type: 'sale',
+          entity_id: embedded.id,
+          action: 'sale_recorded',
+          metadata: {
+            item_number: itemNumber,
+            price: salePrice,
+            channel,
+            device_id: embedded.id,
+          },
+        });
+      } catch (logErr) {
+        console.error('Activity log error:', logErr);
       }
     }
 
@@ -213,7 +231,6 @@ Deno.serve(async (req) => {
       const { error: insertError } = await adminClient
         .from('paxcounter')
         .insert([{
-          owner_id: embedded.owner_id,
           embedded_id: embedded.id,
           count,
           created_at: paxTime,

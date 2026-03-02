@@ -72,7 +72,9 @@ Deno.serve(async (req) => {
 
     // Publish OTA command to the device's MQTT topic
     const mqttHost = Deno.env.get("MQTT_HOST") || "mqtt.vmflow.xyz";
-    const client = new Client({ url: `mqtt://${mqttHost}` });
+    const mqttUser = Deno.env.get("MQTT_BACKEND_USER") || "backend";
+    const mqttPass = Deno.env.get("MQTT_BACKEND_PASS") || "";
+    const client = new Client({ url: `mqtt://${mqttUser}:${mqttPass}@${mqttHost}` });
     await client.connect();
 
     const otaTopic = `/${deviceFull.company}/${device.id}/ota`;

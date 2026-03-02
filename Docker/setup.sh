@@ -281,6 +281,10 @@ PG_META_CRYPTO_KEY=$(generate_random 24)
 LOGFLARE_PUBLIC_ACCESS_TOKEN=$(generate_random 32)
 LOGFLARE_PRIVATE_ACCESS_TOKEN=$(generate_random 32)
 MQTT_WEBHOOK_SECRET=$(generate_hex 16)
+MQTT_DEVICE_PASS=vmflow
+MQTT_FORWARDER_PASS=$(generate_random 16)
+MQTT_BACKEND_PASS=$(generate_random 16)
+MQTT_ADMIN_PASS=$(generate_random 16)
 POOLER_TENANT_ID=$(generate_hex 8)
 
 success "Generated all secrets"
@@ -444,6 +448,12 @@ GOOGLE_PROJECT_NUMBER=GOOGLE_PROJECT_NUMBER
 
 MQTT_HOST=${MQTT_HOST}
 MQTT_WEBHOOK_SECRET=${MQTT_WEBHOOK_SECRET}
+MQTT_DEVICE_USER=vmflow
+MQTT_DEVICE_PASS=${MQTT_DEVICE_PASS}
+MQTT_FORWARDER_USER=forwarder
+MQTT_FORWARDER_PASS=${MQTT_FORWARDER_PASS}
+MQTT_BACKEND_USER=backend
+MQTT_BACKEND_PASS=${MQTT_BACKEND_PASS}
 
 ##########
 # Push Notifications (VAPID)
@@ -455,6 +465,21 @@ VAPID_SUBJECT=${VAPID_SUBJECT}
 ENVEOF
 
 success ".env written successfully"
+
+# ─── Generate Mosquitto passwd file ──────────────────────────────────────────
+info "Generating MQTT broker credentials..."
+MQTT_PASSWD_FILE="${SCRIPT_DIR}/mqtt/config/passwd"
+rm -f "$MQTT_PASSWD_FILE"
+touch "$MQTT_PASSWD_FILE"
+docker run --rm -v "${SCRIPT_DIR}/mqtt/config:/mosquitto/config" eclipse-mosquitto:2.1.2-alpine \
+  sh -c "
+    mosquitto_passwd -b /mosquitto/config/passwd vmflow '${MQTT_DEVICE_PASS}' && \
+    mosquitto_passwd -b /mosquitto/config/passwd forwarder '${MQTT_FORWARDER_PASS}' && \
+    mosquitto_passwd -b /mosquitto/config/passwd backend '${MQTT_BACKEND_PASS}' && \
+    mosquitto_passwd -b /mosquitto/config/passwd admin '${MQTT_ADMIN_PASS}'
+  "
+chmod 600 "$MQTT_PASSWD_FILE"
+success "MQTT passwd file generated"
 
 # ─── Write management-frontend .env ─────────────────────────────────────────
 FRONTEND_ENV="${SCRIPT_DIR}/../management-frontend/.env"

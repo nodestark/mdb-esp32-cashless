@@ -2,6 +2,8 @@ import mqtt from "npm:mqtt@5";
 import { encodeBase64 } from "jsr:@std/encoding/base64";
 
 const MQTT_HOST = Deno.env.get("MQTT_HOST") ?? "broker";
+const MQTT_USER = Deno.env.get("MQTT_FORWARDER_USER") ?? "forwarder";
+const MQTT_PASS = Deno.env.get("MQTT_FORWARDER_PASS") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const WEBHOOK_SECRET = Deno.env.get("MQTT_WEBHOOK_SECRET") ?? "";
 
@@ -13,6 +15,8 @@ const client = mqtt.connect(`mqtt://${MQTT_HOST}:1883`, {
   clientId: "vmflow-forwarder",
   clean: false, // persistent session — broker queues QoS 1 messages while we're offline
   reconnectPeriod: 5000,
+  username: MQTT_USER,
+  password: MQTT_PASS,
 });
 
 client.on("connect", (connack: { sessionPresent: boolean }) => {

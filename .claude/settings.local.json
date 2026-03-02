@@ -18,7 +18,15 @@
       "Bash(git fetch origin main)",
       "WebFetch(domain:app.kerl-handel.de)",
       "WebFetch(domain:supabase.kerl-handel.de)",
-      "Bash(ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzcyMzc3NzY3LCJleHAiOjIwODc3Mzc3Njd9.5Mu3-BgmHhekSP6vm0W20iwwT3mOjcYQPjO9b-oqgwA\")"
+      "Bash(ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzcyMzc3NzY3LCJleHAiOjIwODc3Mzc3Njd9.5Mu3-BgmHhekSP6vm0W20iwwT3mOjcYQPjO9b-oqgwA\")",
+      "Bash(docker run --rm -v /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/mqtt/config:/mosquitto/config eclipse-mosquitto:2.1.2-alpine mosquitto_passwd -b /mosquitto/config/passwd forwarder forwarder_pass_change_me)",
+      "Bash(docker run --rm -v /Users/lucienkerl/Development/mdb-esp32-cashless/Docker/mqtt/config:/mosquitto/config eclipse-mosquitto:2.1.2-alpine mosquitto_passwd -b /mosquitto/config/passwd backend backend_pass_change_me)",
+      "WebFetch(domain:deno.land)",
+      "WebFetch(domain:cdn.deno.land)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(deno info https://deno.land/x/mqtt/deno/mod.ts)"
     ]
   }
 }

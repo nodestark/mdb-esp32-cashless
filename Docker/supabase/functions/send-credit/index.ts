@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
     const apiKey = req.headers.get('X-API-Key')
     const authHeader = req.headers.get('Authorization')
     let companyId: string | null = null
+    let actorUserId: string | null = null
 
     if (apiKey) {
       // --- API key authentication ---
@@ -79,6 +80,7 @@ Deno.serve(async (req) => {
       }
 
       companyId = membership.company_id
+      actorUserId = user.id
     } else {
       return new Response(JSON.stringify({ error: 'Authorization required. Use Authorization header or X-API-Key header.' }), {
         status: 401, headers: { 'Content-Type': 'application/json' },
@@ -128,7 +130,9 @@ Deno.serve(async (req) => {
     }
 
     const mqttHost = Deno.env.get('MQTT_HOST') ?? 'mqtt.vmflow.xyz'
-    const client = new Client({ url: `mqtt://${mqttHost}` });
+    const mqttUser = Deno.env.get('MQTT_BACKEND_USER') ?? 'backend'
+    const mqttPass = Deno.env.get('MQTT_BACKEND_PASS') ?? ''
+    const client = new Client({ url: `mqtt://${mqttUser}:${mqttPass}@${mqttHost}` });
     await client.connect();
     await client.publish(`/${embeddedData.company}/${embeddedData.id}/credit`, payload);
     await client.disconnect();
@@ -144,6 +148,24 @@ Deno.serve(async (req) => {
       if (!saleError && saleData) {
         salesId = saleData.id
       }
+    }
+
+    // ── Activity log (best-effort) ──────────────────────────────────────────
+    try {
+      await adminClient.from('activity_log').insert({
+        company_id: companyId,
+        user_id: actorUserId,
+        entity_type: 'credit',
+        entity_id: embeddedData.id,
+        action: 'credit_sent',
+        metadata: {
+          device_id: embeddedData.id,
+          amount: body.amount,
+          sales_id: salesId,
+        },
+      })
+    } catch (logErr) {
+      console.error('Activity log error:', logErr)
     }
 
     return new Response(JSON.stringify({ status: embeddedData.status, sales_id: salesId }), {
