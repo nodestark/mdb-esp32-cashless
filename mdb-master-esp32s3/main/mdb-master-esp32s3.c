@@ -18,6 +18,7 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <esp_random.h>
 
 #include "led_strip.h"
 
@@ -94,7 +95,7 @@ static void IRAM_ATTR button0_isr_handler(void* arg) {
 	int64_t now = esp_timer_get_time();
 
 	if (now - last_button_time > 500000) { // 500ms debounce
-        uint8_t itemNumber = 0;
+        uint8_t itemNumber = (esp_random() % 10) + 1; // random slot 1–10
         xQueueSendFromISR(button_receive_queue, &itemNumber, NULL);
         last_button_time = now;
     }
@@ -339,8 +340,6 @@ void mdb_vmc_loop(void *pvParameters) {
 
 					reader0x10.machineState = IDLE_STATE;
 
-					++coils[itemNumber].pa201;
-
 					mdb_payload_tx[0] = (0x10 /*Cashless Device #1*/ & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
 
@@ -392,7 +391,9 @@ void mdb_vmc_loop(void *pvParameters) {
 
 				} else if (xQueueReceive(button_receive_queue, &itemNumber, 0)) {
 
-					uint16_t itemPrice = TO_SCALE_FACTOR(coils[itemNumber].pa102, reader0x10.scaleFactor, reader0x10.decimalPlaces);
+					// Random price: whole part 1–5, decimal .1–.9
+					float randomPrice = (float)((esp_random() % 5) + 1) + (float)((esp_random() % 9) + 1) / 10.0f;
+					uint16_t itemPrice = TO_SCALE_FACTOR(randomPrice, reader0x10.scaleFactor, reader0x10.decimalPlaces);
 
 					if (reader0x10.machineState == IDLE_STATE) {
 						ESP_LOGI( TAG, "Vend request");
@@ -426,8 +427,6 @@ void mdb_vmc_loop(void *pvParameters) {
 
 						len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(30)); // ACK*
 					    assert(len == 1);
-
-						++coils[itemNumber].pa201;
 					}
 				}
 

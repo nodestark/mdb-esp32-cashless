@@ -1,0 +1,195 @@
+<script setup lang="ts">
+definePageMeta({ middleware: 'auth' })
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { timeAgo, formatCurrency } from '@/lib/utils'
+
+const { organization } = useOrganization()
+const {
+  machines, loading, fetchMachines, subscribeToStatusUpdates, createMachine,
+} = useMachines()
+
+onMounted(async () => {
+  await fetchMachines()
+  const unsubscribe = subscribeToStatusUpdates()
+  onUnmounted(unsubscribe)
+})
+
+// ── Add Machine modal ────────────────────────────────────────────────────────
+const showMachineModal = ref(false)
+const machineName = ref('')
+const machineError = ref('')
+const creatingMachine = ref(false)
+
+function openMachineModal() {
+  machineName.value = ''
+  machineError.value = ''
+  showMachineModal.value = true
+}
+
+async function submitCreateMachine() {
+  if (!machineName.value.trim()) {
+    machineError.value = 'Name is required'
+    return
+  }
+  creatingMachine.value = true
+  machineError.value = ''
+  try {
+    await createMachine(machineName.value.trim(), organization.value!.id)
+    showMachineModal.value = false
+  } catch (err: unknown) {
+    machineError.value = err instanceof Error ? err.message : 'Failed to create machine'
+  } finally {
+    creatingMachine.value = false
+  }
+}
+
+
+</script>
+
+<template>
+  <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        <div class="flex items-center justify-between">
+          <h1 class="text-2xl font-semibold">Vending Machines</h1>
+          <button
+            class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+            @click="openMachineModal"
+          >
+            Add Machine
+          </button>
+        </div>
+
+        <div v-if="loading" class="text-muted-foreground">Loading machines...</div>
+
+        <div v-else-if="machines.length === 0" class="text-muted-foreground">
+          No vending machines registered yet.
+        </div>
+
+        <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <NuxtLink
+            v-for="machine in machines"
+            :key="machine.id"
+            :to="`/machines/${machine.id}`"
+            class="block transition-shadow hover:shadow-md rounded-xl"
+          >
+            <Card class="h-full">
+              <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle class="text-base font-semibold truncate">
+                  {{ machine.name ?? 'Unnamed Machine' }}
+                </CardTitle>
+                <Badge
+                  v-if="machine.embeddeds"
+                  :variant="machine.embeddeds.status === 'online' || machine.embeddeds.status?.startsWith('ota_') ? 'default' : 'secondary'"
+                  class="shrink-0"
+                >
+                  <span
+                    class="mr-1 inline-block h-2 w-2 rounded-full"
+                    :class="{
+                      'bg-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
+                      'bg-yellow-400': machine.embeddeds.status === 'ota_updating',
+                      'bg-red-400': machine.embeddeds.status === 'ota_failed',
+                      'bg-muted-foreground/50': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
+                    }"
+                  />
+                  {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
+                </Badge>
+                <Badge v-else variant="outline" class="shrink-0">
+                  No device
+                </Badge>
+              </CardHeader>
+              <CardContent class="space-y-3">
+                <!-- Revenue stats -->
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p class="text-xs text-muted-foreground">Today</p>
+                    <p class="text-lg font-semibold">{{ formatCurrency(machine.today_revenue ?? 0) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted-foreground">Yesterday</p>
+                    <p class="text-lg font-semibold">{{ formatCurrency(machine.yesterday_revenue ?? 0) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted-foreground">Sales Today</p>
+                    <p class="text-lg font-semibold">{{ machine.today_sales_count ?? 0 }}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <!-- Temperature & Stock placeholders -->
+                <div class="grid grid-cols-2 gap-2 text-center">
+                  <div>
+                    <p class="text-xs text-muted-foreground">Temperature</p>
+                    <p class="text-lg font-semibold text-muted-foreground">-- °C</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted-foreground">Stock</p>
+                    <p class="text-lg font-semibold text-muted-foreground">--</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <!-- Last sale & traffic -->
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-muted-foreground">
+                    Last: {{ timeAgo(machine.last_sale_at) }}
+                    <template v-if="machine.last_sale_amount != null">
+                      · {{ formatCurrency(machine.last_sale_amount) }}
+                    </template>
+                  </span>
+                  <span class="text-muted-foreground">
+                    Traffic: {{ machine.paxcounter_count ?? '—' }}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </NuxtLink>
+        </div>
+  </div>
+
+  <!-- Add Machine Modal -->
+  <div
+    v-if="showMachineModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    @click.self="showMachineModal = false"
+  >
+    <div class="w-full max-w-md rounded-xl border bg-card p-6 shadow-lg">
+      <h2 class="mb-1 text-lg font-semibold">Add Machine</h2>
+      <p class="mb-5 text-sm text-muted-foreground">
+        Create a vending machine. You can assign a device to it later.
+      </p>
+      <div class="mb-4">
+        <label for="machine-name" class="mb-1.5 block text-sm font-medium">Machine Name</label>
+        <input
+          id="machine-name"
+          v-model="machineName"
+          type="text"
+          placeholder="e.g. Break Room Machine"
+          class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          @keydown.enter="submitCreateMachine"
+        />
+      </div>
+      <p v-if="machineError" class="mb-3 text-sm text-destructive">{{ machineError }}</p>
+      <div class="flex gap-2">
+        <button
+          class="inline-flex h-9 flex-1 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+          @click="showMachineModal = false"
+        >
+          Cancel
+        </button>
+        <button
+          :disabled="creatingMachine"
+          class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+          @click="submitCreateMachine"
+        >
+          <span v-if="creatingMachine">Creating...</span>
+          <span v-else>Create</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</template>

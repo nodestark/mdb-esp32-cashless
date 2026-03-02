@@ -1,7 +1,5 @@
 user admin
-topic write +/credit
-topic read /domain/+/#
+topic readwrite /+/+/#
 
 user vmflow
-topic read +/credit
-topic write /domain/+/#
+topic readwrite /+/+/#

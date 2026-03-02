@@ -15,3 +15,11 @@ Docker/vuejs/package-lock.json
 .project
 
 .temp
+
+.cache
+
+# Docker runtime data
+Docker/.env
+Docker/mqtt/data/
+Docker/volumes/db/data/
+Docker/volumes/storage/

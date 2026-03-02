@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(ls:*)",
+      "Bash(supabase:*)",
+      "Bash(docker ps:*)",
+      "Bash(curl:*)",
+      "Bash(docker exec:*)",
+      "Bash(source:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)",
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(npx nuxi:*)"
+    ]
+  }
+}

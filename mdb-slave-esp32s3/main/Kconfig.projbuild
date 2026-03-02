@@ -67,4 +67,20 @@ menu "MDB Cashless Device"
         default 2
         range 0 3
 
+    config MDB_SNIFF_OTHER_CASHLESS
+        bool "Sniff other cashless device (credit card detection)"
+        default y
+        help
+            Passively listen to MDB traffic addressed to the other cashless
+            device (e.g. Nayax credit card terminal). When a vend succeeds
+            on that device, a CARD_SALE (0x23) is published via MQTT.
+            The sniffed address is automatically set to the opposite of
+            this device's address (0x10 ↔ 0x60).
+            The device never transmits on the sniffed address.
+
+    config MDB_SNIFF_ADDRESS
+        int
+        default 96 if CASHLESS_ADDR_1
+        default 16 if CASHLESS_ADDR_2
+
 endmenu # MDB Cashless Device

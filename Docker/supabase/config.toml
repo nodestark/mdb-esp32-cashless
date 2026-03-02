@@ -105,12 +105,15 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+[storage.buckets.product-images]
+public = true
+file_size_limit = "2MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
+[storage.buckets.firmware]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["application/octet-stream", "application/macbinary"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
@@ -359,8 +362,13 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+[edge_runtime.secrets]
+MQTT_HOST = "env(MQTT_HOST)"
+MQTT_WEBHOOK_SECRET = "env(MQTT_WEBHOOK_SECRET)"
+PUBLIC_SUPABASE_URL = "env(PUBLIC_SUPABASE_URL)"
+VAPID_PUBLIC_KEY = "env(VAPID_PUBLIC_KEY)"
+VAPID_PRIVATE_KEY = "env(VAPID_PRIVATE_KEY)"
+VAPID_SUBJECT = "env(VAPID_SUBJECT)"
 
 [analytics]
 enabled = true
@@ -385,20 +393,82 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 enabled = true
 verify_jwt = true
 import_map = "./functions/request-credit/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/request-credit/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/request-credit/*.html" ]
 
 [functions.send-credit]
 enabled = true
 verify_jwt = true
 import_map = "./functions/send-credit/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/send-credit/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/send-credit/*.html" ]
+
+[functions.create-organization]
+enabled = true
+verify_jwt = false
+import_map = "./functions/create-organization/deno.json"
+entrypoint = "./functions/create-organization/index.ts"
+
+[functions.invite-member]
+enabled = true
+verify_jwt = false
+import_map = "./functions/invite-member/deno.json"
+entrypoint = "./functions/invite-member/index.ts"
+
+[functions.accept-invitation]
+enabled = true
+verify_jwt = false
+import_map = "./functions/accept-invitation/deno.json"
+entrypoint = "./functions/accept-invitation/index.ts"
+
+[functions.get-my-organization]
+enabled = true
+verify_jwt = false
+import_map = "./functions/get-my-organization/deno.json"
+entrypoint = "./functions/get-my-organization/index.ts"
+
+[functions.create-provisioning-token]
+enabled = true
+verify_jwt = false
+import_map = "./functions/create-provisioning-token/deno.json"
+entrypoint = "./functions/create-provisioning-token/index.ts"
+
+[functions.claim-device]
+enabled = true
+verify_jwt = false
+import_map = "./functions/claim-device/deno.json"
+entrypoint = "./functions/claim-device/index.ts"
+
+[functions.trigger-ota]
+enabled = true
+verify_jwt = false
+import_map = "./functions/trigger-ota/deno.json"
+entrypoint = "./functions/trigger-ota/index.ts"
+
+[functions.mqtt-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/mqtt-webhook/deno.json"
+entrypoint = "./functions/mqtt-webhook/index.ts"
+
+[functions.import-products]
+enabled = true
+verify_jwt = false
+import_map = "./functions/import-products/deno.json"
+entrypoint = "./functions/import-products/index.ts"
+
+[functions.register-push]
+enabled = true
+verify_jwt = false
+import_map = "./functions/register-push/deno.json"
+entrypoint = "./functions/register-push/index.ts"
+
+[functions.test-push]
+enabled = true
+verify_jwt = false
+import_map = "./functions/test-push/deno.json"
+entrypoint = "./functions/test-push/index.ts"
+
+[functions.create-api-key]
+enabled = true
+verify_jwt = false
+import_map = "./functions/create-api-key/deno.json"
+entrypoint = "./functions/create-api-key/index.ts"
