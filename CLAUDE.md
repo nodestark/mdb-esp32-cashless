@@ -138,6 +138,23 @@ All functions use `verify_jwt = false` in `config.toml` (workaround for ES256 `C
 | `send-credit` | yes | Encrypt + publish credit to device MQTT topic |
 | `request-credit` | yes | Related credit request flow |
 
+### Adding New Environment Variables
+
+When adding a new env var that the frontend or edge functions need in production, update **all** of these:
+
+| File | What to add |
+|------|-------------|
+| `Docker/.env.example` | Default/placeholder value |
+| `Docker/setup.sh` | Generation logic + write to `.env` output |
+| `Docker/update.sh` | Auto-generation for existing installs (if applicable) |
+| `management-frontend/Dockerfile` | `ARG` + `ENV` (if needed at Nuxt build time) |
+| `Docker/docker-compose.yml` | `build.args` for frontend (if needed at Nuxt build time) |
+| `Docker/supabase/config.toml` | `[edge_runtime.secrets]` (if needed by edge functions) |
+
+**Frontend build-time vars**: Nuxt `runtimeConfig` reads `process.env` at build time. Any var referenced in `nuxt.config.ts` must be available during `npm run build` inside Docker — this means it must be passed as a Docker build arg (`ARG` + `ENV` in Dockerfile, `build.args` in docker-compose.yml).
+
+**Edge function config**: Each edge function needs a `[functions.<name>]` section in `config.toml` with `import_map` pointing to its `deno.json` file. The self-hosted edge runtime reads secrets from `[edge_runtime.secrets]`.
+
 ---
 
 ## management-frontend
