@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
       // ── Push notification dispatch (best-effort, never blocks sale recording) ──
       try {
         // 1. Sale notification
-        await sendPushToUsers(adminClient, companyId, 'sale', {
+        await sendPushToUsers(adminClient, embedded.owner_id, 'sale', {
           title: 'New Sale',
           body: `Item #${itemNumber} — €${salePrice.toFixed(2)} (${channel})`,
           data: { type: 'sale', embedded_id: embedded.id },
@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
               if (product?.name) productName = product.name;
             }
 
-            await sendPushToUsers(adminClient, companyId, 'low_stock', {
+            await sendPushToUsers(adminClient, embedded.owner_id, 'low_stock', {
               title: 'Low Stock Alert',
               body: `${productName} in ${machine.name}: ${lowTray.current_stock}/${lowTray.min_stock} remaining`,
               data: { type: 'low_stock', machine_id: machine.id },
