@@ -194,9 +194,9 @@ success "Forwarder image built"
 info "Restarting updated services..."
 docker compose up -d --no-deps frontend forwarder
 
-# Restart edge functions (picks up new/changed function code from volume mount)
-info "Restarting edge functions..."
-docker compose restart functions
+# Recreate edge functions (picks up new env vars + function code from volume mount)
+info "Recreating edge functions..."
+docker compose up -d --no-deps functions
 
 success "All services restarted"
 
