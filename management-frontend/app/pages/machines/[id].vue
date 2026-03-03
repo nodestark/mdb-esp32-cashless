@@ -7,6 +7,7 @@ import { IconCreditCard, IconCoins, IconSend } from '@tabler/icons-vue'
 import { timeAgo, formatCurrency } from '@/lib/utils'
 
 const route = useRoute()
+const defaultTab = computed(() => route.query.tab === 'stock' ? 'trays' : 'sales')
 const supabase = useSupabaseClient()
 const { role } = useOrganization()
 const { products, categories, fetchProducts } = useProducts()
@@ -843,7 +844,7 @@ function stockColor(tray: any) {
           </div>
 
           <!-- Tabs: Sales | Trays & Stock -->
-          <Tabs default-value="sales">
+          <Tabs :default-value="defaultTab">
             <TabsList>
               <TabsTrigger value="sales">Sales</TabsTrigger>
               <TabsTrigger value="trays">Trays & Stock</TabsTrigger>
