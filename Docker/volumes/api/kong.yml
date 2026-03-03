@@ -134,7 +134,7 @@ services:
   ## Secure Realtime routes
   - name: realtime-v1-ws
     _comment: 'Realtime: /realtime/v1/* -> ws://realtime:4000/socket/*'
-    url: http://realtime:4000/socket
+    url: http://realtime-dev.supabase-realtime:4000/socket
     protocol: ws
     routes:
       - name: realtime-v1-ws
@@ -152,14 +152,9 @@ services:
           allow:
             - admin
             - anon
-      - name: request-transformer
-        config:
-          add:
-            headers:
-              - x-realtime-tenant:realtime-dev
   - name: realtime-v1-rest
     _comment: 'Realtime: /realtime/v1/api/* -> http://realtime:4000/api/*'
-    url: http://realtime:4000/api
+    url: http://realtime-dev.supabase-realtime:4000/api
     protocol: http
     routes:
       - name: realtime-v1-rest
@@ -177,11 +172,6 @@ services:
           allow:
             - admin
             - anon
-      - name: request-transformer
-        config:
-          add:
-            headers:
-              - x-realtime-tenant:realtime-dev
   ## Storage routes: the storage server manages its own auth
   - name: storage-v1
     _comment: 'Storage: /storage/v1/* -> http://storage:5000/*'
