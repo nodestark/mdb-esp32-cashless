@@ -1,0 +1,13 @@
+{
+  "name": "VMflow Target Firmwares",
+  "builds": [
+    {
+      "version": "nightly",
+      "manifest": "nightly/manifest.json"
+    },
+    {
+      "version": "v1.0.0",
+      "manifest": "v1.0.0/manifest.json"
+    }
+  ]
+}

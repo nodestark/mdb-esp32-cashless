@@ -84,17 +84,6 @@
         View repository on GitHub
       </a>
 
-      <p class="text-gray-700 text-lg">
-        Talk to a specialist:
-        <a
-          href="https://t.me/vmflowxyz"
-          target="_blank"
-          class="text-blue-600 hover:underline ml-1"
-        >
-          @vmflowxyz on Telegram
-        </a>
-      </p>
-
       <RouterLink
         to="/dashboard"
         class="inline-block mt-6 px-6 py-3 bg-slate-800 text-white rounded-xl shadow-md hover:bg-slate-700 transition duration-200">
@@ -105,9 +94,3 @@
 
   </div>
 </template>
-
-<script>
-export default {
-  name: 'Home'
-}
-</script>
