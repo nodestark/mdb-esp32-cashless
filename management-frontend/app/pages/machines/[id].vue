@@ -2,6 +2,7 @@
 definePageMeta({ middleware: 'auth' })
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
 import { IconCreditCard, IconCoins, IconSend } from '@tabler/icons-vue'
 import { timeAgo, formatCurrency } from '@/lib/utils'
@@ -501,7 +502,7 @@ function handleProductKeydown(event: KeyboardEvent, trayId: string) {
   // Shift+Tab: let default behaviour move focus backwards; blur handler closes the dropdown
 }
 
-async function saveInlineField(trayId: string, field: 'capacity' | 'current_stock' | 'min_stock', value: number) {
+async function saveInlineField(trayId: string, field: 'capacity' | 'current_stock' | 'min_stock' | 'fill_when_below', value: number) {
   const tray = trays.value.find(t => t.id === trayId)
   if (!tray) return
 
@@ -509,9 +510,18 @@ async function saveInlineField(trayId: string, field: 'capacity' | 'current_stoc
   if (field === 'capacity' && value < 1) return
   if (field === 'current_stock' && (value < 0 || value > (tray.capacity ?? 100))) return
   if (field === 'min_stock' && value < 0) return
+  if (field === 'fill_when_below' && (value < 0 || (value > 0 && value < (tray.min_stock || 0)))) return
 
   // Skip save if value unchanged
   if (tray[field] === value) return
+
+  // If min_stock is raised above fill_when_below, bump fill_when_below up too
+  if (field === 'min_stock' && tray.fill_when_below > 0 && value > tray.fill_when_below) {
+    try {
+      await updateTray(trayId, machine.value.id, { min_stock: value, fill_when_below: value })
+    } catch { /* silent */ }
+    return
+  }
 
   try {
     await updateTray(trayId, machine.value.id, { [field]: value })
@@ -559,6 +569,23 @@ function handleMinStockKeydown(event: KeyboardEvent, trayId: string) {
     event.preventDefault()
     const val = parseInt((event.target as HTMLInputElement).value) || 0
     saveInlineField(trayId, 'min_stock', val)
+    // Advance to fill-when-below input
+    nextTick(() => {
+      const el = document.getElementById(`fill-below-${trayId}`) as HTMLInputElement | null
+      el?.focus()
+      el?.select()
+    })
+  }
+  if (event.key === 'Escape') {
+    (event.target as HTMLInputElement).blur()
+  }
+}
+
+function handleFillBelowKeydown(event: KeyboardEvent, trayId: string) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    const val = parseInt((event.target as HTMLInputElement).value) || 0
+    saveInlineField(trayId, 'fill_when_below', val)
     // Advance to next row's product button (or blur if last row)
     const idx = trays.value.findIndex(t => t.id === trayId)
     const nextTray = trays.value[idx + 1]
@@ -643,6 +670,9 @@ async function adjustStock(trayId: string, delta: number) {
   }
 }
 
+// Mobile: expanded tray for threshold editing
+const expandedMobileTray = ref<string | null>(null)
+
 // Refill all below-minimum trays
 const refillAllLoading = ref(false)
 async function handleRefillAll() {
@@ -669,11 +699,20 @@ const lowStockCount = computed(() =>
   trays.value.filter(t => t.min_stock > 0 && t.current_stock <= t.min_stock).length
 )
 
-// Packing list: group needed items by product for low-stock trays, ordered by first slot appearance
+const fillBelowCount = computed(() =>
+  trays.value.filter(t =>
+    !isLowStock(t) && t.fill_when_below > 0 && t.current_stock <= t.fill_when_below && t.current_stock > 0
+  ).length
+)
+
+// Packing list: group needed items by product for low-stock and fill-when-below trays, ordered by first slot appearance
 const packingList = computed(() => {
-  const map = new Map<string, { name: string; needed: number; image_url: string | null; firstSlot: number }>()
+  const hasCritical = trays.value.some(t => isLowStock(t))
+  const map = new Map<string, { name: string; needed: number; image_url: string | null; firstSlot: number; critical: boolean }>()
   for (const tray of trays.value) {
-    if (!isLowStock(tray)) continue
+    const critical = isLowStock(tray)
+    const soft = hasCritical && isFillBelow(tray)
+    if (!critical && !soft) continue
     const deficit = tray.capacity - tray.current_stock
     if (deficit <= 0) continue
     const key = tray.product_id || `slot-${tray.item_number}`
@@ -681,9 +720,10 @@ const packingList = computed(() => {
     const existing = map.get(key)
     if (existing) {
       existing.needed += deficit
+      if (critical) existing.critical = true
     } else {
       const product = products.value.find(p => p.id === tray.product_id)
-      map.set(key, { name, needed: deficit, image_url: product?.image_url ?? null, firstSlot: tray.item_number })
+      map.set(key, { name, needed: deficit, image_url: product?.image_url ?? null, firstSlot: tray.item_number, critical })
     }
   }
   return Array.from(map.values()).sort((a, b) => a.firstSlot - b.firstSlot)
@@ -695,8 +735,12 @@ function isLowStock(tray: any) {
   return tray.min_stock > 0 && tray.current_stock <= tray.min_stock
 }
 
+function isFillBelow(tray: any) {
+  return !isLowStock(tray) && tray.fill_when_below > 0 && tray.current_stock <= tray.fill_when_below && tray.current_stock > 0
+}
+
 function isHealthyInRefillMode(tray: any) {
-  return isRefillMode.value && tray.current_stock > tray.min_stock && tray.current_stock > 0
+  return isRefillMode.value && !isLowStock(tray) && !isFillBelow(tray) && tray.current_stock > 0
 }
 
 function trayDeficit(tray: any) {
@@ -713,8 +757,14 @@ function minStockPercent(tray: any) {
   return Math.round((tray.min_stock / tray.capacity) * 100)
 }
 
+function fillBelowPercent(tray: any) {
+  if (tray.capacity === 0 || !tray.fill_when_below) return 0
+  return Math.round((tray.fill_when_below / tray.capacity) * 100)
+}
+
 function stockColor(tray: any) {
   if (isLowStock(tray)) return 'bg-red-500'
+  if (isFillBelow(tray)) return 'bg-amber-500'
   const pct = stockPercent(tray)
   if (pct > 50) return 'bg-green-500'
   if (pct > 20) return 'bg-yellow-500'
@@ -932,12 +982,15 @@ function stockColor(tray: any) {
             <!-- Trays & Stock tab -->
             <TabsContent value="trays" class="mt-4">
               <!-- Refill summary banner + packing list -->
-              <div v-if="lowStockCount > 0" class="mb-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
+              <div v-if="lowStockCount > 0 || (fillBelowCount > 0 && lowStockCount > 0)" class="mb-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
                 <!-- Header row -->
                 <div class="flex items-center gap-3 px-4 py-3">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
                   <span class="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    {{ lowStockCount }} tray{{ lowStockCount > 1 ? 's' : '' }} below minimum stock
+                    {{ lowStockCount }} tray{{ lowStockCount > 1 ? 's' : '' }} below minimum
+                    <template v-if="fillBelowCount > 0">
+                      <span class="text-blue-700 dark:text-blue-300">+ {{ fillBelowCount }} below fill threshold</span>
+                    </template>
                   </span>
                   <button
                     v-if="isAdmin"
@@ -947,7 +1000,7 @@ function stockColor(tray: any) {
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                     <span v-if="refillAllLoading">Refilling…</span>
-                    <span v-else>Refill all ({{ lowStockCount }})</span>
+                    <span v-else>Refill all ({{ lowStockCount + fillBelowCount }})</span>
                   </button>
                 </div>
                 <!-- Packing list -->
@@ -967,7 +1020,10 @@ function stockColor(tray: any) {
                       {{ item.name.charAt(0) }}
                     </div>
                     <span class="truncate font-medium text-amber-900 dark:text-amber-100">{{ item.name }}</span>
-                    <span class="rounded-full bg-amber-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">{{ item.needed }}</span>
+                    <span
+                      class="rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white"
+                      :class="item.critical ? 'bg-amber-600' : 'bg-blue-500'"
+                    >{{ item.needed }}</span>
                   </div>
                 </div>
               </div>
@@ -1000,7 +1056,9 @@ function stockColor(tray: any) {
                     :key="'m-' + tray.id"
                     class="rounded-lg border p-3 transition-colors"
                     :class="[
-                      isLowStock(tray) ? 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20' : 'bg-card',
+                      isLowStock(tray) ? 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20'
+                        : isFillBelow(tray) && lowStockCount > 0 ? 'border-blue-300 bg-blue-50/40 dark:border-blue-700 dark:bg-blue-950/10'
+                        : 'bg-card',
                       isHealthyInRefillMode(tray) ? 'opacity-40' : '',
                     ]"
                   >
@@ -1099,6 +1157,11 @@ function stockColor(tray: any) {
                         class="absolute top-0 h-2 w-0.5 bg-amber-600 dark:bg-amber-400"
                         :style="{ left: `${minStockPercent(tray)}%` }"
                       />
+                      <div
+                        v-if="tray.fill_when_below > 0 && fillBelowPercent(tray) > 0 && fillBelowPercent(tray) < 100"
+                        class="absolute top-0 h-2 w-0.5 bg-blue-500 dark:bg-blue-400"
+                        :style="{ left: `${fillBelowPercent(tray)}%` }"
+                      />
                     </div>
                     <!-- Row 3: +/- stock controls + info -->
                     <div class="mt-2 flex items-center justify-between">
@@ -1127,14 +1190,65 @@ function stockColor(tray: any) {
                       </template>
                       <span v-else class="text-xs text-muted-foreground">{{ tray.current_stock }} / {{ tray.capacity }}</span>
                       <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span v-if="tray.min_stock">Min: {{ tray.min_stock }}</span>
+                        <button
+                          v-if="isAdmin"
+                          type="button"
+                          class="inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-muted active:bg-muted/80"
+                          @click="expandedMobileTray = expandedMobileTray === tray.id ? null : tray.id"
+                        >
+                          <span v-if="tray.min_stock">Min: {{ tray.min_stock }}</span>
+                          <span v-if="tray.fill_when_below">Fill: {{ tray.fill_when_below }}</span>
+                          <span v-if="!tray.min_stock && !tray.fill_when_below" class="italic">Set thresholds</span>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" :class="expandedMobileTray === tray.id ? 'rotate-180' : ''"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          ><polyline points="6 9 12 15 18 9" /></svg>
+                        </button>
+                        <template v-else>
+                          <span v-if="tray.min_stock">Min: {{ tray.min_stock }}</span>
+                          <span v-if="tray.fill_when_below">Fill: {{ tray.fill_when_below }}</span>
+                        </template>
                         <span
                           v-if="trayDeficit(tray) > 0 && isLowStock(tray)"
                           class="font-semibold text-red-600 dark:text-red-400"
                         >
                           -{{ trayDeficit(tray) }}
                         </span>
+                        <span
+                          v-else-if="trayDeficit(tray) > 0 && isFillBelow(tray) && lowStockCount > 0"
+                          class="font-semibold text-blue-600 dark:text-blue-400"
+                        >
+                          -{{ trayDeficit(tray) }}
+                        </span>
                       </div>
+                    </div>
+                    <!-- Expandable thresholds row (mobile, admin only) -->
+                    <div
+                      v-if="isAdmin && expandedMobileTray === tray.id"
+                      class="mt-2 flex items-center gap-4 rounded-md bg-muted/50 px-3 py-2"
+                    >
+                      <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        Min
+                        <input
+                          type="number"
+                          :value="tray.min_stock"
+                          min="0"
+                          :max="tray.capacity"
+                          class="h-7 w-14 rounded border border-input bg-background px-1.5 text-center text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          @change="(e: Event) => saveInlineField(tray.id, 'min_stock', parseInt((e.target as HTMLInputElement).value) || 0)"
+                        />
+                      </label>
+                      <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        Fill
+                        <input
+                          type="number"
+                          :value="tray.fill_when_below"
+                          min="0"
+                          :max="tray.capacity"
+                          class="h-7 w-14 rounded border border-input bg-background px-1.5 text-center text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          @change="(e: Event) => saveInlineField(tray.id, 'fill_when_below', parseInt((e.target as HTMLInputElement).value) || 0)"
+                        />
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -1147,7 +1261,36 @@ function stockColor(tray: any) {
                         <th class="w-20 px-4 py-3 font-medium">Slot #</th>
                         <th class="px-4 py-3 font-medium">Product</th>
                         <th class="w-36 px-4 py-3 font-medium">Stock</th>
-                        <th class="w-16 px-4 py-3 font-medium">Min</th>
+                        <th class="w-16 px-4 py-3 font-medium">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger as-child>
+                                <span class="inline-flex cursor-help items-center gap-1">
+                                  Min
+                                  <span class="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] font-semibold leading-none text-muted-foreground">i</span>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p class="max-w-48">Minimum stock. Triggers a refill alert when stock drops to or below this number.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </th>
+                        <th class="w-16 px-4 py-3 font-medium">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger as-child>
+                                <span class="inline-flex cursor-help items-center gap-1">
+                                  Fill
+                                  <span class="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] font-semibold leading-none text-muted-foreground">i</span>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p class="max-w-48">Fill threshold. When already restocking, also top up trays below this level.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </th>
                         <th class="w-32 px-4 py-3 font-medium">Level</th>
                         <th v-if="isAdmin" class="w-24 px-4 py-3 font-medium">Actions</th>
                       </tr>
@@ -1158,7 +1301,9 @@ function stockColor(tray: any) {
                         :key="tray.id"
                         class="border-b last:border-0 transition-colors"
                         :class="[
-                          isLowStock(tray) ? 'bg-amber-50/60 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/40' : 'hover:bg-muted/30',
+                          isLowStock(tray) ? 'bg-amber-50/60 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/40'
+                            : isFillBelow(tray) && lowStockCount > 0 ? 'bg-blue-50/40 hover:bg-blue-100/40 dark:bg-blue-950/10 dark:hover:bg-blue-950/20'
+                            : 'hover:bg-muted/30',
                           isHealthyInRefillMode(tray) ? 'opacity-40' : '',
                         ]"
                       >
@@ -1255,6 +1400,13 @@ function stockColor(tray: any) {
                               >
                                 -{{ trayDeficit(tray) }}
                               </span>
+                              <span
+                                v-else-if="trayDeficit(tray) > 0 && isFillBelow(tray) && lowStockCount > 0"
+                                class="ml-1 text-xs font-semibold text-blue-600 dark:text-blue-400"
+                                :title="`${trayDeficit(tray)} items to top up`"
+                              >
+                                -{{ trayDeficit(tray) }}
+                              </span>
                             </div>
                           </template>
                           <div v-else class="flex items-center gap-1">
@@ -1262,6 +1414,12 @@ function stockColor(tray: any) {
                             <span
                               v-if="trayDeficit(tray) > 0 && isLowStock(tray)"
                               class="ml-1 text-xs font-semibold text-red-600 dark:text-red-400"
+                            >
+                              -{{ trayDeficit(tray) }}
+                            </span>
+                            <span
+                              v-else-if="trayDeficit(tray) > 0 && isFillBelow(tray) && lowStockCount > 0"
+                              class="ml-1 text-xs font-semibold text-blue-600 dark:text-blue-400"
                             >
                               -{{ trayDeficit(tray) }}
                             </span>
@@ -1285,7 +1443,24 @@ function stockColor(tray: any) {
                           <span v-else class="text-muted-foreground">{{ tray.min_stock || '—' }}</span>
                         </td>
 
-                        <!-- Level bar with threshold marker -->
+                        <!-- Fill when below threshold -->
+                        <td class="px-4 py-2">
+                          <template v-if="isAdmin">
+                            <input
+                              :id="`fill-below-${tray.id}`"
+                              type="number"
+                              :value="tray.fill_when_below"
+                              min="0"
+                              :max="tray.capacity"
+                              class="h-7 w-12 rounded border border-transparent bg-transparent px-1 text-center text-sm hover:border-input focus:border-input focus:bg-background focus:shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              @change="(e: Event) => saveInlineField(tray.id, 'fill_when_below', parseInt((e.target as HTMLInputElement).value) || 0)"
+                              @keydown="(e: KeyboardEvent) => handleFillBelowKeydown(e, tray.id)"
+                            />
+                          </template>
+                          <span v-else class="text-muted-foreground">{{ tray.fill_when_below || '—' }}</span>
+                        </td>
+
+                        <!-- Level bar with threshold markers -->
                         <td class="px-4 py-2">
                           <div class="relative h-2 w-full rounded-full bg-muted">
                             <div
@@ -1298,6 +1473,12 @@ function stockColor(tray: any) {
                               class="absolute top-0 h-2 w-0.5 bg-amber-600 dark:bg-amber-400"
                               :style="{ left: `${minStockPercent(tray)}%` }"
                               :title="`Min stock: ${tray.min_stock}`"
+                            />
+                            <div
+                              v-if="tray.fill_when_below > 0 && fillBelowPercent(tray) > 0 && fillBelowPercent(tray) < 100"
+                              class="absolute top-0 h-2 w-0.5 bg-blue-500 dark:bg-blue-400"
+                              :style="{ left: `${fillBelowPercent(tray)}%` }"
+                              :title="`Fill when below: ${tray.fill_when_below}`"
                             />
                           </div>
                         </td>

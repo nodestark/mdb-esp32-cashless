@@ -10,6 +10,7 @@ interface Tray {
   capacity: number
   current_stock: number
   min_stock: number
+  fill_when_below: number
 }
 
 export function useMachineTrays() {
@@ -35,7 +36,7 @@ export function useMachineTrays() {
     try {
       const { data, error } = await (supabase as any)
         .from('machine_trays')
-        .select('id, machine_id, item_number, product_id, capacity, current_stock, min_stock, products(name)')
+        .select('id, machine_id, item_number, product_id, capacity, current_stock, min_stock, fill_when_below, products(name)')
         .eq('machine_id', machineId)
         .order('item_number')
 
@@ -50,6 +51,7 @@ export function useMachineTrays() {
         capacity: t.capacity,
         current_stock: t.current_stock,
         min_stock: t.min_stock ?? 0,
+        fill_when_below: t.fill_when_below ?? 0,
       }))
     } finally {
       if (!silent) loading.value = false
@@ -118,7 +120,7 @@ export function useMachineTrays() {
     })
   }
 
-  async function updateTray(trayId: string, machineId: string, updates: { item_number?: number; product_id?: string | null; capacity?: number; current_stock?: number; min_stock?: number }) {
+  async function updateTray(trayId: string, machineId: string, updates: { item_number?: number; product_id?: string | null; capacity?: number; current_stock?: number; min_stock?: number; fill_when_below?: number }) {
     const tray = trays.value.find(t => t.id === trayId)
     const { error } = await (supabase as any)
       .from('machine_trays')
@@ -129,7 +131,7 @@ export function useMachineTrays() {
     await fetchTrays(machineId, { silent: true })
 
     // Only log if a stock-related field changed
-    if (updates.current_stock !== undefined || updates.min_stock !== undefined || updates.capacity !== undefined) {
+    if (updates.current_stock !== undefined || updates.min_stock !== undefined || updates.capacity !== undefined || updates.fill_when_below !== undefined) {
       const machineName = await getMachineName(machineId)
       await logActivity('stock_updated', trayId, {
         machine_id: machineId,
@@ -142,6 +144,8 @@ export function useMachineTrays() {
         new_min_stock: updates.min_stock,
         old_capacity: updates.capacity !== undefined ? tray?.capacity ?? null : undefined,
         new_capacity: updates.capacity,
+        old_fill_when_below: updates.fill_when_below !== undefined ? tray?.fill_when_below ?? null : undefined,
+        new_fill_when_below: updates.fill_when_below,
       })
     }
   }
@@ -154,17 +158,24 @@ export function useMachineTrays() {
     await refillTray(trayId, machineId, tray.capacity)
   }
 
-  /** Set all below-minimum trays to their capacity */
+  /** Set all below-minimum and below-fill-threshold trays to their capacity */
   async function refillAll(machineId: string) {
-    const lowTrays = trays.value.filter(t => t.min_stock > 0 && t.current_stock <= t.min_stock)
-    if (lowTrays.length === 0) return
+    const hasCritical = trays.value.some(t => t.min_stock > 0 && t.current_stock <= t.min_stock)
+    if (!hasCritical) return
+
+    const refillTargets = trays.value.filter(t => {
+      const isBelowMin = t.min_stock > 0 && t.current_stock <= t.min_stock
+      const isBelowFill = t.fill_when_below > 0 && t.current_stock <= t.fill_when_below
+      return isBelowMin || isBelowFill
+    })
+    if (refillTargets.length === 0) return
 
     // Snapshot before optimistic update
-    const snapshot = lowTrays.map(t => ({ id: t.id, item_number: t.item_number, product_name: t.product_name, old_stock: t.current_stock, new_stock: t.capacity }))
+    const snapshot = refillTargets.map(t => ({ id: t.id, item_number: t.item_number, product_name: t.product_name, old_stock: t.current_stock, new_stock: t.capacity }))
 
-    for (const t of lowTrays) t.current_stock = t.capacity
+    for (const t of refillTargets) t.current_stock = t.capacity
 
-    const results = await Promise.all(lowTrays.map(tray =>
+    const results = await Promise.all(refillTargets.map(tray =>
       (supabase as any)
         .from('machine_trays')
         .update({ current_stock: tray.capacity })
@@ -225,6 +236,7 @@ export function useMachineTrays() {
             tray.capacity = updated.capacity
             tray.product_id = updated.product_id
             tray.min_stock = updated.min_stock ?? 0
+            tray.fill_when_below = updated.fill_when_below ?? 0
           }
         }
       )
