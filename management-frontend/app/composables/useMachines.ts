@@ -73,7 +73,7 @@ export function useMachines() {
       const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString()
 
       // Batch queries in parallel — use machine_id instead of embedded_id
-      const [todaySalesRes, yesterdaySalesRes, paxRes, ...lastSaleResults] = await Promise.all([
+      const [todaySalesRes, yesterdaySalesRes, paxRes, traysRes, ...lastSaleResults] = await Promise.all([
         // Today's sales
         supabase
           .from('sales')
@@ -93,6 +93,11 @@ export function useMachines() {
           .select('machine_id, count')
           .in('machine_id', machineIds)
           .order('created_at', { ascending: false }),
+        // All tray data in one batch (with product names)
+        supabase
+          .from('machine_trays')
+          .select('machine_id, item_number, product_id, capacity, current_stock, min_stock, products(name)')
+          .in('machine_id', machineIds),
         // Last sale per machine
         ...machines.value.map(m =>
           supabase
@@ -151,6 +156,87 @@ export function useMachines() {
         machine.yesterday_revenue = yesterdayMap.get(machine.id) ?? 0
         machine.paxcounter_count = paxMap.get(machine.id) ?? null
       }
+
+      // Aggregate stock stats per machine
+      const trayRows = (traysRes.data ?? []) as {
+        machine_id: string
+        item_number: number
+        product_id: string | null
+        capacity: number
+        current_stock: number
+        min_stock: number
+        products: { name: string } | null
+      }[]
+
+      const stockMap = new Map<string, {
+        total: number
+        low: number
+        empty: number
+        totalStock: number
+        totalCapacity: number
+        deficits: Map<string, { product_name: string; product_id: string | null; deficit: number }>
+      }>()
+
+      for (const tray of trayRows) {
+        if (!tray.machine_id) continue
+        let entry = stockMap.get(tray.machine_id)
+        if (!entry) {
+          entry = { total: 0, low: 0, empty: 0, totalStock: 0, totalCapacity: 0, deficits: new Map() }
+          stockMap.set(tray.machine_id, entry)
+        }
+        entry.total++
+        entry.totalStock += tray.current_stock
+        entry.totalCapacity += tray.capacity
+
+        const isLow = tray.min_stock > 0 && tray.current_stock <= tray.min_stock
+        const isEmpty = tray.current_stock === 0
+
+        if (isEmpty) entry.empty++
+        else if (isLow) entry.low++
+
+        if (isLow || isEmpty) {
+          const deficit = tray.capacity - tray.current_stock
+          const productName = tray.products?.name ?? `Slot ${tray.item_number}`
+          const key = tray.product_id ?? `slot-${tray.item_number}`
+          const existing = entry.deficits.get(key)
+          if (existing) {
+            existing.deficit += deficit
+          } else {
+            entry.deficits.set(key, { product_name: productName, product_id: tray.product_id, deficit })
+          }
+        }
+      }
+
+      // Apply stock stats to machines
+      for (const machine of machines.value) {
+        const stock = stockMap.get(machine.id)
+        if (stock) {
+          machine.total_trays = stock.total
+          machine.low_trays = stock.low + stock.empty
+          machine.empty_trays = stock.empty
+          machine.stock_health = stock.empty > 0 ? 'critical' : (stock.low > 0 ? 'low' : 'ok')
+          machine.stock_percent = stock.totalCapacity > 0
+            ? Math.round((stock.totalStock / stock.totalCapacity) * 100)
+            : 0
+          machine.tray_summary = Array.from(stock.deficits.values()).sort((a, b) => b.deficit - a.deficit)
+        } else {
+          machine.total_trays = 0
+          machine.low_trays = 0
+          machine.empty_trays = 0
+          machine.stock_health = 'ok'
+          machine.stock_percent = 0
+          machine.tray_summary = []
+        }
+      }
+
+      // Sort machines by stock urgency: critical > low > ok, then by low_trays desc
+      const healthOrder: Record<string, number> = { critical: 0, low: 1, ok: 2 }
+      machines.value.sort((a, b) => {
+        const ha = healthOrder[a.stock_health ?? 'ok']
+        const hb = healthOrder[b.stock_health ?? 'ok']
+        if (ha !== hb) return ha - hb
+        return (b.low_trays ?? 0) - (a.low_trays ?? 0)
+      })
     } finally {
       loading.value = false
     }
