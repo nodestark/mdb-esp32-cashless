@@ -30,7 +30,7 @@ interface VendingMachine {
   empty_trays?: number
   stock_health?: 'ok' | 'low' | 'critical'
   stock_percent?: number
-  tray_summary?: { product_name: string; product_id: string | null; deficit: number }[]
+  tray_summary?: { product_name: string; product_id: string | null; deficit: number; image_path: string | null }[]
 }
 
 interface PendingToken {
@@ -96,7 +96,7 @@ export function useMachines() {
         // All tray data in one batch (with product names)
         supabase
           .from('machine_trays')
-          .select('machine_id, item_number, product_id, capacity, current_stock, min_stock, products(name)')
+          .select('machine_id, item_number, product_id, capacity, current_stock, min_stock, products(name, image_path)')
           .in('machine_id', machineIds),
         // Last sale per machine
         ...machines.value.map(m =>
@@ -165,7 +165,7 @@ export function useMachines() {
         capacity: number
         current_stock: number
         min_stock: number
-        products: { name: string } | null
+        products: { name: string; image_path: string | null } | null
       }[]
 
       const stockMap = new Map<string, {
@@ -174,7 +174,7 @@ export function useMachines() {
         empty: number
         totalStock: number
         totalCapacity: number
-        deficits: Map<string, { product_name: string; product_id: string | null; deficit: number }>
+        deficits: Map<string, { product_name: string; product_id: string | null; deficit: number; image_path: string | null }>
       }>()
 
       for (const tray of trayRows) {
@@ -197,12 +197,13 @@ export function useMachines() {
         if (isLow || isEmpty) {
           const deficit = tray.capacity - tray.current_stock
           const productName = tray.products?.name ?? `Slot ${tray.item_number}`
+          const imagePath = tray.products?.image_path ?? null
           const key = tray.product_id ?? `slot-${tray.item_number}`
           const existing = entry.deficits.get(key)
           if (existing) {
             existing.deficit += deficit
           } else {
-            entry.deficits.set(key, { product_name: productName, product_id: tray.product_id, deficit })
+            entry.deficits.set(key, { product_name: productName, product_id: tray.product_id, deficit, image_path: imagePath })
           }
         }
       }
