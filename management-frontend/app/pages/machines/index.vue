@@ -2,9 +2,6 @@
 definePageMeta({ middleware: 'auth' })
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { timeAgo, formatCurrency } from '@/lib/utils'
 
 const { organization } = useOrganization()
 const {
@@ -72,85 +69,93 @@ async function submitCreateMachine() {
         </div>
 
         <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <NuxtLink
+          <div
             v-for="machine in machines"
             :key="machine.id"
-            :to="`/machines/${machine.id}`"
-            class="block transition-shadow hover:shadow-md rounded-xl"
+            class="block rounded-xl transition-shadow hover:shadow-md"
           >
             <Card class="h-full">
               <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle class="text-base font-semibold truncate">
-                  {{ machine.name ?? 'Unnamed Machine' }}
-                </CardTitle>
-                <Badge
-                  v-if="machine.embeddeds"
-                  :variant="machine.embeddeds.status === 'online' || machine.embeddeds.status?.startsWith('ota_') ? 'default' : 'secondary'"
-                  class="shrink-0"
-                >
-                  <span
-                    class="mr-1 inline-block h-2 w-2 rounded-full"
-                    :class="{
-                      'bg-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
-                      'bg-yellow-400': machine.embeddeds.status === 'ota_updating',
-                      'bg-red-400': machine.embeddeds.status === 'ota_failed',
-                      'bg-muted-foreground/50': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
-                    }"
-                  />
-                  {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
-                </Badge>
-                <Badge v-else variant="outline" class="shrink-0">
-                  No device
-                </Badge>
+                <NuxtLink :to="`/machines/${machine.id}`" class="min-w-0 flex-1">
+                  <CardTitle class="text-base font-semibold truncate">
+                    {{ machine.name ?? 'Unnamed Machine' }}
+                  </CardTitle>
+                </NuxtLink>
+                <!-- Stock health dot -->
+                <span
+                  class="ml-2 inline-block h-3 w-3 shrink-0 rounded-full"
+                  :class="{
+                    'bg-red-500': machine.stock_health === 'critical',
+                    'bg-amber-500': machine.stock_health === 'low',
+                    'bg-green-500': machine.stock_health === 'ok' || !machine.stock_health,
+                  }"
+                />
               </CardHeader>
+
               <CardContent class="space-y-3">
-                <!-- Revenue stats -->
-                <div class="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p class="text-xs text-muted-foreground">Today</p>
-                    <p class="text-lg font-semibold">{{ formatCurrency(machine.today_revenue ?? 0) }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-muted-foreground">Yesterday</p>
-                    <p class="text-lg font-semibold">{{ formatCurrency(machine.yesterday_revenue ?? 0) }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-muted-foreground">Sales Today</p>
-                    <p class="text-lg font-semibold">{{ machine.today_sales_count ?? 0 }}</p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <!-- Temperature & Stock placeholders -->
-                <div class="grid grid-cols-2 gap-2 text-center">
-                  <div>
-                    <p class="text-xs text-muted-foreground">Temperature</p>
-                    <p class="text-lg font-semibold text-muted-foreground">-- °C</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-muted-foreground">Stock</p>
-                    <p class="text-lg font-semibold text-muted-foreground">--</p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <!-- Last sale & traffic -->
-                <div class="flex items-center justify-between text-sm">
-                  <span class="text-muted-foreground">
-                    Last: {{ timeAgo(machine.last_sale_at) }}
-                    <template v-if="machine.last_sale_amount != null">
-                      · {{ formatCurrency(machine.last_sale_amount) }}
+                <!-- Healthy machine: compact view -->
+                <template v-if="machine.stock_health === 'ok' || !machine.stock_health">
+                  <p class="text-sm text-muted-foreground">
+                    <template v-if="(machine.total_trays ?? 0) > 0">
+                      All stocked ({{ machine.total_trays }} trays)
                     </template>
-                  </span>
-                  <span class="text-muted-foreground">
-                    Traffic: {{ machine.paxcounter_count ?? '—' }}
-                  </span>
-                </div>
+                    <template v-else>
+                      No trays configured
+                    </template>
+                  </p>
+                </template>
+
+                <!-- Machine needing refill: expanded view -->
+                <template v-else>
+                  <!-- Urgency summary -->
+                  <p class="text-sm">
+                    <span v-if="(machine.empty_trays ?? 0) > 0" class="font-medium text-red-500">{{ machine.empty_trays }} empty</span>
+                    <span v-if="(machine.empty_trays ?? 0) > 0 && ((machine.low_trays ?? 0) - (machine.empty_trays ?? 0)) > 0"> &middot; </span>
+                    <span v-if="((machine.low_trays ?? 0) - (machine.empty_trays ?? 0)) > 0" class="font-medium text-amber-500">{{ (machine.low_trays ?? 0) - (machine.empty_trays ?? 0) }} low</span>
+                    <span class="text-muted-foreground"> of {{ machine.total_trays }} trays</span>
+                  </p>
+
+                  <!-- Stock bar -->
+                  <div class="flex items-center gap-2">
+                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        class="h-full rounded-full transition-all"
+                        :class="{
+                          'bg-red-500': (machine.stock_percent ?? 0) < 20,
+                          'bg-amber-500': (machine.stock_percent ?? 0) >= 20 && (machine.stock_percent ?? 0) < 50,
+                          'bg-green-500': (machine.stock_percent ?? 0) >= 50,
+                        }"
+                        :style="{ width: `${machine.stock_percent ?? 0}%` }"
+                      />
+                    </div>
+                    <span class="text-xs font-medium text-muted-foreground w-8 text-right">{{ machine.stock_percent ?? 0 }}%</span>
+                  </div>
+
+                  <!-- Packing list -->
+                  <div v-if="machine.tray_summary && machine.tray_summary.length > 0" class="space-y-1">
+                    <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pack for this machine</p>
+                    <div class="flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span
+                        v-for="item in machine.tray_summary"
+                        :key="item.product_id ?? item.product_name"
+                        class="text-sm"
+                      >
+                        {{ item.deficit }}&times; {{ item.product_name }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Refill button -->
+                  <NuxtLink
+                    :to="`/machines/${machine.id}?tab=stock`"
+                    class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+                  >
+                    Refill &rarr;
+                  </NuxtLink>
+                </template>
               </CardContent>
             </Card>
-          </NuxtLink>
+          </div>
         </div>
   </div>
 
