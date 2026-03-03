@@ -2,7 +2,9 @@
 definePageMeta({ middleware: 'auth' })
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { getProductImageUrl } from '@/composables/useProducts'
+import { formatCurrency } from '@/lib/utils'
 
 const { organization } = useOrganization()
 const {
@@ -124,6 +126,28 @@ function allPacked(machineId: string, traySummary: { product_id: string | null; 
               </CardHeader>
 
               <CardContent class="space-y-3">
+                <!-- Sales analytics -->
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div class="flex justify-between">
+                    <span class="text-muted-foreground">Today</span>
+                    <span class="font-medium tabular-nums">{{ formatCurrency(machine.today_revenue ?? 0) }} <span class="text-muted-foreground font-normal">({{ machine.today_sales_count ?? 0 }})</span></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-muted-foreground">This month</span>
+                    <span class="font-medium tabular-nums">{{ formatCurrency(machine.this_month_revenue ?? 0) }} <span class="text-muted-foreground font-normal">({{ machine.this_month_sales_count ?? 0 }})</span></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-muted-foreground">Yesterday</span>
+                    <span class="font-medium tabular-nums">{{ formatCurrency(machine.yesterday_revenue ?? 0) }} <span class="text-muted-foreground font-normal">({{ machine.yesterday_sales_count ?? 0 }})</span></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-muted-foreground">Last month</span>
+                    <span class="font-medium tabular-nums">{{ formatCurrency(machine.last_month_revenue ?? 0) }} <span class="text-muted-foreground font-normal">({{ machine.last_month_sales_count ?? 0 }})</span></span>
+                  </div>
+                </div>
+
+                <Separator />
+
                 <!-- Healthy machine: compact view -->
                 <template v-if="machine.stock_health === 'ok' || !machine.stock_health">
                   <p class="text-sm text-muted-foreground">

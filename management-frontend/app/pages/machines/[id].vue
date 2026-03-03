@@ -150,13 +150,14 @@ function formatDate(dt: string | null | undefined) {
 
 // Map item_number → product info from trays
 const trayProductMap = computed(() => {
-  const map = new Map<number, { name: string; image_url: string | null }>()
+  const map = new Map<number, { name: string; image_url: string | null; sellprice: number | null }>()
   for (const t of trays.value) {
     if (t.product_name) {
       const product = products.value.find(p => p.id === t.product_id)
       map.set(t.item_number, {
         name: t.product_name,
         image_url: product?.image_url ?? null,
+        sellprice: product?.sellprice ?? null,
       })
     }
   }
@@ -1130,7 +1131,12 @@ function stockColor(tray: any) {
                           </button>
                         </template>
                         <span v-else class="block truncate text-sm font-medium">{{ tray.product_name ?? '—' }}</span>
-                        <span class="text-xs text-muted-foreground">Slot {{ tray.item_number }}</span>
+                        <span class="text-xs text-muted-foreground">
+                          Slot {{ tray.item_number }}
+                          <template v-if="trayProductMap.get(tray.item_number)?.sellprice">
+                            &middot; {{ formatCurrency(trayProductMap.get(tray.item_number)!.sellprice!) }}
+                          </template>
+                        </span>
                       </div>
                       <!-- Actions: Full only on mobile -->
                       <button
@@ -1307,8 +1313,13 @@ function stockColor(tray: any) {
                           isHealthyInRefillMode(tray) ? 'opacity-40' : '',
                         ]"
                       >
-                        <!-- Slot # (read-only) -->
-                        <td class="px-4 py-2 font-mono">{{ tray.item_number }}</td>
+                        <!-- Slot # + price (read-only) -->
+                        <td class="px-4 py-2">
+                          <span class="font-mono">{{ tray.item_number }}</span>
+                          <span v-if="trayProductMap.get(tray.item_number)?.sellprice" class="ml-1 text-xs text-muted-foreground">
+                            {{ formatCurrency(trayProductMap.get(tray.item_number)!.sellprice!) }}
+                          </span>
+                        </td>
 
                         <!-- Product (inline autocomplete for admins) -->
                         <td class="px-4 py-2 relative">

@@ -23,6 +23,11 @@ interface VendingMachine {
   today_revenue?: number
   today_sales_count?: number
   yesterday_revenue?: number
+  yesterday_sales_count?: number
+  this_month_revenue?: number
+  this_month_sales_count?: number
+  last_month_revenue?: number
+  last_month_sales_count?: number
   paxcounter_count?: number | null
   // Stock fields
   total_trays?: number
@@ -71,9 +76,11 @@ export function useMachines() {
       const now = new Date()
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
       const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString()
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
 
       // Batch queries in parallel — use machine_id instead of embedded_id
-      const [todaySalesRes, yesterdaySalesRes, paxRes, traysRes, ...lastSaleResults] = await Promise.all([
+      const [todaySalesRes, yesterdaySalesRes, thisMonthSalesRes, lastMonthSalesRes, paxRes, traysRes, ...lastSaleResults] = await Promise.all([
         // Today's sales
         supabase
           .from('sales')
@@ -87,6 +94,19 @@ export function useMachines() {
           .in('machine_id', machineIds)
           .gte('created_at', yesterdayStart)
           .lt('created_at', todayStart),
+        // This month's sales
+        supabase
+          .from('sales')
+          .select('machine_id, item_price')
+          .in('machine_id', machineIds)
+          .gte('created_at', thisMonthStart),
+        // Last month's sales
+        supabase
+          .from('sales')
+          .select('machine_id, item_price')
+          .in('machine_id', machineIds)
+          .gte('created_at', lastMonthStart)
+          .lt('created_at', thisMonthStart),
         // Latest paxcounter per machine
         supabase
           .from('paxcounter')
@@ -122,11 +142,36 @@ export function useMachines() {
       }
 
       // Aggregate yesterday's sales per machine
-      const yesterdayMap = new Map<string, number>()
+      const yesterdayMap = new Map<string, { revenue: number; count: number }>()
       const yesterdayRows = (yesterdaySalesRes.data ?? []) as { machine_id: string; item_price: number }[]
       for (const row of yesterdayRows) {
         if (!row.machine_id) continue
-        yesterdayMap.set(row.machine_id, (yesterdayMap.get(row.machine_id) ?? 0) + (row.item_price ?? 0))
+        const entry = yesterdayMap.get(row.machine_id) ?? { revenue: 0, count: 0 }
+        entry.revenue += row.item_price ?? 0
+        entry.count += 1
+        yesterdayMap.set(row.machine_id, entry)
+      }
+
+      // Aggregate this month's sales per machine
+      const thisMonthMap = new Map<string, { revenue: number; count: number }>()
+      const thisMonthRows = (thisMonthSalesRes.data ?? []) as { machine_id: string; item_price: number }[]
+      for (const row of thisMonthRows) {
+        if (!row.machine_id) continue
+        const entry = thisMonthMap.get(row.machine_id) ?? { revenue: 0, count: 0 }
+        entry.revenue += row.item_price ?? 0
+        entry.count += 1
+        thisMonthMap.set(row.machine_id, entry)
+      }
+
+      // Aggregate last month's sales per machine
+      const lastMonthMap = new Map<string, { revenue: number; count: number }>()
+      const lastMonthRows = (lastMonthSalesRes.data ?? []) as { machine_id: string; item_price: number }[]
+      for (const row of lastMonthRows) {
+        if (!row.machine_id) continue
+        const entry = lastMonthMap.get(row.machine_id) ?? { revenue: 0, count: 0 }
+        entry.revenue += row.item_price ?? 0
+        entry.count += 1
+        lastMonthMap.set(row.machine_id, entry)
       }
 
       // Dedupe paxcounter to latest per machine
@@ -153,7 +198,15 @@ export function useMachines() {
         const todayStats = todayMap.get(machine.id)
         machine.today_revenue = todayStats?.revenue ?? 0
         machine.today_sales_count = todayStats?.count ?? 0
-        machine.yesterday_revenue = yesterdayMap.get(machine.id) ?? 0
+        const yesterdayStats = yesterdayMap.get(machine.id)
+        machine.yesterday_revenue = yesterdayStats?.revenue ?? 0
+        machine.yesterday_sales_count = yesterdayStats?.count ?? 0
+        const thisMonthStats = thisMonthMap.get(machine.id)
+        machine.this_month_revenue = thisMonthStats?.revenue ?? 0
+        machine.this_month_sales_count = thisMonthStats?.count ?? 0
+        const lastMonthStats = lastMonthMap.get(machine.id)
+        machine.last_month_revenue = lastMonthStats?.revenue ?? 0
+        machine.last_month_sales_count = lastMonthStats?.count ?? 0
         machine.paxcounter_count = paxMap.get(machine.id) ?? null
       }
 
