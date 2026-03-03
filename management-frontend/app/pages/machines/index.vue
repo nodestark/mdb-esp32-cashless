@@ -10,6 +10,10 @@ const { organization } = useOrganization()
 const {
   machines, loading, fetchMachines, subscribeToStatusUpdates, createMachine,
 } = useMachines()
+const { onResume } = useAppResume()
+
+// Re-fetch all machine data when app resumes from background (iOS PWA etc.)
+onResume(() => fetchMachines())
 
 onMounted(async () => {
   await fetchMachines()

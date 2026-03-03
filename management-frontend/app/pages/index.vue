@@ -6,6 +6,7 @@ import SectionCards from "@/components/SectionCards.vue"
 
 const supabase = useSupabaseClient()
 const { fetchOrganization } = useOrganization()
+const { onResume } = useAppResume()
 
 // KPI state
 const todaySales = ref(0)
@@ -13,6 +14,9 @@ const weekSales = ref(0)
 const machinesOnline = ref(0)
 const totalMachines = ref(0)
 const salesChartData = ref<{ date: Date; total: number }[]>([])
+
+// Re-fetch all dashboard data when app resumes from background (iOS PWA etc.)
+onResume(() => loadDashboard())
 
 onMounted(async () => {
   await fetchOrganization()

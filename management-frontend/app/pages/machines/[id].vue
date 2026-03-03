@@ -12,6 +12,7 @@ const { role } = useOrganization()
 const { products, categories, fetchProducts } = useProducts()
 const { trays, loading: traysLoading, fetchTrays, upsertTray, updateTray, batchCreateTrays, refillToFull, refillAll, deleteTray, subscribeToTrayUpdates } = useMachineTrays()
 const { fetchUnassignedEmbeddeds, swapDevice } = useMachines()
+const { onResume } = useAppResume()
 
 const isAdmin = computed(() => role.value === 'admin')
 
@@ -19,6 +20,18 @@ const machine = ref<any>(null)
 const sales = ref<any[]>([])
 const loading = ref(true)
 const errorMsg = ref('')
+
+// Re-fetch machine data when app resumes from background (iOS PWA etc.)
+onResume(async () => {
+  const id = route.params.id as string
+  const [machineRes] = await Promise.all([
+    supabase.from('vendingMachine')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address)')
+      .eq('id', id).single(),
+    fetchTrays(id),
+  ])
+  if (machineRes.data) machine.value = machineRes.data
+})
 
 onMounted(async () => {
   const id = route.params.id as string

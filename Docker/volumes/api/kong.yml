@@ -152,8 +152,13 @@ services:
           allow:
             - admin
             - anon
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - x-realtime-tenant:realtime-dev
   - name: realtime-v1-rest
-    _comment: 'Realtime: /realtime/v1/* -> ws://realtime:4000/socket/*'
+    _comment: 'Realtime: /realtime/v1/api/* -> http://realtime:4000/api/*'
     url: http://realtime:4000/api
     protocol: http
     routes:
@@ -172,6 +177,11 @@ services:
           allow:
             - admin
             - anon
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - x-realtime-tenant:realtime-dev
   ## Storage routes: the storage server manages its own auth
   - name: storage-v1
     _comment: 'Storage: /storage/v1/* -> http://storage:5000/*'
