@@ -24,6 +24,13 @@ interface VendingMachine {
   today_sales_count?: number
   yesterday_revenue?: number
   paxcounter_count?: number | null
+  // Stock fields
+  total_trays?: number
+  low_trays?: number
+  empty_trays?: number
+  stock_health?: 'ok' | 'low' | 'critical'
+  stock_percent?: number
+  tray_summary?: { product_name: string; product_id: string | null; deficit: number }[]
 }
 
 interface PendingToken {
