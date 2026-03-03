@@ -354,6 +354,13 @@ export function useMachines() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'machine_trays' },
+        () => {
+          fetchMachines()
+        }
+      )
       .subscribe((_status, err) => {
         if (err) console.error('[realtime] machines channel error:', err)
       })
