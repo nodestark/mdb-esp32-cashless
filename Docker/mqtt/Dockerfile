@@ -1,7 +1,8 @@
 FROM python:3.10-alpine
 WORKDIR /usr/local/app
 
-# Install the application dependencies
+# Run commands during image builder
 RUN pip install --no-cache-dir supabase paho-mqtt
 
-CMD ["python", "-u", "mqtt_domain.py"]
+# Run commands during start container
+CMD ["python", "-u", "/clients/mqtt_domain.py"]

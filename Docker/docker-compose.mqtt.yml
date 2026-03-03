@@ -20,7 +20,6 @@ services:
       - broker
     volumes:
       - ./mqtt/clients:/clients
-    working_dir: /clients
     environment:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
