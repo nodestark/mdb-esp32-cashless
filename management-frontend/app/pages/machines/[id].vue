@@ -689,8 +689,14 @@ const packingList = computed(() => {
   return Array.from(map.values()).sort((a, b) => a.firstSlot - b.firstSlot)
 })
 
+const isRefillMode = computed(() => route.query.tab === 'stock')
+
 function isLowStock(tray: any) {
   return tray.min_stock > 0 && tray.current_stock <= tray.min_stock
+}
+
+function isHealthyInRefillMode(tray: any) {
+  return isRefillMode.value && tray.current_stock > tray.min_stock && tray.current_stock > 0
 }
 
 function trayDeficit(tray: any) {
@@ -993,7 +999,10 @@ function stockColor(tray: any) {
                     v-for="tray in trays"
                     :key="'m-' + tray.id"
                     class="rounded-lg border p-3 transition-colors"
-                    :class="isLowStock(tray) ? 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20' : 'bg-card'"
+                    :class="[
+                      isLowStock(tray) ? 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20' : 'bg-card',
+                      isHealthyInRefillMode(tray) ? 'opacity-40' : '',
+                    ]"
                   >
                     <!-- Row 1: image + slot + product + actions -->
                     <div class="flex items-center gap-3">
@@ -1148,7 +1157,10 @@ function stockColor(tray: any) {
                         v-for="tray in trays"
                         :key="tray.id"
                         class="border-b last:border-0 transition-colors"
-                        :class="isLowStock(tray) ? 'bg-amber-50/60 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/40' : 'hover:bg-muted/30'"
+                        :class="[
+                          isLowStock(tray) ? 'bg-amber-50/60 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/40' : 'hover:bg-muted/30',
+                          isHealthyInRefillMode(tray) ? 'opacity-40' : '',
+                        ]"
                       >
                         <!-- Slot # (read-only) -->
                         <td class="px-4 py-2 font-mono">{{ tray.item_number }}</td>
@@ -1316,6 +1328,16 @@ function stockColor(tray: any) {
                   </table>
                 </div>
               </template>
+
+                <!-- Done navigation (visible in refill mode) -->
+                <div v-if="isRefillMode" class="mt-6 flex justify-center">
+                  <NuxtLink
+                    to="/machines"
+                    class="inline-flex h-10 items-center justify-center rounded-md border px-6 text-sm font-medium hover:bg-muted"
+                  >
+                    &larr; Done — back to machines
+                  </NuxtLink>
+                </div>
             </TabsContent>
           </Tabs>
         </template>
