@@ -878,43 +878,44 @@ function stockColor(tray: any) {
                   <div
                     v-for="sale in sales"
                     :key="sale.id"
-                    class="group flex items-center gap-4 rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40"
+                    class="group rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40"
                   >
-                    <!-- Product image or amount badge -->
-                    <img
-                      v-if="trayProductMap.get(sale.item_number)?.image_url"
-                      :src="trayProductMap.get(sale.item_number)!.image_url!"
-                      :alt="trayProductMap.get(sale.item_number)!.name"
-                      class="h-11 w-11 shrink-0 rounded-full object-cover"
-                    />
-                    <div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                      {{ formatCurrency(sale.item_price) }}
-                    </div>
-                    <!-- Main info -->
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="font-medium truncate">
-                          {{ trayProductMap.get(sale.item_number)?.name ?? `Item #${sale.item_number}` }}
-                        </span>
-                        <span
-                          class="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                          :class="sale.channel === 'card'
-                            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'"
-                        >
-                          <IconCreditCard v-if="sale.channel === 'card'" class="size-3.5" />
-                          <IconCoins v-else class="size-3.5" />
-                          {{ sale.channel }}
-                        </span>
+                    <div class="flex items-center gap-3">
+                      <!-- Product image or amount badge -->
+                      <img
+                        v-if="trayProductMap.get(sale.item_number)?.image_url"
+                        :src="trayProductMap.get(sale.item_number)!.image_url!"
+                        :alt="trayProductMap.get(sale.item_number)!.name"
+                        class="h-11 w-11 shrink-0 rounded-full object-cover"
+                      />
+                      <div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                        {{ formatCurrency(sale.item_price) }}
                       </div>
-                      <p class="mt-0.5 text-xs text-muted-foreground">
-                        Slot {{ sale.item_number }}
-                      </p>
-                    </div>
-                    <!-- Price + Timestamp -->
-                    <div class="shrink-0 text-right">
-                      <span class="text-sm font-medium">{{ formatCurrency(sale.item_price) }}</span>
-                      <p class="mt-0.5 text-[11px] text-muted-foreground">{{ timeAgo(sale.created_at) }} · {{ formatDate(sale.created_at) }}</p>
+                      <!-- Main info -->
+                      <div class="flex-1 min-w-0">
+                        <p class="font-medium break-words">
+                          {{ trayProductMap.get(sale.item_number)?.name ?? `Item #${sale.item_number}` }}
+                        </p>
+                        <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                          <span>Slot {{ sale.item_number }}</span>
+                          <span class="text-muted-foreground/40">·</span>
+                          <span
+                            class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                            :class="sale.channel === 'card'
+                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'"
+                          >
+                            <IconCreditCard v-if="sale.channel === 'card'" class="size-3.5" />
+                            <IconCoins v-else class="size-3.5" />
+                            {{ sale.channel }}
+                          </span>
+                        </div>
+                      </div>
+                      <!-- Price + Timestamp -->
+                      <div class="shrink-0 text-right">
+                        <span class="text-sm font-medium">{{ formatCurrency(sale.item_price) }}</span>
+                        <p class="mt-0.5 text-[11px] text-muted-foreground">{{ timeAgo(sale.created_at) }}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
