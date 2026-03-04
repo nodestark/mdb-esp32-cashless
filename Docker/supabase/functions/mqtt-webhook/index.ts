@@ -167,12 +167,12 @@ Deno.serve(async (req) => {
 
         let productName: string | undefined;
         let productImageUrl: string | undefined;
-        let lowTray: { current_stock: number; min_stock: number } | undefined;
+        let lowTray: { current_stock: number; capacity: number } | undefined;
 
         if (machine) {
           const { data: tray } = await adminClient
             .from('machine_trays')
-            .select('product_id, current_stock, min_stock')
+            .select('product_id, current_stock, min_stock, capacity')
             .eq('machine_id', machine.id)
             .eq('item_number', itemNumber)
             .maybeSingle();
@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
           }
 
           if (tray && tray.min_stock > 0 && tray.current_stock <= tray.min_stock) {
-            lowTray = { current_stock: tray.current_stock, min_stock: tray.min_stock };
+            lowTray = { current_stock: tray.current_stock, capacity: tray.capacity ?? tray.min_stock };
           }
         }
 
@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
         await sendPushToUsers(adminClient, embedded.company, 'sale', {
           title: 'New Sale',
           body: saleBody,
-          icon: productImageUrl,
+          image: productImageUrl,
           data: { type: 'sale', embedded_id: embedded.id },
         });
 
@@ -212,8 +212,8 @@ Deno.serve(async (req) => {
         if (machine && lowTray) {
           await sendPushToUsers(adminClient, embedded.company, 'low_stock', {
             title: 'Low Stock Alert',
-            body: `${productName ?? `Item #${itemNumber}`} in ${machine.name}: ${lowTray.current_stock}/${lowTray.min_stock} remaining`,
-            icon: productImageUrl,
+            body: `${productName ?? `Item #${itemNumber}`} in ${machine.name}: ${lowTray.current_stock}/${lowTray.capacity} remaining`,
+            image: productImageUrl,
             data: { type: 'low_stock', machine_id: machine.id },
           });
         }

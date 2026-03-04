@@ -10,7 +10,7 @@ precacheAndRoute(self.__WB_MANIFEST)
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
-  let payload: { title?: string; body?: string; icon?: string; data?: Record<string, unknown> }
+  let payload: { title?: string; body?: string; icon?: string; image?: string; data?: Record<string, unknown> }
   try {
     payload = event.data.json()
   } catch {
@@ -20,8 +20,9 @@ self.addEventListener('push', (event) => {
   const title = payload.title ?? 'VMflow'
   const options: NotificationOptions = {
     body: payload.body ?? '',
-    icon: payload.icon ?? '/icons/icon-192x192.png',
+    icon: payload.image ?? payload.icon ?? '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
+    image: payload.image,
     data: payload.data ?? {},
     tag: payload.data?.type ? String(payload.data.type) : undefined,
   }
