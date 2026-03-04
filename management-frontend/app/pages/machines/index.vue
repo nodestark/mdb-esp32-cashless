@@ -10,13 +10,19 @@ const { organization } = useOrganization()
 const {
   machines, loading, fetchMachines, subscribeToStatusUpdates, createMachine,
 } = useMachines()
+const { warehouses, fetchWarehouses, deductForRefill } = useWarehouse()
 const { onResume } = useAppResume()
+const router = useRouter()
 
 // Re-fetch all machine data when app resumes from background (iOS PWA etc.)
 onResume(() => fetchMachines())
 
+// Warehouse selection for stock deduction
+const selectedWarehouseId = ref<string | null>(null)
+
 onMounted(async () => {
-  await fetchMachines()
+  await Promise.all([fetchMachines(), fetchWarehouses()])
+  if (warehouses.value.length > 0) selectedWarehouseId.value = warehouses.value[0].id
   const unsubscribe = subscribeToStatusUpdates()
   onUnmounted(unsubscribe)
 })
@@ -81,6 +87,42 @@ function allPacked(machineId: string, traySummary: { product_id: string | null; 
   if (!set) return false
   return traySummary.every(item => set.has(itemKey(item)))
 }
+
+// Deduct warehouse stock for a machine's packing list, then navigate to refill
+const deductingMachineId = ref<string | null>(null)
+const deductError = ref<Record<string, string>>({})
+
+async function handleUpdateWarehouseAndContinue(machine: any) {
+  const checkedItems = (machine.tray_summary ?? []).filter(
+    (item: any) => item.product_id && item.deficit > 0 && isPacked(machine.id, item)
+  )
+
+  if (!selectedWarehouseId.value || checkedItems.length === 0) {
+    // No warehouse or nothing checked — just navigate directly
+    router.push(`/machines/${machine.id}?tab=stock`)
+    return
+  }
+
+  deductingMachineId.value = machine.id
+  delete deductError.value[machine.id]
+  try {
+    for (const item of checkedItems) {
+      await deductForRefill({
+        warehouse_id: selectedWarehouseId.value,
+        product_id: item.product_id,
+        quantity: item.deficit,
+        machine_id: machine.id,
+      })
+    }
+    router.push(`/machines/${machine.id}?tab=stock`)
+  } catch (err: any) {
+    deductError.value[machine.id] = err.message?.includes('Insufficient')
+      ? 'Insufficient warehouse stock'
+      : (err.message ?? 'Deduction failed')
+  } finally {
+    deductingMachineId.value = null
+  }
+}
 </script>
 
 <template>
@@ -93,6 +135,17 @@ function allPacked(machineId: string, traySummary: { product_id: string | null; 
           >
             Add Machine
           </button>
+        </div>
+
+        <!-- Warehouse selector -->
+        <div v-if="warehouses.length > 0" class="flex items-center gap-2 rounded-lg border bg-muted/30 px-4 py-2.5">
+          <label class="text-sm text-muted-foreground">Warehouse:</label>
+          <select
+            v-model="selectedWarehouseId"
+            class="h-8 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
+          </select>
         </div>
 
         <div v-if="loading" class="text-muted-foreground">Loading machines...</div>
@@ -236,13 +289,19 @@ function allPacked(machineId: string, traySummary: { product_id: string | null; 
                     </ul>
                   </div>
 
-                  <!-- Refill button -->
-                  <NuxtLink
-                    :to="`/machines/${machine.id}?tab=stock`"
-                    class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-                  >
-                    Refill &rarr;
-                  </NuxtLink>
+                  <!-- Update warehouse stock & continue to refill -->
+                  <div class="space-y-2">
+                    <button
+                      :disabled="deductingMachineId === machine.id"
+                      class="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      @click="handleUpdateWarehouseAndContinue(machine)"
+                    >
+                      <span v-if="deductingMachineId === machine.id">Updating stock…</span>
+                      <span v-else-if="selectedWarehouseId">Update warehouse stock &amp; continue</span>
+                      <span v-else>Refill &rarr;</span>
+                    </button>
+                    <p v-if="deductError[machine.id]" class="text-xs text-red-600 dark:text-red-400">{{ deductError[machine.id] }}</p>
+                  </div>
                 </template>
               </CardContent>
             </Card>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  IconBuildingWarehouse,
   IconCpu,
   IconDashboard,
   IconHelp,
@@ -43,6 +44,11 @@ const navMain = computed(() => {
       title: "Products",
       url: "/products",
       icon: IconPackage,
+    },
+    {
+      title: "Warehouse",
+      url: "/warehouse",
+      icon: IconBuildingWarehouse,
     },
     {
       title: "Members",

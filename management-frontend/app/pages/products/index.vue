@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/utils'
 
 const { organization, role } = useOrganization()
 const { products, categories, loading, fetchProducts, createProduct, updateProduct, deleteProduct, uploadProductImage, deleteProductImage, createCategory, deleteCategory } = useProducts()
+const { barcodes: allBarcodes, fetchBarcodes, addBarcode, removeBarcode } = useWarehouse()
 const {
   products: importProducts,
   parsing: importParsing,
@@ -23,8 +24,31 @@ const {
 const isAdmin = computed(() => role.value === 'admin')
 
 onMounted(async () => {
-  await fetchProducts()
+  await Promise.all([fetchProducts(), fetchBarcodes()])
 })
+
+// ── Barcode management (per-product in modal) ──────────────────────────────
+const productBarcodes = computed(() => {
+  if (!editingProduct.value) return []
+  return allBarcodes.value.filter(b => b.product_id === editingProduct.value.id)
+})
+const newBarcodeInput = ref('')
+const barcodeAddError = ref('')
+
+async function addProductBarcode() {
+  if (!newBarcodeInput.value.trim() || !editingProduct.value) return
+  barcodeAddError.value = ''
+  try {
+    await addBarcode({ product_id: editingProduct.value.id, barcode: newBarcodeInput.value.trim() })
+    newBarcodeInput.value = ''
+  } catch (err: any) {
+    barcodeAddError.value = err.message ?? 'Failed to add barcode'
+  }
+}
+
+async function removeProductBarcode(id: string) {
+  await removeBarcode(id)
+}
 
 // Product modal state
 const showProductModal = ref(false)
@@ -60,6 +84,8 @@ function openEditProduct(product: any) {
   imagePreview.value = product.image_url ?? null
   removeImage.value = false
   productError.value = ''
+  newBarcodeInput.value = ''
+  barcodeAddError.value = ''
   showProductModal.value = true
 }
 
@@ -452,6 +478,44 @@ async function runImport() {
                 class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
+            <!-- Barcodes (only when editing existing product) -->
+            <div v-if="editingProduct && isAdmin" class="space-y-2">
+              <label class="text-sm font-medium">Barcodes</label>
+              <div v-if="productBarcodes.length > 0" class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="b in productBarcodes"
+                  :key="b.id"
+                  class="inline-flex items-center gap-1 rounded-full border bg-muted/50 py-0.5 pl-2.5 pr-1 text-xs font-mono"
+                >
+                  {{ b.barcode }}
+                  <button
+                    type="button"
+                    class="ml-0.5 flex size-4 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
+                    @click="removeProductBarcode(b.id)"
+                  >
+                    &times;
+                  </button>
+                </span>
+              </div>
+              <div class="flex gap-1.5">
+                <input
+                  v-model="newBarcodeInput"
+                  type="text"
+                  placeholder="EAN barcode..."
+                  class="flex h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs font-mono shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  @keydown.enter.prevent="addProductBarcode"
+                />
+                <button
+                  type="button"
+                  class="h-8 rounded-md border px-2 text-xs font-medium hover:bg-muted"
+                  @click="addProductBarcode"
+                >
+                  Add
+                </button>
+              </div>
+              <p v-if="barcodeAddError" class="text-xs text-destructive">{{ barcodeAddError }}</p>
+            </div>
+
             <p v-if="productError" class="text-sm text-destructive">{{ productError }}</p>
             <div class="flex gap-2">
               <button

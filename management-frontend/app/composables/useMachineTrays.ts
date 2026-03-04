@@ -98,7 +98,7 @@ export function useMachineTrays() {
 
   async function refillTray(trayId: string, machineId: string, newStock: number) {
     const tray = trays.value.find(t => t.id === trayId)
-    const oldStock = tray?.current_stock ?? null
+    const oldStock = tray?.current_stock ?? 0
 
     const { error } = await (supabase as any)
       .from('machine_trays')
@@ -171,7 +171,7 @@ export function useMachineTrays() {
     if (refillTargets.length === 0) return
 
     // Snapshot before optimistic update
-    const snapshot = refillTargets.map(t => ({ id: t.id, item_number: t.item_number, product_name: t.product_name, old_stock: t.current_stock, new_stock: t.capacity }))
+    const snapshot = refillTargets.map(t => ({ id: t.id, item_number: t.item_number, product_name: t.product_name, product_id: t.product_id, old_stock: t.current_stock, new_stock: t.capacity }))
 
     for (const t of refillTargets) t.current_stock = t.capacity
 

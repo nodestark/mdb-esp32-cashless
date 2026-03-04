@@ -648,13 +648,9 @@ async function submitBatch() {
   }
 }
 
-// One-click "Full" refill
+// One-click "Full" refill (no warehouse deduction — that happens at the packing list stage)
 async function handleRefillFull(trayId: string) {
-  try {
-    await refillToFull(trayId, machine.value.id)
-  } catch {
-    // silent
-  }
+  await refillToFull(trayId, machine.value.id)
 }
 
 // Quick +/- stock adjustment (mobile)
@@ -680,8 +676,6 @@ async function handleRefillAll() {
   refillAllLoading.value = true
   try {
     await refillAll(machine.value.id)
-  } catch {
-    // silent
   } finally {
     refillAllLoading.value = false
   }
@@ -709,7 +703,7 @@ const fillBelowCount = computed(() =>
 // Packing list: group needed items by product for low-stock and fill-when-below trays, ordered by first slot appearance
 const packingList = computed(() => {
   const hasCritical = trays.value.some(t => isLowStock(t))
-  const map = new Map<string, { name: string; needed: number; image_url: string | null; firstSlot: number; critical: boolean }>()
+  const map = new Map<string, { product_id: string | null; name: string; needed: number; image_url: string | null; firstSlot: number; critical: boolean }>()
   for (const tray of trays.value) {
     const critical = isLowStock(tray)
     const soft = hasCritical && isFillBelow(tray)
@@ -724,7 +718,7 @@ const packingList = computed(() => {
       if (critical) existing.critical = true
     } else {
       const product = products.value.find(p => p.id === tray.product_id)
-      map.set(key, { name, needed: deficit, image_url: product?.image_url ?? null, firstSlot: tray.item_number, critical })
+      map.set(key, { product_id: tray.product_id, name, needed: deficit, image_url: product?.image_url ?? null, firstSlot: tray.item_number, critical })
     }
   }
   return Array.from(map.values()).sort((a, b) => a.firstSlot - b.firstSlot)
