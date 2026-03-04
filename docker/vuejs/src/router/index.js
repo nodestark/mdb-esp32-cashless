@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 
 import Home from '@/views/Home.vue'
-import Install from '@/views/Install.vue'
 import Login from '@/views/Login.vue'
 import Register from '@/views/Register.vue'
 
@@ -14,7 +13,6 @@ import DashboardSettings from '@/views/Dashboard_Settings.vue'
 const routes = [
   { path: '/', redirect: '/home' },
   { path: '/home', component: Home },
-  { path: '/install', component: Install },
   { path: '/dashboard', component: Dashboard,
     meta: { requiresAuth: true },
     children: [
