@@ -1,5 +1,5 @@
-import { Client } from 'https://deno.land/x/mqtt/deno/mod.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { mqttPublish } from '../_shared/mqtt-publish.ts'
 
 Deno.serve(async (req) => {
   try {
@@ -71,17 +71,10 @@ Deno.serve(async (req) => {
     const downloadUrl = `${publicUrl}/storage/v1/object/public/firmware/${firmware.file_path}`;
 
     // Publish OTA command to the device's MQTT topic
-    const mqttHost = Deno.env.get("MQTT_HOST") || "mqtt.vmflow.xyz";
-    const mqttUser = Deno.env.get("MQTT_ADMIN_USER") || "admin";
-    const mqttPass = Deno.env.get("MQTT_ADMIN_PASS") || "admin";
-    const client = new Client({ url: `mqtt://${mqttUser}:${mqttPass}@${mqttHost}` });
-    await client.connect();
-
     const otaTopic = `/${deviceFull.company}/${device.id}/ota`;
     const payload = JSON.stringify({ url: downloadUrl });
 
-    await client.publish(otaTopic, new TextEncoder().encode(payload), { qos: 1 });
-    await client.disconnect();
+    await mqttPublish(otaTopic, payload, { qos: 1 });
 
     // Record the OTA trigger in the database
     await adminClient

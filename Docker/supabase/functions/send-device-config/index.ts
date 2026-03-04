@@ -1,5 +1,5 @@
-import { Client } from 'https://deno.land/x/mqtt/deno/mod.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { mqttPublish } from '../_shared/mqtt-publish.ts'
 
 Deno.serve(async (req) => {
   try {
@@ -89,15 +89,8 @@ Deno.serve(async (req) => {
     if (updateError) throw updateError
 
     // ── Publish to MQTT ───────────────────────────────────────────────────
-    const mqttHost = Deno.env.get('MQTT_HOST') ?? 'mqtt.vmflow.xyz'
-    const mqttUser = Deno.env.get('MQTT_ADMIN_USER') ?? 'admin'
-    const mqttPass = Deno.env.get('MQTT_ADMIN_PASS') ?? 'admin'
-    const client = new Client({ url: `mqtt://${mqttUser}:${mqttPass}@${mqttHost}` })
-    await client.connect()
-
     const topic = `/${device.company}/${device.id}/config`
-    await client.publish(topic, new TextEncoder().encode(JSON.stringify(mqttPayload)), { qos: 1 })
-    await client.disconnect()
+    await mqttPublish(topic, JSON.stringify(mqttPayload), { qos: 1 })
 
     // ── Activity log (best-effort) ────────────────────────────────────────
     try {

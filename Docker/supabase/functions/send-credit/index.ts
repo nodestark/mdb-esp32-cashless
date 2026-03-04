@@ -1,5 +1,5 @@
-import { Client } from 'https://deno.land/x/mqtt/deno/mod.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { mqttPublish } from '../_shared/mqtt-publish.ts'
 
 function toScaleFactor(p: number, x: number, y: number): number {
   return p / x / Math.pow(10, -y);
@@ -129,13 +129,7 @@ Deno.serve(async (req) => {
       payload[k + 1] ^= cipher[k];
     }
 
-    const mqttHost = Deno.env.get('MQTT_HOST') ?? 'mqtt.vmflow.xyz'
-    const mqttUser = Deno.env.get('MQTT_ADMIN_USER') ?? 'admin'
-    const mqttPass = Deno.env.get('MQTT_ADMIN_PASS') ?? 'admin'
-    const client = new Client({ url: `mqtt://${mqttUser}:${mqttPass}@${mqttHost}` });
-    await client.connect();
-    await client.publish(`/${embeddedData.company}/${embeddedData.id}/credit`, payload);
-    await client.disconnect();
+    await mqttPublish(`/${embeddedData.company}/${embeddedData.id}/credit`, payload);
 
     let salesId: string | null = null;
     if (embeddedData.status === 'online') {

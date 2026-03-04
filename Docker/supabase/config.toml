@@ -364,6 +364,7 @@ deno_version = 2
 
 [edge_runtime.secrets]
 MQTT_HOST = "env(MQTT_HOST)"
+MQTT_WS_PORT = "env(MQTT_WS_PORT)"
 MQTT_WEBHOOK_SECRET = "env(MQTT_WEBHOOK_SECRET)"
 MQTT_ADMIN_USER = "env(MQTT_ADMIN_USER)"
 MQTT_ADMIN_PASS = "env(MQTT_ADMIN_PASS)"
