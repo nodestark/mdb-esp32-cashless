@@ -10,6 +10,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# ── Parse flags ──────────────────────────────────────────────────────────────
+SKIP_FRONTEND=false
+for arg in "$@"; do
+    case "$arg" in
+        --no-frontend) SKIP_FRONTEND=true ;;
+        -h|--help)
+            echo "Usage: bash update.sh [OPTIONS]"
+            echo "  --no-frontend   Skip frontend rebuild"
+            exit 0 ;;
+    esac
+done
+
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -216,26 +228,60 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════════
 step "3/4 — Rebuilding Services"
 
-# Rebuild frontend (and any other build-from-source services)
-info "Building frontend image..."
-docker compose build --no-cache frontend
-success "Frontend image built"
+# ── Detect which components changed ──────────────────────────────────────────
+FRONTEND_CHANGED=false
+FORWARDER_CHANGED=false
 
-# Rebuild forwarder (MQTT bridge) in case it changed
-info "Building forwarder image..."
-docker compose build forwarder
-success "Forwarder image built"
+if [ "$BEFORE" != "$AFTER" ]; then
+    CHANGED_FILES=$(cd "$SCRIPT_DIR/.." && git diff --name-only "${BEFORE}" "${AFTER}" 2>/dev/null || echo "")
 
-# Restart services that use the new images (--force-recreate ensures new .env values are picked up)
+    if echo "$CHANGED_FILES" | grep -q "^management-frontend/"; then
+        FRONTEND_CHANGED=true
+    fi
+    if echo "$CHANGED_FILES" | grep -q "^Docker/mqtt/forwarder/"; then
+        FORWARDER_CHANGED=true
+    fi
+fi
+
+# ── Frontend ─────────────────────────────────────────────────────────────────
+if [ "$SKIP_FRONTEND" = true ]; then
+    if [ "$FRONTEND_CHANGED" = true ]; then
+        warn "Frontend has changes but rebuild skipped (--no-frontend). Rebuild later with: docker compose build --no-cache frontend"
+    else
+        info "Frontend rebuild skipped (--no-frontend)"
+    fi
+elif [ "$FRONTEND_CHANGED" = true ]; then
+    info "Frontend files changed — rebuilding..."
+    docker compose build --no-cache frontend
+    success "Frontend image built"
+else
+    info "No frontend changes — skipping rebuild"
+fi
+
+# ── Forwarder ────────────────────────────────────────────────────────────────
+if [ "$FORWARDER_CHANGED" = true ]; then
+    info "Forwarder files changed — rebuilding..."
+    docker compose build forwarder
+    success "Forwarder image built"
+else
+    info "No forwarder changes — skipping rebuild"
+fi
+
+# ── Restart services ─────────────────────────────────────────────────────────
 # Note: broker is NOT recreated here to preserve persistent MQTT sessions and avoid
 # race conditions (devices send "online" status before forwarder reconnects).
 # To restart the broker, run: docker compose restart broker
-info "Restarting updated services..."
-docker compose up -d --no-deps --force-recreate frontend forwarder
+RESTART_SERVICES="functions"
 
-# Recreate edge functions (picks up new env vars + function code from volume mount)
-info "Recreating edge functions..."
-docker compose up -d --no-deps --force-recreate functions
+if [ "$FRONTEND_CHANGED" = true ] && [ "$SKIP_FRONTEND" = false ]; then
+    RESTART_SERVICES="$RESTART_SERVICES frontend"
+fi
+if [ "$FORWARDER_CHANGED" = true ]; then
+    RESTART_SERVICES="$RESTART_SERVICES forwarder"
+fi
+
+info "Restarting: ${RESTART_SERVICES}..."
+docker compose up -d --no-deps --force-recreate $RESTART_SERVICES
 
 success "All services restarted"
 
