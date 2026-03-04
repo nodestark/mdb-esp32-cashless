@@ -395,13 +395,13 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.request-credit]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/request-credit/deno.json"
 entrypoint = "./functions/request-credit/index.ts"
 
 [functions.send-credit]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/send-credit/deno.json"
 entrypoint = "./functions/send-credit/index.ts"
 

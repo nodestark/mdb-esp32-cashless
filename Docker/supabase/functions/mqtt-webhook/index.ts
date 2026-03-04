@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
 
             if (product?.name) productName = product.name;
             if (product?.image_path) {
-              const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? Deno.env.get('SUPABASE_PUBLIC_URL');
+              const supabaseUrl = Deno.env.get('PUBLIC_SUPABASE_URL') ?? Deno.env.get('SUPABASE_URL');
               productImageUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${product.image_path}`;
             }
           }

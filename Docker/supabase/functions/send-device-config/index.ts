@@ -2,12 +2,6 @@ import { Client } from 'https://deno.land/x/mqtt/deno/mod.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
   try {
     const body = await req.json()
     const { device_id, config } = body
@@ -38,52 +32,55 @@ Deno.serve(async (req) => {
       })
     }
 
-    // ── Authenticate caller via JWT ─────────────────────────────────────────
-    const supabase = createClient(
+    // ── Authenticate caller (same pattern as send-credit) ─────────────────
+    const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: userError } = await adminClient.auth.getUser(token)
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    // ── Verify admin role ───────────────────────────────────────────────────
-    const adminClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
-
+    // ── Verify admin role ─────────────────────────────────────────────────
     const { data: membership } = await adminClient
       .from('organization_members')
-      .select('role')
+      .select('company_id, role')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (!membership || membership.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+      return new Response(JSON.stringify({ error: 'Admin role required' }), {
         status: 403, headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    // ── Look up device (user-scoped for RLS) ────────────────────────────────
-    const { data: device, error: deviceError } = await supabase
+    // ── Look up device (admin client, scoped to user's company) ───────────
+    const { data: device, error: deviceError } = await adminClient
       .from('embeddeds')
       .select('id, company, status')
       .eq('id', device_id)
-      .single()
+      .eq('company', membership.company_id)
+      .maybeSingle()
 
     if (deviceError || !device) {
-      return new Response(JSON.stringify({ error: 'Device not found' }), {
+      return new Response(JSON.stringify({ error: 'Device not found or not in your organization' }), {
         status: 404, headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    // ── Update DB ───────────────────────────────────────────────────────────
+    // ── Update DB ─────────────────────────────────────────────────────────
     const { error: updateError } = await adminClient
       .from('embeddeds')
       .update(dbUpdate)
@@ -91,10 +88,10 @@ Deno.serve(async (req) => {
 
     if (updateError) throw updateError
 
-    // ── Publish to MQTT ─────────────────────────────────────────────────────
-    const mqttHost = Deno.env.get('MQTT_HOST') || 'mqtt.vmflow.xyz'
-    const mqttUser = Deno.env.get('MQTT_ADMIN_USER') || 'admin'
-    const mqttPass = Deno.env.get('MQTT_ADMIN_PASS') || 'admin'
+    // ── Publish to MQTT ───────────────────────────────────────────────────
+    const mqttHost = Deno.env.get('MQTT_HOST') ?? 'mqtt.vmflow.xyz'
+    const mqttUser = Deno.env.get('MQTT_ADMIN_USER') ?? 'admin'
+    const mqttPass = Deno.env.get('MQTT_ADMIN_PASS') ?? 'admin'
     const client = new Client({ url: `mqtt://${mqttUser}:${mqttPass}@${mqttHost}` })
     await client.connect()
 
@@ -102,7 +99,7 @@ Deno.serve(async (req) => {
     await client.publish(topic, new TextEncoder().encode(JSON.stringify(mqttPayload)), { qos: 1 })
     await client.disconnect()
 
-    // ── Activity log (best-effort) ──────────────────────────────────────────
+    // ── Activity log (best-effort) ────────────────────────────────────────
     try {
       await adminClient.from('activity_log').insert({
         company_id: device.company,
