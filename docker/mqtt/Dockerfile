@@ -5,4 +5,4 @@ WORKDIR /usr/local/app
 RUN pip install --no-cache-dir supabase paho-mqtt
 
 # Run commands during start container
-CMD ["python", "-u", "/clients/mqtt_domain.py"]
+CMD ["python", "-u", "/domain/mqtt_domain.py"]

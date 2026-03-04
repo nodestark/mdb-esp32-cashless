@@ -19,7 +19,7 @@ services:
     depends_on:
       - broker
     volumes:
-      - ./mqtt/clients:/clients
+      - ./mqtt/domain:/domain
     environment:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
