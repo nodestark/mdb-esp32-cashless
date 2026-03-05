@@ -26,6 +26,13 @@ interface NotificationPreference {
   enabled: boolean
 }
 
+export interface PushDevice {
+  id: string
+  created_at: string
+  endpoint: string
+  user_agent: string | null
+}
+
 export function useNotifications() {
   const supabase = useSupabaseClient()
   const config = useRuntimeConfig()
@@ -34,6 +41,7 @@ export function useNotifications() {
   const permission = ref<NotificationPermission>('default')
   const isSubscribed = ref(false)
   const preferences = ref<NotificationPreference[]>([])
+  const devices = ref<PushDevice[]>([])
   const loading = ref(false)
   const error = ref('')
 
@@ -218,11 +226,46 @@ export function useNotifications() {
     }
   }
 
+  // ── Fetch registered push devices ─────────────────────────────────────
+  async function fetchDevices() {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('push_subscriptions')
+        .select('id, created_at, endpoint, user_agent')
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+      devices.value = (data ?? []) as PushDevice[]
+    } catch (err: unknown) {
+      console.error('Failed to fetch push devices:', err)
+    }
+  }
+
+  // ── Remove a specific push subscription ──────────────────────────────
+  async function removeDevice(id: string) {
+    try {
+      const { error: deleteError } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('id', id)
+
+      if (deleteError) throw deleteError
+      devices.value = devices.value.filter((d) => d.id !== id)
+
+      // If we deleted our own current subscription, update state
+      if (devices.value.length === 0) {
+        isSubscribed.value = false
+      }
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'Failed to remove device'
+    }
+  }
+
   // ── Initialize (call on client mount) ───────────────────────────────────
   async function init() {
     if (import.meta.server) return
     refreshPermission()
-    await Promise.all([checkSubscription(), fetchPreferences()])
+    await Promise.all([checkSubscription(), fetchPreferences(), fetchDevices()])
   }
 
   return {
@@ -230,6 +273,7 @@ export function useNotifications() {
     permission,
     isSubscribed,
     preferences,
+    devices,
     loading,
     error,
     isSupported,
@@ -242,6 +286,8 @@ export function useNotifications() {
     unsubscribe,
     checkSubscription,
     fetchPreferences,
+    fetchDevices,
+    removeDevice,
     isTypeEnabled,
     togglePreference,
     init,

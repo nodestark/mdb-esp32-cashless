@@ -40,6 +40,8 @@ Deno.serve(async (req) => {
         })
       }
 
+      const userAgent = req.headers.get('User-Agent') ?? null
+
       const { error } = await adminClient
         .from('push_subscriptions')
         .upsert(
@@ -48,6 +50,7 @@ Deno.serve(async (req) => {
             endpoint,
             p256dh: keys.p256dh,
             auth: keys.auth,
+            user_agent: userAgent,
           },
           { onConflict: 'user_id,endpoint' },
         )

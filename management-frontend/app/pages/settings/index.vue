@@ -1,9 +1,10 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-import { IconMoon, IconSun, IconBell, IconBellOff, IconDeviceMobile, IconSend } from '@tabler/icons-vue'
+import { IconMoon, IconSun, IconBell, IconBellOff, IconDeviceMobile, IconSend, IconTrash } from '@tabler/icons-vue'
 import { Switch } from '~/components/ui/switch'
 import { notificationTypes } from '~/composables/useNotifications'
+import { timeAgo } from '~/lib/utils'
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
@@ -19,8 +20,10 @@ const {
   error: notifError,
   subscribe: subscribePush,
   unsubscribe: unsubscribePush,
+  devices,
   isTypeEnabled,
   togglePreference,
+  removeDevice,
   init: initNotifications,
 } = useNotifications()
 
@@ -57,6 +60,28 @@ async function sendTestNotification() {
   } finally {
     testLoading.value = false
   }
+}
+
+// ── Push device helpers ──────────────────────────────────────────────────────
+function parseDeviceInfo(device: { endpoint: string; user_agent: string | null }) {
+  // Detect push service from endpoint
+  let service = 'Unknown'
+  if (device.endpoint.includes('fcm.googleapis.com') || device.endpoint.includes('google')) service = 'Chrome'
+  else if (device.endpoint.includes('mozilla.com')) service = 'Firefox'
+  else if (device.endpoint.includes('apple.com')) service = 'Safari'
+  else if (device.endpoint.includes('notify.windows.com')) service = 'Edge'
+
+  // Parse user agent for OS
+  const ua = device.user_agent ?? ''
+  let os = ''
+  if (/Android/i.test(ua)) os = 'Android'
+  else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS'
+  else if (/Mac OS X|macOS/i.test(ua)) os = 'macOS'
+  else if (/Windows/i.test(ua)) os = 'Windows'
+  else if (/Linux/i.test(ua)) os = 'Linux'
+
+  const label = os ? `${service} on ${os}` : service
+  return { label, service, os }
 }
 
 // ── Profile info ─────────────────────────────────────────────────────────────
@@ -455,6 +480,32 @@ async function changeEmail() {
                     <span v-if="testLoading">Sending…</span>
                     <span v-else>Send test</span>
                   </button>
+                </div>
+
+                <!-- Registered devices -->
+                <div v-if="devices.length > 0" class="mt-2 pt-4 border-t">
+                  <h3 class="text-sm font-medium text-muted-foreground mb-3">Registered devices</h3>
+                  <div class="space-y-2">
+                    <div
+                      v-for="device in devices"
+                      :key="device.id"
+                      class="flex items-center justify-between rounded-lg border px-3 py-2"
+                    >
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium truncate">{{ parseDeviceInfo(device).label }}</p>
+                        <p class="text-xs text-muted-foreground">
+                          Registered {{ timeAgo(device.created_at) }}
+                        </p>
+                      </div>
+                      <button
+                        class="ml-2 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        title="Remove device"
+                        @click="removeDevice(device.id)"
+                      >
+                        <IconTrash class="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
