@@ -131,18 +131,9 @@ Deno.serve(async (req) => {
 
     await mqttPublish(`/${embeddedData.company}/${embeddedData.id}/credit`, payload);
 
-    let salesId: string | null = null;
-    if (embeddedData.status === 'online') {
-      const { data: saleData, error: saleError } = await adminClient
-        .from('sales')
-        .insert([{ embedded_id: embeddedData.id, item_price: fromScaleFactor(itemPrice, 1, 2), channel: 'mqtt' }])
-        .select('id')
-        .single()
-
-      if (!saleError && saleData) {
-        salesId = saleData.id
-      }
-    }
+    // NOTE: No sale is recorded here. The actual sale is created when the
+    // device reports it via the MQTT 'sale' topic → mqtt-webhook function.
+    // Credit sent ≠ sale completed.
 
     // ── Activity log (best-effort) ──────────────────────────────────────────
     try {
@@ -155,14 +146,13 @@ Deno.serve(async (req) => {
         metadata: {
           device_id: embeddedData.id,
           amount: body.amount,
-          sales_id: salesId,
         },
       })
     } catch (logErr) {
       console.error('Activity log error:', logErr)
     }
 
-    return new Response(JSON.stringify({ status: embeddedData.status, sales_id: salesId }), {
+    return new Response(JSON.stringify({ status: embeddedData.status }), {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (err) {
