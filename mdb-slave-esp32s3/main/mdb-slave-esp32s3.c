@@ -158,6 +158,23 @@ bool vend_denied_todo = false;
 bool cashless_reset_todo = false;
 bool out_of_sequence_todo = false;
 
+// MDB diagnostics
+static uint32_t mdb_poll_count = 0;
+static uint32_t mdb_checksum_errors = 0;
+static const char *mdb_last_cmd = "none";
+static machine_state_t mdb_prev_state = INACTIVE_STATE;
+
+static const char *machine_state_name(machine_state_t s) {
+    switch (s) {
+        case INACTIVE_STATE: return "INACTIVE";
+        case DISABLED_STATE: return "DISABLED";
+        case ENABLED_STATE:  return "ENABLED";
+        case IDLE_STATE:     return "IDLE";
+        case VEND_STATE:     return "VEND";
+        default:             return "UNKNOWN";
+    }
+}
+
 RingbufHandle_t dexRingbuf;
 
 // MQTT client handle
@@ -232,6 +249,10 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
 // Main MDB loop function
 void vTaskMdbEvent(void *pvParameters) {
 
+	ESP_LOGW(TAG, "MDB TASK: starting, cashless_addr=0x%02X (%s)",
+		cashless_device_address,
+		cashless_device_address == 16 ? "Cashless #1" : "Cashless #2");
+
 	time_t session_begin_time = 0;
 
 	uint16_t fundsAvailable = 0;
@@ -274,12 +295,13 @@ void vTaskMdbEvent(void *pvParameters) {
 
 				case RESET: {
 
-                    if (read_9(NULL) != checksum) continue;
+                    if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
                     // Reset during VEND_STATE is interpreted as VEND_SUCCESS
 
 					cashless_reset_todo = true;
 					machine_state = INACTIVE_STATE;
+					mdb_last_cmd = "RESET";
 
                     xEventGroupClearBits(xLedEventGroup, BIT_EVT_MDB);
                     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
@@ -301,9 +323,10 @@ void vTaskMdbEvent(void *pvParameters) {
 						(void) vmcColumnsOnDisplay;
 						(void) vmcFeatureLevel;
 
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
 						machine_state = DISABLED_STATE;
+						mdb_last_cmd = "SETUP:CONFIG_DATA";
 
                         mdb_payload[0] = 0x01;                                  // Reader Config Data
                         mdb_payload[1] = 1;                                     // Reader Feature Level
@@ -328,8 +351,9 @@ void vTaskMdbEvent(void *pvParameters) {
 						(void) maxPrice;
 						(void) minPrice;
 
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
+						mdb_last_cmd = "SETUP:MAX_MIN_PRICES";
 						ESP_LOGI( TAG, "MAX_MIN_PRICES");
 						break;
 					}
@@ -339,7 +363,24 @@ void vTaskMdbEvent(void *pvParameters) {
 				}
 				case POLL: {
 
-				    if (read_9(NULL) != checksum) continue;
+				    if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
+
+					mdb_poll_count++;
+
+					// Log state changes
+					if (machine_state != mdb_prev_state) {
+						ESP_LOGW(TAG, "MDB STATE: %s -> %s (polls=%lu, chkErr=%lu)",
+							machine_state_name(mdb_prev_state), machine_state_name(machine_state),
+							mdb_poll_count, mdb_checksum_errors);
+						mdb_prev_state = machine_state;
+					}
+
+					// Periodic log every 500 polls (~every 50s at typical VMC rate)
+					if (mdb_poll_count % 500 == 0) {
+						ESP_LOGI(TAG, "MDB DIAG: state=%s addr=0x%02X polls=%lu chkErr=%lu lastCmd=%s",
+							machine_state_name(machine_state), cashless_device_address,
+							mdb_poll_count, mdb_checksum_errors, mdb_last_cmd);
+					}
 
 					if (cashless_reset_todo) {
 						// Just reset
@@ -417,9 +458,10 @@ void vTaskMdbEvent(void *pvParameters) {
 						itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
 						machine_state = VEND_STATE;
+						mdb_last_cmd = "VEND_REQUEST";
 
                         if(fundsAvailable && (fundsAvailable != 0xffff)){
 
@@ -440,8 +482,9 @@ void vTaskMdbEvent(void *pvParameters) {
 						break;
 					}
 					case VEND_CANCEL: {
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
+						mdb_last_cmd = "VEND_CANCEL";
 						vend_denied_todo = true;
 						break;
 					}
@@ -449,9 +492,10 @@ void vTaskMdbEvent(void *pvParameters) {
 
 						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
 						machine_state = IDLE_STATE;
+						mdb_last_cmd = "VEND_SUCCESS";
 
 						/* PIPE_BLE */
 						uint8_t payload[19];
@@ -463,9 +507,10 @@ void vTaskMdbEvent(void *pvParameters) {
 						break;
 					}
 					case VEND_FAILURE: {
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
 						machine_state = IDLE_STATE;
+						mdb_last_cmd = "VEND_FAILURE";
 
 					    /* PIPE_BLE */
 						uint8_t payload[19];
@@ -475,8 +520,9 @@ void vTaskMdbEvent(void *pvParameters) {
 						break;
 					}
 					case SESSION_COMPLETE: {
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
+						mdb_last_cmd = "SESSION_COMPLETE";
 						session_end_todo = true;
 
 			            /* PIPE_BLE */
@@ -493,7 +539,9 @@ void vTaskMdbEvent(void *pvParameters) {
 						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
 						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
 
-						if (read_9(NULL) != checksum) continue;
+						if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
+
+						mdb_last_cmd = "CASH_SALE";
 
                         uint8_t payload[19];
                         xorEncodeWithPasskey(0x21, itemPrice, itemNumber, 0, (uint8_t*) &payload);
@@ -513,29 +561,30 @@ void vTaskMdbEvent(void *pvParameters) {
 				case READER: {
 					switch (read_9(&checksum)) {
 					case READER_DISABLE: {
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
 						machine_state = DISABLED_STATE;
+						mdb_last_cmd = "READER_DISABLE";
 
                         xEventGroupClearBits(xLedEventGroup, BIT_EVT_MDB);
                         xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
-						// ESP_LOGI( TAG, "READER_DISABLE");
 						break;
 					}
 					case READER_ENABLE: {
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
 						machine_state = ENABLED_STATE;
+						mdb_last_cmd = "READER_ENABLE";
 
                         xEventGroupSetBits(xLedEventGroup, BIT_EVT_MDB | BIT_EVT_TRIGGER);
 
-						// ESP_LOGI( TAG, "READER_ENABLE");
 						break;
 					}
 					case READER_CANCEL: {
-                        if (read_9(NULL) != checksum) continue;
+                        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
 
+						mdb_last_cmd = "READER_CANCEL";
 						mdb_payload[ 0 ] = 0x08; // Canceled
 						available_tx = 1;
 
@@ -558,7 +607,9 @@ void vTaskMdbEvent(void *pvParameters) {
 
 					    for(uint8_t x= 0; x < 29; x++) read_9(&checksum); // ...drop
 
-				        if (read_9(NULL) != checksum) continue;
+				        if (read_9(NULL) != checksum) { mdb_checksum_errors++; continue; }
+
+						mdb_last_cmd = "EXPANSION:REQUEST_ID";
 
                         mdb_payload[ 0 ] = 0x09;                        // Peripheral ID
 
@@ -1342,6 +1393,25 @@ static void ota_update_task(void *arg) {
     vTaskDelete(NULL);
 }
 
+// Periodic MDB diagnostics publishing via MQTT (called from esp_timer)
+static void mdb_diag_timer_cb(void *arg) {
+    if (!mqttClient) return;
+
+    char topic[128];
+    snprintf(topic, sizeof(topic), "/%s/%s/mdb-log", my_company_id, my_device_id);
+
+    char msg[256];
+    snprintf(msg, sizeof(msg),
+        "{\"state\":\"%s\",\"addr\":\"0x%02X\",\"polls\":%lu,\"chkErr\":%lu,\"lastCmd\":\"%s\"}",
+        machine_state_name(machine_state),
+        cashless_device_address,
+        mdb_poll_count,
+        mdb_checksum_errors,
+        mdb_last_cmd);
+
+    esp_mqtt_client_publish(mqttClient, topic, msg, 0, 0, 0);
+}
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
 
 	esp_mqtt_event_handle_t event = event_data;
@@ -1377,6 +1447,21 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
+        // Start MDB diagnostics timer (30s interval)
+        {
+            static esp_timer_handle_t mdb_diag_timer = NULL;
+            if (!mdb_diag_timer) {
+                const esp_timer_create_args_t args = {
+                    .callback = mdb_diag_timer_cb,
+                    .name = "mdb_diag"
+                };
+                if (esp_timer_create(&args, &mdb_diag_timer) == ESP_OK) {
+                    esp_timer_start_periodic(mdb_diag_timer, 30 * 1000000ULL); // 30s
+                    ESP_LOGI(TAG, "MDB DIAG: timer started (30s interval)");
+                }
+            }
+        }
+
 		break;
 	case MQTT_EVENT_DISCONNECTED:
 		ESP_LOGW(TAG, "MQTT: disconnected from broker");
@@ -1399,7 +1484,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	    ESP_LOGI( TAG, "DATA_LEN= %d", event->data_len);
 	    ESP_LOGI( TAG, "DATA= %.*s", event->data_len, event->data);
 
-		size_t topic_len = strlen(event->topic);
+		size_t topic_len = event->topic_len;
 
 		if (topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
 

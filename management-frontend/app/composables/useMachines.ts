@@ -8,6 +8,7 @@ interface Embedded {
   mac_address?: string
   firmware_version?: string
   firmware_build_date?: string
+  mdb_diagnostics?: Record<string, unknown> | null
 }
 
 interface VendingMachine {
@@ -59,7 +60,7 @@ export function useMachines() {
         .from('vendingMachine')
         .select(`
           id, name, location_lat, location_lon, embedded,
-          embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date)
+          embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_diagnostics)
         `)
 
       if (error) throw error
@@ -381,6 +382,9 @@ export function useMachines() {
             }
             if (updated.firmware_build_date) {
               machine.embeddeds.firmware_build_date = updated.firmware_build_date
+            }
+            if (updated.mdb_diagnostics !== undefined) {
+              machine.embeddeds.mdb_diagnostics = updated.mdb_diagnostics
             }
           }
         }

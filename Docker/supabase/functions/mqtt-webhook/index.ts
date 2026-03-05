@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     const { topic, payload: payloadB64 } = body;
 
     // Parse topic: /{company_id}/{device_id}/{event_type}
-    const match = topic.match(/^\/([^/]+)\/([^/]+)\/(sale|status|paxcounter)$/);
+    const match = topic.match(/^\/([^/]+)\/([^/]+)\/(sale|status|paxcounter|mdb-log)$/);
     if (!match) {
       return new Response(JSON.stringify({ error: 'invalid topic' }), { status: 400 });
     }
@@ -80,6 +80,82 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+
+    // MDB diagnostics: plain JSON, no encryption
+    // Payload: {"state":"ENABLED","addr":"0x10","polls":1500,"chkErr":0,"lastCmd":"READER_ENABLE"}
+    if (eventType === 'mdb-log') {
+      const logBytes = decodeBase64(payloadB64);
+      const rawJson = new TextDecoder().decode(logBytes);
+
+      let diag: Record<string, unknown>;
+      try {
+        diag = JSON.parse(rawJson);
+      } catch {
+        return new Response(JSON.stringify({ error: 'invalid JSON in mdb-log payload' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const newState = diag.state as string | undefined;
+      if (!newState) {
+        return new Response(JSON.stringify({ error: 'missing state field in mdb-log' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Read current diagnostics to detect state change
+      const { data: deviceRow, error: fetchErr } = await adminClient
+        .from('embeddeds')
+        .select('mdb_diagnostics, company')
+        .eq('id', deviceId)
+        .single();
+
+      if (fetchErr) throw fetchErr;
+      if (!deviceRow) {
+        return new Response(JSON.stringify({ error: 'device not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const prevState = (deviceRow.mdb_diagnostics as Record<string, unknown> | null)?.state as string | undefined;
+      const stateChanged = prevState !== newState;
+
+      // Always update latest diagnostics snapshot
+      const diagPayload = { ...diag, updated_at: new Date().toISOString() };
+
+      const { error: updateErr } = await adminClient
+        .from('embeddeds')
+        .update({ mdb_diagnostics: diagPayload })
+        .eq('id', deviceId);
+
+      if (updateErr) throw updateErr;
+
+      // Insert history row only on state change
+      if (stateChanged) {
+        const { error: insertErr } = await adminClient
+          .from('mdb_log')
+          .insert({
+            embedded_id: deviceId,
+            state: newState,
+            prev_state: prevState ?? null,
+            addr: (diag.addr as string) ?? null,
+            polls: (diag.polls as number) ?? null,
+            chk_err: (diag.chkErr as number) ?? null,
+            last_cmd: (diag.lastCmd as string) ?? null,
+            raw: diag,
+          });
+
+        if (insertErr) throw insertErr;
+      }
+
+      return new Response(JSON.stringify({ ok: true, state_changed: stateChanged }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Sale and paxcounter: encrypted payload

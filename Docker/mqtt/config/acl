@@ -10,6 +10,7 @@ topic write /+/+/sale
 topic write /+/+/status
 topic write /+/+/paxcounter
 topic write /+/+/dex
+topic write /+/+/mdb-log
 topic read  /+/+/credit
 topic read  /+/+/ota
 topic read  /+/+/config

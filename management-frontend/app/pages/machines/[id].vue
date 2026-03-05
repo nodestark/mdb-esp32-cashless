@@ -8,12 +8,18 @@ import { IconCreditCard, IconCoins, IconSend } from '@tabler/icons-vue'
 import { timeAgo, formatCurrency } from '@/lib/utils'
 
 const route = useRoute()
-const defaultTab = computed(() => route.query.tab === 'stock' ? 'trays' : 'sales')
+const defaultTab = computed(() => {
+  const tab = route.query.tab as string
+  if (tab === 'stock') return 'trays'
+  if (tab === 'mdb') return 'mdb'
+  return 'sales'
+})
 const supabase = useSupabaseClient()
 const { role } = useOrganization()
 const { products, categories, fetchProducts } = useProducts()
 const { trays, loading: traysLoading, fetchTrays, upsertTray, updateTray, batchCreateTrays, refillToFull, refillAll, deleteTray, subscribeToTrayUpdates } = useMachineTrays()
 const { fetchUnassignedEmbeddeds, swapDevice } = useMachines()
+const { logs: mdbLogs, loading: mdbLogsLoading, hasMore: mdbHasMore, fetchLogs: fetchMdbLogs, fetchMore: fetchMoreMdbLogs, subscribe: subscribeMdbLog, stateLabel, stateVariant } = useMdbLog()
 const { onResume } = useAppResume()
 
 const isAdmin = computed(() => role.value === 'admin')
@@ -28,7 +34,7 @@ onResume(async () => {
   const id = route.params.id as string
   const [machineRes] = await Promise.all([
     supabase.from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address, mdb_diagnostics)')
       .eq('id', id).single(),
     fetchTrays(id),
   ])
@@ -40,7 +46,7 @@ onMounted(async () => {
   try {
     const { data: machineData, error: machineError } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address, mdb_diagnostics)')
       .eq('id', id)
       .single()
 
@@ -111,12 +117,20 @@ onMounted(async () => {
               if (payload.new.mdb_address !== undefined) {
                 machine.value.embeddeds.mdb_address = payload.new.mdb_address
               }
+              if (payload.new.mdb_diagnostics !== undefined) {
+                machine.value.embeddeds.mdb_diagnostics = payload.new.mdb_diagnostics
+              }
             }
           }
         )
         .subscribe()
 
       onUnmounted(() => supabase.removeChannel(statusChannel))
+
+      // Fetch MDB log history + subscribe to live updates
+      fetchMdbLogs(machineData.embeddeds.id)
+      const unsubMdbLog = subscribeMdbLog(machineData.embeddeds.id)
+      onUnmounted(unsubMdbLog)
     }
 
     // Subscribe to tray realtime updates
@@ -233,7 +247,7 @@ async function submitDeviceSwap() {
     // Re-fetch machine to get updated embeddeds join
     const { data } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address, mdb_diagnostics)')
       .eq('id', machine.value.id)
       .single()
     if (data) machine.value = data
@@ -251,7 +265,7 @@ async function detachDevice() {
     await swapDevice(machine.value.id, null)
     const { data } = await supabase
       .from('vendingMachine')
-      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address)')
+      .select('id, name, location_lat, location_lon, embedded, embeddeds(id, status, status_at, subdomain, mac_address, firmware_version, firmware_build_date, mdb_address, mdb_diagnostics)')
       .eq('id', machine.value.id)
       .single()
     if (data) machine.value = data
@@ -894,10 +908,11 @@ function stockColor(tray: any) {
             </div>
           </div>
 
-          <!-- Tabs: Sales | Trays & Stock -->
+          <!-- Tabs: Sales | Trays & Stock | MDB -->
           <Tabs :default-value="defaultTab">
             <TabsList>
               <TabsTrigger value="sales">Sales</TabsTrigger>
+              <TabsTrigger v-if="isAdmin" value="mdb">MDB</TabsTrigger>
               <TabsTrigger value="trays">Trays & Stock</TabsTrigger>
             </TabsList>
 
@@ -1524,6 +1539,122 @@ function stockColor(tray: any) {
                     &larr; Done — back to machines
                   </NuxtLink>
                 </div>
+            </TabsContent>
+
+            <!-- ── MDB Diagnostics Tab ── -->
+            <TabsContent v-if="isAdmin" value="mdb" class="mt-4 space-y-6">
+
+              <!-- Current MDB Status Card -->
+              <div class="rounded-xl border bg-card p-6">
+                <h2 class="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">Current MDB Status</h2>
+                <template v-if="machine.embeddeds?.mdb_diagnostics">
+                  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                    <div>
+                      <p class="text-xs text-muted-foreground">State</p>
+                      <span
+                        class="mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                        :class="{
+                          'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400': stateVariant(machine.embeddeds.mdb_diagnostics.state) === 'destructive',
+                          'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300': stateVariant(machine.embeddeds.mdb_diagnostics.state) === 'outline',
+                          'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400': stateVariant(machine.embeddeds.mdb_diagnostics.state) === 'secondary',
+                          'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400': stateVariant(machine.embeddeds.mdb_diagnostics.state) === 'default',
+                        }"
+                      >
+                        {{ stateLabel(machine.embeddeds.mdb_diagnostics.state) }}
+                      </span>
+                    </div>
+                    <div>
+                      <p class="text-xs text-muted-foreground">Address</p>
+                      <p class="mt-1 text-sm font-mono font-medium">{{ machine.embeddeds.mdb_diagnostics.addr }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-muted-foreground">Polls</p>
+                      <p class="mt-1 text-sm font-medium">{{ Number(machine.embeddeds.mdb_diagnostics.polls ?? 0).toLocaleString() }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-muted-foreground">Checksum Errors</p>
+                      <p class="mt-1 text-sm font-medium" :class="machine.embeddeds.mdb_diagnostics.chkErr > 0 ? 'text-red-500' : ''">
+                        {{ machine.embeddeds.mdb_diagnostics.chkErr ?? 0 }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-muted-foreground">Last Command</p>
+                      <p class="mt-1 text-sm font-mono">{{ machine.embeddeds.mdb_diagnostics.lastCmd }}</p>
+                    </div>
+                  </div>
+                  <p class="mt-3 text-xs text-muted-foreground">
+                    Updated {{ timeAgo(machine.embeddeds.mdb_diagnostics.updated_at) }}
+                  </p>
+                </template>
+                <p v-else class="text-sm text-muted-foreground">
+                  No MDB diagnostics received yet. The device will start reporting after connecting.
+                </p>
+              </div>
+
+              <!-- State Change History -->
+              <div>
+                <h2 class="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wide">State Change History</h2>
+
+                <div v-if="mdbLogs.length === 0 && !mdbLogsLoading" class="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
+                  No state changes recorded yet.
+                </div>
+
+                <div v-else class="space-y-2">
+                  <div
+                    v-for="entry in mdbLogs"
+                    :key="entry.id"
+                    class="flex items-center gap-3 rounded-lg border bg-card px-4 py-3"
+                  >
+                    <!-- State badge -->
+                    <span
+                      class="inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                      :class="{
+                        'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400': stateVariant(entry.state) === 'destructive',
+                        'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300': stateVariant(entry.state) === 'outline',
+                        'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400': stateVariant(entry.state) === 'secondary',
+                        'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400': stateVariant(entry.state) === 'default',
+                      }"
+                    >
+                      {{ stateLabel(entry.state) }}
+                    </span>
+
+                    <!-- Transition description -->
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm">
+                        <template v-if="entry.prev_state">
+                          {{ stateLabel(entry.prev_state) }} &rarr; {{ stateLabel(entry.state) }}
+                        </template>
+                        <template v-else>
+                          Initial: {{ stateLabel(entry.state) }}
+                        </template>
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        <span v-if="entry.last_cmd">Cmd: {{ entry.last_cmd }}</span>
+                        <span v-if="entry.last_cmd && entry.polls != null"> · </span>
+                        <span v-if="entry.polls != null">{{ entry.polls.toLocaleString() }} polls</span>
+                        <span v-if="entry.chk_err"> · {{ entry.chk_err }} errors</span>
+                      </p>
+                    </div>
+
+                    <!-- Timestamp -->
+                    <p class="shrink-0 text-xs text-muted-foreground">
+                      {{ timeAgo(entry.created_at) }}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Load more -->
+                <div v-if="mdbHasMore && mdbLogs.length > 0" class="mt-4 text-center">
+                  <button
+                    class="text-sm text-primary hover:underline disabled:opacity-50"
+                    :disabled="mdbLogsLoading"
+                    @click="machine.embeddeds?.id && fetchMoreMdbLogs(machine.embeddeds.id)"
+                  >
+                    {{ mdbLogsLoading ? 'Loading...' : 'Load more' }}
+                  </button>
+                </div>
+              </div>
+
             </TabsContent>
           </Tabs>
         </template>

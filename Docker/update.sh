@@ -231,6 +231,7 @@ step "3/4 — Rebuilding Services"
 # ── Detect which components changed ──────────────────────────────────────────
 FRONTEND_CHANGED=false
 FORWARDER_CHANGED=false
+BROKER_CHANGED=false
 
 if [ "$BEFORE" != "$AFTER" ]; then
     CHANGED_FILES=$(cd "$SCRIPT_DIR/.." && git diff --name-only "${BEFORE}" "${AFTER}" 2>/dev/null || echo "")
@@ -240,6 +241,9 @@ if [ "$BEFORE" != "$AFTER" ]; then
     fi
     if echo "$CHANGED_FILES" | grep -q "^Docker/mqtt/forwarder/"; then
         FORWARDER_CHANGED=true
+    fi
+    if echo "$CHANGED_FILES" | grep -q "^Docker/mqtt/config/"; then
+        BROKER_CHANGED=true
     fi
 fi
 
@@ -267,10 +271,16 @@ else
     info "No forwarder changes — skipping rebuild"
 fi
 
+# ── Broker (restart only if config changed) ──────────────────────────────────
+if [ "$BROKER_CHANGED" = true ]; then
+    info "Broker config changed — restarting broker..."
+    docker compose restart broker
+    success "Broker restarted"
+else
+    info "No broker config changes — skipping restart"
+fi
+
 # ── Restart services ─────────────────────────────────────────────────────────
-# Note: broker is NOT recreated here to preserve persistent MQTT sessions and avoid
-# race conditions (devices send "online" status before forwarder reconnects).
-# To restart the broker, run: docker compose restart broker
 RESTART_SERVICES="functions"
 
 if [ "$FRONTEND_CHANGED" = true ] && [ "$SKIP_FRONTEND" = false ]; then
