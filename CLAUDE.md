@@ -37,7 +37,7 @@ Single main file `main/mdb-slave-esp32s3.c` runs these concurrent FreeRTOS tasks
 
 **Security**: MQTT and BLE payloads use XOR obfuscation with an 18-byte `passkey` plus a ±8 second timestamp window to prevent replay attacks.
 
-**MQTT topics**: `/{company_id}/{device_id}/{event}` where events are: `sale`, `status`, `paxcounter`, `dex`, `credit`, `ota`
+**MQTT topics**: `/{company_id}/{device_id}/{event}` where events are: `sale`, `status`, `paxcounter`, `dex`, `mdb-log`, `credit`, `ota`, `config`
 
 **NVS namespace `vmflow`** keys:
 - `company_id` – UUID from companies table
@@ -92,7 +92,7 @@ docker compose down -v --remove-orphans
 
 ### MQTT Forwarder
 
-`Docker/mqtt/forwarder/main.ts` is a Deno service that subscribes to MQTT topics `/+/+/sale`, `/+/+/status`, `/+/+/paxcounter` and forwards raw payloads (base64-encoded) to the `mqtt-webhook` Supabase edge function via HTTP POST with webhook secret authentication. The `mqtt-webhook` function decrypts XOR payloads, validates checksum + timestamp (±8s), and writes to Supabase tables.
+`Docker/mqtt/forwarder/main.ts` is a Deno service that subscribes to MQTT topics `/+/+/sale`, `/+/+/status`, `/+/+/paxcounter`, `/+/+/mdb-log` and forwards raw payloads (base64-encoded) to the `mqtt-webhook` Supabase edge function via HTTP POST with webhook secret authentication. The `mqtt-webhook` function decrypts XOR payloads, validates checksum + timestamp (±8s), and writes to Supabase tables. The `mdb-log` topic carries plaintext JSON diagnostics (no XOR encryption).
 
 ### Supabase Local Development
 
@@ -118,6 +118,14 @@ Tables:
 - `products`, `product_category` – product catalogue per company; `products.image_path` stores the storage object path
 - `machine_trays` – per-machine tray/slot configuration: `machine_id`, `item_number` (unique per machine), `product_id`, `capacity`, `current_stock`; stock auto-decremented on sales via `decrement_tray_stock` trigger
 - `api_keys` – API keys for external integrations: `company_id`, `key_hash`, `key_prefix`, `name`
+- `warehouses` – warehouse locations per company
+- `product_barcodes` – barcode-to-product mapping for scanning
+- `warehouse_stock_batches` – FIFO stock batches with expiry tracking
+- `warehouse_transactions` – stock movement log (intake, refill, adjustment, waste)
+- `product_min_stock` – per-warehouse minimum stock levels for alerts
+- `mdb_log` – MDB state-change diagnostics history per device
+- `push_subscriptions` – browser push notification registrations (endpoint, keys, user_agent)
+- `history` – activity log for audit trail
 
 ### Supabase Storage
 
@@ -146,6 +154,7 @@ All functions use `verify_jwt = false` in `config.toml` (workaround for ES256 `C
 | `import-products` | admin | Bulk import products from Nayax Excel export |
 | `register-push` | yes | Register browser push notification subscription |
 | `test-push` | yes | Send test push notification |
+| `send-device-config` | admin | Send device configuration update via MQTT |
 | `create-api-key` | admin | Generate API key for external integrations |
 
 ### Adding New Environment Variables
@@ -164,6 +173,10 @@ When adding a new env var that the frontend or edge functions need in production
 **Frontend build-time vars**: Nuxt `runtimeConfig` reads `process.env` at build time. Any var referenced in `nuxt.config.ts` must be available during `npm run build` inside Docker — this means it must be passed as a Docker build arg (`ARG` + `ENV` in Dockerfile, `build.args` in docker-compose.yml).
 
 **Edge function config**: Each edge function needs a `[functions.<name>]` section in `config.toml` with `import_map` pointing to its `deno.json` file. The self-hosted edge runtime reads secrets from `[edge_runtime.secrets]`.
+
+**Shared modules** (`Docker/supabase/functions/_shared/`):
+- `mqtt-publish.ts` – reusable MQTT publish helper (connects to broker, publishes, disconnects)
+- `web-push.ts` – web push notification sender
 
 ---
 
@@ -202,6 +215,10 @@ Public routes (no auth check): `/auth/login`, `/auth/register`, `/onboarding/*`
 - `useFirmware()` – CRUD for firmware versions in `firmware` storage bucket; `triggerOta(deviceId, firmwareId)` calls `trigger-ota` edge function
 - `useImportProducts()` – parses Nayax Excel exports, previews products, bulk imports via `import-products` edge function
 - `useNotifications()` – browser push notification registration and management via `register-push` edge function
+- `useWarehouse()` – CRUD for warehouses, stock batches (FIFO), transactions, barcode lookups, min-stock alerts; `deductStock()` calls `deduct_warehouse_stock_fifo` DB function for refill operations
+- `useMdbLog()` – fetches MDB diagnostics history from `mdb_log` table with realtime subscription
+- `useActivityLog()` – activity/audit log composable
+- `useAppResume()` – app lifecycle/resume event handling
 - `useTheme()` – wraps `useDark` from `@vueuse/core`; theme persisted to `localStorage` as `color-scheme`
 
 ### Shared Utilities (`app/lib/utils.ts`)
@@ -216,6 +233,8 @@ Public routes (no auth check): `/auth/login`, `/auth/register`, `/onboarding/*`
 - `/machines` – Responsive card grid (1/2/3 cols) of vending machines showing status badge, today/yesterday revenue, sales count, last sale time-ago, and paxcounter traffic; cards link to `/machines/[id]`
 - `/machines/[id]` – Per-machine detail: 30-day chart + sales history (with product image thumbnails from trays); Trays & Stock tab with tray table, batch add (sequential slots), single add/edit (editable slot numbers), refill, and delete
 - `/products` – Products tab (table with image thumbnails, add/edit modal with image upload zone, category selector) + Categories tab + Import from Nayax Excel
+- `/warehouse` – Warehouse inventory management: stock intake with barcode scanning (`BarcodeScanner` component), FIFO batch tracking, transaction history, min-stock alerts
+- `/history` – Activity/audit log
 - `/devices` – Admin device management: registered embedded devices table, register new device with provisioning code + QR, pending tokens, delete device
 - `/firmware` – Firmware version management: upload .bin files, deploy OTA to devices, delete versions
 - `/api-keys` – API key management: create/revoke keys for external integrations
@@ -234,3 +253,17 @@ Public routes (no auth check): `/auth/login`, `/auth/register`, `/onboarding/*`
 - `KONG_HTTP_PORT` – API gateway port (default 8000)
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` – Web Push notification keys
 - `MQTT_WEBHOOK_SECRET` – shared secret between MQTT forwarder and `mqtt-webhook` edge function
+
+---
+
+## Testing
+
+Frontend tests use Vitest (`management-frontend/vitest.config.ts`). Test helpers in `app/test-helpers/nuxt-stubs.ts` provide mock implementations for Nuxt composables.
+
+```bash
+cd management-frontend
+npx vitest run          # run all tests
+npx vitest run --watch  # watch mode
+```
+
+Edge function tests (Deno): `Docker/supabase/functions/mqtt-webhook/mdb-log.test.ts`
