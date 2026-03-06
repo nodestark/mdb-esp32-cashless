@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VMC Simulator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.header{background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #334155}
+.header h1{font-size:18px;font-weight:600;color:#f8fafc}
+.header .ip{font-size:13px;color:#94a3b8;margin-left:auto}
+.container{max-width:900px;margin:0 auto;padding:16px}
+
+/* Device Cards */
+.devices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.device-card{background:#1e293b;border-radius:10px;padding:14px;border:1px solid #334155}
+.device-card h3{font-size:14px;color:#94a3b8;margin-bottom:8px}
+.device-card .state{font-size:20px;font-weight:700;margin-bottom:6px}
+.device-card .info{font-size:12px;color:#64748b;line-height:1.6}
+.state-INACTIVE{color:#ef4444}
+.state-DISABLED{color:#f59e0b}
+.state-ENABLED{color:#22c55e}
+.state-IDLE{color:#3b82f6}
+.state-VEND{color:#a855f7}
+
+/* Products */
+.section{margin-bottom:16px}
+.section h2{font-size:15px;color:#94a3b8;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1e293b}
+.products{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.product{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s}
+.product:hover{border-color:#3b82f6;background:#1e3a5f}
+.product:active{transform:scale(0.97)}
+.product .name{font-size:13px;font-weight:500;margin-bottom:4px}
+.product .slot{font-size:11px;color:#64748b}
+.product .price{font-size:14px;font-weight:700;color:#22c55e;margin-top:4px}
+
+/* Controls */
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.btn{padding:8px 14px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.btn:active{transform:scale(0.97)}
+.btn-blue{background:#2563eb;color:white}
+.btn-blue:hover{background:#1d4ed8}
+.btn-red{background:#dc2626;color:white}
+.btn-red:hover{background:#b91c1c}
+.btn-yellow{background:#d97706;color:white}
+.btn-yellow:hover{background:#b45309}
+.btn-green{background:#16a34a;color:white}
+.btn-green:hover{background:#15803d}
+.btn-gray{background:#475569;color:white}
+.btn-gray:hover{background:#334155}
+
+/* Manual inputs */
+.manual{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.manual label{font-size:13px;color:#94a3b8}
+.manual input,.manual select{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:13px;width:80px}
+.manual select{width:auto}
+
+/* Log */
+.log-container{background:#0f172a;border:1px solid #1e293b;border-radius:8px;max-height:350px;overflow-y:auto;font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:12px}
+.log-entry{padding:3px 10px;border-bottom:1px solid #1e293b1a;display:flex;gap:8px}
+.log-entry:hover{background:#1e293b40}
+.log-ts{color:#475569;min-width:70px}
+.log-dir{font-weight:700;min-width:14px}
+.log-dir.T{color:#3b82f6}
+.log-dir.R{color:#22c55e}
+.log-dir.I{color:#f59e0b}
+.log-msg{color:#cbd5e1}
+.log-controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.log-controls label{font-size:13px;color:#64748b}
+.log-controls .btn{padding:4px 10px;font-size:12px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:8px;font-size:13px;color:white;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100}
+.toast.show{opacity:1}
+.toast.ok{background:#16a34a}
+.toast.err{background:#dc2626}
+
+/* Address selector */
+.addr-select{display:flex;gap:6px;margin-bottom:12px}
+.addr-btn{padding:6px 12px;border:1px solid #334155;background:#1e293b;color:#94a3b8;border-radius:6px;cursor:pointer;font-size:13px}
+.addr-btn.active{border-color:#3b82f6;color:#3b82f6;background:#1e3a5f}
+
+@media(max-width:600px){
+    .products{grid-template-columns:repeat(2,1fr)}
+    .devices{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>VMC Simulator</h1>
+    <span class="ip" id="wifi-ip">--</span>
+</div>
+
+<div class="container">
+    <!-- Device Status -->
+    <div class="devices">
+        <div class="device-card" id="card-0x10">
+            <h3>Cashless #1 (0x10)</h3>
+            <div class="state state-INACTIVE" id="state-0x10">INACTIVE</div>
+            <div class="info" id="info-0x10">--</div>
+        </div>
+        <div class="device-card" id="card-0x60">
+            <h3>Cashless #2 (0x60)</h3>
+            <div class="state state-INACTIVE" id="state-0x60">INACTIVE</div>
+            <div class="info" id="info-0x60">--</div>
+        </div>
+    </div>
+
+    <!-- Target address -->
+    <div class="addr-select">
+        <button class="addr-btn active" data-addr="0" onclick="setAddr(this)">Alle</button>
+        <button class="addr-btn" data-addr="16" onclick="setAddr(this)">0x10</button>
+        <button class="addr-btn" data-addr="96" onclick="setAddr(this)">0x60</button>
+    </div>
+
+    <!-- Products -->
+    <div class="section">
+        <h2>Produkte</h2>
+        <div class="products" id="products"></div>
+    </div>
+
+    <!-- Manual Controls -->
+    <div class="section">
+        <h2>Manuelle Steuerung</h2>
+        <div class="manual">
+            <label>Item:</label>
+            <input type="number" id="item-num" value="1" min="1" max="255">
+            <label>Preis (Cent):</label>
+            <input type="number" id="item-price" value="150" min="0" max="65535">
+            <button class="btn btn-blue" onclick="sendVend()">Vend Request</button>
+            <button class="btn btn-green" onclick="sendCashSale()">Cash Sale</button>
+        </div>
+        <div class="controls">
+            <button class="btn btn-red" onclick="sendCmd('vend-cancel')">Cancel Vend</button>
+            <button class="btn btn-yellow" onclick="sendCmd('reset')">Reset Slave</button>
+            <button class="btn btn-green" onclick="sendReader(true)">Reader Enable</button>
+            <button class="btn btn-gray" onclick="sendReader(false)">Reader Disable</button>
+        </div>
+    </div>
+
+    <!-- MDB Log -->
+    <div class="section">
+        <div class="log-controls">
+            <h2>MDB Log</h2>
+            <div>
+                <label><input type="checkbox" id="auto-scroll" checked> Auto-Scroll</label>
+                <button class="btn btn-gray" onclick="clearLog()">Clear</button>
+            </div>
+        </div>
+        <div class="log-container" id="log"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let targetAddr = 0;
+let lastLogCount = 0;
+let pollTimer = null;
+
+function setAddr(btn) {
+    document.querySelectorAll('.addr-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    targetAddr = parseInt(btn.dataset.addr);
+}
+
+function toast(msg, ok) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (ok ? 'ok' : 'err');
+    setTimeout(() => t.className = 'toast', 2000);
+}
+
+async function api(endpoint, method, body) {
+    try {
+        const opts = { method };
+        if (body) {
+            opts.headers = { 'Content-Type': 'application/json' };
+            opts.body = JSON.stringify(body);
+        }
+        const r = await fetch('/api/' + endpoint, opts);
+        const data = await r.json();
+        if (data.error) { toast(data.error, false); return null; }
+        return data;
+    } catch (e) {
+        toast('Request failed', false);
+        return null;
+    }
+}
+
+function sendVend() {
+    const item = parseInt(document.getElementById('item-num').value);
+    const price = parseInt(document.getElementById('item-price').value);
+    api('vend', 'POST', { item_number: item, item_price: price, address: targetAddr });
+}
+
+function sendCashSale() {
+    const item = parseInt(document.getElementById('item-num').value);
+    const price = parseInt(document.getElementById('item-price').value);
+    api('cashsale', 'POST', { item_number: item, item_price: price, address: targetAddr });
+}
+
+function sendCmd(cmd) {
+    api(cmd, 'POST', { address: targetAddr });
+}
+
+function sendReader(enabled) {
+    api('reader', 'POST', { enabled, address: targetAddr });
+}
+
+function vendProduct(slot, priceCents) {
+    document.getElementById('item-num').value = slot;
+    document.getElementById('item-price').value = priceCents;
+    api('vend', 'POST', { item_number: slot, item_price: priceCents, address: targetAddr });
+    toast('Vend #' + slot + ' gesendet', true);
+}
+
+function updateState(data) {
+    if (!data) return;
+
+    document.getElementById('wifi-ip').textContent = data.wifi_ip || '--';
+
+    ['0x10', '0x60'].forEach(addr => {
+        const key = 'reader_' + addr;
+        const r = data[key];
+        if (!r) return;
+
+        const stateEl = document.getElementById('state-' + addr);
+        stateEl.textContent = r.state;
+        stateEl.className = 'state state-' + r.state;
+
+        let info = '';
+        if (r.manufacturer && r.manufacturer.length > 0 && r.state !== 'INACTIVE') {
+            info = r.manufacturer + ' | ' + r.serial.trim() + ' | ' + r.model.trim() + ' | v' + r.sw_version;
+            info += '<br>SF=' + r.scale_factor + ' DP=' + r.decimal_places + ' FL=' + r.feature_level;
+        }
+        document.getElementById('info-' + addr).innerHTML = info;
+    });
+}
+
+function renderLog(entries) {
+    const container = document.getElementById('log');
+    const autoScroll = document.getElementById('auto-scroll').checked;
+
+    container.innerHTML = '';
+    entries.forEach(e => {
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+
+        const secs = (e.ts / 1000).toFixed(1);
+        div.innerHTML = '<span class="log-ts">' + secs + 's</span>' +
+            '<span class="log-dir ' + e.dir + '">' + e.dir + '</span>' +
+            '<span class="log-msg">' + e.msg + '</span>';
+        container.appendChild(div);
+    });
+
+    if (autoScroll) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function clearLog() {
+    document.getElementById('log').innerHTML = '';
+    lastLogCount = 0;
+}
+
+async function loadProducts() {
+    const data = await api('products', 'GET');
+    if (!data) return;
+
+    const container = document.getElementById('products');
+    container.innerHTML = '';
+
+    data.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'product';
+        div.onclick = () => vendProduct(p.slot, p.price);
+        div.innerHTML = '<div class="name">' + p.name + '</div>' +
+            '<div class="slot">Slot ' + p.slot + '</div>' +
+            '<div class="price">' + (p.price / 100).toFixed(2) + ' &euro;</div>';
+        container.appendChild(div);
+    });
+}
+
+async function poll() {
+    const [stateData, logData] = await Promise.all([
+        api('state', 'GET'),
+        api('log', 'GET')
+    ]);
+
+    updateState(stateData);
+
+    if (logData && Array.isArray(logData) && logData.length !== lastLogCount) {
+        renderLog(logData);
+        lastLogCount = logData.length;
+    }
+}
+
+// Init
+loadProducts();
+poll();
+pollTimer = setInterval(poll, 500);
+</script>
+</body>
+</html>

@@ -596,6 +596,15 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# VMC Simulator WebUI
+#
+CONFIG_WIFI_SSID=""
+CONFIG_WIFI_PASSWORD=""
+CONFIG_AP_SSID="VMC-Simulator"
+CONFIG_AP_PASSWORD="12345678"
+# end of VMC Simulator WebUI
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEBUG=y

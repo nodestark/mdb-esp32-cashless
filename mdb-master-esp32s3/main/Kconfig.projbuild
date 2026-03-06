@@ -1,0 +1,27 @@
+menu "VMC Simulator WebUI"
+
+    config WIFI_SSID
+        string "WiFi SSID (STA mode)"
+        default ""
+        help
+            SSID of the WiFi network to connect to. Leave empty to use SoftAP only.
+
+    config WIFI_PASSWORD
+        string "WiFi Password (STA mode)"
+        default ""
+        help
+            Password for the WiFi network. Leave empty for open networks.
+
+    config AP_SSID
+        string "SoftAP SSID"
+        default "VMC-Simulator"
+        help
+            SSID for the fallback SoftAP access point.
+
+    config AP_PASSWORD
+        string "SoftAP Password"
+        default "12345678"
+        help
+            Password for the SoftAP access point.
+
+endmenu
