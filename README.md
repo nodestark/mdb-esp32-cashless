@@ -3,20 +3,17 @@
 👉 **Install firmware via Web Installer:**  
 https://install.vmflow.xyz
 
-This is an open-source project dedicated to implementing the MDB (Multi-Drop Bus) protocol for cashless vending machines, using ESP32 as the main platform and KiCad for PCB design. The MDB protocol is widely used in vending machines for communication between devices, enabling integration with cashless payment systems.
-
-The system also supports receiving credits over **MQTT** or **Bluetooth**, allowing integration with mobile apps, web backends, or other IoT platforms.
+The project aims to provide a modern, open, and extensible platform for vending machine connectivity. Based on the ESP32 platform, it enables machines to communicate via Bluetooth and cloud services, receive remote credits, report telemetry, and integrate with mobile applications and web dashboards.
 
 ![MDB Cashless](1411051686640.jpg)
 
-# Key Features:
+# Features
 - Implementation of the MDB protocol for communication with vending machines, offering telemetry and cashless payment
 - ESP32 hardware platform offering flexibility and advanced IoT features
 - PCB design done in **KiCad**, facilitating production and customization of the hardware
 - Support for **EVA DTS DEX/DDCMP** (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
-- **Real-time vending machine locations**: [📍 View on Map](https://vmflow.xyz/leaflet.html) – Displays the position of each vending machine based on sales data collected via the BLE channel
-- **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence data to estimate foot traffic and customer flow around the vending machine, enabling heatmaps, peak-hour analysis, and location performance insights
-
+- **Web Dashboard**: [📊 Open Dashboard](https://vmflow.xyz/dashboard) – Centralized interface to monitor the vending machine network in real time, including device status, telemetry, sales data, and operational insights collected from connected machines.
+- **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights.
 # How to Contribute:
 - Contributions are welcome! Feel free to open issues, send pull requests, or propose new features
 - Before submitting a pull request, make sure the code complies with the style and quality guidelines defined in the project
@@ -29,6 +26,8 @@ The system also supports receiving credits over **MQTT** or **Bluetooth**, allow
 ---
 
 [![Made with Supabase](https://supabase.com/badge-made-with-supabase-dark.svg)](https://supabase.com)
+
+## API Examples
 
 ### 1️⃣ Get a Bearer Token
 
