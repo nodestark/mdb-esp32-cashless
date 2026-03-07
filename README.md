@@ -70,7 +70,7 @@ curl -X GET 'https://supabase.vmflow.xyz/rest/v1/embedded' \
 ![PAX Counter](pax-counter-heatmap.png)
 
 ```bash
-curl -X GET 'https://supabase.vmflow.xyz/rest/v1/paxcounter' \
+curl -X GET 'https://supabase.vmflow.xyz/rest/v1/metrics?name=eq.paxcounter' \
 -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
