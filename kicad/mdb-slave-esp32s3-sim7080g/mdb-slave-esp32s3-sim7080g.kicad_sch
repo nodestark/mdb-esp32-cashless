@@ -7989,12 +7989,6 @@
 		(uuid "e724f7b2-b691-480f-88f1-4bc4cf605e9b")
 	)
 	(junction
-		(at 209.55 60.96)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "105ed129-c60f-4831-9f2b-cef55bfa2bf5")
-	)
-	(junction
 		(at 252.73 270.51)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8067,6 +8061,12 @@
 		(uuid "479a359f-1732-4def-a923-9aaf826d6ab9")
 	)
 	(junction
+		(at 172.72 60.96)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "5396e794-9906-435c-b34e-dfece1c2fb85")
+	)
+	(junction
 		(at 81.28 133.35)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8107,12 +8107,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "77a356f6-1cb4-4cfb-84a6-b9d844fd7b66")
-	)
-	(junction
-		(at 209.55 48.26)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "79068f3b-385a-46ef-9e48-6eb9cdb6f895")
 	)
 	(junction
 		(at 219.71 148.59)
@@ -8161,6 +8155,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "b19af554-153b-4cec-815e-8c992f0104ac")
+	)
+	(junction
+		(at 156.21 48.26)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "b7ef8db0-3ccb-454d-bcb9-3202c30bf993")
 	)
 	(junction
 		(at 63.5 123.19)
@@ -8380,7 +8380,7 @@
 	)
 	(wire
 		(pts
-			(xy 224.79 48.26) (xy 224.79 50.8)
+			(xy 212.09 48.26) (xy 212.09 50.8)
 		)
 		(stroke
 			(width 0)
@@ -8547,16 +8547,6 @@
 			(type default)
 		)
 		(uuid "09516c3f-c15e-42a4-87e6-9ad24d30e01c")
-	)
-	(wire
-		(pts
-			(xy 209.55 60.96) (xy 224.79 60.96)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0a563fd8-3d5c-41d5-a950-54111747345d")
 	)
 	(wire
 		(pts
@@ -8870,7 +8860,7 @@
 	)
 	(wire
 		(pts
-			(xy 143.51 48.26) (xy 160.02 48.26)
+			(xy 143.51 48.26) (xy 156.21 48.26)
 		)
 		(stroke
 			(width 0)
@@ -9000,13 +8990,13 @@
 	)
 	(wire
 		(pts
-			(xy 209.55 50.8) (xy 209.55 48.26)
+			(xy 156.21 48.26) (xy 156.21 50.8)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "42cb9731-4a06-4b26-9658-fd446c13a64a")
+		(uuid "42597af7-4ed1-4c7c-a894-40e3afc23812")
 	)
 	(wire
 		(pts
@@ -9107,6 +9097,16 @@
 			(type default)
 		)
 		(uuid "4de3f256-68ba-4875-8361-b24f33f3e9ed")
+	)
+	(wire
+		(pts
+			(xy 156.21 60.96) (xy 172.72 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4fb03dd7-e57b-4a50-b601-71b15234a407")
 	)
 	(wire
 		(pts
@@ -9237,6 +9237,16 @@
 			(type default)
 		)
 		(uuid "609d1efd-4909-4947-aebf-dfdf1ac7e799")
+	)
+	(wire
+		(pts
+			(xy 156.21 58.42) (xy 156.21 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "630a9517-85fc-4382-aa25-9e8378a81664")
 	)
 	(wire
 		(pts
@@ -9387,16 +9397,6 @@
 			(type default)
 		)
 		(uuid "71675157-2b34-4e36-970c-32b471a76c14")
-	)
-	(wire
-		(pts
-			(xy 209.55 60.96) (xy 209.55 58.42)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "72a81db1-7edd-4d39-a60e-9878b79746df")
 	)
 	(wire
 		(pts
@@ -9620,7 +9620,7 @@
 	)
 	(wire
 		(pts
-			(xy 203.2 60.96) (xy 209.55 60.96)
+			(xy 203.2 60.96) (xy 212.09 60.96)
 		)
 		(stroke
 			(width 0)
@@ -9870,6 +9870,16 @@
 	)
 	(wire
 		(pts
+			(xy 156.21 48.26) (xy 160.02 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a0795da8-184b-4b36-8826-0a79e0ee4a89")
+	)
+	(wire
+		(pts
 			(xy 425.45 149.86) (xy 436.88 149.86)
 		)
 		(stroke
@@ -9880,7 +9890,7 @@
 	)
 	(wire
 		(pts
-			(xy 224.79 60.96) (xy 224.79 58.42)
+			(xy 212.09 60.96) (xy 212.09 58.42)
 		)
 		(stroke
 			(width 0)
@@ -10410,16 +10420,6 @@
 	)
 	(wire
 		(pts
-			(xy 209.55 48.26) (xy 224.79 48.26)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d884ba5c-67d3-4eaf-a48a-a4ac3375c562")
-	)
-	(wire
-		(pts
 			(xy 105.41 243.84) (xy 105.41 248.92)
 		)
 		(stroke
@@ -10690,7 +10690,7 @@
 	)
 	(wire
 		(pts
-			(xy 203.2 48.26) (xy 209.55 48.26)
+			(xy 203.2 48.26) (xy 212.09 48.26)
 		)
 		(stroke
 			(width 0)
@@ -19536,7 +19536,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 224.79 54.61 0)
+		(at 212.09 54.61 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -19545,7 +19545,7 @@
 		(fields_autoplaced yes)
 		(uuid "9ab3cde8-db9d-490d-b6aa-a5ef54713285")
 		(property "Reference" "C10"
-			(at 228.6 53.3399 0)
+			(at 215.9 53.3399 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19554,7 +19554,7 @@
 			)
 		)
 		(property "Value" "0.1uF"
-			(at 228.6 55.8799 0)
+			(at 215.9 55.8799 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19563,7 +19563,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 225.7552 58.42 0)
+			(at 213.0552 58.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19572,7 +19572,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 224.79 54.61 0)
+			(at 212.09 54.61 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19581,7 +19581,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 224.79 54.61 0)
+			(at 212.09 54.61 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19590,7 +19590,7 @@
 			)
 		)
 		(property "LCSC#" "C5137636"
-			(at 224.79 54.61 90)
+			(at 212.09 54.61 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19599,7 +19599,7 @@
 			)
 		)
 		(property "Sim.Device" ""
-			(at 224.79 54.61 90)
+			(at 212.09 54.61 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19608,7 +19608,7 @@
 			)
 		)
 		(property "Sim.Pins" ""
-			(at 224.79 54.61 90)
+			(at 212.09 54.61 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19617,7 +19617,7 @@
 			)
 		)
 		(property "Sim.Type" ""
-			(at 224.79 54.61 90)
+			(at 212.09 54.61 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20789,16 +20789,15 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 209.55 54.61 0)
+		(at 156.21 54.61 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "b12495e7-025a-445c-85dc-e2d1828eeb82")
 		(property "Reference" "C9"
-			(at 213.36 53.3399 0)
+			(at 147.32 53.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20807,7 +20806,7 @@
 			)
 		)
 		(property "Value" "0.1uF"
-			(at 213.36 55.8799 0)
+			(at 147.32 55.88 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20816,7 +20815,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 210.5152 58.42 0)
+			(at 157.1752 58.42 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20825,7 +20824,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 209.55 54.61 0)
+			(at 156.21 54.61 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20834,7 +20833,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 209.55 54.61 0)
+			(at 156.21 54.61 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20843,7 +20842,7 @@
 			)
 		)
 		(property "LCSC#" "C5137636"
-			(at 209.55 54.61 90)
+			(at 156.21 54.61 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20852,7 +20851,7 @@
 			)
 		)
 		(property "Sim.Device" ""
-			(at 209.55 54.61 90)
+			(at 156.21 54.61 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20861,7 +20860,7 @@
 			)
 		)
 		(property "Sim.Pins" ""
-			(at 209.55 54.61 90)
+			(at 156.21 54.61 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20870,7 +20869,7 @@
 			)
 		)
 		(property "Sim.Type" ""
-			(at 209.55 54.61 90)
+			(at 156.21 54.61 90)
 			(effects
 				(font
 					(size 1.27 1.27)
