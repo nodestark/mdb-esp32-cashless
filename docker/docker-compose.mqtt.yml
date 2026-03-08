@@ -9,12 +9,11 @@ services:
       - "9001:9001"   # WebSockets (opcional)
     volumes:
       - ./mqtt/config:/mosquitto/config
-      - ./mqtt/config/acl:/etc/mosquitto/acl
+      - ./mqtt/config/acl:/etc/mosquitto/acl:ro
       - ./mqtt/data:/mosquitto/data
 
   domain:
-    build:
-      dockerfile: ./mqtt/Dockerfile
+    image: python:3.10-alpine
     restart: unless-stopped
     depends_on:
       - broker
@@ -24,3 +23,4 @@ services:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       MQTT_HOST: broker
+    command: sh -c "pip install --no-cache-dir supabase paho-mqtt && python -u /domain/mqtt_domain.py"

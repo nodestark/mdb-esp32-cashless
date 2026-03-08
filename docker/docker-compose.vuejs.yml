@@ -2,23 +2,21 @@ name: vmflow-vuejs
 
 services:
   vue-dev:
-    build:
-      context: vuejs/
-      dockerfile: Dockerfile.dev
+    image: node:lts-alpine
     ports:
       - "5173:5173"
     volumes:
       - ./vuejs:/app
-      - /app/node_modules
+    working_dir: /app
     command: sh -c "npm install && npm run dev -- --host"
 
   vue-prod:
-    build:
-      context: vuejs/
-      dockerfile: Dockerfile.prod
+    image: node:lts-alpine
     volumes:
+      - ./vuejs:/app
       - vue_dist:/app/dist
-    command: npm run build
+    working_dir: /app
+    command: sh -c "npm run build"
 
   vue-nginx:
     image: nginx:stable-alpine
