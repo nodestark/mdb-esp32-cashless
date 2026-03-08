@@ -6,7 +6,15 @@ export default defineNuxtConfig({
   app: {
     head: {
       meta: [
-        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+        { name: 'apple-mobile-web-app-title', content: 'VMflow' },
+        { name: 'theme-color', content: '#ffffff', media: '(prefers-color-scheme: light)' },
+        { name: 'theme-color', content: '#09090b', media: '(prefers-color-scheme: dark)' },
+      ],
+      link: [
+        { rel: 'apple-touch-icon', href: '/icons/icon-192x192.png' },
       ],
     },
   },
@@ -55,6 +63,10 @@ export default defineNuxtConfig({
           type: 'image/png',
           purpose: 'any maskable',
         },
+      ],
+      shortcuts: [
+        { name: 'Machines', url: '/machines', icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }] },
+        { name: 'Warehouse', url: '/warehouse', icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }] },
       ],
     },
     injectManifest: {

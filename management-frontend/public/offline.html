@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>VMflow — Offline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --fg: #09090b;
+      --muted: #71717a;
+      --border: #e4e4e7;
+      --primary: #3b82f6;
+      --card-bg: #fafafa;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #09090b;
+        --fg: #fafafa;
+        --muted: #a1a1aa;
+        --border: #27272a;
+        --primary: #60a5fa;
+        --card-bg: #18181b;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    .container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 400px;
+    }
+
+    .icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1.5rem;
+      color: var(--muted);
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: var(--muted);
+      font-size: 0.875rem;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 2.5rem;
+      padding: 0 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #fff;
+      background: var(--primary);
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active {
+      opacity: 0.8;
+    }
+
+    .brand {
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+    </svg>
+    <h1>No Connection</h1>
+    <p>You appear to be offline. Please check your internet connection and try again.</p>
+    <button onclick="location.reload()">Retry</button>
+    <div class="brand">VMflow</div>
+  </div>
+</body>
+</html>
