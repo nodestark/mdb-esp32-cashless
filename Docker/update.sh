@@ -160,6 +160,13 @@ else
     success "MQTT admin credentials present"
 fi
 
+# ─── GITHUB_FIRMWARE_REPO (informational only) ───────────────────────────────
+if [ -z "${GITHUB_FIRMWARE_REPO:-}" ]; then
+    info "GITHUB_FIRMWARE_REPO not set — GitHub release imports disabled on firmware page"
+else
+    success "GITHUB_FIRMWARE_REPO: ${GITHUB_FIRMWARE_REPO}"
+fi
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Step 2: Apply new database migrations
 # ═══════════════════════════════════════════════════════════════════════════════

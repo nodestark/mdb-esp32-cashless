@@ -1,0 +1,56 @@
+name: Build Firmware
+
+on:
+  push:
+    tags:
+      - 'slave-v*'
+      - 'master-v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.5.1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine project from tag
+        id: project
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$TAG" == slave-v* ]]; then
+            echo "dir=mdb-slave-esp32s3" >> "$GITHUB_OUTPUT"
+            echo "name=mdb-slave-esp32s3" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG#slave-}" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" == master-v* ]]; then
+            echo "dir=mdb-master-esp32s3" >> "$GITHUB_OUTPUT"
+            echo "name=mdb-master-esp32s3" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG#master-}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build firmware
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py build
+        shell: bash
+
+      - name: Rename build artifact
+        run: |
+          cp "${{ steps.project.outputs.dir }}/build/${{ steps.project.outputs.name }}.bin" \
+             "${{ steps.project.outputs.name }}-${{ steps.project.outputs.version }}.bin"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.project.outputs.name }} ${{ steps.project.outputs.version }}"
+          body: |
+            Firmware build for `${{ steps.project.outputs.name }}` version `${{ steps.project.outputs.version }}`.
+
+            Built with ESP-IDF v5.5.1 targeting ESP32-S3.
+          files: |
+            ${{ steps.project.outputs.name }}-${{ steps.project.outputs.version }}.bin
+          draft: false
+          prerelease: false

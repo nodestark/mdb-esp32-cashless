@@ -7,6 +7,23 @@ export interface FirmwareVersion {
   file_size: number | null
   notes: string | null
   uploaded_by: string | null
+  source_type: string | null
+  source_tag: string | null
+}
+
+export interface GitHubRelease {
+  tag_name: string
+  name: string
+  published_at: string
+  body: string | null
+  html_url: string
+  assets: GitHubAsset[]
+}
+
+export interface GitHubAsset {
+  name: string
+  size: number
+  browser_download_url: string
 }
 
 export function useFirmware() {
@@ -15,6 +32,12 @@ export function useFirmware() {
 
   const firmwareVersions = ref<FirmwareVersion[]>([])
   const loading = ref(false)
+
+  // ── GitHub releases ────────────────────────────────────────────────────
+  const config = useRuntimeConfig()
+  const githubRepo = computed(() => config.public.githubFirmwareRepo as string)
+  const githubReleases = ref<GitHubRelease[]>([])
+  const githubLoading = ref(false)
 
   async function fetchFirmwareVersions() {
     loading.value = true
@@ -83,6 +106,48 @@ export function useFirmware() {
     await fetchFirmwareVersions()
   }
 
+  // ── GitHub release integration ─────────────────────────────────────────
+
+  async function fetchGitHubReleases() {
+    if (!githubRepo.value) return
+    githubLoading.value = true
+    try {
+      const res = await $fetch<GitHubRelease[]>(
+        `https://api.github.com/repos/${githubRepo.value}/releases`,
+        { headers: { Accept: 'application/vnd.github.v3+json' } }
+      )
+      // Only show releases that have .bin assets
+      githubReleases.value = res.filter(r =>
+        r.assets.some(a => a.name.endsWith('.bin'))
+      )
+    } catch (e) {
+      console.error('Failed to fetch GitHub releases:', e)
+      githubReleases.value = []
+    } finally {
+      githubLoading.value = false
+    }
+  }
+
+  async function importGitHubRelease(
+    tag: string,
+    assetName: string,
+    versionLabel?: string,
+    notes?: string,
+  ) {
+    const { data, error } = await supabase.functions.invoke('import-github-release', {
+      body: { tag, asset_name: assetName, version_label: versionLabel, notes },
+    })
+    if (error) throw error
+    if (data?.error) throw new Error(data.error)
+    await fetchFirmwareVersions()
+    return data
+  }
+
+  /** Check if a GitHub release tag has already been imported */
+  function isReleaseImported(tag: string): boolean {
+    return firmwareVersions.value.some(fw => fw.source_tag === tag)
+  }
+
   return {
     firmwareVersions,
     loading,
@@ -90,5 +155,12 @@ export function useFirmware() {
     uploadFirmware,
     triggerOta,
     deleteFirmwareVersion,
+    // GitHub integration
+    githubRepo,
+    githubReleases,
+    githubLoading,
+    fetchGitHubReleases,
+    importGitHubRelease,
+    isReleaseImported,
   }
 }

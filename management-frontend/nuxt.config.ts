@@ -26,6 +26,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? '',
+      githubFirmwareRepo: process.env.GITHUB_FIRMWARE_REPO ?? '',
     },
   },
   pwa: {

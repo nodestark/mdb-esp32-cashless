@@ -446,6 +446,14 @@ MQTT_ADMIN_PASS=${MQTT_ADMIN_PASS}
 VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
 VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
 VAPID_SUBJECT=${VAPID_SUBJECT}
+
+##########
+# GitHub Firmware Builds
+# Set to your GitHub repo (owner/repo) to enable GitHub release imports on the firmware page.
+# Leave empty to disable.
+#########
+
+GITHUB_FIRMWARE_REPO=
 ENVEOF
 
 success ".env written successfully"

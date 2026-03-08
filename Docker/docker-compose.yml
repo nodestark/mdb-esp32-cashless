@@ -19,6 +19,7 @@ services:
         SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
         SUPABASE_KEY: ${ANON_KEY}
         VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+        GITHUB_FIRMWARE_REPO: ${GITHUB_FIRMWARE_REPO:-}
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -353,6 +354,7 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT}
+      GITHUB_FIRMWARE_REPO: ${GITHUB_FIRMWARE_REPO:-}
     command: ["start", "--main-service", "/home/deno/functions/main"]
 
   # ==========================================================================

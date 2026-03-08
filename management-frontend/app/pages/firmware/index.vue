@@ -4,13 +4,22 @@ definePageMeta({ middleware: 'auth' })
 import { timeAgo } from '@/lib/utils'
 
 const { role } = useOrganization()
-const { firmwareVersions, loading, fetchFirmwareVersions, uploadFirmware, triggerOta, deleteFirmwareVersion } = useFirmware()
+const {
+  firmwareVersions, loading, fetchFirmwareVersions,
+  uploadFirmware, triggerOta, deleteFirmwareVersion,
+  githubRepo, githubReleases, githubLoading,
+  fetchGitHubReleases, importGitHubRelease, isReleaseImported,
+} = useFirmware()
 const { machines, fetchMachines } = useMachines()
 
 const isAdmin = computed(() => role.value === 'admin')
 
 onMounted(async () => {
-  await Promise.all([fetchFirmwareVersions(), fetchMachines()])
+  await Promise.all([
+    fetchFirmwareVersions(),
+    fetchMachines(),
+    fetchGitHubReleases(),
+  ])
 })
 
 // ── Upload modal ─────────────────────────────────────────────────────────────
@@ -115,6 +124,27 @@ async function handleDelete(fw: any) {
   }
 }
 
+// ── GitHub import ────────────────────────────────────────────────────────────
+const importLoading = ref<string | null>(null)
+const importError = ref('')
+const importSuccess = ref('')
+
+async function handleImport(tag: string, assetName: string) {
+  importLoading.value = tag
+  importError.value = ''
+  importSuccess.value = ''
+  try {
+    await importGitHubRelease(tag, assetName)
+    importSuccess.value = `Imported ${assetName} from ${tag}`
+    // Refresh to pick up the new firmware version
+    await fetchGitHubReleases()
+  } catch (err: unknown) {
+    importError.value = err instanceof Error ? err.message : 'Import failed'
+  } finally {
+    importLoading.value = null
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function formatSize(bytes: number | null) {
   if (bytes == null) return '—'
@@ -156,8 +186,9 @@ function formatDate(dt: string) {
         <thead>
           <tr class="border-b bg-muted/50 text-left">
             <th class="px-4 py-3 font-medium">Version</th>
+            <th class="px-4 py-3 font-medium">Source</th>
             <th class="px-4 py-3 font-medium">Size</th>
-            <th class="px-4 py-3 font-medium">Notes</th>
+            <th class="hidden md:table-cell px-4 py-3 font-medium">Notes</th>
             <th class="px-4 py-3 font-medium">Uploaded</th>
             <th v-if="isAdmin" class="px-4 py-3 font-medium">Actions</th>
           </tr>
@@ -169,8 +200,23 @@ function formatDate(dt: string) {
             class="border-b last:border-0 hover:bg-muted/30 transition-colors"
           >
             <td class="px-4 py-3 font-mono font-medium">{{ fw.version_label }}</td>
+            <td class="px-4 py-3">
+              <span
+                v-if="fw.source_type === 'github'"
+                class="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+              >
+                <svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg>
+                GitHub
+              </span>
+              <span
+                v-else
+                class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+              >
+                Upload
+              </span>
+            </td>
             <td class="px-4 py-3 text-muted-foreground">{{ formatSize(fw.file_size) }}</td>
-            <td class="px-4 py-3 text-muted-foreground truncate max-w-xs">{{ fw.notes ?? '—' }}</td>
+            <td class="hidden md:table-cell px-4 py-3 text-muted-foreground truncate max-w-xs">{{ fw.notes ?? '—' }}</td>
             <td class="px-4 py-3 text-muted-foreground">
               <span :title="formatDate(fw.created_at)">{{ timeAgo(fw.created_at) }}</span>
             </td>
@@ -180,7 +226,7 @@ function formatDate(dt: string) {
                   class="text-xs text-primary hover:underline"
                   @click="openOtaModal(fw.id)"
                 >
-                  Deploy to device
+                  Deploy
                 </button>
                 <button
                   class="text-xs text-destructive hover:underline"
@@ -195,6 +241,100 @@ function formatDate(dt: string) {
         </tbody>
       </table>
     </div>
+
+    <!-- GitHub Releases section -->
+    <template v-if="githubRepo">
+      <div class="flex items-center justify-between pt-4">
+        <div>
+          <h2 class="text-lg font-semibold">GitHub Releases</h2>
+          <p class="text-sm text-muted-foreground">
+            Import firmware builds from
+            <a
+              :href="`https://github.com/${githubRepo}/releases`"
+              target="_blank"
+              rel="noopener"
+              class="text-primary hover:underline"
+            >{{ githubRepo }}</a>
+          </p>
+        </div>
+        <button
+          class="inline-flex h-8 items-center justify-center rounded-md border px-3 text-xs font-medium shadow-sm transition-colors hover:bg-muted"
+          :disabled="githubLoading"
+          @click="fetchGitHubReleases"
+        >
+          {{ githubLoading ? 'Loading...' : 'Refresh' }}
+        </button>
+      </div>
+
+      <!-- Import status messages -->
+      <p v-if="importError" class="text-sm text-destructive">{{ importError }}</p>
+      <p v-if="importSuccess" class="text-sm text-green-600 dark:text-green-400">{{ importSuccess }}</p>
+
+      <div v-if="githubLoading && githubReleases.length === 0" class="text-muted-foreground text-sm">
+        Loading releases from GitHub...
+      </div>
+
+      <div v-else-if="githubReleases.length === 0" class="text-muted-foreground text-sm">
+        No releases with firmware binaries found.
+      </div>
+
+      <div v-else class="rounded-md border">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b bg-muted/50 text-left">
+              <th class="px-4 py-3 font-medium">Release</th>
+              <th class="px-4 py-3 font-medium">Asset</th>
+              <th class="hidden md:table-cell px-4 py-3 font-medium">Size</th>
+              <th class="px-4 py-3 font-medium">Published</th>
+              <th v-if="isAdmin" class="px-4 py-3 font-medium">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="release in githubReleases" :key="release.tag_name">
+              <tr
+                v-for="asset in release.assets.filter(a => a.name.endsWith('.bin'))"
+                :key="`${release.tag_name}-${asset.name}`"
+                class="border-b last:border-0 hover:bg-muted/30 transition-colors"
+              >
+                <td class="px-4 py-3">
+                  <a
+                    :href="release.html_url"
+                    target="_blank"
+                    rel="noopener"
+                    class="font-mono font-medium text-primary hover:underline"
+                  >{{ release.tag_name }}</a>
+                  <p v-if="release.name && release.name !== release.tag_name" class="text-xs text-muted-foreground truncate max-w-[200px]">
+                    {{ release.name }}
+                  </p>
+                </td>
+                <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{{ asset.name }}</td>
+                <td class="hidden md:table-cell px-4 py-3 text-muted-foreground">{{ formatSize(asset.size) }}</td>
+                <td class="px-4 py-3 text-muted-foreground">
+                  <span :title="formatDate(release.published_at)">{{ timeAgo(release.published_at) }}</span>
+                </td>
+                <td v-if="isAdmin" class="px-4 py-3">
+                  <button
+                    v-if="isReleaseImported(release.tag_name)"
+                    disabled
+                    class="inline-flex h-7 items-center rounded-md border px-3 text-xs font-medium text-muted-foreground opacity-60"
+                  >
+                    Imported
+                  </button>
+                  <button
+                    v-else
+                    class="inline-flex h-7 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    :disabled="importLoading === release.tag_name"
+                    @click="handleImport(release.tag_name, asset.name)"
+                  >
+                    {{ importLoading === release.tag_name ? 'Importing...' : 'Import' }}
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </template>
   </div>
 
   <!-- Upload firmware modal -->

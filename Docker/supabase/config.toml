@@ -374,6 +374,7 @@ PUBLIC_SUPABASE_URL = "env(PUBLIC_SUPABASE_URL)"
 VAPID_PUBLIC_KEY = "env(VAPID_PUBLIC_KEY)"
 VAPID_PRIVATE_KEY = "env(VAPID_PRIVATE_KEY)"
 VAPID_SUBJECT = "env(VAPID_SUBJECT)"
+GITHUB_FIRMWARE_REPO = "env(GITHUB_FIRMWARE_REPO)"
 
 [analytics]
 enabled = true
@@ -453,6 +454,12 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/send-device-config/deno.json"
 entrypoint = "./functions/send-device-config/index.ts"
+
+[functions.import-github-release]
+enabled = true
+verify_jwt = false
+import_map = "./functions/import-github-release/deno.json"
+entrypoint = "./functions/import-github-release/index.ts"
 
 [functions.mqtt-webhook]
 enabled = true
