@@ -12,12 +12,15 @@ cd "$SCRIPT_DIR"
 
 # ── Parse flags ──────────────────────────────────────────────────────────────
 SKIP_FRONTEND=false
+FULL_REBUILD=false
 for arg in "$@"; do
     case "$arg" in
-        --no-frontend) SKIP_FRONTEND=true ;;
+        --no-frontend)  SKIP_FRONTEND=true ;;
+        --full-rebuild) FULL_REBUILD=true ;;
         -h|--help)
             echo "Usage: bash update.sh [OPTIONS]"
-            echo "  --no-frontend   Skip frontend rebuild"
+            echo "  --no-frontend    Skip frontend rebuild"
+            echo "  --full-rebuild   Rebuild all services even if no changes detected"
             exit 0 ;;
     esac
 done
@@ -240,7 +243,12 @@ FRONTEND_CHANGED=false
 FORWARDER_CHANGED=false
 BROKER_CHANGED=false
 
-if [ "$BEFORE" != "$AFTER" ]; then
+if [ "$FULL_REBUILD" = true ]; then
+    info "Full rebuild requested — rebuilding all services"
+    FRONTEND_CHANGED=true
+    FORWARDER_CHANGED=true
+    BROKER_CHANGED=true
+elif [ "$BEFORE" != "$AFTER" ]; then
     CHANGED_FILES=$(cd "$SCRIPT_DIR/.." && git diff --name-only "${BEFORE}" "${AFTER}" 2>/dev/null || echo "")
 
     if echo "$CHANGED_FILES" | grep -q "^management-frontend/"; then
