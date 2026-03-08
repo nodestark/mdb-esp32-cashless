@@ -371,6 +371,7 @@ void mdb_poll_cashless(uint8_t addr, struct reader_t *reader,
 				if (len != 2) return;
 
 				write_9(ACK | BIT_MODE_SET);
+				reader->fundsAvailable = 0;
 				reader->machineState = ENABLED_STATE;
 				mdb_log_add('R', "%s End Session", name);
 
@@ -401,6 +402,7 @@ void mdb_poll_cashless(uint8_t addr, struct reader_t *reader,
 				write_9(ACK | BIT_MODE_SET);
 
 				uint16_t vendAmount = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
+				reader->fundsAvailable = 0;
 				mdb_log_add('R', "%s Vend APPROVED amt=%d", name, vendAmount);
 
 				// Use the item number from the last vend request command
@@ -431,6 +433,7 @@ void mdb_poll_cashless(uint8_t addr, struct reader_t *reader,
 				if (len != 2) return;
 
 				write_9(ACK | BIT_MODE_SET);
+				reader->fundsAvailable = 0;
 				mdb_log_add('R', "%s Session Cancel Request", name);
 
 				mdb_payload_tx[0] = (addr & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
@@ -451,6 +454,7 @@ void mdb_poll_cashless(uint8_t addr, struct reader_t *reader,
 				write_9(ACK | BIT_MODE_SET);
 
 				uint16_t fundsAvailable = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
+				reader->fundsAvailable = fundsAvailable;
 				mdb_log_add('R', "%s Begin Session funds=%d", name, fundsAvailable);
 
 				reader->machineState = IDLE_STATE;
@@ -544,6 +548,8 @@ void mdb_poll_cashless(uint8_t addr, struct reader_t *reader,
 			} else if (has_cmd && cmd.type == CMD_SESSION_COMPLETE) {
 
 				if (reader->machineState == IDLE_STATE) {
+					reader->fundsAvailable = 0;
+
 					mdb_payload_tx[0] = (addr & BIT_ADD_SET) | (VEND & BIT_CMD_SET);
 					mdb_payload_tx[1] = 0x04; // Session Complete
 

@@ -7,68 +7,99 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
-.header{background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #334155}
-.header h1{font-size:18px;font-weight:600;color:#f8fafc}
-.header .ip{font-size:13px;color:#94a3b8;margin-left:auto}
-.container{max-width:900px;margin:0 auto;padding:16px}
+.container{max-width:480px;margin:0 auto;padding:16px}
 
-/* Device Cards */
-.devices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.device-card{background:#1e293b;border-radius:10px;padding:14px;border:1px solid #334155}
-.device-card h3{font-size:14px;color:#94a3b8;margin-bottom:8px}
-.device-card .state{font-size:20px;font-weight:700;margin-bottom:6px}
-.device-card .info{font-size:12px;color:#64748b;line-height:1.6}
-.state-INACTIVE{color:#ef4444}
-.state-DISABLED{color:#f59e0b}
-.state-ENABLED{color:#22c55e}
-.state-IDLE{color:#3b82f6}
-.state-VEND{color:#a855f7}
+/* ── Vending Machine Shell ── */
+.machine{background:#1a1a2e;border-radius:16px;border:2px solid #2a2a4a;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 
-/* Products */
-.section{margin-bottom:16px}
-.section h2{font-size:15px;color:#94a3b8;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1e293b}
-.products{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.product{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s}
-.product:hover{border-color:#3b82f6;background:#1e3a5f}
-.product:active{transform:scale(0.97)}
-.product .name{font-size:13px;font-weight:500;margin-bottom:4px}
-.product .slot{font-size:11px;color:#64748b}
-.product .price{font-size:14px;font-weight:700;color:#22c55e;margin-top:4px}
+/* Display */
+.display{background:#0a1a0a;border:3px solid #1a2a1a;border-radius:8px;margin:16px;padding:16px 20px;min-height:90px;position:relative;box-shadow:inset 0 2px 8px rgba(0,0,0,.6)}
+.display::before{content:'';position:absolute;inset:0;border-radius:5px;background:linear-gradient(180deg,rgba(0,255,0,.03) 0%,transparent 50%);pointer-events:none}
+.display-credit{font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:32px;font-weight:700;color:#33ff33;text-shadow:0 0 10px rgba(51,255,51,.4);text-align:center;line-height:1.2}
+.display-credit.zero{color:#1a5c1a;text-shadow:none}
+.display-msg{font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:14px;color:#33ff33;text-shadow:0 0 6px rgba(51,255,51,.3);text-align:center;margin-top:6px;opacity:.85}
+.display-detail{font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:11px;color:#1a8c1a;text-align:center;margin-top:4px;opacity:.7}
 
-/* Controls */
-.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-.btn{padding:8px 14px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
-.btn:active{transform:scale(0.97)}
-.btn-blue{background:#2563eb;color:white}
-.btn-blue:hover{background:#1d4ed8}
-.btn-red{background:#dc2626;color:white}
-.btn-red:hover{background:#b91c1c}
-.btn-yellow{background:#d97706;color:white}
-.btn-yellow:hover{background:#b45309}
-.btn-green{background:#16a34a;color:white}
-.btn-green:hover{background:#15803d}
-.btn-gray{background:#475569;color:white}
-.btn-gray:hover{background:#334155}
+/* Coin Slot */
+.coin-section{padding:0 16px 12px}
+.coin-label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;text-align:center}
+.coin-row{display:flex;gap:6px;justify-content:center}
+.coin-btn{width:56px;height:56px;border-radius:50%;border:3px solid #92702a;background:linear-gradient(145deg,#d4a843,#b8922e);color:#5c3d10;font-size:13px;font-weight:800;cursor:pointer;transition:all .12s;box-shadow:0 2px 6px rgba(0,0,0,.4),inset 0 1px 2px rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;line-height:1}
+.coin-btn:hover{transform:scale(1.08);box-shadow:0 4px 12px rgba(212,168,67,.4),inset 0 1px 2px rgba(255,255,255,.3)}
+.coin-btn:active{transform:scale(0.92);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.coin-btn.c10,.coin-btn.c20{width:46px;height:46px;font-size:11px;border-color:#8a7050;background:linear-gradient(145deg,#c9956a,#a07850)}
+.coin-btn.c50{width:50px;height:50px;font-size:12px}
 
-/* Manual inputs */
-.manual{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
-.manual label{font-size:13px;color:#94a3b8}
-.manual input,.manual select{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:13px;width:80px}
-.manual select{width:auto}
+/* Product Grid */
+.product-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 16px 12px}
+.product-btn{background:#16213e;border:2px solid #334155;border-radius:10px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.product-btn:hover:not(.disabled){border-color:#3b82f6;background:#1e3a5f;transform:scale(1.02)}
+.product-btn:active:not(.disabled){transform:scale(0.96);background:#1d4ed8;border-color:#60a5fa}
+.product-btn.disabled{opacity:.35;cursor:not-allowed}
+.product-btn .slot-num{font-size:11px;font-weight:700;color:#64748b;letter-spacing:1px;margin-bottom:4px}
+.product-btn .p-name{font-size:14px;font-weight:600;color:#e2e8f0;margin-bottom:2px}
+.product-btn .p-price{font-size:16px;font-weight:700;color:#22c55e}
+
+/* Action Buttons */
+.action-row{display:flex;gap:8px;padding:0 16px 16px}
+.btn-return{flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:1px}
+.btn-return:active:not(:disabled){transform:scale(0.96)}
+.btn-return:disabled{opacity:.35;cursor:not-allowed}
+.btn-coin-return{background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;box-shadow:0 2px 8px rgba(220,38,38,.3)}
+.btn-coin-return:hover:not(:disabled){background:linear-gradient(135deg,#ef4444,#dc2626)}
+
+/* ── Dev Info ── */
+.dev-section{margin-top:16px}
+.dev-section h3{font-size:13px;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+
+/* Reader Cards */
+.readers{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.reader-card{background:#1e293b;border-radius:8px;padding:10px;border:1px solid #334155}
+.reader-card .r-addr{font-size:12px;color:#64748b;margin-bottom:4px}
+.reader-card .r-state{font-size:16px;font-weight:700;margin-bottom:4px}
+.reader-card .r-info{font-size:11px;color:#475569;line-height:1.5}
+.r-state.INACTIVE{color:#ef4444}
+.r-state.DISABLED{color:#f59e0b}
+.r-state.ENABLED{color:#22c55e}
+.r-state.IDLE{color:#3b82f6}
+.r-state.VEND{color:#a855f7}
 
 /* Log */
-.log-container{background:#0f172a;border:1px solid #1e293b;border-radius:8px;max-height:350px;overflow-y:auto;font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:12px}
-.log-entry{padding:3px 10px;border-bottom:1px solid #1e293b1a;display:flex;gap:8px}
+.log-container{background:#0f172a;border:1px solid #1e293b;border-radius:8px;max-height:280px;overflow-y:auto;font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:11px}
+.log-entry{padding:2px 8px;border-bottom:1px solid #1e293b1a;display:flex;gap:6px}
 .log-entry:hover{background:#1e293b40}
-.log-ts{color:#475569;min-width:70px}
-.log-dir{font-weight:700;min-width:14px}
+.log-ts{color:#475569;min-width:60px}
+.log-dir{font-weight:700;min-width:12px}
 .log-dir.T{color:#3b82f6}
 .log-dir.R{color:#22c55e}
 .log-dir.I{color:#f59e0b}
 .log-msg{color:#cbd5e1}
-.log-controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.log-controls label{font-size:13px;color:#64748b}
-.log-controls .btn{padding:4px 10px;font-size:12px}
+.log-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.log-header label{font-size:12px;color:#475569}
+
+/* Collapsible */
+.collapse-toggle{background:none;border:1px solid #334155;color:#64748b;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;width:100%;text-align:left;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.collapse-toggle:hover{border-color:#475569;color:#94a3b8}
+.collapse-content{display:none}
+.collapse-content.open{display:block}
+
+/* Dev Controls */
+.dev-controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.dev-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.dev-row label{font-size:12px;color:#64748b}
+.dev-row input{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:4px 8px;border-radius:4px;font-size:12px;width:60px}
+.btn-sm{padding:5px 10px;border:none;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;color:white}
+.btn-sm:active{transform:scale(0.95)}
+.btn-sm.blue{background:#2563eb}.btn-sm.blue:hover{background:#1d4ed8}
+.btn-sm.red{background:#dc2626}.btn-sm.red:hover{background:#b91c1c}
+.btn-sm.yellow{background:#d97706}.btn-sm.yellow:hover{background:#b45309}
+.btn-sm.green{background:#16a34a}.btn-sm.green:hover{background:#15803d}
+.btn-sm.gray{background:#475569}.btn-sm.gray:hover{background:#334155}
+
+/* Addr selector */
+.addr-btns{display:flex;gap:4px;margin-bottom:8px}
+.addr-btn{padding:4px 10px;border:1px solid #334155;background:#1e293b;color:#64748b;border-radius:4px;cursor:pointer;font-size:12px}
+.addr-btn.active{border-color:#3b82f6;color:#3b82f6;background:#1e3a5f}
 
 /* Toast */
 .toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:8px;font-size:13px;color:white;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100}
@@ -76,80 +107,111 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .toast.ok{background:#16a34a}
 .toast.err{background:#dc2626}
 
-/* Address selector */
-.addr-select{display:flex;gap:6px;margin-bottom:12px}
-.addr-btn{padding:6px 12px;border:1px solid #334155;background:#1e293b;color:#94a3b8;border-radius:6px;cursor:pointer;font-size:13px}
-.addr-btn.active{border-color:#3b82f6;color:#3b82f6;background:#1e3a5f}
+/* IP badge */
+.ip-badge{text-align:center;font-size:11px;color:#475569;padding:8px;margin-bottom:12px}
 
-@media(max-width:600px){
-    .products{grid-template-columns:repeat(2,1fr)}
-    .devices{grid-template-columns:1fr}
+@media(max-width:500px){
+    .container{padding:8px}
+    .product-grid{gap:6px;padding:0 12px 10px}
+    .display{margin:12px;padding:12px 16px}
+    .display-credit{font-size:26px}
+    .coin-btn{width:48px;height:48px;font-size:12px}
+    .coin-btn.c10,.coin-btn.c20{width:40px;height:40px;font-size:10px}
+    .coin-btn.c50{width:44px;height:44px;font-size:11px}
 }
 </style>
 </head>
 <body>
-<div class="header">
-    <h1>VMC Simulator</h1>
-    <span class="ip" id="wifi-ip">--</span>
-</div>
-
 <div class="container">
-    <!-- Device Status -->
-    <div class="devices">
-        <div class="device-card" id="card-0x10">
-            <h3>Cashless #1 (0x10)</h3>
-            <div class="state state-INACTIVE" id="state-0x10">INACTIVE</div>
-            <div class="info" id="info-0x10">--</div>
-        </div>
-        <div class="device-card" id="card-0x60">
-            <h3>Cashless #2 (0x60)</h3>
-            <div class="state state-INACTIVE" id="state-0x60">INACTIVE</div>
-            <div class="info" id="info-0x60">--</div>
-        </div>
-    </div>
+    <div class="ip-badge">VMC Simulator &middot; <span id="wifi-ip">--</span></div>
 
-    <!-- Target address -->
-    <div class="addr-select">
-        <button class="addr-btn active" data-addr="0" onclick="setAddr(this)">Alle</button>
-        <button class="addr-btn" data-addr="16" onclick="setAddr(this)">0x10</button>
-        <button class="addr-btn" data-addr="96" onclick="setAddr(this)">0x60</button>
-    </div>
+    <!-- ═══ Vending Machine ═══ -->
+    <div class="machine">
 
-    <!-- Products -->
-    <div class="section">
-        <h2>Produkte</h2>
-        <div class="products" id="products"></div>
-    </div>
-
-    <!-- Manual Controls -->
-    <div class="section">
-        <h2>Manuelle Steuerung</h2>
-        <div class="manual">
-            <label>Item:</label>
-            <input type="number" id="item-num" value="1" min="1" max="255">
-            <label>Preis (Cent):</label>
-            <input type="number" id="item-price" value="150" min="0" max="65535">
-            <button class="btn btn-blue" onclick="sendVend()">Vend Request</button>
-            <button class="btn btn-green" onclick="sendCashSale()">Cash Sale</button>
+        <!-- Display -->
+        <div class="display">
+            <div class="display-credit zero" id="display-credit">0.00 &euro;</div>
+            <div class="display-msg" id="display-msg">Bereit</div>
+            <div class="display-detail" id="display-detail"></div>
         </div>
-        <div class="controls">
-            <button class="btn btn-red" onclick="sendCmd('vend-cancel')">Cancel Vend</button>
-            <button class="btn btn-yellow" onclick="sendCmd('reset')">Reset Slave</button>
-            <button class="btn btn-green" onclick="sendReader(true)">Reader Enable</button>
-            <button class="btn btn-gray" onclick="sendReader(false)">Reader Disable</button>
+
+        <!-- Coin Slot -->
+        <div class="coin-section">
+            <div class="coin-label">M&uuml;nzeinwurf</div>
+            <div class="coin-row">
+                <button class="coin-btn c10" onclick="coinInsert(10)">0,10</button>
+                <button class="coin-btn c20" onclick="coinInsert(20)">0,20</button>
+                <button class="coin-btn c50" onclick="coinInsert(50)">0,50</button>
+                <button class="coin-btn" onclick="coinInsert(100)">1,00</button>
+                <button class="coin-btn" onclick="coinInsert(200)">2,00</button>
+            </div>
+        </div>
+
+        <!-- Products -->
+        <div class="product-grid" id="products"></div>
+
+        <!-- Coin Return -->
+        <div class="action-row">
+            <button class="btn-return btn-coin-return" id="btn-return" disabled onclick="returnAll()">
+                &#8629; Geldr&uuml;ckgabe
+            </button>
         </div>
     </div>
 
-    <!-- MDB Log -->
-    <div class="section">
-        <div class="log-controls">
-            <h2>MDB Log</h2>
-            <div>
+    <!-- ═══ Dev Info ═══ -->
+    <div class="dev-section">
+        <h3>MDB Status</h3>
+        <div class="readers">
+            <div class="reader-card" id="rcard-0x10">
+                <div class="r-addr">0x10</div>
+                <div class="r-state INACTIVE" id="rstate-0x10">INACTIVE</div>
+                <div class="r-info" id="rinfo-0x10">--</div>
+            </div>
+            <div class="reader-card" id="rcard-0x60">
+                <div class="r-addr">0x60</div>
+                <div class="r-state INACTIVE" id="rstate-0x60">INACTIVE</div>
+                <div class="r-info" id="rinfo-0x60">--</div>
+            </div>
+        </div>
+
+        <div class="log-header">
+            <h3 style="margin:0">MDB Log</h3>
+            <div style="display:flex;gap:8px;align-items:center">
                 <label><input type="checkbox" id="auto-scroll" checked> Auto-Scroll</label>
-                <button class="btn btn-gray" onclick="clearLog()">Clear</button>
+                <button class="btn-sm gray" onclick="clearLog()">Clear</button>
             </div>
         </div>
         <div class="log-container" id="log"></div>
+    </div>
+
+    <!-- ═══ Advanced Tools (collapsible) ═══ -->
+    <div class="dev-section" style="margin-top:12px">
+        <button class="collapse-toggle" onclick="toggleAdvanced()">
+            <span>Erweiterte Steuerung</span>
+            <span id="collapse-arrow">&#9654;</span>
+        </button>
+        <div class="collapse-content" id="advanced-panel">
+            <div class="addr-btns">
+                <button class="addr-btn active" data-addr="0" onclick="setAddr(this)">Alle</button>
+                <button class="addr-btn" data-addr="16" onclick="setAddr(this)">0x10</button>
+                <button class="addr-btn" data-addr="96" onclick="setAddr(this)">0x60</button>
+            </div>
+            <div class="dev-row">
+                <label>Item:</label>
+                <input type="number" id="item-num" value="1" min="1" max="255">
+                <label>Preis:</label>
+                <input type="number" id="item-price" value="150" min="0" max="65535">
+                <button class="btn-sm blue" onclick="sendVend()">Vend</button>
+                <button class="btn-sm green" onclick="sendCashSale()">Cash Sale</button>
+            </div>
+            <div class="dev-controls">
+                <button class="btn-sm red" onclick="sendCmd('vend-cancel')">Cancel Vend</button>
+                <button class="btn-sm yellow" onclick="sendCmd('reset')">Reset</button>
+                <button class="btn-sm green" onclick="sendReader(true)">Reader On</button>
+                <button class="btn-sm gray" onclick="sendReader(false)">Reader Off</button>
+                <button class="btn-sm gray" onclick="sendCmd('session-complete')">Session Complete</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -159,11 +221,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 let targetAddr = 0;
 let lastLogCount = 0;
 let pollTimer = null;
+let currentState = {};
+let productsData = [];
 
 function setAddr(btn) {
     document.querySelectorAll('.addr-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     targetAddr = parseInt(btn.dataset.addr);
+}
+
+function toggleAdvanced() {
+    const panel = document.getElementById('advanced-panel');
+    const arrow = document.getElementById('collapse-arrow');
+    const open = panel.classList.toggle('open');
+    arrow.innerHTML = open ? '&#9660;' : '&#9654;';
 }
 
 function toast(msg, ok) {
@@ -185,9 +256,177 @@ async function api(endpoint, method, body) {
         if (data.error) { toast(data.error, false); return null; }
         return data;
     } catch (e) {
-        toast('Request failed', false);
+        toast('Verbindung fehlgeschlagen', false);
         return null;
     }
+}
+
+/* ── Machine state helpers ── */
+
+function getActiveReader(data) {
+    if (!data) return null;
+    const r10 = data.reader_0x10;
+    const r60 = data.reader_0x60;
+    // Prefer reader with active session, then the one that's furthest along
+    const states = ['INACTIVE','DISABLED','ENABLED','IDLE','VEND'];
+    const s10 = states.indexOf(r10?.state);
+    const s60 = states.indexOf(r60?.state);
+    if (s10 >= s60) return { reader: r10, addr: '0x10' };
+    return { reader: r60, addr: '0x60' };
+}
+
+function getCashlessCredit(reader) {
+    if (!reader) return 0;
+    const funds = reader.funds_available || 0;
+    const sf = reader.scale_factor || 1;
+    const dp = reader.decimal_places || 2;
+    return funds * sf * Math.pow(10, -dp);
+}
+
+function stateMessage(state, totalCredit, coinEur, cashlessEur) {
+    if (state === 'VEND') return 'Ausgabe...';
+    if (totalCredit > 0) return 'Bitte w\u00e4hlen';
+    switch (state) {
+        case 'INACTIVE': return 'Nicht verbunden';
+        case 'DISABLED': return 'Deaktiviert';
+        case 'ENABLED':  return 'Bereit';
+        case 'IDLE':     return 'Sitzung aktiv';
+        default:         return '--';
+    }
+}
+
+function canSelectProduct(state, coinCents, priceCents) {
+    // Cashless vend: need IDLE state
+    if (state === 'IDLE') return true;
+    // Coin vend: need enough coin credit and reader at least ENABLED
+    if (coinCents >= priceCents && (state === 'ENABLED' || state === 'IDLE')) return true;
+    return false;
+}
+
+function hasCredit(state, coinCents) {
+    return state === 'IDLE' || state === 'VEND' || coinCents > 0;
+}
+
+/* ── Display update ── */
+
+function updateDisplay(data) {
+    if (!data) return;
+    currentState = data;
+
+    document.getElementById('wifi-ip').textContent = data.wifi_ip || '--';
+
+    const active = getActiveReader(data);
+    const r = active?.reader;
+    const state = r?.state || 'INACTIVE';
+    const coinCents = data.coin_credit || 0;
+    const coinEur = coinCents / 100;
+    const cashlessEur = getCashlessCredit(r);
+    const totalEur = coinEur + cashlessEur;
+
+    // Display — show total credit
+    const creditEl = document.getElementById('display-credit');
+    creditEl.innerHTML = totalEur.toFixed(2) + ' &euro;';
+    creditEl.className = 'display-credit' + (totalEur === 0 ? ' zero' : '');
+
+    document.getElementById('display-msg').textContent = stateMessage(state, totalEur, coinEur, cashlessEur);
+
+    // Detail line: show breakdown if both sources have credit
+    const detailEl = document.getElementById('display-detail');
+    if (coinEur > 0 && cashlessEur > 0) {
+        detailEl.textContent = 'M\u00fcnzen: ' + coinEur.toFixed(2) + ' | Cashless: ' + cashlessEur.toFixed(2);
+    } else if (coinEur > 0) {
+        detailEl.textContent = 'M\u00fcnzguthaben';
+    } else if (cashlessEur > 0) {
+        detailEl.textContent = 'Cashless';
+    } else {
+        detailEl.textContent = '';
+    }
+
+    // Return button: active if any credit or session
+    document.getElementById('btn-return').disabled = !hasCredit(state, coinCents);
+
+    // Product buttons: enable based on available credit
+    document.querySelectorAll('.product-btn').forEach(btn => {
+        const priceCents = parseInt(btn.dataset.price) || 0;
+        if (canSelectProduct(state, coinCents, priceCents)) {
+            btn.classList.remove('disabled');
+        } else {
+            btn.classList.add('disabled');
+        }
+    });
+
+    // Reader cards
+    ['0x10', '0x60'].forEach(addr => {
+        const key = 'reader_' + addr;
+        const rd = data[key];
+        if (!rd) return;
+
+        const stateEl = document.getElementById('rstate-' + addr);
+        stateEl.textContent = rd.state;
+        stateEl.className = 'r-state ' + rd.state;
+
+        let info = '';
+        if (rd.manufacturer && rd.manufacturer.length > 0 && rd.state !== 'INACTIVE') {
+            info = rd.manufacturer + ' ' + rd.model.trim() + ' | SF=' + rd.scale_factor + ' DP=' + rd.decimal_places;
+            if (rd.funds_available > 0) {
+                const rdEur = rd.funds_available * (rd.scale_factor||1) * Math.pow(10, -(rd.decimal_places||2));
+                info += ' | Credit=' + rdEur.toFixed(2);
+            }
+        }
+        document.getElementById('rinfo-' + addr).textContent = info;
+    });
+}
+
+/* ── Coin actions ── */
+
+async function coinInsert(amountCents) {
+    const data = await api('coin-insert', 'POST', { amount: amountCents });
+    if (data) {
+        toast('+' + (amountCents / 100).toFixed(2) + ' \u20ac', true);
+        poll(); // immediate refresh
+    }
+}
+
+async function returnAll() {
+    const coinCents = currentState.coin_credit || 0;
+    const active = getActiveReader(currentState);
+    const state = active?.reader?.state || 'INACTIVE';
+
+    // Return coins if any
+    if (coinCents > 0) {
+        await api('coin-return', 'POST');
+    }
+    // End cashless session if active
+    if (state === 'IDLE' || state === 'VEND') {
+        await api('session-complete', 'POST', { address: targetAddr });
+    }
+
+    toast('Geldr\u00fcckgabe', true);
+    poll(); // immediate refresh
+}
+
+/* ── Vending actions ── */
+
+function vendProduct(slot, priceCents) {
+    const active = getActiveReader(currentState);
+    const state = active?.reader?.state || 'INACTIVE';
+    const coinCents = currentState.coin_credit || 0;
+
+    // Prefer cashless vend if session is IDLE
+    if (state === 'IDLE') {
+        document.getElementById('item-num').value = slot;
+        document.getElementById('item-price').value = priceCents;
+        api('vend', 'POST', { item_number: slot, item_price: priceCents, address: targetAddr });
+        return;
+    }
+
+    // Coin vend if enough coin credit
+    if (coinCents >= priceCents && (state === 'ENABLED' || state === 'IDLE')) {
+        api('coin-vend', 'POST', { item_number: slot, item_price: priceCents, address: targetAddr });
+        return;
+    }
+
+    toast('Nicht gen\u00fcgend Guthaben', false);
 }
 
 function sendVend() {
@@ -210,55 +449,22 @@ function sendReader(enabled) {
     api('reader', 'POST', { enabled, address: targetAddr });
 }
 
-function vendProduct(slot, priceCents) {
-    document.getElementById('item-num').value = slot;
-    document.getElementById('item-price').value = priceCents;
-    api('vend', 'POST', { item_number: slot, item_price: priceCents, address: targetAddr });
-    toast('Vend #' + slot + ' gesendet', true);
-}
-
-function updateState(data) {
-    if (!data) return;
-
-    document.getElementById('wifi-ip').textContent = data.wifi_ip || '--';
-
-    ['0x10', '0x60'].forEach(addr => {
-        const key = 'reader_' + addr;
-        const r = data[key];
-        if (!r) return;
-
-        const stateEl = document.getElementById('state-' + addr);
-        stateEl.textContent = r.state;
-        stateEl.className = 'state state-' + r.state;
-
-        let info = '';
-        if (r.manufacturer && r.manufacturer.length > 0 && r.state !== 'INACTIVE') {
-            info = r.manufacturer + ' | ' + r.serial.trim() + ' | ' + r.model.trim() + ' | v' + r.sw_version;
-            info += '<br>SF=' + r.scale_factor + ' DP=' + r.decimal_places + ' FL=' + r.feature_level;
-        }
-        document.getElementById('info-' + addr).innerHTML = info;
-    });
-}
+/* ── Log ── */
 
 function renderLog(entries) {
     const container = document.getElementById('log');
     const autoScroll = document.getElementById('auto-scroll').checked;
-
     container.innerHTML = '';
     entries.forEach(e => {
         const div = document.createElement('div');
         div.className = 'log-entry';
-
         const secs = (e.ts / 1000).toFixed(1);
         div.innerHTML = '<span class="log-ts">' + secs + 's</span>' +
             '<span class="log-dir ' + e.dir + '">' + e.dir + '</span>' +
             '<span class="log-msg">' + e.msg + '</span>';
         container.appendChild(div);
     });
-
-    if (autoScroll) {
-        container.scrollTop = container.scrollHeight;
-    }
+    if (autoScroll) container.scrollTop = container.scrollHeight;
 }
 
 function clearLog() {
@@ -266,23 +472,30 @@ function clearLog() {
     lastLogCount = 0;
 }
 
+/* ── Products ── */
+
 async function loadProducts() {
     const data = await api('products', 'GET');
     if (!data) return;
+    productsData = data;
 
     const container = document.getElementById('products');
     container.innerHTML = '';
 
     data.forEach(p => {
         const div = document.createElement('div');
-        div.className = 'product';
+        div.className = 'product-btn disabled';
+        div.dataset.price = p.price;
         div.onclick = () => vendProduct(p.slot, p.price);
-        div.innerHTML = '<div class="name">' + p.name + '</div>' +
-            '<div class="slot">Slot ' + p.slot + '</div>' +
-            '<div class="price">' + (p.price / 100).toFixed(2) + ' &euro;</div>';
+        div.innerHTML =
+            '<div class="slot-num">' + String(p.slot).padStart(2, '0') + '</div>' +
+            '<div class="p-name">' + p.name + '</div>' +
+            '<div class="p-price">' + (p.price / 100).toFixed(2) + ' &euro;</div>';
         container.appendChild(div);
     });
 }
+
+/* ── Polling ── */
 
 async function poll() {
     const [stateData, logData] = await Promise.all([
@@ -290,7 +503,7 @@ async function poll() {
         api('log', 'GET')
     ]);
 
-    updateState(stateData);
+    updateDisplay(stateData);
 
     if (logData && Array.isArray(logData) && logData.length !== lastLogCount) {
         renderLog(logData);

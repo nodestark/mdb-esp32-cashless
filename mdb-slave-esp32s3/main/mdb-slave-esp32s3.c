@@ -1488,13 +1488,29 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		if (topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
 
-			uint16_t fundsAvailable;
-			if(xorDecodeWithPasskey(&fundsAvailable, NULL, (uint8_t*) event->data)){
-			    xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
+			uint16_t newFunds;
+			if(xorDecodeWithPasskey(&newFunds, NULL, (uint8_t*) event->data)){
+
+                if (newFunds == 0) {
+                    // Cancel current session (credit reset)
+                    if (machine_state >= IDLE_STATE) {
+                        session_cancel_todo = true;
+                        ESP_LOGI(TAG, "Credit cancel — ending active session");
+                    }
+                } else {
+                    // Overwrite queue (always replaces previous credit)
+                    xQueueOverwrite(mdbSessionQueue, &newFunds);
+
+                    // If a session is already active, cancel it first so the
+                    // new credit gets picked up after Session Complete → ENABLED
+                    if (machine_state >= IDLE_STATE) {
+                        session_cancel_todo = true;
+                        ESP_LOGI(TAG, "New credit while session active — restarting session");
+                    }
+                }
 
                 xEventGroupSetBits(xLedEventGroup, BIT_EVT_BUZZER | BIT_EVT_TRIGGER);
-
-                ESP_LOGI( TAG, "Amount= %f", FROM_SCALE_FACTOR(fundsAvailable, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
+                ESP_LOGI( TAG, "Amount= %f", FROM_SCALE_FACTOR(newFunds, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 			}
 		}
 

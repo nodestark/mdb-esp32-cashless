@@ -10,7 +10,7 @@ const { organization } = useOrganization()
 const {
   machines, loading, fetchMachines, subscribeToStatusUpdates, createMachine,
 } = useMachines()
-const { warehouses, fetchWarehouses, deductForRefill } = useWarehouse()
+const { warehouses, fetchWarehouses, deductForRefill, fetchWarehouseStockMap } = useWarehouse()
 const { onResume } = useAppResume()
 const router = useRouter()
 
@@ -20,9 +20,32 @@ onResume(() => fetchMachines())
 // Warehouse selection for stock deduction
 const selectedWarehouseId = ref<string | null>(null)
 
+// Warehouse stock for packing list awareness (product_id → available quantity)
+const warehouseStock = ref(new Map<string, number>())
+const warehouseStockLoading = ref(false)
+
+async function loadWarehouseStock() {
+  if (!selectedWarehouseId.value) {
+    warehouseStock.value = new Map()
+    return
+  }
+  warehouseStockLoading.value = true
+  try {
+    warehouseStock.value = await fetchWarehouseStockMap(selectedWarehouseId.value)
+  } catch {
+    warehouseStock.value = new Map()
+  } finally {
+    warehouseStockLoading.value = false
+  }
+}
+
+// Re-fetch warehouse stock when warehouse selection changes
+watch(selectedWarehouseId, () => loadWarehouseStock())
+
 onMounted(async () => {
   await Promise.all([fetchMachines(), fetchWarehouses()])
   if (warehouses.value.length > 0) selectedWarehouseId.value = warehouses.value[0].id
+  await loadWarehouseStock()
   const unsubscribe = subscribeToStatusUpdates()
   onUnmounted(unsubscribe)
 })
@@ -69,6 +92,8 @@ function isPacked(machineId: string, item: { product_id: string | null; product_
 }
 
 function togglePacked(machineId: string, item: { product_id: string | null; product_name: string }) {
+  // Don't allow toggling if out of stock in warehouse
+  if (isOutOfWarehouseStock(item)) return
   const key = itemKey(item)
   const current = packedItems.value.get(machineId) ?? new Set<string>()
   if (current.has(key)) {
@@ -83,9 +108,39 @@ function togglePacked(machineId: string, item: { product_id: string | null; prod
 
 function allPacked(machineId: string, traySummary: { product_id: string | null; product_name: string }[]) {
   if (!traySummary || traySummary.length === 0) return false
+  // Only consider items that are actually packable (have warehouse stock)
+  const packableItems = traySummary.filter(item => !isOutOfWarehouseStock(item))
+  if (packableItems.length === 0) return false
   const set = packedItems.value.get(machineId)
   if (!set) return false
-  return traySummary.every(item => set.has(itemKey(item)))
+  return packableItems.every(item => set.has(itemKey(item)))
+}
+
+// ── Warehouse stock awareness ────────────────────────────────────────────────
+// Returns available warehouse stock for a product, or null if no warehouse selected
+function getWarehouseAvailable(item: { product_id: string | null }): number | null {
+  if (!selectedWarehouseId.value || !item.product_id) return null
+  return warehouseStock.value.get(item.product_id) ?? 0
+}
+
+// Effective deficit capped to warehouse availability
+function effectiveDeficit(item: { product_id: string | null; deficit: number }): number {
+  const available = getWarehouseAvailable(item)
+  if (available === null) return item.deficit
+  return Math.min(item.deficit, available)
+}
+
+// True if warehouse is selected but product has zero stock
+function isOutOfWarehouseStock(item: { product_id: string | null }): boolean {
+  const available = getWarehouseAvailable(item)
+  return available !== null && available <= 0
+}
+
+// True if warehouse has some stock but less than the deficit
+function hasPartialStock(item: { product_id: string | null; deficit: number }): boolean {
+  const available = getWarehouseAvailable(item)
+  if (available === null) return false
+  return available > 0 && available < item.deficit
 }
 
 // Deduct warehouse stock for a machine's packing list, then navigate to refill
@@ -106,13 +161,22 @@ async function handleUpdateWarehouseAndContinue(machine: any) {
   deductingMachineId.value = machine.id
   delete deductError.value[machine.id]
   try {
+    // Build packed quantities map (product_id → amount deducted from warehouse)
+    const packedMap: Record<string, number> = {}
     for (const item of checkedItems) {
+      const qty = effectiveDeficit(item)
+      if (qty <= 0) continue // skip items with no warehouse stock
       await deductForRefill({
         warehouse_id: selectedWarehouseId.value,
         product_id: item.product_id,
-        quantity: item.deficit,
+        quantity: qty,
         machine_id: machine.id,
       })
+      packedMap[item.product_id] = (packedMap[item.product_id] ?? 0) + qty
+    }
+    // Store packed quantities so the detail page's "Refill all" only fills what was packed
+    if (Object.keys(packedMap).length > 0) {
+      sessionStorage.setItem(`refill-packed-${machine.id}`, JSON.stringify(packedMap))
     }
     router.push(`/machines/${machine.id}?tab=stock`)
   } catch (err: any) {
@@ -254,36 +318,51 @@ async function handleUpdateWarehouseAndContinue(machine: any) {
                       <li
                         v-for="item in machine.tray_summary"
                         :key="item.product_id ?? item.product_name"
-                        class="flex items-center gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-pointer select-none transition-colors hover:bg-muted/50 active:bg-muted"
+                        class="flex items-center gap-2 rounded-md px-2 py-1.5 -mx-2 transition-colors"
+                        :class="isOutOfWarehouseStock(item)
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'cursor-pointer select-none hover:bg-muted/50 active:bg-muted'"
                         @click="togglePacked(machine.id, item)"
                       >
+                        <!-- Checkbox -->
                         <span
                           class="flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors"
-                          :class="isPacked(machine.id, item)
-                            ? 'bg-primary border-primary text-primary-foreground'
-                            : 'border-muted-foreground/30'"
+                          :class="isOutOfWarehouseStock(item)
+                            ? 'border-muted-foreground/20 bg-muted'
+                            : isPacked(machine.id, item)
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'border-muted-foreground/30'"
                         >
-                          <svg v-if="isPacked(machine.id, item)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><polyline points="20 6 9 17 4 12" /></svg>
+                          <svg v-if="isPacked(machine.id, item) && !isOutOfWarehouseStock(item)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><polyline points="20 6 9 17 4 12" /></svg>
                         </span>
+                        <!-- Product image -->
                         <img
                           v-if="item.image_path"
                           :src="getProductImageUrl(item.image_path)"
                           :alt="item.product_name"
                           class="h-8 w-8 shrink-0 rounded object-cover transition-opacity"
-                          :class="isPacked(machine.id, item) ? 'opacity-40' : ''"
+                          :class="isPacked(machine.id, item) || isOutOfWarehouseStock(item) ? 'opacity-40' : ''"
                         />
                         <span
                           v-else
                           class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-muted text-xs text-muted-foreground transition-opacity"
-                          :class="isPacked(machine.id, item) ? 'opacity-40' : ''"
+                          :class="isPacked(machine.id, item) || isOutOfWarehouseStock(item) ? 'opacity-40' : ''"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="18" height="18" x="3" y="3" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
                         </span>
-                        <span
-                          class="text-sm transition-all"
-                          :class="isPacked(machine.id, item) ? 'line-through text-muted-foreground/50' : ''"
-                        >
-                          {{ item.deficit }}&times; {{ item.product_name }}
+                        <!-- Product name + quantity -->
+                        <span class="text-sm flex-1 transition-all" :class="isPacked(machine.id, item) ? 'line-through text-muted-foreground/50' : ''">
+                          <template v-if="isOutOfWarehouseStock(item)">
+                            <span class="text-muted-foreground">{{ item.deficit }}&times; {{ item.product_name }}</span>
+                            <span class="ml-1 text-xs text-red-500 dark:text-red-400">Not in stock</span>
+                          </template>
+                          <template v-else-if="hasPartialStock(item)">
+                            {{ effectiveDeficit(item) }}&times; {{ item.product_name }}
+                            <span class="ml-1 text-xs text-amber-500 dark:text-amber-400">({{ item.deficit }} needed)</span>
+                          </template>
+                          <template v-else>
+                            {{ effectiveDeficit(item) }}&times; {{ item.product_name }}
+                          </template>
                         </span>
                       </li>
                     </ul>

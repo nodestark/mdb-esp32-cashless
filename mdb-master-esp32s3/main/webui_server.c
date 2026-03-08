@@ -20,6 +20,7 @@ static httpd_handle_t rest_server = NULL;
 static struct udp_pcb *dns_pcb = NULL;
 static int wifi_retry_num = 0;
 static bool ap_running = false;
+static uint16_t coin_credit = 0;  // simulated coin credit (cents)
 
 extern const uint8_t index_html_start[] asm("_binary_index_html_start");
 extern const uint8_t index_html_end[]   asm("_binary_index_html_end");
@@ -112,6 +113,7 @@ static esp_err_t state_get_handler(httpd_req_t *req) {
 
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "wifi_ip", ip_str);
+    cJSON_AddNumberToObject(root, "coin_credit", coin_credit);
 
     // Reader 0x10 state
     cJSON *r10 = cJSON_AddObjectToObject(root, "reader_0x10");
@@ -123,6 +125,7 @@ static esp_err_t state_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(r10, "serial", reader0x10.serial);
     cJSON_AddStringToObject(r10, "model", reader0x10.model);
     cJSON_AddStringToObject(r10, "sw_version", reader0x10.sw_version);
+    cJSON_AddNumberToObject(r10, "funds_available", reader0x10.fundsAvailable);
 
     // Reader 0x60 state
     cJSON *r60 = cJSON_AddObjectToObject(root, "reader_0x60");
@@ -134,6 +137,7 @@ static esp_err_t state_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(r60, "serial", reader0x60.serial);
     cJSON_AddStringToObject(r60, "model", reader0x60.model);
     cJSON_AddStringToObject(r60, "sw_version", reader0x60.sw_version);
+    cJSON_AddNumberToObject(r60, "funds_available", reader0x60.fundsAvailable);
 
     char *json_str = cJSON_PrintUnformatted(root);
     httpd_resp_set_type(req, "application/json");
@@ -273,6 +277,100 @@ static esp_err_t reader_post_handler(httpd_req_t *req) {
     xQueueSend(command_queue, &cmd, pdMS_TO_TICKS(100));
     httpd_resp_set_type(req, "application/json");
     httpd_resp_sendstr(req, "{\"ok\":true}");
+    return ESP_OK;
+}
+
+static esp_err_t session_complete_post_handler(httpd_req_t *req) {
+    char buf[128];
+    if (req->content_len > 0) read_post_body(req, buf, sizeof(buf));
+
+    cJSON *root = (req->content_len > 0) ? cJSON_Parse(buf) : NULL;
+    cJSON *j_addr = root ? cJSON_GetObjectItem(root, "address") : NULL;
+
+    vmc_command_t cmd = {
+        .type = CMD_SESSION_COMPLETE,
+        .target_addr = (j_addr && cJSON_IsNumber(j_addr)) ? (uint8_t)j_addr->valueint : 0,
+    };
+
+    if (root) cJSON_Delete(root);
+
+    xQueueSend(command_queue, &cmd, pdMS_TO_TICKS(100));
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, "{\"ok\":true}");
+    return ESP_OK;
+}
+
+static esp_err_t coin_insert_post_handler(httpd_req_t *req) {
+    char buf[128];
+    if (read_post_body(req, buf, sizeof(buf)) < 0) return ESP_FAIL;
+
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "{\"error\":\"Invalid JSON\"}");
+        return ESP_OK;
+    }
+
+    cJSON *j_amount = cJSON_GetObjectItem(root, "amount");
+    uint16_t amount = (j_amount && cJSON_IsNumber(j_amount)) ? (uint16_t)j_amount->valueint : 0;
+    cJSON_Delete(root);
+
+    coin_credit += amount;
+
+    char resp[64];
+    snprintf(resp, sizeof(resp), "{\"ok\":true,\"coin_credit\":%d}", coin_credit);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, resp);
+    return ESP_OK;
+}
+
+static esp_err_t coin_return_post_handler(httpd_req_t *req) {
+    coin_credit = 0;
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, "{\"ok\":true,\"coin_credit\":0}");
+    return ESP_OK;
+}
+
+static esp_err_t coin_vend_post_handler(httpd_req_t *req) {
+    char buf[256];
+    if (read_post_body(req, buf, sizeof(buf)) < 0) return ESP_FAIL;
+
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "{\"error\":\"Invalid JSON\"}");
+        return ESP_OK;
+    }
+
+    cJSON *j_item = cJSON_GetObjectItem(root, "item_number");
+    cJSON *j_price = cJSON_GetObjectItem(root, "item_price");
+    cJSON *j_addr = cJSON_GetObjectItem(root, "address");
+
+    uint16_t item = (j_item && cJSON_IsNumber(j_item)) ? (uint16_t)j_item->valueint : 1;
+    uint16_t price = (j_price && cJSON_IsNumber(j_price)) ? (uint16_t)j_price->valueint : 0;
+    uint8_t addr = (j_addr && cJSON_IsNumber(j_addr)) ? (uint8_t)j_addr->valueint : 0;
+    cJSON_Delete(root);
+
+    if (coin_credit < price) {
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "{\"error\":\"Insufficient credit\"}");
+        return ESP_OK;
+    }
+
+    coin_credit -= price;
+
+    vmc_command_t cmd = {
+        .type = CMD_CASH_SALE,
+        .target_addr = addr,
+        .item_number = item,
+        .item_price = price,
+    };
+    xQueueSend(command_queue, &cmd, pdMS_TO_TICKS(100));
+
+    char resp[64];
+    snprintf(resp, sizeof(resp), "{\"ok\":true,\"coin_credit\":%d}", coin_credit);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, resp);
     return ESP_OK;
 }
 
@@ -453,7 +551,7 @@ void start_webui_server(void) {
     if (rest_server != NULL) return;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 16;
+    config.max_uri_handlers = 20;
     config.stack_size = 8192;
 
     if (httpd_start(&rest_server, &config) != ESP_OK) {
@@ -469,6 +567,10 @@ void start_webui_server(void) {
         { .uri = "/api/cashsale",    .method = HTTP_POST, .handler = cashsale_post_handler      },
         { .uri = "/api/reset",       .method = HTTP_POST, .handler = reset_post_handler         },
         { .uri = "/api/reader",      .method = HTTP_POST, .handler = reader_post_handler        },
+        { .uri = "/api/session-complete", .method = HTTP_POST, .handler = session_complete_post_handler },
+        { .uri = "/api/coin-insert", .method = HTTP_POST, .handler = coin_insert_post_handler   },
+        { .uri = "/api/coin-return", .method = HTTP_POST, .handler = coin_return_post_handler   },
+        { .uri = "/api/coin-vend",   .method = HTTP_POST, .handler = coin_vend_post_handler     },
         { .uri = "/api/log",         .method = HTTP_GET,  .handler = log_get_handler            },
         { .uri = "/api/products",    .method = HTTP_GET,  .handler = products_get_handler       },
         { .uri = "/api/wifi/scan",   .method = HTTP_GET,  .handler = wifi_scan_get_handler      },

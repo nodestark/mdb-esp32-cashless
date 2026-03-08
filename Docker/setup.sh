@@ -192,32 +192,23 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════════
 step "2/5 — Configuration"
 
-# ─── Domain ────────────────────────────────────────────────────────────────────
-echo -e "${BOLD}Domain${NC}"
+# ─── Hostnames ─────────────────────────────────────────────────────────────────
+echo -e "${BOLD}Hostnames${NC}"
 echo
 
-DOMAIN=""
-while [ -z "$DOMAIN" ] || [[ ! "$DOMAIN" =~ \. ]]; do
-    DOMAIN=$(prompt_with_default "Enter your domain name (e.g. yourdomain.com)" "")
-    if [ -z "$DOMAIN" ] || [[ ! "$DOMAIN" =~ \. ]]; then
-        warn "Please enter a valid domain name (must contain a dot)."
-    fi
-done
+SUPABASE_HOST=$(prompt_with_default "Supabase API hostname" "supabase.vmflow.xyz")
+APP_HOST=$(prompt_with_default "Frontend app hostname" "app.vmflow.xyz")
+MQTT_HOST=$(prompt_with_default "MQTT broker hostname (reachable by ESP32 devices)" "mqtt.vmflow.xyz")
 
-SUPABASE_PUBLIC_URL="https://supabase.${DOMAIN}"
-API_EXTERNAL_URL="https://supabase.${DOMAIN}"
-SITE_URL="https://app.${DOMAIN}"
+SUPABASE_PUBLIC_URL="https://${SUPABASE_HOST}"
+API_EXTERNAL_URL="https://${SUPABASE_HOST}"
+SITE_URL="https://${APP_HOST}"
 
 echo
-info "Derived URLs:"
+info "URLs:"
 echo -e "  Supabase API:  ${GREEN}${SUPABASE_PUBLIC_URL}${NC}"
 echo -e "  Frontend:      ${GREEN}${SITE_URL}${NC}"
-
-# ─── MQTT ──────────────────────────────────────────────────────────────────────
-echo -e "\n${BOLD}MQTT${NC}"
-echo
-
-MQTT_HOST=$(prompt_with_default "MQTT broker host (IP or hostname reachable by ESP32 devices)" "mqtt.${DOMAIN}")
+echo -e "  MQTT broker:   ${GREEN}${MQTT_HOST}${NC}"
 
 # ─── SMTP (optional) ──────────────────────────────────────────────────────────
 echo -e "\n${BOLD}Email / SMTP${NC}"
@@ -236,7 +227,7 @@ if prompt_yes_no "Configure SMTP now? (You can skip this and add it to .env late
         warn "SMTP password cannot be empty."
         SMTP_PASS=$(prompt_secret "SMTP password")
     done
-    SMTP_ADMIN_EMAIL=$(prompt_with_default "Sender email address" "noreply@${DOMAIN}")
+    SMTP_ADMIN_EMAIL=$(prompt_with_default "Sender email address" "noreply@vmflow.xyz")
     SMTP_SENDER_NAME=$(prompt_with_default "Sender display name" "VMflow")
 else
     warn "SMTP not configured — email auto-confirm will be enabled."
@@ -293,7 +284,7 @@ VAPID_PRIVATE_KEY=$(echo "$VAPID_PRIVKEY_PEM" | openssl ec -noout -text 2>/dev/n
   | grep -A3 'priv:' | tail -n+2 | tr -d ' :\n' | xxd -r -p | base64url_encode)
 VAPID_PUBLIC_KEY=$(echo "$VAPID_PRIVKEY_PEM" | openssl ec -pubout -outform DER 2>/dev/null \
   | tail -c 65 | base64url_encode)
-VAPID_SUBJECT="mailto:admin@${DOMAIN}"
+VAPID_SUBJECT="mailto:admin@vmflow.xyz"
 success "Generated VAPID key pair"
 
 info "Generating JWT keys..."
@@ -575,8 +566,8 @@ echo -e "${BOLD}╚════════════════════�
 echo
 echo -e "${BOLD}Next steps:${NC}"
 echo -e "  1. Set up DNS records:"
-echo -e "     ${CYAN}supabase.${DOMAIN}${NC}  →  A record  →  your server IP"
-echo -e "     ${CYAN}app.${DOMAIN}${NC}        →  A record  →  your server IP"
+echo -e "     ${CYAN}${SUPABASE_HOST}${NC}  →  A record  →  your server IP"
+echo -e "     ${CYAN}${APP_HOST}${NC}  →  A record  →  your server IP"
 echo -e "  2. Configure a reverse proxy (Caddy or Nginx) — see PROD.md"
 if [ "$CONFIGURE_SMTP" = false ]; then
 echo -e "  3. ${YELLOW}Configure SMTP in .env before going to production${NC}"

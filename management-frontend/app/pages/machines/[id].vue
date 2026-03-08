@@ -219,6 +219,9 @@ async function saveNameEdit() {
   }
 }
 
+// ── Device info modal ────────────────────────────────────────────────────────
+const showDeviceInfoModal = ref(false)
+
 // ── Device swap ─────────────────────────────────────────────────────────────
 const showDeviceModal = ref(false)
 const availableDevices = ref<any[]>([])
@@ -305,16 +308,12 @@ async function submitCredit() {
     const token = session.value?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const { data, error } = await useFetch('/functions/v1/send-credit', {
+    const result = await $fetch<{ status: string }>('/functions/v1/send-credit', {
       baseURL: useRuntimeConfig().public.supabase.url,
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: { device_id: machine.value.embeddeds.id, amount },
     })
-
-    if (error.value) throw new Error(error.value.data?.message ?? error.value.message ?? 'Failed to send credit')
-
-    const result = data.value as any
     if (result?.status === 'online') {
       creditSuccess.value = `Credit of ${formatCurrency(amount)} sent successfully`
     } else {
@@ -322,9 +321,36 @@ async function submitCredit() {
     }
     creditAmount.value = ''
   } catch (err: unknown) {
-    creditError.value = err instanceof Error ? err.message : 'Failed to send credit'
+    const fetchErr = err as any
+    creditError.value = fetchErr?.data?.error ?? fetchErr?.data?.message ?? fetchErr?.message ?? 'Failed to send credit'
   } finally {
     creditLoading.value = false
+  }
+}
+
+const cancelCreditLoading = ref(false)
+
+async function cancelCredit() {
+  cancelCreditLoading.value = true
+  creditError.value = ''
+  creditSuccess.value = ''
+  try {
+    const session = useSupabaseSession()
+    const token = session.value?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    await $fetch<{ status: string }>('/functions/v1/send-credit', {
+      baseURL: useRuntimeConfig().public.supabase.url,
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: { device_id: machine.value.embeddeds.id, amount: 0 },
+    })
+    creditSuccess.value = 'Credit cancelled'
+  } catch (err: unknown) {
+    const fetchErr = err as any
+    creditError.value = fetchErr?.data?.error ?? fetchErr?.data?.message ?? fetchErr?.message ?? 'Failed to cancel credit'
+  } finally {
+    cancelCreditLoading.value = false
   }
 }
 
@@ -685,11 +711,29 @@ async function adjustStock(trayId: string, delta: number) {
 const expandedMobileTray = ref<string | null>(null)
 
 // Refill all below-minimum trays
+// When coming from the packing list flow, only refill by the packed amount
 const refillAllLoading = ref(false)
+const packedQuantities = ref<Record<string, number> | null>(null)
+
+// Read packed quantities from sessionStorage (set by index page's packing list)
+onMounted(() => {
+  const machineId = route.params.id as string
+  const key = `refill-packed-${machineId}`
+  const stored = sessionStorage.getItem(key)
+  if (stored) {
+    try {
+      packedQuantities.value = JSON.parse(stored)
+    } catch { /* ignore */ }
+    sessionStorage.removeItem(key)
+  }
+})
+
 async function handleRefillAll() {
   refillAllLoading.value = true
   try {
-    await refillAll(machine.value.id)
+    await refillAll(machine.value.id, packedQuantities.value ?? undefined)
+    // Clear packed quantities after successful refill
+    packedQuantities.value = null
   } finally {
     refillAllLoading.value = false
   }
@@ -717,7 +761,7 @@ const fillBelowCount = computed(() =>
 // Packing list: group needed items by product for low-stock and fill-when-below trays, ordered by first slot appearance
 const packingList = computed(() => {
   const hasCritical = trays.value.some(t => isLowStock(t))
-  const map = new Map<string, { product_id: string | null; name: string; needed: number; image_url: string | null; firstSlot: number; critical: boolean }>()
+  const map = new Map<string, { product_id: string | null; name: string; needed: number; packed: number | null; image_url: string | null; firstSlot: number; critical: boolean }>()
   for (const tray of trays.value) {
     const critical = isLowStock(tray)
     const soft = hasCritical && isFillBelow(tray)
@@ -732,7 +776,13 @@ const packingList = computed(() => {
       if (critical) existing.critical = true
     } else {
       const product = products.value.find(p => p.id === tray.product_id)
-      map.set(key, { product_id: tray.product_id, name, needed: deficit, image_url: product?.image_url ?? null, firstSlot: tray.item_number, critical })
+      map.set(key, { product_id: tray.product_id, name, needed: deficit, packed: null, image_url: product?.image_url ?? null, firstSlot: tray.item_number, critical })
+    }
+  }
+  // When packed quantities are available, annotate each item with the packed amount
+  if (packedQuantities.value) {
+    for (const item of map.values()) {
+      item.packed = item.product_id ? (packedQuantities.value[item.product_id] ?? 0) : null
     }
   }
   return Array.from(map.values()).sort((a, b) => a.firstSlot - b.firstSlot)
@@ -812,98 +862,47 @@ function stockColor(tray: any) {
                 {{ machine.location_lat.toFixed(5) }}, {{ machine.location_lon.toFixed(5) }}
               </p>
             </div>
-            <!-- Device info + swap controls -->
-            <div class="sm:text-right">
+            <!-- Device: compact header row -->
+            <div class="flex items-center gap-2 shrink-0">
               <template v-if="machine.embeddeds">
-                <div class="flex items-center gap-2 sm:justify-end">
-                  <span
-                    class="rounded-full px-3 py-1 text-xs font-medium"
-                    :class="{
-                      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
-                      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': machine.embeddeds.status === 'ota_updating',
-                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': machine.embeddeds.status === 'ota_failed',
-                      'bg-muted text-muted-foreground': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
-                    }"
-                  >
-                    {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
-                  </span>
-                </div>
-                <p class="mt-1 truncate text-xs text-muted-foreground">
-                  {{ machine.embeddeds.mac_address ?? `Subdomain ${machine.embeddeds.subdomain}` }}
-                  <template v-if="machine.embeddeds.firmware_version">
-                    <span class="ml-1 font-mono">v{{ machine.embeddeds.firmware_version }}</span>
-                    <span v-if="machine.embeddeds.firmware_build_date" class="hidden sm:inline ml-1">(built {{ new Date(machine.embeddeds.firmware_build_date).toLocaleString() }})</span>
-                  </template>
-                </p>
-                <p class="truncate text-xs text-muted-foreground">Since {{ formatDate(machine.embeddeds.status_at) }}</p>
-                <!-- MDB Bus Address -->
-                <div class="mt-2 flex items-center gap-2">
-                  <span class="text-xs text-muted-foreground">MDB Address:</span>
-                  <template v-if="isAdmin">
-                    <div class="inline-flex rounded-md border">
-                      <button
-                        class="px-2.5 py-1 text-xs font-medium transition-colors rounded-l-md"
-                        :class="((machine.embeddeds as any).mdb_address ?? 1) === 1
-                          ? 'bg-primary text-primary-foreground'
-                          : 'hover:bg-muted'"
-                        :disabled="mdbAddressLoading"
-                        @click="setMdbAddress(1)"
-                      >
-                        #1 (0x10)
-                      </button>
-                      <button
-                        class="px-2.5 py-1 text-xs font-medium transition-colors rounded-r-md border-l"
-                        :class="(machine.embeddeds as any).mdb_address === 2
-                          ? 'bg-primary text-primary-foreground'
-                          : 'hover:bg-muted'"
-                        :disabled="mdbAddressLoading"
-                        @click="setMdbAddress(2)"
-                      >
-                        #2 (0x60)
-                      </button>
-                    </div>
-                    <span v-if="mdbAddressLoading" class="text-xs text-muted-foreground">Sending...</span>
-                  </template>
-                  <span v-else class="text-xs font-medium">
-                    Device #{{ (machine.embeddeds as any).mdb_address ?? 1 }} ({{ ((machine.embeddeds as any).mdb_address ?? 1) === 1 ? '0x10' : '0x60' }})
-                  </span>
-                </div>
-                <p v-if="mdbAddressError" class="text-xs text-destructive mt-1">{{ mdbAddressError }}</p>
-                <div v-if="isAdmin" class="mt-2 flex justify-end gap-2">
-                  <button
-                    class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                    @click="openCreditModal"
-                  >
-                    <IconSend class="size-3" />
-                    Send Credit
-                  </button>
-                  <button
-                    class="text-xs text-primary hover:underline"
-                    @click="openDeviceModal"
-                  >
-                    Change device
-                  </button>
-                  <button
-                    class="text-xs text-destructive hover:underline"
-                    :disabled="deviceSwapLoading"
-                    @click="detachDevice"
-                  >
-                    Detach
-                  </button>
-                </div>
+                <span
+                  class="rounded-full px-3 py-1 text-xs font-medium"
+                  :class="{
+                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
+                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': machine.embeddeds.status === 'ota_updating',
+                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': machine.embeddeds.status === 'ota_failed',
+                    'bg-muted text-muted-foreground': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
+                  }"
+                >
+                  {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
+                </span>
+                <button
+                  v-if="isAdmin"
+                  class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                  @click="openCreditModal"
+                >
+                  <IconSend class="size-3" />
+                  <span class="hidden sm:inline">Send Credit</span>
+                </button>
+                <button
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Device settings"
+                  @click="showDeviceInfoModal = true"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
               </template>
               <template v-else>
                 <span class="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                   No device
                 </span>
-                <div v-if="isAdmin" class="mt-2">
-                  <button
-                    class="text-xs text-primary hover:underline"
-                    @click="openDeviceModal"
-                  >
-                    Assign device
-                  </button>
-                </div>
+                <button
+                  v-if="isAdmin"
+                  class="text-xs text-primary hover:underline"
+                  @click="openDeviceModal"
+                >
+                  Assign device
+                </button>
               </template>
             </div>
           </div>
@@ -981,7 +980,7 @@ function stockColor(tray: any) {
                       <!-- Price + Timestamp -->
                       <div class="shrink-0 text-right">
                         <span class="text-sm font-medium">{{ formatCurrency(sale.item_price) }}</span>
-                        <p class="mt-0.5 text-[11px] text-muted-foreground">{{ timeAgo(sale.created_at) }}</p>
+                        <p class="mt-0.5 text-[11px] text-muted-foreground">{{ new Date(sale.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}</p>
                       </div>
                     </div>
                   </div>
@@ -1010,6 +1009,7 @@ function stockColor(tray: any) {
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                     <span v-if="refillAllLoading">Refilling…</span>
+                    <span v-else-if="packedQuantities">Refill packed ({{ lowStockCount + fillBelowCount }})</span>
                     <span v-else>Refill all ({{ lowStockCount + fillBelowCount }})</span>
                   </button>
                 </div>
@@ -1018,7 +1018,10 @@ function stockColor(tray: any) {
                   <div
                     v-for="item in packingList"
                     :key="item.name"
-                    class="inline-flex max-w-full items-center gap-2 rounded-full bg-white/70 py-1 pl-1 pr-3 text-sm shadow-sm dark:bg-black/20"
+                    class="inline-flex max-w-full items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm shadow-sm"
+                    :class="item.packed === 0
+                      ? 'bg-white/40 opacity-50 dark:bg-black/10'
+                      : 'bg-white/70 dark:bg-black/20'"
                   >
                     <img
                       v-if="item.image_url"
@@ -1030,7 +1033,15 @@ function stockColor(tray: any) {
                       {{ item.name.charAt(0) }}
                     </div>
                     <span class="truncate font-medium text-amber-900 dark:text-amber-100">{{ item.name }}</span>
+                    <!-- Packed quantities indicator -->
+                    <template v-if="item.packed !== null">
+                      <span v-if="item.packed === 0" class="rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">0/{{ item.needed }}</span>
+                      <span v-else-if="item.packed < item.needed" class="rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">{{ item.packed }}/{{ item.needed }}</span>
+                      <span v-else class="rounded-full bg-green-600 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">{{ item.packed }}</span>
+                    </template>
+                    <!-- Default: no packed quantities -->
                     <span
+                      v-else
                       class="rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white"
                       :class="item.critical ? 'bg-amber-600' : 'bg-blue-500'"
                     >{{ item.needed }}</span>
@@ -1660,10 +1671,130 @@ function stockColor(tray: any) {
         </template>
       </div>
 
+      <!-- Device info modal -->
+      <div
+        v-if="showDeviceInfoModal && machine?.embeddeds"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
+        @click.self="showDeviceInfoModal = false"
+      >
+        <div class="w-full max-w-sm rounded-t-xl sm:rounded-xl border bg-card p-5 sm:p-6 shadow-lg">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">Device Details</h2>
+            <button
+              class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+              @click="showDeviceInfoModal = false"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+
+          <div class="space-y-3 text-sm">
+            <!-- Status -->
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">Status</span>
+              <span
+                class="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                :class="{
+                  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': machine.embeddeds.status === 'online' || machine.embeddeds.status === 'ota_success',
+                  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': machine.embeddeds.status === 'ota_updating',
+                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': machine.embeddeds.status === 'ota_failed',
+                  'bg-muted text-muted-foreground': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(machine.embeddeds.status),
+                }"
+              >
+                {{ machine.embeddeds.status === 'ota_updating' ? 'updating' : machine.embeddeds.status === 'ota_success' ? 'updated' : machine.embeddeds.status === 'ota_failed' ? 'update failed' : machine.embeddeds.status }}
+              </span>
+            </div>
+
+            <!-- MAC Address -->
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">MAC Address</span>
+              <span class="font-mono text-xs">{{ machine.embeddeds.mac_address ?? '—' }}</span>
+            </div>
+
+            <!-- Subdomain -->
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">Subdomain</span>
+              <span class="font-mono text-xs">{{ machine.embeddeds.subdomain }}</span>
+            </div>
+
+            <!-- Firmware -->
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">Firmware</span>
+              <span v-if="machine.embeddeds.firmware_version" class="text-right">
+                <span class="font-mono text-xs">v{{ machine.embeddeds.firmware_version }}</span>
+                <span v-if="machine.embeddeds.firmware_build_date" class="block text-xs text-muted-foreground">
+                  built {{ new Date(machine.embeddeds.firmware_build_date).toLocaleDateString() }}
+                </span>
+              </span>
+              <span v-else class="text-xs text-muted-foreground">—</span>
+            </div>
+
+            <!-- Last seen -->
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">Last Seen</span>
+              <span class="text-xs">{{ formatDate(machine.embeddeds.status_at) }}</span>
+            </div>
+
+            <!-- MDB Address -->
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">MDB Address</span>
+              <template v-if="isAdmin">
+                <div class="flex items-center gap-2">
+                  <div class="inline-flex rounded-md border">
+                    <button
+                      class="px-2.5 py-1 text-xs font-medium transition-colors rounded-l-md"
+                      :class="((machine.embeddeds as any).mdb_address ?? 1) === 1
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted'"
+                      :disabled="mdbAddressLoading"
+                      @click="setMdbAddress(1)"
+                    >
+                      #1 (0x10)
+                    </button>
+                    <button
+                      class="px-2.5 py-1 text-xs font-medium transition-colors rounded-r-md border-l"
+                      :class="(machine.embeddeds as any).mdb_address === 2
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted'"
+                      :disabled="mdbAddressLoading"
+                      @click="setMdbAddress(2)"
+                    >
+                      #2 (0x60)
+                    </button>
+                  </div>
+                  <span v-if="mdbAddressLoading" class="text-xs text-muted-foreground">...</span>
+                </div>
+              </template>
+              <span v-else class="text-xs font-medium">
+                #{{ (machine.embeddeds as any).mdb_address ?? 1 }} ({{ ((machine.embeddeds as any).mdb_address ?? 1) === 1 ? '0x10' : '0x60' }})
+              </span>
+            </div>
+            <p v-if="mdbAddressError" class="text-xs text-destructive">{{ mdbAddressError }}</p>
+          </div>
+
+          <!-- Actions -->
+          <div v-if="isAdmin" class="mt-5 flex gap-2 border-t pt-4">
+            <button
+              class="inline-flex h-9 flex-1 items-center justify-center rounded-md border text-sm font-medium transition-colors hover:bg-muted"
+              @click="showDeviceInfoModal = false; openDeviceModal()"
+            >
+              Change Device
+            </button>
+            <button
+              class="inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+              :disabled="deviceSwapLoading"
+              @click="detachDevice(); showDeviceInfoModal = false"
+            >
+              Detach
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Device swap/assign modal -->
       <div
         v-if="showDeviceModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
         @click.self="showDeviceModal = false"
       >
         <div class="w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
@@ -1890,6 +2021,15 @@ function stockColor(tray: any) {
                 @click="showCreditModal = false"
               >
                 Close
+              </button>
+              <button
+                type="button"
+                :disabled="cancelCreditLoading"
+                class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-destructive px-4 text-sm font-medium text-destructive shadow-sm transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                @click="cancelCredit"
+              >
+                <span v-if="cancelCreditLoading">…</span>
+                <span v-else>Cancel Credit</span>
               </button>
               <button
                 type="submit"

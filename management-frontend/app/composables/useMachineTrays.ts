@@ -158,8 +158,13 @@ export function useMachineTrays() {
     await refillTray(trayId, machineId, tray.capacity)
   }
 
-  /** Set all below-minimum and below-fill-threshold trays to their capacity */
-  async function refillAll(machineId: string) {
+  /**
+   * Set all below-minimum and below-fill-threshold trays to their capacity.
+   * If packedQuantities is provided (product_id → packed amount), only refill
+   * by the packed amount instead of to full capacity. This respects warehouse
+   * stock limits when coming from the packing list flow.
+   */
+  async function refillAll(machineId: string, packedQuantities?: Record<string, number>) {
     const hasCritical = trays.value.some(t => t.min_stock > 0 && t.current_stock <= t.min_stock)
     if (!hasCritical) return
 
@@ -170,16 +175,42 @@ export function useMachineTrays() {
     })
     if (refillTargets.length === 0) return
 
+    // Calculate target stock per tray
+    // When packedQuantities is provided, distribute packed amounts across trays
+    // (emptiest trays first to prioritize critical refills)
+    const sorted = [...refillTargets].sort((a, b) => a.current_stock - b.current_stock)
+    const remaining = packedQuantities ? { ...packedQuantities } : null
+
+    const updates: { tray: typeof sorted[0]; newStock: number }[] = []
+    for (const tray of sorted) {
+      let newStock: number
+      if (remaining && tray.product_id) {
+        const available = remaining[tray.product_id] ?? 0
+        if (available <= 0) continue // nothing packed for this product
+        const deficit = tray.capacity - tray.current_stock
+        const addAmount = Math.min(deficit, available)
+        remaining[tray.product_id] -= addAmount
+        newStock = tray.current_stock + addAmount
+      } else {
+        newStock = tray.capacity
+      }
+      if (newStock > tray.current_stock) {
+        updates.push({ tray, newStock })
+      }
+    }
+    if (updates.length === 0) return
+
     // Snapshot before optimistic update
-    const snapshot = refillTargets.map(t => ({ id: t.id, item_number: t.item_number, product_name: t.product_name, product_id: t.product_id, old_stock: t.current_stock, new_stock: t.capacity }))
+    const snapshot = updates.map(u => ({ id: u.tray.id, item_number: u.tray.item_number, product_name: u.tray.product_name, product_id: u.tray.product_id, old_stock: u.tray.current_stock, new_stock: u.newStock }))
 
-    for (const t of refillTargets) t.current_stock = t.capacity
+    // Optimistic update
+    for (const u of updates) u.tray.current_stock = u.newStock
 
-    const results = await Promise.all(refillTargets.map(tray =>
+    const results = await Promise.all(updates.map(u =>
       (supabase as any)
         .from('machine_trays')
-        .update({ current_stock: tray.capacity })
-        .eq('id', tray.id)
+        .update({ current_stock: u.newStock })
+        .eq('id', u.tray.id)
     ))
 
     const hasError = results.some((r: any) => r.error)

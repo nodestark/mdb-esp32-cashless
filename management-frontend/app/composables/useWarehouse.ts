@@ -463,6 +463,21 @@ export function useWarehouse() {
     return ((data ?? []) as any[]).reduce((sum: number, b: any) => sum + b.quantity, 0)
   }
 
+  /** Get total available stock for all products in a warehouse as a Map<productId, quantity> */
+  async function fetchWarehouseStockMap(warehouseId: string): Promise<Map<string, number>> {
+    const { data, error } = await (supabase as any)
+      .from('warehouse_stock_batches')
+      .select('product_id, quantity')
+      .eq('warehouse_id', warehouseId)
+      .gt('quantity', 0)
+    if (error) throw error
+    const stockMap = new Map<string, number>()
+    for (const b of (data ?? []) as any[]) {
+      stockMap.set(b.product_id, (stockMap.get(b.product_id) ?? 0) + b.quantity)
+    }
+    return stockMap
+  }
+
   // ── Min stock thresholds ────────────────────────────────────────────────
 
   async function fetchMinStocks(warehouseId: string) {
@@ -616,7 +631,7 @@ export function useWarehouse() {
     loading, transactionLoading, transactionHasMore,
     fetchWarehouses, createWarehouse, updateWarehouse, deleteWarehouse,
     fetchBarcodes, lookupBarcode, addBarcode, removeBarcode,
-    fetchBatches, fetchProductSummaries, bookIncoming, adjustStock, deductForRefill, getProductStock,
+    fetchBatches, fetchProductSummaries, bookIncoming, adjustStock, deductForRefill, getProductStock, fetchWarehouseStockMap,
     fetchMinStocks, setMinStock,
     fetchTransactions, fetchMoreTransactions,
     subscribeToStockUpdates,

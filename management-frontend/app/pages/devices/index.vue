@@ -203,7 +203,7 @@ async function confirmDelete() {
         <!-- Pending provisioning tokens -->
         <div v-if="pendingTokens.length > 0" class="space-y-2">
           <h2 class="text-sm font-medium text-muted-foreground">Pending Device Claims</h2>
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
             <div
               v-for="token in pendingTokens"
               :key="token.id"
@@ -241,7 +241,82 @@ async function confirmDelete() {
           No embedded devices registered yet.
         </div>
 
-        <div v-else class="rounded-md border">
+        <!-- ── Mobile: Card Layout (< lg) ── -->
+        <div v-else class="flex flex-col gap-3 lg:hidden">
+          <div
+            v-for="device in devices"
+            :key="device.id"
+            class="rounded-lg border bg-card p-4 transition-colors"
+          >
+            <!-- Top row: Subdomain + Status + Delete -->
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-base font-semibold">{{ device.subdomain }}</span>
+                <Badge
+                  :variant="device.status === 'online' ? 'default' : device.status?.startsWith('ota_') ? 'default' : 'secondary'"
+                >
+                  <span
+                    class="mr-1 inline-block h-2 w-2 rounded-full"
+                    :class="{
+                      'bg-green-400': device.status === 'online',
+                      'bg-yellow-400': device.status === 'ota_updating',
+                      'bg-green-400 animate-pulse': device.status === 'ota_success',
+                      'bg-red-400': device.status === 'ota_failed',
+                      'bg-muted-foreground/50': !['online', 'ota_updating', 'ota_success', 'ota_failed'].includes(device.status),
+                    }"
+                  />
+                  {{ device.status === 'ota_updating' ? 'updating' : device.status === 'ota_success' ? 'updated' : device.status === 'ota_failed' ? 'update failed' : device.status }}
+                </Badge>
+              </div>
+              <button
+                class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                @click.prevent="openDeleteModal(device)"
+                title="Delete device"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              </button>
+            </div>
+
+            <!-- Info grid -->
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div>
+                <p class="text-xs text-muted-foreground">MAC Address</p>
+                <p class="font-mono text-xs">{{ device.mac_address ?? '—' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">Last Seen</p>
+                <p class="text-xs">{{ timeAgo(device.status_at) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">Machine</p>
+                <NuxtLink
+                  v-if="device.machine_id"
+                  :to="`/machines/${device.machine_id}`"
+                  class="text-xs text-primary hover:underline"
+                >
+                  {{ device.machine_name }}
+                </NuxtLink>
+                <p v-else class="text-xs text-muted-foreground">Unassigned</p>
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">Registered</p>
+                <p class="text-xs">{{ new Date(device.created_at).toLocaleDateString() }}</p>
+              </div>
+              <div v-if="device.firmware_version" class="col-span-2">
+                <p class="text-xs text-muted-foreground">Firmware</p>
+                <p class="font-mono text-xs">
+                  {{ device.firmware_version }}
+                  <span v-if="device.firmware_build_date" class="text-muted-foreground">
+                    ({{ new Date(device.firmware_build_date).toLocaleDateString() }})
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Desktop: Table Layout (>= lg) ── -->
+        <div v-if="!loading && devices.length > 0" class="hidden lg:block rounded-md border">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b bg-muted/50 text-left">
@@ -324,10 +399,10 @@ async function confirmDelete() {
   <!-- Delete Confirmation Modal -->
   <div
     v-if="showDeleteModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
     @click.self="showDeleteModal = false"
   >
-    <div class="w-full max-w-sm rounded-xl border bg-card p-6 shadow-lg">
+    <div class="w-full max-w-sm rounded-t-xl sm:rounded-xl border bg-card p-6 shadow-lg">
       <h2 class="mb-1 text-lg font-semibold">Delete device</h2>
       <p class="mb-4 text-sm text-muted-foreground">
         Are you sure you want to delete device
@@ -359,10 +434,10 @@ async function confirmDelete() {
   <!-- Register Device Modal -->
   <div
     v-if="showModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
     @click.self="closeModal"
   >
-    <div class="w-full max-w-md rounded-xl border bg-card p-6 shadow-lg">
+    <div class="w-full max-w-md rounded-t-xl sm:rounded-xl border bg-card p-5 sm:p-6 shadow-lg max-h-[90vh] overflow-y-auto">
       <!-- Step 1: Generate code -->
       <template v-if="step === 1">
         <h2 class="mb-1 text-lg font-semibold">Register a Device</h2>
@@ -395,29 +470,29 @@ async function confirmDelete() {
 
         <!-- Code + QR display -->
         <div class="mb-5 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 py-4 text-center">
-          <p class="font-mono text-4xl font-bold tracking-[0.3em] text-primary">{{ shortCode }}</p>
-          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" class="mx-auto mt-3" width="200" height="200" />
+          <p class="font-mono text-3xl sm:text-4xl font-bold tracking-[0.2em] sm:tracking-[0.3em] text-primary">{{ shortCode }}</p>
+          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" class="mx-auto mt-3 w-40 h-40 sm:w-[200px] sm:h-[200px]" />
           <p class="mt-2 text-xs text-muted-foreground">Scan this QR code on the device setup page</p>
-          <p class="mt-1 text-xs text-muted-foreground">Server URL: <strong class="text-foreground font-mono">{{ qrSrvUrl }}</strong></p>
+          <p class="mt-1 text-xs text-muted-foreground break-all px-3">Server URL: <strong class="text-foreground font-mono">{{ qrSrvUrl }}</strong></p>
         </div>
 
         <!-- Instructions -->
         <ol class="mb-5 space-y-2 text-sm text-muted-foreground">
           <li class="flex gap-2">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">1</span>
-            Connect your phone to the device's WiFi network: <strong class="text-foreground ml-1">VMflow</strong> (password: <strong class="text-foreground">12345678</strong>)
+            <span>Connect your phone to the device's WiFi network: <strong class="text-foreground">VMflow</strong> (password: <strong class="text-foreground">12345678</strong>)</span>
           </li>
           <li class="flex gap-2">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">2</span>
-            Open <strong class="text-foreground">192.168.4.1</strong> in your browser
+            <span>Open <strong class="text-foreground">192.168.4.1</strong> in your browser</span>
           </li>
           <li class="flex gap-2">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">3</span>
-            Tap <strong class="text-foreground">Scan QR Code</strong> and scan the code above — or enter the code and server URL manually
+            <span>Tap <strong class="text-foreground">Scan QR Code</strong> and scan the code above — or enter the code and server URL manually</span>
           </li>
           <li class="flex gap-2">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">4</span>
-            Select your WiFi network and save — the device will register automatically
+            <span>Select your WiFi network and save — the device will register automatically</span>
           </li>
         </ol>
 

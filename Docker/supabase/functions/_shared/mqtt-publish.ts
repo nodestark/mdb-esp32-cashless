@@ -41,9 +41,9 @@ export async function mqttPublish(
     })
 
     // Publish
-    await client.publishAsync(topic, payload, { qos: options?.qos ?? 0 })
+    await client.publishAsync(topic, payload, { qos: options?.qos ?? 1 })
   } finally {
-    // Always disconnect
-    try { await client.endAsync(true) } catch (_) { /* best-effort cleanup */ }
+    // Graceful disconnect — waits for in-flight messages to be sent
+    try { await client.endAsync() } catch (_) { /* best-effort cleanup */ }
   }
 }

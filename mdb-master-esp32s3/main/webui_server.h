@@ -75,6 +75,9 @@ struct reader_t {
     uint8_t poll_fail_count;
     machine_state_t machineState;
 
+    // Session credit (from Begin Session response)
+    uint16_t fundsAvailable;
+
     // Expansion ID fields
     char manufacturer[4];   // 3 chars + null
     char serial[13];        // 12 chars + null
