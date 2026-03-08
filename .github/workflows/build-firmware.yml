@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v5.5.1
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout
@@ -35,7 +38,6 @@ jobs:
         run: |
           . $IDF_PATH/export.sh
           idf.py build
-        shell: bash
 
       - name: Rename build artifact
         run: |
