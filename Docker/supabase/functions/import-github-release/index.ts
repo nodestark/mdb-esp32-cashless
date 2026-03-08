@@ -98,8 +98,15 @@ Deno.serve(async (req) => {
     }
 
     // ── Download the .bin asset from GitHub ──────────────────────────────
-    const downloadRes = await fetch(asset.browser_download_url, {
-      headers: { 'User-Agent': 'vmflow-edge-function' },
+    // Use the GitHub API URL with Accept: octet-stream to download directly.
+    // browser_download_url redirects to release-assets.githubusercontent.com
+    // which may fail DNS resolution inside the edge runtime container.
+    const assetApiUrl = `https://api.github.com/repos/${repo}/releases/assets/${asset.id}`
+    const downloadRes = await fetch(assetApiUrl, {
+      headers: {
+        Accept: 'application/octet-stream',
+        'User-Agent': 'vmflow-edge-function',
+      },
     })
     if (!downloadRes.ok) {
       return new Response(JSON.stringify({ error: `Failed to download asset: ${downloadRes.status}` }), {
