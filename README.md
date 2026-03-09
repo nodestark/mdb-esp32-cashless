@@ -1,3 +1,6 @@
+[![VMFlow Dashboard](https://img.shields.io/badge/VMFlow-Web%20Dashboard-0f172a?style=for-the-badge&logo=grafana&logoColor=white)](https://vmflow.xyz/dashboard)
+[![Install Firmware](https://img.shields.io/badge/ESP32-Web%20Installer-brightgreen?style=for-the-badge&logo=espressif)](https://install.vmflow.xyz)
+
 # MDB Protocol Implementation for Cashless Vending Machine with ESP32
 
 👉 **Install firmware via Web Installer:**  
@@ -26,8 +29,6 @@ The project aims to provide a modern, open, and extensible platform for vending 
 ---
 
 [![Made with Supabase](https://supabase.com/badge-made-with-supabase-dark.svg)](https://supabase.com)
-
-## API Examples
 
 ### 1️⃣ Get a Bearer Token
 
