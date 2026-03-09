@@ -44,6 +44,15 @@
           Devices
         </RouterLink>
 
+        <RouterLink
+          to="/dashboard/metrics"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
+          active-class="bg-slate-800 text-white"
+        >
+          <span>📊</span>
+          Metrics
+        </RouterLink>
+
       </nav>
 
       <!-- USER AREA -->
