@@ -126,11 +126,19 @@ export function useNotifications() {
         return false
       }
 
-      // Get service worker registration
-      const registration = await navigator.serviceWorker.ready
+      // Get service worker registration (with timeout — .ready never rejects,
+      // it just waits forever if no SW is active)
+      console.info('[Push] Waiting for service worker…')
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Service worker not available. Try closing and reopening the app.')), 10_000),
+        ),
+      ])
       console.info('[Push] Service worker ready')
 
       // Subscribe to push manager
+      console.info('[Push] Subscribing to push manager…')
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey.value),
@@ -138,6 +146,7 @@ export function useNotifications() {
       console.info('[Push] Push subscription created')
 
       // Send subscription to backend
+      console.info('[Push] Registering with backend…')
       const subJson = subscription.toJSON()
       const { error: fnError } = await supabase.functions.invoke('register-push', {
         method: 'POST',
