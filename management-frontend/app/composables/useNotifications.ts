@@ -206,7 +206,13 @@ export function useNotifications() {
   async function checkSubscription() {
     if (!isSupported.value) return
     try {
-      const registration = await navigator.serviceWorker.ready
+      // Use timeout — .ready hangs forever if no SW is active
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('SW not ready')), 5_000),
+        ),
+      ])
       const subscription = await registration.pushManager.getSubscription()
       isSubscribed.value = !!subscription
     } catch {

@@ -16,6 +16,7 @@ const router = useRouter()
 
 // Re-fetch all machine data when app resumes from background (iOS PWA etc.)
 onResume(() => fetchMachines())
+usePullToRefresh(() => fetchMachines())
 
 // Warehouse selection for stock deduction
 const selectedWarehouseId = ref<string | null>(null)

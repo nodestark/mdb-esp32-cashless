@@ -40,6 +40,11 @@ const selectedWarehouse = computed(() =>
   warehouses.value.find(w => w.id === selectedWarehouseId.value) ?? null
 )
 
+usePullToRefresh(async () => {
+  await Promise.all([fetchWarehouses(), fetchProducts()])
+  if (selectedWarehouseId.value) await loadWarehouseData()
+})
+
 let unsubscribe: (() => void) | null = null
 
 onMounted(async () => {

@@ -17,6 +17,7 @@ const salesChartData = ref<{ date: Date; total: number }[]>([])
 
 // Re-fetch all dashboard data when app resumes from background (iOS PWA etc.)
 onResume(() => loadDashboard())
+usePullToRefresh(() => loadDashboard())
 
 onMounted(async () => {
   await fetchOrganization()

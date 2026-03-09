@@ -30,6 +30,85 @@ const {
 // Initialize notifications on client mount
 onMounted(() => { initNotifications() })
 
+// ── Service Worker diagnostics ───────────────────────────────────────────────
+const swStatus = ref('')
+const swDiagLoading = ref(false)
+
+async function checkSwStatus() {
+  if (import.meta.server) return
+  swDiagLoading.value = true
+  const lines: string[] = []
+
+  try {
+    // 1. API support
+    const hasSW = 'serviceWorker' in navigator
+    const hasPM = 'PushManager' in window
+    const hasNotif = 'Notification' in window
+    lines.push(`APIs: SW=${hasSW} Push=${hasPM} Notif=${hasNotif}`)
+
+    // 2. Protocol & context
+    lines.push(`Protocol: ${location.protocol}`)
+    lines.push(`Standalone: ${window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true}`)
+    lines.push(`Host: ${location.host}`)
+
+    if (!hasSW) {
+      lines.push('⛔ ServiceWorker API missing')
+      swStatus.value = lines.join('\n')
+      return
+    }
+
+    // 3. Current controller
+    const ctrl = navigator.serviceWorker.controller
+    lines.push(`Controller: ${ctrl ? `${ctrl.state} (${ctrl.scriptURL})` : 'none'}`)
+
+    // 4. All registrations
+    const regs = await navigator.serviceWorker.getRegistrations()
+    lines.push(`Registrations: ${regs.length}`)
+    for (const reg of regs) {
+      const active = reg.active
+      const waiting = reg.waiting
+      const installing = reg.installing
+      lines.push(`  scope: ${reg.scope}`)
+      if (active) lines.push(`    active: ${active.state} ${active.scriptURL}`)
+      if (waiting) lines.push(`    waiting: ${waiting.state}`)
+      if (installing) lines.push(`    installing: ${installing.state}`)
+      if (!active && !waiting && !installing) lines.push(`    (no worker)`)
+    }
+
+    // 5. If no registrations, try to manually register and see what happens
+    if (regs.length === 0) {
+      lines.push('⚠️ No SW registered. Attempting manual registration…')
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        const sw = reg.installing ?? reg.waiting ?? reg.active
+        lines.push(`✅ Manual register OK: ${sw?.state ?? 'unknown'}`)
+      } catch (regErr: any) {
+        lines.push(`❌ Manual register failed: ${regErr.message}`)
+      }
+    }
+
+    // 6. Notification permission
+    if (hasNotif) {
+      lines.push(`Notif permission: ${Notification.permission}`)
+    }
+
+    // 7. Check if SW script is reachable
+    try {
+      const resp = await fetch('/sw.js', { method: 'HEAD' })
+      lines.push(`SW file /sw.js: ${resp.status} ${resp.ok ? '✅' : '❌'}`)
+    } catch (fetchErr: any) {
+      lines.push(`SW file /sw.js: fetch failed (${fetchErr.message})`)
+    }
+  } catch (e: any) {
+    lines.push(`Diagnostic error: ${e.message}`)
+  } finally {
+    swStatus.value = lines.join('\n')
+    swDiagLoading.value = false
+  }
+}
+
+onMounted(() => { if (import.meta.client) checkSwStatus() })
+
 // Toggle master push subscription
 async function handlePushToggle(enabled: boolean) {
   if (enabled) {
@@ -518,6 +597,26 @@ async function changeEmail() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- Service Worker Diagnostics -->
+              <div class="mt-6 border-t pt-5">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-medium text-muted-foreground">Service Worker Diagnostics</h3>
+                  <button
+                    :disabled="swDiagLoading"
+                    class="inline-flex h-7 items-center gap-1 rounded-md border border-input bg-background px-2 text-xs font-medium shadow-sm transition-colors hover:bg-muted disabled:opacity-50"
+                    @click="checkSwStatus"
+                  >
+                    <span v-if="swDiagLoading">Checking…</span>
+                    <span v-else>Re-check</span>
+                  </button>
+                </div>
+                <pre
+                  v-if="swStatus"
+                  class="whitespace-pre-wrap rounded-lg border bg-muted/50 p-3 text-xs font-mono text-muted-foreground leading-relaxed"
+                >{{ swStatus }}</pre>
+                <p v-else class="text-xs text-muted-foreground">Loading diagnostics…</p>
               </div>
             </div>
           </ClientOnly>

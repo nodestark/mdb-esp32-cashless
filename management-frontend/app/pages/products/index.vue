@@ -23,6 +23,8 @@ const {
 
 const isAdmin = computed(() => role.value === 'admin')
 
+usePullToRefresh(() => Promise.all([fetchProducts(), fetchBarcodes()]).then(() => {}))
+
 onMounted(async () => {
   await Promise.all([fetchProducts(), fetchBarcodes()])
 })

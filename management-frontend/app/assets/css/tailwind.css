@@ -116,6 +116,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent native pull-to-refresh so our custom PullToRefresh works */
+    overscroll-behavior-y: contain;
   }
 }
 

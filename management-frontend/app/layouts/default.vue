@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppSidebar from '@/components/AppSidebar.vue'
 import BottomTabBar from '@/components/BottomTabBar.vue'
+import PullToRefresh from '@/components/PullToRefresh.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
@@ -47,10 +48,10 @@ const { updateAvailable, applyUpdate } = useAppUpdate()
         </div>
       </Transition>
 
-      <!-- Bottom padding so content isn't hidden behind the mobile tab bar -->
-      <div class="pb-16 md:pb-0">
+      <!-- Pull-to-refresh wrapper + bottom padding for mobile tab bar -->
+      <PullToRefresh class="pb-16 md:pb-0">
         <slot />
-      </div>
+      </PullToRefresh>
 
       <!-- Mobile bottom tab bar -->
       <BottomTabBar />
