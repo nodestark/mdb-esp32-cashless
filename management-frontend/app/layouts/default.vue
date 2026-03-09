@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppSidebar from '@/components/AppSidebar.vue'
+import BottomTabBar from '@/components/BottomTabBar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
@@ -46,7 +47,13 @@ const { updateAvailable, applyUpdate } = useAppUpdate()
         </div>
       </Transition>
 
-      <slot />
+      <!-- Bottom padding so content isn't hidden behind the mobile tab bar -->
+      <div class="pb-16 md:pb-0">
+        <slot />
+      </div>
+
+      <!-- Mobile bottom tab bar -->
+      <BottomTabBar />
 
       <!-- PWA install banner -->
       <Transition
@@ -59,7 +66,7 @@ const { updateAvailable, applyUpdate } = useAppUpdate()
       >
         <div
           v-if="showBanner"
-          class="fixed bottom-0 left-0 right-0 z-50 border-t bg-card px-4 pb-[env(safe-area-inset-bottom)] md:hidden"
+          class="fixed bottom-14 left-0 right-0 z-50 border-t bg-card px-4 md:bottom-0 md:pb-[env(safe-area-inset-bottom)] md:hidden"
         >
           <div class="flex items-center gap-3 py-3">
             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-lg">V</div>
