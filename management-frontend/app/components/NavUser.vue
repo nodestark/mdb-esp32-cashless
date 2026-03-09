@@ -27,7 +27,7 @@ import {
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
-const { isMobile } = useSidebar()
+const { isMobile, setOpenMobile } = useSidebar()
 
 // @nuxtjs/supabase v2 returns JWT claims (sub) not User object (id)
 const userId = computed(() => user.value?.id ?? (user.value as any)?.sub ?? null)
@@ -113,7 +113,7 @@ async function logout() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem as-child>
+            <DropdownMenuItem as-child @click="isMobile && setOpenMobile(false)">
               <NuxtLink to="/settings">
                 <IconUserCircle />
                 Account

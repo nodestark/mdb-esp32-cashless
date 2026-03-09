@@ -62,7 +62,7 @@ const { updateAvailable, applyUpdate } = useAppUpdate()
           class="fixed bottom-0 left-0 right-0 z-50 border-t bg-card px-4 pb-[env(safe-area-inset-bottom)] md:hidden"
         >
           <div class="flex items-center gap-3 py-3">
-            <img src="/icons/icon-192x192.png" alt="VMflow" class="h-10 w-10 shrink-0 rounded-xl" />
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-lg">V</div>
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium">Install VMflow</p>
               <p v-if="isIOS" class="text-xs text-muted-foreground">

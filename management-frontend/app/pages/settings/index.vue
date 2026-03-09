@@ -421,11 +421,21 @@ async function changeEmail() {
                 v-if="notifPermission === 'denied'"
                 class="mb-5 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive"
               >
-                Notification permission was blocked. Please allow notifications in your browser settings, then refresh the page.
+                <template v-if="isIOS">
+                  Notifications are blocked. Open <strong>Settings → VMflow → Notifications</strong> and enable them, then come back here.
+                </template>
+                <template v-else>
+                  Notification permission was blocked. Please allow notifications in your browser settings, then refresh the page.
+                </template>
               </div>
 
               <!-- Error message -->
-              <p v-if="notifError" class="mb-4 text-sm text-destructive">{{ notifError }}</p>
+              <div
+                v-if="notifError"
+                class="mb-5 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive"
+              >
+                {{ notifError }}
+              </div>
 
               <!-- Master toggle -->
               <div class="flex items-center justify-between">
@@ -434,12 +444,13 @@ async function changeEmail() {
                     Enable on this device
                   </label>
                   <p class="text-sm text-muted-foreground">
-                    {{ isSubscribed ? 'Notifications are active' : 'Notifications are off' }}
+                    <template v-if="notifLoading">Activating…</template>
+                    <template v-else>{{ isSubscribed ? 'Notifications are active' : 'Notifications are off' }}</template>
                   </p>
                 </div>
                 <Switch
                   :checked="isSubscribed"
-                  :disabled="notifLoading || !pushSupported || notifPermission === 'denied'"
+                  :disabled="notifLoading || !pushSupported || notifPermission === 'denied' || needsHomescreen"
                   @update:checked="handlePushToggle"
                 />
               </div>

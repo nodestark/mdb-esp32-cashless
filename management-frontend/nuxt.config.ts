@@ -13,9 +13,7 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#ffffff', media: '(prefers-color-scheme: light)' },
         { name: 'theme-color', content: '#09090b', media: '(prefers-color-scheme: dark)' },
       ],
-      link: [
-        { rel: 'apple-touch-icon', href: '/icons/icon-192x192.png' },
-      ],
+      link: [],
     },
   },
   supabase: {
@@ -51,22 +49,10 @@ export default defineNuxtConfig({
       background_color: '#ffffff',
       display: 'standalone',
       start_url: '/',
-      icons: [
-        {
-          src: '/icons/icon-192x192.png',
-          sizes: '192x192',
-          type: 'image/png',
-        },
-        {
-          src: '/icons/icon-512x512.png',
-          sizes: '512x512',
-          type: 'image/png',
-          purpose: 'any maskable',
-        },
-      ],
+      icons: [],
       shortcuts: [
-        { name: 'Machines', url: '/machines', icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }] },
-        { name: 'Warehouse', url: '/warehouse', icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }] },
+        { name: 'Machines', url: '/machines' },
+        { name: 'Warehouse', url: '/warehouse' },
       ],
     },
     injectManifest: {

@@ -49,8 +49,8 @@ self.addEventListener('push', (event) => {
   const title = payload.title ?? 'VMflow'
   const options: NotificationOptions = {
     body: payload.body ?? '',
-    icon: payload.image ?? payload.icon ?? '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png',
+    icon: payload.image ?? payload.icon,
+    badge: undefined,
     image: payload.image,
     data: payload.data ?? {},
     tag: payload.data?.type ? String(payload.data.type) : undefined,

@@ -80,31 +80,62 @@ export function useNotifications() {
     error.value = ''
     if (!isSupported.value) {
       error.value = 'Push notifications are not supported in this browser.'
+      console.warn('[Push] Not supported:', { sw: 'serviceWorker' in navigator, pm: 'PushManager' in window, notif: 'Notification' in window })
       return false
     }
     if (!vapidPublicKey.value) {
       error.value = 'Push notifications are not configured. VAPID_PUBLIC_KEY is missing.'
+      console.warn('[Push] VAPID_PUBLIC_KEY missing')
       return false
     }
 
     loading.value = true
     try {
-      // Request notification permission
-      const result = await Notification.requestPermission()
+      // Check if permission was previously denied (iOS caches this even if
+      // Notification.permission still reads 'default')
+      const currentPermission = Notification.permission
+      console.info('[Push] Current permission:', currentPermission)
+
+      if (currentPermission === 'denied') {
+        permission.value = 'denied'
+        error.value = isIOS.value
+          ? 'Notifications are blocked. Open Settings → VMflow → Notifications and enable them.'
+          : 'Notifications are blocked. Allow them in your browser settings, then try again.'
+        return false
+      }
+
+      // Request notification permission with a timeout for iOS edge cases
+      // where the promise may hang if the user previously dismissed the prompt
+      const result = await Promise.race([
+        Notification.requestPermission(),
+        new Promise<NotificationPermission>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 10_000),
+        ),
+      ]).catch((err) => {
+        console.warn('[Push] requestPermission failed/timed out:', err)
+        return 'default' as NotificationPermission
+      })
+
+      console.info('[Push] Permission result:', result)
       permission.value = result
+
       if (result !== 'granted') {
-        error.value = 'Notification permission was denied.'
+        error.value = isIOS.value
+          ? 'Permission not granted. If no prompt appeared, open Settings → VMflow → Notifications and enable them, then try again.'
+          : 'Notification permission was denied.'
         return false
       }
 
       // Get service worker registration
       const registration = await navigator.serviceWorker.ready
+      console.info('[Push] Service worker ready')
 
       // Subscribe to push manager
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey.value),
       })
+      console.info('[Push] Push subscription created')
 
       // Send subscription to backend
       const subJson = subscription.toJSON()
@@ -121,10 +152,14 @@ export function useNotifications() {
 
       if (fnError) throw fnError
 
+      console.info('[Push] Subscription registered with backend')
       isSubscribed.value = true
+      await fetchDevices()
       return true
     } catch (err: unknown) {
-      error.value = err instanceof Error ? err.message : 'Failed to subscribe'
+      const msg = err instanceof Error ? err.message : 'Failed to subscribe'
+      error.value = msg
+      console.warn('[Push] Subscribe failed:', err)
       return false
     } finally {
       loading.value = false
