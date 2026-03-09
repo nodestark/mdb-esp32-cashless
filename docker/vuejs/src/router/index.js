@@ -7,8 +7,8 @@ import Register from '@/views/Register.vue'
 
 import Dashboard from '@/views/Dashboard.vue'
 import DashboardHome from '@/views/Dashboard_Home.vue'
-import DashboardReports from '@/views/Dashboard_Reports.vue'
-import DashboardSettings from '@/views/Dashboard_Settings.vue'
+import DashboardMachines from '@/views/Dashboard_Machines.vue'
+import DashboardEmbedded from '@/views/Dashboard_Embedded.vue'
 
 const routes = [
   { path: '/', redirect: '/home' },
@@ -17,8 +17,8 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       { path: '', component: DashboardHome },
-      { path: 'reports', component: DashboardReports },
-      { path: 'settings', component: DashboardSettings }
+      { path: 'machines', component: DashboardMachines },
+      { path: 'devices', component: DashboardEmbedded }
     ] },
   { path: '/dashboard/home', component: DashboardHome },
   { path: '/login', component: Login },
