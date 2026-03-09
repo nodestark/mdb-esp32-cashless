@@ -62,22 +62,10 @@
               {{ device.subdomain }}
             </td>
 
-            <td class="p-4">
-
-              <span
-                v-if="getStatus(device) === 'online'"
-                class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded"
-              >
-                Online
+            <td class="p-4 text-gray-500">
+              <span v-if="device":class="device.status === 'online' ? 'text-green-600' : 'text-red-600 font-bold'" >
+                {{ device.status }}
               </span>
-
-              <span
-                v-else
-                class="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded"
-              >
-                Offline
-              </span>
-
             </td>
 
             <td class="p-4 text-gray-500">
@@ -123,11 +111,11 @@ export default {
   computed: {
 
     onlineDevices() {
-      return this.devices.filter(d => this.getStatus(d) === "online").length
+      return this.devices.filter(d => d.status === "online").length
     },
 
     offlineDevices() {
-      return this.devices.filter(d => this.getStatus(d) === "offline").length
+      return this.devices.filter(d => d.status === "offline").length
     }
 
   },
@@ -163,21 +151,6 @@ export default {
 
       this.loading = false
     },
-
-    getStatus(device) {
-
-      if (!device.status_at) return "offline"
-
-      const last = new Date(device.status_at)
-      const now = new Date()
-
-      const diff = (now - last) / 1000
-
-      if (diff < 120) return "online"
-
-      return "offline"
-    },
-
     formatDate(date) {
 
       if (!date) return "-"

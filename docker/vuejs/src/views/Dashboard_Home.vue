@@ -3,7 +3,7 @@
 
     <!-- HEADER -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+      <h1 class="text-2xl font-bold text-gray-800">Home</h1>
       <p class="text-gray-500">Overview of your vending machines</p>
     </div>
 

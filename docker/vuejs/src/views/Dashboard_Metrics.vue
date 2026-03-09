@@ -5,7 +5,7 @@
   <!-- HEADER -->
 
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">PAX counter</h1>
+    <h1 class="text-2xl font-bold">Metrics</h1>
   </div>
 
   <!-- FILTERS -->
@@ -82,7 +82,12 @@ export default {
         {
           name: "PAX Counter",
           data: []
+        },
+        {
+          name: "Sales",
+          data: []
         }
+
       ],
 
       chartOptions: {
@@ -159,6 +164,10 @@ export default {
 
       const start = this.getPeriodStart()
 
+        /* ---------------------------
+        PAX COUNTER
+        --------------------------- */
+
       const { data, error } = await supabase
         .from("metrics")
         .select("value, created_at")
@@ -172,15 +181,40 @@ export default {
         return
       }
 
-      const points = data.map(m => ({
+      const paxPoints = data.map(m => ({
         x: m.created_at,
         y: m.value
+      }))
+
+
+      /* ---------------------------
+         SALES
+      --------------------------- */
+      const { data: sales, error: salesError } = await supabase
+      .from("sales_metrics_v1")
+      .select("created_at, total")
+      .eq("machine_id", this.selectedMachine)
+      .gte("created_at", start)
+      .order("created_at")
+
+      if (salesError) {
+        console.error(salesError)
+        return
+      }
+
+      const salesPoints = sales.map(s => ({
+        x: s.created_at,
+        y: s.total
       }))
 
       this.series = [
         {
           name: "PAX Counter",
-          data: points
+          data: paxPoints
+        },
+        {
+          name: "Sales",
+          data: salesPoints
         }
       ]
 
