@@ -1,66 +1,98 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+  <div class="min-h-screen flex">
 
-    <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg">
+    <!-- LEFT BRAND -->
+    <div class="hidden lg:flex lg:w-1/2 bg-slate-900 text-white flex-col justify-center px-20">
 
-      <h2 class="text-2xl font-bold text-center mb-6">
-        Login
-      </h2>
+      <h1 class="text-4xl font-bold mb-4">
+        VMFlow
+      </h1>
 
-      <form @submit.prevent="login" class="space-y-4">
+      <p class="text-slate-400 text-lg max-w-md">
+        A platform for managing vending machines. Monitor sales,
+        devices, and telemetry in real time.
+      </p>
 
-        <input
-          v-model="email"
-          type="email"
-          placeholder="Email"
-          required
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+    </div>
 
-        <input
-          v-model="password"
-          type="password"
-          placeholder="Senha"
-          required
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+    <!-- LOGIN AREA -->
+    <div class="flex flex-1 items-center justify-center bg-gray-100 px-6">
 
-        <button
-          type="submit"
-          :disabled="loading"
-          class="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {{ loading ? 'Entrando...' : 'Entrar' }}
-        </button>
+      <div class="w-full max-w-md bg-white p-10 rounded-2xl shadow-lg">
 
-        <p
-          v-if="error"
-          class="text-red-500 text-sm mt-2 text-center"
-        >
-          {{ error }}
-        </p>
-
-      </form>
-
-      <!-- Divider -->
-      <div class="relative my-8">
-        <div class="absolute inset-0 flex items-center">
-          <div class="w-full border-t border-gray-300"></div>
+        <div class="text-center mb-8">
+          <h2 class="text-2xl font-bold text-gray-800">
+            Sign in
+          </h2>
+          <p class="text-gray-500 text-sm mt-1">
+            Access your account
+          </p>
         </div>
-        <div class="relative text-center">
-          <span class="bg-white px-3 text-sm text-gray-500">
-            ou
-          </span>
+
+        <form @submit.prevent="login" class="space-y-4">
+
+          <input
+            v-model="email"
+            type="email"
+            placeholder="Email"
+            required
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg
+            focus:outline-none focus:ring-2 focus:ring-slate-800"
+          />
+
+          <input
+            v-model="password"
+            type="password"
+            placeholder="Password"
+            required
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg
+            focus:outline-none focus:ring-2 focus:ring-slate-800"
+          />
+
+          <button
+            type="submit"
+            :disabled="loading"
+            class="w-full py-3 bg-slate-900 text-white font-medium rounded-lg
+            hover:bg-slate-800 transition disabled:opacity-60"
+          >
+            {{ loading ? 'Signing in...' : 'Sign in' }}
+          </button>
+
+          <p
+            v-if="error"
+            class="text-red-500 text-sm text-center"
+          >
+            {{ error }}
+          </p>
+
+        </form>
+
+        <!-- divider -->
+        <div class="relative my-8">
+
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-gray-300"></div>
+          </div>
+
+          <div class="relative text-center">
+            <span class="bg-white px-3 text-sm text-gray-500">
+              or
+            </span>
+          </div>
+
         </div>
+
+        <!-- REGISTER -->
+        <RouterLink
+          to="/register"
+          class="block w-full text-center py-3 border border-slate-900
+          text-slate-900 font-medium rounded-lg hover:bg-slate-900
+          hover:text-white transition"
+        >
+          Create an account
+        </RouterLink>
+
       </div>
-
-      <!-- Register Button -->
-      <RouterLink
-        to="/register"
-        class="block w-full text-center py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition"
-      >
-        Criar uma conta
-      </RouterLink>
 
     </div>
 
@@ -74,6 +106,7 @@ import { ref } from 'vue'
 
 export default {
   setup() {
+
     const router = useRouter()
 
     const email = ref('')
@@ -82,6 +115,7 @@ export default {
     const error = ref(null)
 
     const login = async () => {
+
       loading.value = true
       error.value = null
 
@@ -100,7 +134,14 @@ export default {
       router.push('/dashboard')
     }
 
-    return { email, password, login, loading, error }
+    return {
+      email,
+      password,
+      login,
+      loading,
+      error
+    }
+
   }
 }
 </script>
