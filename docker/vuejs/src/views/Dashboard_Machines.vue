@@ -1,110 +1,113 @@
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-6">
 
-    <!-- HEADER -->
-    <div>
-      <h1 class="text-2xl font-bold text-gray-800">Machines</h1>
-      <p class="text-gray-500">Manage and monitor vending machines</p>
-    </div>
+    <h1 class="text-2xl font-bold mb-6">Machines</h1>
 
-    <!-- METRICS -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-      <div class="bg-white rounded-xl shadow p-4">
-        <p class="text-gray-500 text-sm">Total Machines</p>
-        <p class="text-2xl font-semibold">{{ machines.length }}</p>
-      </div>
-
-      <div class="bg-white rounded-xl shadow p-4">
-        <p class="text-gray-500 text-sm">Online</p>
-        <p class="text-2xl font-semibold text-green-600">{{ onlineMachines }}</p>
-      </div>
-
-      <div class="bg-white rounded-xl shadow p-4">
-        <p class="text-gray-500 text-sm">Offline</p>
-        <p class="text-2xl font-semibold text-red-600">{{ offlineMachines }}</p>
-      </div>
-
-      <div class="bg-white rounded-xl shadow p-4">
-        <p class="text-gray-500 text-sm">No Device</p>
-        <p class="text-2xl font-semibold text-gray-500">{{ noDeviceMachines }}</p>
-      </div>
-
-    </div>
-
-    <!-- TABLE -->
     <div class="bg-white rounded-xl shadow overflow-hidden">
 
       <table class="w-full text-sm">
-
-        <thead class="bg-gray-50">
-          <tr class="text-left text-gray-600">
-            <th class="p-4">Machine</th>
-            <th class="p-4">Serial</th>
-            <th class="p-4">Status</th>
-            <th class="p-4">Last Seen</th>
+        <thead class="bg-gray-100 text-gray-600">
+          <tr>
+            <th class="p-3 text-left">Machine</th>
+            <th class="p-3 text-left">Status</th>
+            <th class="p-3 text-left">Embedded</th>
+            <th class="p-3 text-right">Actions</th>
           </tr>
         </thead>
 
         <tbody>
-
           <tr
             v-for="machine in machines"
             :key="machine.id"
-            class="border-t hover:bg-gray-50 cursor-pointer"
+            class="border-t"
           >
-
-            <td class="p-4 font-medium text-gray-800">
+            <td class="p-3 font-medium">
               {{ machine.name }}
             </td>
 
-            <td class="p-4 text-gray-500">
-              {{ machine.serial_number }}
+            <td class="p-3">
+              <span
+                :class="machine.embedded?.status === 'online'
+                ? 'text-green-600'
+                : 'text-red-500'"
+              >
+                {{ machine.embedded?.status || 'No device' }}
+              </span>
             </td>
 
-            <td class="p-4">
+            <td class="p-3">
+              {{ machine.embedded ? 'Connected' : 'None' }}
+            </td>
 
-              <span
-                v-if="getStatus(machine) === 'online'"
-                class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded"
-              >
-                Online
-              </span>
+            <td class="p-3 text-right">
 
-              <span
-                v-else-if="getStatus(machine) === 'offline'"
-                class="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded"
+              <button
+                v-if="machine.embedded?.status === 'online'"
+                @click="openCreditModal(machine)"
+                class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
               >
-                Offline
-              </span>
+                Send Credit
+              </button>
 
               <span
                 v-else
-                class="px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-200 rounded"
+                class="text-gray-400"
               >
-                No Device
+                unavailable
               </span>
 
             </td>
 
-            <td class="p-4 text-gray-500">
-              {{ formatDate(machine.embedded?.status_at) }}
-            </td>
-
           </tr>
-
         </tbody>
 
       </table>
 
-      <!-- LOADING -->
-      <div v-if="loading" class="p-6 text-center text-gray-500">
-        Loading machines...
-      </div>
+    </div>
 
-      <!-- ERROR -->
-      <div v-if="error" class="p-6 text-red-500">
-        {{ error }}
+    <!-- CREDIT MODAL -->
+
+    <div
+      v-if="showModal"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center"
+    >
+
+      <div class="bg-white p-6 rounded-xl w-80">
+
+        <h2 class="text-lg font-semibold mb-4">
+          Send Credit
+        </h2>
+
+        <p class="text-sm text-gray-600 mb-3">
+          Machine: {{ selectedMachine?.name }}
+        </p>
+
+        <input
+          v-model="creditAmount"
+          type="number"
+          step="0.01"
+          placeholder="Amount"
+          class="w-full border rounded p-2 mb-4"
+        />
+
+        <div class="flex justify-end gap-2">
+
+          <button
+            @click="showModal=false"
+            class="px-3 py-1 border rounded"
+          >
+            Cancel
+          </button>
+
+          <button
+            @click="sendCredit"
+            class="px-3 py-1 bg-blue-600 text-white rounded"
+          >
+            Send
+          </button>
+
+        </div>
+
       </div>
 
     </div>
@@ -117,30 +120,13 @@ import { supabase } from '@/lib/supabase'
 
 export default {
 
-  name: "DashboardMachines",
-
   data() {
     return {
       machines: [],
-      loading: false,
-      error: null
+      showModal: false,
+      selectedMachine: null,
+      creditAmount: null
     }
-  },
-
-  computed: {
-
-    onlineMachines() {
-      return this.machines.filter(m => this.getStatus(m) === "online").length
-    },
-
-    offlineMachines() {
-      return this.machines.filter(m => this.getStatus(m) === "offline").length
-    },
-
-    noDeviceMachines() {
-      return this.machines.filter(m => this.getStatus(m) === "no-device").length
-    }
-
   },
 
   async mounted() {
@@ -151,50 +137,41 @@ export default {
 
     async loadMachines() {
 
-      this.loading = true
-
       const { data, error } = await supabase
-        .from("machines")
-        .select(`
-          id,
-          name,
-          serial_number,
-          embedded (
-            status,
-            status_at
-          )
-        `)
+        .from('machines')
+        .select(`*, embedded(status, status_at, subdomain)`)
+
+      if (!error) this.machines = data
+    },
+
+    openCreditModal(machine) {
+      this.selectedMachine = machine
+      this.creditAmount = null
+      this.showModal = true
+    },
+
+    async sendCredit() {
+
+      const { data, error } = await supabase.functions.invoke( 'send-credit',
+        {
+          body: {
+            subdomain: this.selectedMachine.embedded.subdomain,
+            amount: parseFloat(this.creditAmount)
+          }
+        }
+      )
 
       if (error) {
-        this.error = error.message
-      } else {
-        this.machines = data
+        console.error(error)
+        alert("Failed to send credit")
+        return
       }
 
-      this.loading = false
-    },
+      this.showModal = false
+      this.creditAmount = null
 
-    getStatus(machine) {
-
-      if (!machine.embedded) return "no-device"
-
-      const last = new Date(machine.embedded.status_at)
-      const now = new Date()
-
-      const diff = (now - last) / 1000
-
-      if (diff < 120) return "online"
-
-      return "offline"
-    },
-
-    formatDate(date) {
-
-      if (!date) return "-"
-
-      return new Date(date).toLocaleString()
+      alert("Credit sent successfully")
     }
-
   }
 
 }
