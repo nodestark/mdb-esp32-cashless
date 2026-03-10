@@ -1,5 +1,6 @@
 [![VMFlow Dashboard](https://img.shields.io/badge/VMFlow-Web%20Dashboard-0f172a?style=for-the-badge&logo=grafana&logoColor=white)](https://vmflow.xyz/dashboard)
 [![Install Firmware](https://img.shields.io/badge/ESP32-Web%20Installer-brightgreen?style=for-the-badge&logo=espressif)](https://install.vmflow.xyz)
+[![PCBWay Award](https://img.shields.io/badge/%F0%9F%8F%86%20PCBWay-Popular%20Prize%202026-orange?style=for-the-badge)](pcbway-award-2026.jpg)
 
 # MDB Protocol Implementation for Cashless Vending Machine with ESP32
 
@@ -25,12 +26,6 @@ The project aims to provide a modern, open, and extensible platform for vending 
 ![MDB Cashless](mdb-slave-esp32s3/mdb-slave-esp32s3_pcb_v3.jpg)
 
 [![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
-
-## 🏆 Awards
-
-This project received **The Popular Prize** at the **PCBWay 8th Project Design Contest (2026)**.
-
-![PCBWay Award](pcbway-award-2026.jpg)
 
 ---
 
