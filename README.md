@@ -26,6 +26,12 @@ The project aims to provide a modern, open, and extensible platform for vending 
 
 [![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
 
+## 🏆 Awards
+
+This project received **The Popular Prize** at the **PCBWay 8th Project Design Contest (2026)**.
+
+![PCBWay Award](pcbway-award-2026.jpg)
+
 ---
 
 [![Made with Supabase](https://supabase.com/badge-made-with-supabase-dark.svg)](https://supabase.com)
