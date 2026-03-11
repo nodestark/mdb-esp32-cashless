@@ -8,7 +8,10 @@ import Register from '@/views/Register.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import DashboardHome from '@/views/Dashboard_Home.vue'
 import DashboardMachines from '@/views/Dashboard_Machines.vue'
+import DashboardMachineModels from '@/views/Dashboard_MachineModels.vue'
+import DashboardProducts from '@/views/Dashboard_Products.vue'
 import DashboardEmbedded from '@/views/Dashboard_Embedded.vue'
+import DashboardSettings from '@/views/Dashboard_Settings.vue'
 import DashboardMetrics from '@/views/Dashboard_Metrics.vue' // ✅ typo corrigido
 
 const routes = [
@@ -21,6 +24,9 @@ const routes = [
     children: [
       { path: '', component: DashboardHome },
       { path: 'machines', component: DashboardMachines },
+      { path: 'machine-models', component: DashboardMachineModels },
+      { path: 'products', component: DashboardProducts },
+      { path: 'settings', component: DashboardSettings },
       { path: 'metrics', component: DashboardMetrics },
       { path: 'devices', component: DashboardEmbedded }
     ]

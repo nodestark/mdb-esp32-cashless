@@ -31,8 +31,17 @@
           class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
           active-class="bg-slate-800 text-white"
         >
-          <span>🥤</span>
+          <span>🤖</span>
           Machines
+        </RouterLink>
+
+        <RouterLink
+          to="/dashboard/machine-models"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
+          active-class="bg-slate-800 text-white"
+        >
+          <span>🌀</span>
+          Machine Models
         </RouterLink>
 
         <RouterLink
@@ -45,6 +54,15 @@
         </RouterLink>
 
         <RouterLink
+          to="/dashboard/products"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
+          active-class="bg-slate-800 text-white"
+        >
+          <span>🍩</span>
+          Products
+        </RouterLink>
+
+        <RouterLink
           to="/dashboard/metrics"
           class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
           active-class="bg-slate-800 text-white"
@@ -52,6 +70,8 @@
           <span>📊</span>
           Metrics
         </RouterLink>
+
+        <RouterLink to="/dashboard/settings" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition" active-class="bg-slate-800 text-white" > <span>⚙️</span> Settings </RouterLink>
 
       </nav>
 
