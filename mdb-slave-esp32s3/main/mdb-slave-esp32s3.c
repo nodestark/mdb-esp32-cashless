@@ -31,7 +31,6 @@
 #include "led_strip.h"
 
 #include "nimble.h"
-#include "webui_server.h"
 
 #define TAG "mdb_cashless"
 
@@ -64,10 +63,6 @@
 #define BIT_ADD_SET   	0b011111000
 #define BIT_CMD_SET   	0b000000111
 
-#define WIFI_MAX_RETRY  5
-
-static int wifi_retry_num = 0;
-
 enum BIT_EVENTS {
     BIT_EVT_INTERNET    = (1 << 0),
     BIT_EVT_MDB         = (1 << 1),
@@ -79,6 +74,8 @@ enum BIT_EVENTS {
 };
 
 EventGroupHandle_t xLedEventGroup;
+
+esp_timer_handle_t periodic_pax_timer;
 
 static bool mqtt_started = false;
 static bool sntp_started = false;
@@ -1244,11 +1241,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
+        esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
+
 		break;
 	case MQTT_EVENT_DISCONNECTED:
 
         xEventGroupClearBits(xLedEventGroup, BIT_EVT_INTERNET);
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+
+        esp_timer_stop(periodic_pax_timer);
 
 		break;
 	case MQTT_EVENT_SUBSCRIBED:
@@ -1292,29 +1293,19 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 		switch (event_id) {
 		case WIFI_EVENT_STA_START:
 
-		    wifi_retry_num = 0;
 			esp_wifi_connect();
 			break;
 		case WIFI_EVENT_STA_CONNECTED:
 			break;
 		case WIFI_EVENT_STA_DISCONNECTED:
 
-		    if(wifi_retry_num++ < WIFI_MAX_RETRY) {
+            if (mqtt_started) {
+                esp_mqtt_client_disconnect(mqttClient);
 
-		        if (mqtt_started) {
-                    esp_mqtt_client_disconnect(mqttClient);
+                mqtt_started = false;
+            }
 
-                    mqtt_started = false;
-                }
-
-                esp_wifi_connect();
-
-		    } else {
-
-		        start_softap();
-                start_dns_server();
-                start_rest_server();
-		    }
+            esp_wifi_connect();
 
 			break;
 		}
@@ -1322,11 +1313,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 	if (event_base == IP_EVENT)
 		switch (event_id) {
 		case IP_EVENT_STA_GOT_IP:
-
-		    wifi_retry_num = 0;
-
-            stop_rest_server();
-            stop_dns_server();
 
 		    if (!mqtt_started) {
                 esp_mqtt_client_start(mqttClient);
@@ -1414,9 +1400,8 @@ void app_main(void) {
 		.name = "task_dex_12h"
 	};
 
-	esp_timer_handle_t periodic_timer;
-	esp_timer_create(&periodic_timer_args, &periodic_timer);
-	esp_timer_start_periodic(periodic_timer, INTERVAL_12H_US);
+	esp_timer_create(&periodic_timer_args, &periodic_pax_timer);
+	esp_timer_start_periodic(periodic_pax_timer, INTERVAL_12H_US);
 
 	//-------------------- NETWORK STACK -----------------------//
 	//----------------------------------------------------------//
@@ -1508,8 +1493,8 @@ void app_main(void) {
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
-	xTaskCreatePinnedToCore(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL, 1);
+	xTaskCreate(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL);
 
-    xTaskCreatePinnedToCore(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL, 0);
+    xTaskCreate(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL);
     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 }
