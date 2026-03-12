@@ -1,11 +1,7 @@
 [![VMFlow Dashboard](https://img.shields.io/badge/VMFlow-Web%20Dashboard-0f172a?style=for-the-badge&logo=grafana&logoColor=white)](https://vmflow.xyz/dashboard)
-[![Install Firmware](https://img.shields.io/badge/ESP32-Web%20Installer-brightgreen?style=for-the-badge&logo=espressif)](https://install.vmflow.xyz)
 [![PCBWay Award](https://img.shields.io/badge/%F0%9F%8F%86%20PCBWay-Popular%20Prize%202026-orange?style=for-the-badge)](pcbway-award-2026.jpg)
 
 # MDB Protocol Implementation for Cashless Vending Machine with ESP32
-
-👉 **Install firmware via Web Installer:**  
-https://install.vmflow.xyz
 
 The project aims to provide a modern, open, and extensible platform for vending machine connectivity. Based on the ESP32 platform, it enables machines to communicate via Bluetooth and cloud services, receive remote credits, report telemetry, and integrate with mobile applications and web dashboards.
 
