@@ -1395,13 +1395,14 @@ void app_main(void) {
 
     const double INTERVAL_12H_US = 12ULL * 60 * 60 * 1000000; // 12h in microseconds
 
-	const esp_timer_create_args_t periodic_timer_args = {
+	const esp_timer_create_args_t periodic_dex_timer_args = {
 		.callback = &requestTelemetryData,
 		.name = "task_dex_12h"
 	};
 
-	esp_timer_create(&periodic_timer_args, &periodic_pax_timer);
-	esp_timer_start_periodic(periodic_pax_timer, INTERVAL_12H_US);
+    esp_timer_handle_t periodic_dex_timer;
+	esp_timer_create(&periodic_dex_timer_args, &periodic_dex_timer);
+	esp_timer_start_periodic(periodic_dex_timer, INTERVAL_12H_US);
 
 	//-------------------- NETWORK STACK -----------------------//
 	//----------------------------------------------------------//
@@ -1453,9 +1454,7 @@ void app_main(void) {
 		.name = "task_paxcounter"
 	};
 
-	esp_timer_handle_t periodic_pax_timer;
 	esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
-	esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
