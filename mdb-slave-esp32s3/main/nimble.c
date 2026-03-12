@@ -8,7 +8,6 @@
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
-#include "bleprph.h"
 #include "nimble.h"
 #include <time.h>
 
@@ -49,6 +48,8 @@ char characteristic_received_value[500];
 // Callback externo
 void (*ble_event_report_handler)(char*);
 void (*ble_pax_report_handler)(int devices_count);
+int gatt_svr_init(void);
+void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 
 static int ble_gap_event_cb(struct ble_gap_event *event, void *arg);
 
