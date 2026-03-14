@@ -30,6 +30,7 @@
 
 #include "led_strip.h"
 
+#include "mdb_9th.h"
 #include "nimble.h"
 
 #define TAG "mdb_cashless"
@@ -37,8 +38,6 @@
 #define PIN_I2C_SDA             GPIO_NUM_10
 #define PIN_I2C_SCL             GPIO_NUM_11
 #define PIN_PULSE_1             GPIO_NUM_13
-#define PIN_MDB_RX              GPIO_NUM_4
-#define PIN_MDB_TX              GPIO_NUM_5
 #define PIN_MDB_LED             GPIO_NUM_21
 #define PIN_DEX_RX              GPIO_NUM_8
 #define PIN_DEX_TX              GPIO_NUM_9
@@ -146,28 +145,6 @@ esp_mqtt_client_handle_t mqttClient = NULL;
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = NULL;
 
-uint16_t read_9(uint8_t *checksum) {
-
-	uint16_t coming_read = 0;
-
-	// Wait start bit
-	while (gpio_get_level(PIN_MDB_RX))
-		;
-
-	ets_delay_us(104);
-
-	ets_delay_us(52);
-	for(int x = 0; x < 9; x++){
-		coming_read |= (gpio_get_level(PIN_MDB_RX) << x);
-		ets_delay_us(104); // 9600bps
-	}
-
-	if (checksum)
-		*checksum += coming_read;
-
-	return coming_read;
-}
-
 void write_9(uint16_t nth9) {
 
     gpio_set_level(PIN_MDB_TX, 0);  // Start bit
@@ -214,6 +191,8 @@ void vTaskMdbEvent(void *pvParameters) {
 	// Payload buffer and available transmission flag
 	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
+
+    mdb_9th_init();
 
 	for (;;) {
 
@@ -1337,7 +1316,6 @@ void request_pax_counter(void *arg) {
 
 void app_main(void) {
 
-    gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
 	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
 
 	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
