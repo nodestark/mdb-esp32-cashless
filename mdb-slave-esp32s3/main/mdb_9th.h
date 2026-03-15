@@ -11,6 +11,7 @@
 extern QueueHandle_t mdb_queue;
 
 uint16_t read_9(uint8_t *checksum);
+void write_payload_9(uint8_t *mdb_payload, uint8_t length);
 
 void mdb_9th_init(void);
 

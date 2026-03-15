@@ -22,7 +22,6 @@
 #include <string.h>
 #include <esp_sntp.h>
 #include <time.h>
-#include <rom/ets_sys.h>
 
 #include <esp_adc/adc_oneshot.h>
 #include <esp_adc/adc_cali.h>
@@ -144,37 +143,6 @@ esp_mqtt_client_handle_t mqttClient = NULL;
 
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = NULL;
-
-void write_9(uint16_t nth9) {
-
-    gpio_set_level(PIN_MDB_TX, 0);  // Start bit
-    ets_delay_us(104); // 9600bps
-
-	for (uint8_t x = 0; x < 9; x++) {
-
-		gpio_set_level(PIN_MDB_TX, (nth9 >> x) & 1);
-		ets_delay_us(104); // 9600bps
-	}
-
-    gpio_set_level(PIN_MDB_TX, 1);  // Stop bit
-    ets_delay_us(104); // 9600bps
-}
-
-// Function to transmit the payload via bit-banging (using MDB protocol)
-void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
-
-	uint8_t checksum = 0x00;
-
-	// Calculate checksum
-	for (int x = 0; x < length; x++) {
-
-		checksum += mdb_payload[x];
-		write_9(mdb_payload[x]);
-	}
-
-	// CHK* ACK*
-	write_9(BIT_MODE_SET | checksum);
-}
 
 void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload);
 uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
@@ -1315,8 +1283,6 @@ void request_pax_counter(void *arg) {
 }
 
 void app_main(void) {
-
-	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
 
 	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);

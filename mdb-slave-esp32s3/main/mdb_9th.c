@@ -5,6 +5,7 @@
 #include "driver/gpio.h"
 #include "driver/rmt_rx.h"
 #include "esp_log.h"
+#include <rom/ets_sys.h>
 
 #include "mdb_9th.h"
 
@@ -18,6 +19,39 @@ QueueHandle_t mdb_queue;
 
 static rmt_symbol_word_t rx_symbols[RMT_MEM_SYMBOLS];
 static QueueHandle_t     rx_queue;
+
+#define BIT_MODE_SET 	0b100000000
+
+void write_9(uint16_t nth9) {
+
+    gpio_set_level(PIN_MDB_TX, 0);  // Start bit
+    ets_delay_us(104); // 9600bps
+
+	for (uint8_t x = 0; x < 9; x++) {
+
+		gpio_set_level(PIN_MDB_TX, (nth9 >> x) & 1);
+		ets_delay_us(104); // 9600bps
+	}
+
+    gpio_set_level(PIN_MDB_TX, 1);  // Stop bit
+    ets_delay_us(104); // 9600bps
+}
+
+// Function to transmit the payload via bit-banging (using MDB protocol)
+void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
+
+	uint8_t checksum = 0x00;
+
+	// Calculate checksum
+	for (int x = 0; x < length; x++) {
+
+		checksum += mdb_payload[x];
+		write_9(mdb_payload[x]);
+	}
+
+	// CHK* ACK*
+	write_9(BIT_MODE_SET | checksum);
+}
 
 uint16_t read_9(uint8_t *checksum) {
 
@@ -99,6 +133,8 @@ static void rx_task(void *arg) {
 }
 
 void mdb_9th_init(void) {
+
+	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
 
     rx_queue = xQueueCreate(4, sizeof(rmt_rx_done_event_data_t));
     mdb_queue = xQueueCreate(64, sizeof(uint16_t));
