@@ -179,8 +179,6 @@ void vTaskMdbEvent(void *pvParameters) {
 	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
 
-    mdb_9th_init();
-
 	for (;;) {
 
 		// In the MDB (Multi-Drop Bus) protocol, the last byte of a command or data packet is a checksum.
@@ -1455,6 +1453,8 @@ void app_main(void) {
 
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//
+    mdb_9th_init();
+
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
 	xTaskCreate(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL);
 

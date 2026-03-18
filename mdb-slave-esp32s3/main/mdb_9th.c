@@ -166,19 +166,7 @@ void mdb_9th_init(void) {
         .mem_block_symbols = 64,
         .resolution_hz     = 10000000, // 10 MHz (1 tick = 0.1 µs)
     };
-    rmt_channel_handle_t rx_chan = NULL;
-    rmt_new_rx_channel(&rx_chan_config, &rx_chan);
 
-    rmt_rx_event_callbacks_t cbs = {
-        .on_recv_done = rmt_rx_done_cb,
-    };
-    rmt_rx_register_event_callbacks(rx_chan, &cbs, rx_queue);
-
-    rmt_enable(rx_chan);
-
-    xTaskCreate(rx_task, "mdb_rx", 4096, rx_chan, configMAX_PRIORITIES - 2, NULL);
-
-	///////////////////////////////////////////////////////////////////////////////////////////
     rmt_tx_channel_config_t tx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT,
         .gpio_num = PIN_MDB_TX,
@@ -186,10 +174,21 @@ void mdb_9th_init(void) {
         .resolution_hz = 10000000, // Clock RMT: 10 MHz → 1 tick = 0,1 µs
         .trans_queue_depth = 4 };
 
+    rmt_channel_handle_t rx_chan = NULL;
+    rmt_new_rx_channel(&rx_chan_config, &rx_chan);
+
     rmt_new_tx_channel(&tx_chan_config, &tx_chan);
 
+    rmt_rx_event_callbacks_t cbs = {
+        .on_recv_done = rmt_rx_done_cb,
+    };
+    rmt_rx_register_event_callbacks(rx_chan, &cbs, rx_queue);
+
+    rmt_enable(rx_chan);
     rmt_enable(tx_chan);
 
     rmt_copy_encoder_config_t copy_cfg = {};
     rmt_new_copy_encoder(&copy_cfg, &tx_rmt_encoder);
+
+    xTaskCreate(rx_task, "mdb_rx", 4096, rx_chan, configMAX_PRIORITIES - 2, NULL);
 }
