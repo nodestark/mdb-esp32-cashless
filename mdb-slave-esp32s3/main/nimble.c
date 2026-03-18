@@ -323,10 +323,12 @@ static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
     return 0;
 }
 
-void ble_scan_start(int duration_seconds) {
+void ble_scan_start(void *arg) {
     if (scanning) {
         return;
     }
+
+    int duration_seconds = (int) (uintptr_t) arg;
 
     struct ble_gap_disc_params disc_params;
     memset(&disc_params, 0, sizeof(disc_params));

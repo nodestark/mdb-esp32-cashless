@@ -1205,6 +1205,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
+        esp_timer_stop(periodic_pax_timer);
         esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
 		break;
@@ -1264,8 +1265,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 		case WIFI_EVENT_STA_DISCONNECTED:
 
             if (mqtt_started) {
-                esp_mqtt_client_disconnect(mqttClient);
-
+                esp_mqtt_client_stop(mqttClient);
                 mqtt_started = false;
             }
 
@@ -1293,10 +1293,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 			break;
 		}
-}
-
-void request_pax_counter(void *arg) {
-    ble_scan_start(PAX_SCAN_DURATION_SEC);
 }
 
 void app_main(void) {
@@ -1354,15 +1350,16 @@ void app_main(void) {
     // ---
     dexRingbuf = xRingbufferCreate(8 * 1024 /*8Kb*/, RINGBUF_TYPE_BYTEBUF);
 
-    const double INTERVAL_12H_US = 12ULL * 60 * 60 * 1000000; // 12h in microseconds
+    const uint64_t INTERVAL_12H_US = 12ULL * 60ULL * 60ULL * 1000000ULL; // 12h in microseconds
 
-	const esp_timer_create_args_t periodic_timer_args = {
-		.callback = &requestTelemetryData,
-		.name = "task_dex_12h"
+	const esp_timer_create_args_t periodic_dex_timer_args = {
+		.callback   = &requestTelemetryData,
+		.name       = "task_dex_12h"
 	};
+    esp_timer_handle_t periodic_dex_timer;
 
-	esp_timer_create(&periodic_timer_args, &periodic_pax_timer);
-	esp_timer_start_periodic(periodic_pax_timer, INTERVAL_12H_US);
+	esp_timer_create(&periodic_dex_timer_args, &periodic_dex_timer);
+	esp_timer_start_periodic(periodic_dex_timer, INTERVAL_12H_US);
 
 	//-------------------- NETWORK STACK -----------------------//
 	//----------------------------------------------------------//
@@ -1408,15 +1405,13 @@ void app_main(void) {
 	}
 	ble_init(myhost, ble_event_handler, ble_pax_event_handler);
 
-    //
 	const esp_timer_create_args_t periodic_pax_timer_args = {
-		.callback = &request_pax_counter,
-		.name = "task_paxcounter"
+		.callback   = &ble_scan_start,
+        .arg        = (void*) (uintptr_t) PAX_SCAN_DURATION_SEC,
+		.name       = "task_paxcounter"
 	};
 
-	esp_timer_handle_t periodic_pax_timer;
-	esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
-	esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
+    esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
