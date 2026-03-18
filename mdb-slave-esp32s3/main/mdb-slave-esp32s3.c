@@ -1300,8 +1300,6 @@ void request_pax_counter(void *arg) {
 
 void app_main(void) {
 
-	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
-
 	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);
 

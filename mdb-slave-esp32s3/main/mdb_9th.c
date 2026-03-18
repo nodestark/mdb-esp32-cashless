@@ -4,6 +4,7 @@
 #include "freertos/queue.h"
 #include "driver/gpio.h"
 #include "driver/rmt_rx.h"
+#include "driver/rmt_tx.h"
 #include "esp_log.h"
 #include <rom/ets_sys.h>
 
@@ -13,6 +14,10 @@
 
 #define TAG "mdb_9th_cashless"
 
+rmt_channel_handle_t tx_chan = NULL;
+rmt_symbol_word_t tx_symbols[256];
+rmt_encoder_handle_t tx_rmt_encoder;
+
 QueueHandle_t mdb_queue;
 
 #define RMT_MEM_SYMBOLS     128
@@ -20,19 +25,75 @@ QueueHandle_t mdb_queue;
 static rmt_symbol_word_t rx_symbols[RMT_MEM_SYMBOLS];
 static QueueHandle_t     rx_queue;
 
+size_t encode_mdb_symb(uint16_t *mdb, size_t n_mdb, rmt_symbol_word_t *symb) {
+
+    size_t si = 0;
+
+    int bit_pos = 0;
+    for(int w = 0; w < n_mdb; w++){
+
+        uint16_t frame = (mdb[w] << 1) | 0b10000000000;
+        for(int b = 0; b < 11; b++){
+
+            uint8_t level = (frame >> b) & 1;
+
+            if(bit_pos == 0){
+                symb[si].duration0 = 1042;
+                symb[si].level0 = level;
+                bit_pos = 1;
+            } else {
+                symb[si].duration1 = 1042;
+                symb[si].level1 = level;
+                si++;
+                bit_pos = 0;
+            }
+        }
+    }
+
+    if(bit_pos == 1){
+        symb[si].duration1 = 0;
+        symb[si].level1 = 1;
+    }
+
+    return si;
+}
+
 void write_9(uint16_t nth9) {
 
-    gpio_set_level(PIN_MDB_TX, 0);  // Start bit
-    ets_delay_us(104); // 9600bps
+    tx_symbols[0].duration0 = 1042;
+    tx_symbols[0].level0 = 0;
+    tx_symbols[0].duration1 = 1042;
+    tx_symbols[0].level1 = (nth9 >> 0) & 1;
 
-	for (uint8_t x = 0; x < 9; x++) {
+    tx_symbols[1].duration0 = 1042;
+    tx_symbols[1].level0 = (nth9 >> 1) & 1;
+    tx_symbols[1].duration1 = 1042;
+    tx_symbols[1].level1 = (nth9 >> 2) & 1;
 
-		gpio_set_level(PIN_MDB_TX, (nth9 >> x) & 1);
-		ets_delay_us(104); // 9600bps
-	}
+    tx_symbols[2].duration0 = 1042;
+    tx_symbols[2].level0 = (nth9 >> 3) & 1;
+    tx_symbols[2].duration1 = 1042;
+    tx_symbols[2].level1 = (nth9 >> 4) & 1;
 
-    gpio_set_level(PIN_MDB_TX, 1);  // Stop bit
-    ets_delay_us(104); // 9600bps
+    tx_symbols[3].duration0 = 1042;
+    tx_symbols[3].level0 = (nth9 >> 5) & 1;
+    tx_symbols[3].duration1 = 1042;
+    tx_symbols[3].level1 = (nth9 >> 6) & 1;
+
+    tx_symbols[4].duration0 = 1042;
+    tx_symbols[4].level0 = (nth9 >> 7) & 1;
+    tx_symbols[4].duration1 = 1042;
+    tx_symbols[4].level1 = (nth9 >> 8) & 1;
+
+    tx_symbols[5].duration0 = 1042;
+    tx_symbols[5].level0 = 1;
+    tx_symbols[5].duration1 = 0;
+    tx_symbols[5].level1 = 1;
+
+//    size_t n_sym = encode_mdb_symb(&nth9, 1, tx_symbols);
+
+    rmt_transmit_config_t tx_cfg = { .loop_count = 0, .flags.eot_level = 1 };
+    rmt_transmit(tx_chan, tx_rmt_encoder, tx_symbols, 6 * sizeof(rmt_symbol_word_t), &tx_cfg);
 }
 
 uint16_t read_9(uint8_t *checksum) {
@@ -116,9 +177,7 @@ static void rx_task(void *arg) {
 
 void mdb_9th_init(void) {
 
-	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
-
-    rx_queue = xQueueCreate(4, sizeof(rmt_rx_done_event_data_t));
+	rx_queue = xQueueCreate(4, sizeof(rmt_rx_done_event_data_t));
     mdb_queue = xQueueCreate(64, sizeof(uint16_t));
 
     rmt_rx_channel_config_t rx_chan_config = {
@@ -138,4 +197,19 @@ void mdb_9th_init(void) {
     rmt_enable(rx_chan);
 
     xTaskCreate(rx_task, "mdb_rx", 4096, rx_chan, configMAX_PRIORITIES - 2, NULL);
+
+	///////////////////////////////////////////////////////////////////////////////////////////
+    rmt_tx_channel_config_t tx_chan_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .gpio_num = PIN_MDB_TX,
+        .mem_block_symbols = 64,
+        .resolution_hz = 10000000, // Clock RMT: 10 MHz → 1 tick = 0,1 µs
+        .trans_queue_depth = 4 };
+
+    rmt_new_tx_channel(&tx_chan_config, &tx_chan);
+
+    rmt_enable(tx_chan);
+
+    rmt_copy_encoder_config_t copy_cfg = {};
+    rmt_new_copy_encoder(&copy_cfg, &tx_rmt_encoder);
 }
