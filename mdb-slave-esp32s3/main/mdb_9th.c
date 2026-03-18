@@ -86,21 +86,6 @@ uint16_t read_9(uint8_t *checksum) {
 	return coming_read;
 }
 
-static void bits_to_mdb(uint8_t *out_bits, size_t n_bits) {
-
-    int x= 0;
-    while(x < n_bits){
-
-        if(out_bits[x++] != 0) continue;
-
-        uint16_t coming = 0x0000;
-        for(int y= 0; y < 9; y++)
-            coming |= out_bits[x++] << y;
-
-        xQueueSend(mdb_queue, &coming, 0);
-    }
-}
-
 static int symbols_to_bits(rmt_symbol_word_t *symb, size_t n_syms, uint8_t *out_bits) {
 
     int idx = 0;
@@ -147,9 +132,17 @@ static void rx_task(void *arg) {
         if (xQueueReceive(rx_queue, &event, portMAX_DELAY) != pdTRUE)
             continue;
 
-        int tot = symbols_to_bits(event.received_symbols, event.num_symbols, (uint8_t*) &out_bits);
+        int n_bits = symbols_to_bits(event.received_symbols, event.num_symbols, (uint8_t*) &out_bits);
 
-        bits_to_mdb((uint8_t*) &out_bits, tot);
+        for(int x= 0; x < n_bits; x++){
+            if(out_bits[x++] != 0) continue;
+
+            uint16_t coming = 0x0000;
+            for(int y= 0; y < 9; y++)
+                coming |= out_bits[x++] << y;
+
+            xQueueSend(mdb_queue, &coming, 0);
+        }
 
         rmt_receive(rx_chan, rx_symbols, sizeof(rx_symbols), &recv_cfg);
     }
