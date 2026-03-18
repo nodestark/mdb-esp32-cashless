@@ -1314,7 +1314,7 @@ void app_main(void) {
 
     led_strip_rmt_config_t rmt_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT,
-        .resolution_hz = 10 * 1000 * 1000, // 10 MHz → good precision
+        .resolution_hz = 10000000, // 10 MHz (1 tick = 0.1 µs)
         .mem_block_symbols = 64,
     };
 

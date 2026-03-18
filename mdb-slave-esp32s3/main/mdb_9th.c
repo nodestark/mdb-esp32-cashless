@@ -1,3 +1,21 @@
+/*
+ * mdb_9th.c - MDB 9-bit protocol driver
+ *
+ * The original implementation used bit-banging (gpio_set_level + ets_delay_us) for transmission, which blocked
+ * the CPU core for the entire TX window (~1 ms per byte at 9600 baud) and was susceptible to jitter caused by
+ * FreeRTOS interrupts, potentially corrupting the MDB bus timing.
+ *
+ * Reception was equally problematic under that model, requiring either continuous polling or GPIO interrupts
+ * handled in software, increasing CPU load and the risk of bit loss during critical windows.
+ *
+ * The decision was made to migrate both TX and RX to the RMT (Remote Control Transceiver) peripheral of the
+ * ESP32-S3, which provides signal generation and capture with 0.1 µs resolution (10 MHz clock) entirely in
+ * hardware. The RMT operates via DMA, freeing the CPU for other tasks during transmission and reception, and
+ * eliminates software jitter. The trade-off is a more complex implementation — data must be pre-encoded as RMT
+ * symbols (duration/level pairs) before sending, and reception requires decoding the captured symbols back into
+ * 9-bit MDB words — but the result is a deterministic, efficient driver suitable for production use in vending machines.
+ */
+
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -17,7 +35,7 @@ QueueHandle_t mdb_queue;
 rmt_channel_handle_t    tx_chan = NULL;
 rmt_symbol_word_t       tx_symbols[256];
 rmt_encoder_handle_t    tx_rmt_encoder;
-rmt_transmit_config_t   tx_cfg = { .loop_count = 0, .flags.eot_level = 1 };
+rmt_transmit_config_t   tx_trans_cfg = { .loop_count = 0, .flags.eot_level = 1 };
 
 rmt_symbol_word_t       rx_symbols[256];
 QueueHandle_t           rx_queue;
@@ -30,9 +48,9 @@ void write_9(uint16_t *payload, size_t len) {
         uint16_t nth9= payload[w];
 
         tx_symbols[sy].duration0 = 1042;
-        tx_symbols[sy].level0 = 0;
+        tx_symbols[sy].level0 = 0;                  // START
         tx_symbols[sy].duration1 = 1042;
-        tx_symbols[sy].level1 = (nth9 >> 0) & 1;
+        tx_symbols[sy].level1 = (nth9 >> 0) & 1;    // D0
         ++sy;
 
         tx_symbols[sy].duration0 = 1042;
@@ -60,7 +78,7 @@ void write_9(uint16_t *payload, size_t len) {
         ++sy;
 
         tx_symbols[sy].duration0 = 521;
-        tx_symbols[sy].level0 = 1;
+        tx_symbols[sy].level0 = 1;                  // STOP
         tx_symbols[sy].duration1 = 521;
         tx_symbols[sy].level1 = 1;
         ++sy;
@@ -72,7 +90,7 @@ void write_9(uint16_t *payload, size_t len) {
     tx_symbols[sy].level1 = 1;
     ++sy;
 
-    rmt_transmit(tx_chan, tx_rmt_encoder, tx_symbols, sy * sizeof(rmt_symbol_word_t), &tx_cfg);
+    rmt_transmit(tx_chan, tx_rmt_encoder, tx_symbols, sy * sizeof(rmt_symbol_word_t), &tx_trans_cfg);
 }
 
 uint16_t read_9(uint8_t *checksum) {
@@ -164,7 +182,7 @@ void mdb_9th_init(void) {
         .clk_src = RMT_CLK_SRC_DEFAULT,
         .gpio_num = PIN_MDB_TX,
         .mem_block_symbols = 64,
-        .resolution_hz = 10000000, // Clock RMT: 10 MHz → 1 tick = 0,1 µs
+        .resolution_hz = 10000000, // 10 MHz (1 tick = 0.1 µs)
         .trans_queue_depth = 4 };
 
     rmt_channel_handle_t rx_chan = NULL;
