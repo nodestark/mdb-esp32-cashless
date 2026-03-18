@@ -22,7 +22,6 @@
 #include <string.h>
 #include <esp_sntp.h>
 #include <time.h>
-#include <rom/ets_sys.h>
 
 #include <esp_adc/adc_oneshot.h>
 #include <esp_adc/adc_cali.h>
@@ -30,6 +29,7 @@
 
 #include "led_strip.h"
 
+#include "mdb_9th.h"
 #include "nimble.h"
 
 #define TAG "mdb_cashless"
@@ -37,8 +37,6 @@
 #define PIN_I2C_SDA             GPIO_NUM_10
 #define PIN_I2C_SCL             GPIO_NUM_11
 #define PIN_PULSE_1             GPIO_NUM_13
-#define PIN_MDB_RX              GPIO_NUM_4
-#define PIN_MDB_TX              GPIO_NUM_5
 #define PIN_MDB_LED             GPIO_NUM_21
 #define PIN_DEX_RX              GPIO_NUM_8
 #define PIN_DEX_TX              GPIO_NUM_9
@@ -146,61 +144,27 @@ esp_mqtt_client_handle_t mqttClient = NULL;
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = NULL;
 
-uint16_t read_9(uint8_t *checksum) {
-
-	uint16_t coming_read = 0;
-
-	// Wait start bit
-	while (gpio_get_level(PIN_MDB_RX))
-		;
-
-	ets_delay_us(104);
-
-	ets_delay_us(52);
-	for(int x = 0; x < 9; x++){
-		coming_read |= (gpio_get_level(PIN_MDB_RX) << x);
-		ets_delay_us(104); // 9600bps
-	}
-
-	if (checksum)
-		*checksum += coming_read;
-
-	return coming_read;
-}
-
-void write_9(uint16_t nth9) {
-
-    gpio_set_level(PIN_MDB_TX, 0);  // Start bit
-    ets_delay_us(104); // 9600bps
-
-	for (uint8_t x = 0; x < 9; x++) {
-
-		gpio_set_level(PIN_MDB_TX, (nth9 >> x) & 1);
-		ets_delay_us(104); // 9600bps
-	}
-
-    gpio_set_level(PIN_MDB_TX, 1);  // Stop bit
-    ets_delay_us(104); // 9600bps
-}
+void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload);
+uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
 
 // Function to transmit the payload via bit-banging (using MDB protocol)
 void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 
 	uint8_t checksum = 0x00;
+    uint16_t payload_chk[length + 1];
 
 	// Calculate checksum
 	for (int x = 0; x < length; x++) {
 
+        payload_chk[x] = mdb_payload[x];
 		checksum += mdb_payload[x];
-		write_9(mdb_payload[x]);
 	}
 
 	// CHK* ACK*
-	write_9(BIT_MODE_SET | checksum);
-}
+	payload_chk[length] = BIT_MODE_SET | checksum;
 
-void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload);
-uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
+	write_9(payload_chk, length + 1);
+}
 
 // Main MDB loop function
 void vTaskMdbEvent(void *pvParameters) {
@@ -1241,6 +1205,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
+        esp_timer_stop(periodic_pax_timer);
         esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
 		break;
@@ -1300,8 +1265,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 		case WIFI_EVENT_STA_DISCONNECTED:
 
             if (mqtt_started) {
-                esp_mqtt_client_disconnect(mqttClient);
-
+                esp_mqtt_client_stop(mqttClient);
                 mqtt_started = false;
             }
 
@@ -1331,14 +1295,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 		}
 }
 
-void request_pax_counter(void *arg) {
-    ble_scan_start(PAX_SCAN_DURATION_SEC);
-}
-
 void app_main(void) {
-
-    gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
-	gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
 
 	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);
@@ -1357,7 +1314,7 @@ void app_main(void) {
 
     led_strip_rmt_config_t rmt_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT,
-        .resolution_hz = 10 * 1000 * 1000, // 10 MHz → good precision
+        .resolution_hz = 10000000, // 10 MHz (1 tick = 0.1 µs)
         .mem_block_symbols = 64,
     };
 
@@ -1393,14 +1350,14 @@ void app_main(void) {
     // ---
     dexRingbuf = xRingbufferCreate(8 * 1024 /*8Kb*/, RINGBUF_TYPE_BYTEBUF);
 
-    const double INTERVAL_12H_US = 12ULL * 60 * 60 * 1000000; // 12h in microseconds
+    const uint64_t INTERVAL_12H_US = 12ULL * 60ULL * 60ULL * 1000000ULL; // 12h in microseconds
 
 	const esp_timer_create_args_t periodic_dex_timer_args = {
-		.callback = &requestTelemetryData,
-		.name = "task_dex_12h"
+		.callback   = &requestTelemetryData,
+		.name       = "task_dex_12h"
 	};
-
     esp_timer_handle_t periodic_dex_timer;
+
 	esp_timer_create(&periodic_dex_timer_args, &periodic_dex_timer);
 	esp_timer_start_periodic(periodic_dex_timer, INTERVAL_12H_US);
 
@@ -1448,13 +1405,13 @@ void app_main(void) {
 	}
 	ble_init(myhost, ble_event_handler, ble_pax_event_handler);
 
-    //
 	const esp_timer_create_args_t periodic_pax_timer_args = {
-		.callback = &request_pax_counter,
-		.name = "task_paxcounter"
+		.callback   = &ble_scan_start,
+        .arg        = (void*) (uintptr_t) PAX_SCAN_DURATION_SEC,
+		.name       = "task_paxcounter"
 	};
 
-	esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
+    esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
@@ -1491,6 +1448,8 @@ void app_main(void) {
 
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//
+    mdb_9th_init();
+
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
 	xTaskCreate(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL);
 
