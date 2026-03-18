@@ -17,6 +17,7 @@ QueueHandle_t mdb_queue;
 rmt_channel_handle_t    tx_chan = NULL;
 rmt_symbol_word_t       tx_symbols[256];
 rmt_encoder_handle_t    tx_rmt_encoder;
+rmt_transmit_config_t   tx_cfg = { .loop_count = 0, .flags.eot_level = 1 };
 
 rmt_symbol_word_t       rx_symbols[256];
 QueueHandle_t           rx_queue;
@@ -71,7 +72,6 @@ void write_9(uint16_t *payload, size_t len) {
     tx_symbols[sy].level1 = 1;
     ++sy;
 
-    rmt_transmit_config_t tx_cfg = { .loop_count = 0, .flags.eot_level = 1 };
     rmt_transmit(tx_chan, tx_rmt_encoder, tx_symbols, sy * sizeof(rmt_symbol_word_t), &tx_cfg);
 }
 
@@ -137,15 +137,16 @@ static void rx_task(void *arg) {
         .signal_range_max_ns = 2000000UL,   // silêncio de 2 ms = fim de frame
     };
 
-    rmt_receive(rx_chan, rx_symbols, sizeof(rx_symbols), &recv_cfg);
+    uint8_t out_bits[1024];
 
     rmt_rx_done_event_data_t event;
+
+    rmt_receive(rx_chan, rx_symbols, sizeof(rx_symbols), &recv_cfg);
     while (true) {
 
         if (xQueueReceive(rx_queue, &event, portMAX_DELAY) != pdTRUE)
             continue;
 
-        uint8_t out_bits[512];
         int tot = symbols_to_bits(event.received_symbols, event.num_symbols, (uint8_t*) &out_bits);
 
         bits_to_mdb((uint8_t*) &out_bits, tot);
