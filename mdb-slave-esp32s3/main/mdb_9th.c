@@ -12,88 +12,67 @@
 
 #define BITS_TIME(d) (d + 512)/1042
 
-#define TAG "mdb_9th_cashless"
-
-rmt_channel_handle_t tx_chan = NULL;
-rmt_symbol_word_t tx_symbols[256];
-rmt_encoder_handle_t tx_rmt_encoder;
-
 QueueHandle_t mdb_queue;
 
-#define RMT_MEM_SYMBOLS     128
+rmt_channel_handle_t    tx_chan = NULL;
+rmt_symbol_word_t       tx_symbols[256];
+rmt_encoder_handle_t    tx_rmt_encoder;
 
-static rmt_symbol_word_t rx_symbols[RMT_MEM_SYMBOLS];
-static QueueHandle_t     rx_queue;
+rmt_symbol_word_t       rx_symbols[256];
+QueueHandle_t           rx_queue;
 
-size_t encode_mdb_symb(uint16_t *mdb, size_t n_mdb, rmt_symbol_word_t *symb) {
+void write_9(uint16_t *payload, size_t len) {
 
-    size_t si = 0;
+    size_t sy= 0;
+    for(int w= 0; w < len; w++){
 
-    int bit_pos = 0;
-    for(int w = 0; w < n_mdb; w++){
+        uint16_t nth9= payload[w];
 
-        uint16_t frame = (mdb[w] << 1) | 0b10000000000;
-        for(int b = 0; b < 11; b++){
+        tx_symbols[sy].duration0 = 1042;
+        tx_symbols[sy].level0 = 0;
+        tx_symbols[sy].duration1 = 1042;
+        tx_symbols[sy].level1 = (nth9 >> 0) & 1;
+        ++sy;
 
-            uint8_t level = (frame >> b) & 1;
+        tx_symbols[sy].duration0 = 1042;
+        tx_symbols[sy].level0 = (nth9 >> 1) & 1;
+        tx_symbols[sy].duration1 = 1042;
+        tx_symbols[sy].level1 = (nth9 >> 2) & 1;
+        ++sy;
 
-            if(bit_pos == 0){
-                symb[si].duration0 = 1042;
-                symb[si].level0 = level;
-                bit_pos = 1;
-            } else {
-                symb[si].duration1 = 1042;
-                symb[si].level1 = level;
-                si++;
-                bit_pos = 0;
-            }
-        }
+        tx_symbols[sy].duration0 = 1042;
+        tx_symbols[sy].level0 = (nth9 >> 3) & 1;
+        tx_symbols[sy].duration1 = 1042;
+        tx_symbols[sy].level1 = (nth9 >> 4) & 1;
+        ++sy;
+
+        tx_symbols[sy].duration0 = 1042;
+        tx_symbols[sy].level0 = (nth9 >> 5) & 1;
+        tx_symbols[sy].duration1 = 1042;
+        tx_symbols[sy].level1 = (nth9 >> 6) & 1;
+        ++sy;
+
+        tx_symbols[sy].duration0 = 1042;
+        tx_symbols[sy].level0 = (nth9 >> 7) & 1;
+        tx_symbols[sy].duration1 = 1042;
+        tx_symbols[sy].level1 = (nth9 >> 8) & 1;
+        ++sy;
+
+        tx_symbols[sy].duration0 = 521;
+        tx_symbols[sy].level0 = 1;
+        tx_symbols[sy].duration1 = 521;
+        tx_symbols[sy].level1 = 1;
+        ++sy;
     }
 
-    if(bit_pos == 1){
-        symb[si].duration1 = 0;
-        symb[si].level1 = 1;
-    }
-
-    return si;
-}
-
-void write_9(uint16_t nth9) {
-
-    tx_symbols[0].duration0 = 1042;
-    tx_symbols[0].level0 = 0;
-    tx_symbols[0].duration1 = 1042;
-    tx_symbols[0].level1 = (nth9 >> 0) & 1;
-
-    tx_symbols[1].duration0 = 1042;
-    tx_symbols[1].level0 = (nth9 >> 1) & 1;
-    tx_symbols[1].duration1 = 1042;
-    tx_symbols[1].level1 = (nth9 >> 2) & 1;
-
-    tx_symbols[2].duration0 = 1042;
-    tx_symbols[2].level0 = (nth9 >> 3) & 1;
-    tx_symbols[2].duration1 = 1042;
-    tx_symbols[2].level1 = (nth9 >> 4) & 1;
-
-    tx_symbols[3].duration0 = 1042;
-    tx_symbols[3].level0 = (nth9 >> 5) & 1;
-    tx_symbols[3].duration1 = 1042;
-    tx_symbols[3].level1 = (nth9 >> 6) & 1;
-
-    tx_symbols[4].duration0 = 1042;
-    tx_symbols[4].level0 = (nth9 >> 7) & 1;
-    tx_symbols[4].duration1 = 1042;
-    tx_symbols[4].level1 = (nth9 >> 8) & 1;
-
-    tx_symbols[5].duration0 = 1042;
-    tx_symbols[5].level0 = 1;
-    tx_symbols[5].duration1 = 0;
-    tx_symbols[5].level1 = 1;
-
-//    size_t n_sym = encode_mdb_symb(&nth9, 1, tx_symbols);
+    tx_symbols[sy].duration0 = 0;
+    tx_symbols[sy].level0 = 1;
+    tx_symbols[sy].duration1 = 0;
+    tx_symbols[sy].level1 = 1;
+    ++sy;
 
     rmt_transmit_config_t tx_cfg = { .loop_count = 0, .flags.eot_level = 1 };
-    rmt_transmit(tx_chan, tx_rmt_encoder, tx_symbols, 6 * sizeof(rmt_symbol_word_t), &tx_cfg);
+    rmt_transmit(tx_chan, tx_rmt_encoder, tx_symbols, sy * sizeof(rmt_symbol_word_t), &tx_cfg);
 }
 
 uint16_t read_9(uint8_t *checksum) {
@@ -183,7 +162,7 @@ void mdb_9th_init(void) {
     rmt_rx_channel_config_t rx_chan_config = {
         .clk_src           = RMT_CLK_SRC_DEFAULT,
         .gpio_num          = PIN_MDB_RX,
-        .mem_block_symbols = RMT_MEM_SYMBOLS,
+        .mem_block_symbols = 64,
         .resolution_hz     = 10000000, // 10 MHz (1 tick = 0.1 µs)
     };
     rmt_channel_handle_t rx_chan = NULL;
