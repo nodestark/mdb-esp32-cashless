@@ -15,6 +15,7 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/ringbuf.h>
+#include <freertos/stream_buffer.h>
 #include <math.h>
 #include <mqtt_client.h>
 #include <nvs_flash.h>
@@ -22,6 +23,7 @@
 #include <string.h>
 #include <esp_sntp.h>
 #include <time.h>
+#include <rom/ets_sys.h>
 
 #include <esp_adc/adc_oneshot.h>
 #include <esp_adc/adc_cali.h>
@@ -29,7 +31,6 @@
 
 #include "led_strip.h"
 
-#include "mdb_9th.h"
 #include "nimble.h"
 
 #define TAG "mdb_cashless"
@@ -37,6 +38,8 @@
 #define PIN_I2C_SDA             GPIO_NUM_10
 #define PIN_I2C_SCL             GPIO_NUM_11
 #define PIN_PULSE_1             GPIO_NUM_13
+#define PIN_MDB_RX              GPIO_NUM_4
+#define PIN_MDB_TX              GPIO_NUM_5
 #define PIN_MDB_LED             GPIO_NUM_21
 #define PIN_DEX_RX              GPIO_NUM_8
 #define PIN_DEX_TX              GPIO_NUM_9
@@ -147,23 +150,53 @@ static QueueHandle_t mdbSessionQueue = NULL;
 void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload);
 uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
 
+uint16_t read_9(uint8_t *checksum) {
+
+	uint16_t coming_read = 0;
+
+	// Wait start bit
+	while (gpio_get_level(PIN_MDB_RX))
+		;
+
+	ets_delay_us(156);
+	for(int x = 0; x < 9; x++){
+		coming_read |= (gpio_get_level(PIN_MDB_RX) << x);
+		ets_delay_us(104); // 9600bps
+	}
+
+	if (checksum)
+		*checksum += coming_read;
+
+	return coming_read;
+}
+
+void write_9(uint16_t nth9) {
+
+    gpio_set_level(PIN_MDB_TX, 0);  // Start bit
+    ets_delay_us(104);              // 9600bps
+
+	for (uint8_t x = 0; x < 9; x++) {
+		gpio_set_level(PIN_MDB_TX, (nth9 >> x) & 1);
+		ets_delay_us(104);          // 9600bps
+	}
+
+    gpio_set_level(PIN_MDB_TX, 1);  // Stop bit
+    ets_delay_us(104);              // 9600bps
+}
+
 // Function to transmit the payload via bit-banging (using MDB protocol)
 void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 
 	uint8_t checksum = 0x00;
-    uint16_t payload_chk[length + 1];
 
 	// Calculate checksum
 	for (int x = 0; x < length; x++) {
-
-        payload_chk[x] = mdb_payload[x];
 		checksum += mdb_payload[x];
+		write_9(mdb_payload[x]);
 	}
 
 	// CHK* ACK*
-	payload_chk[length] = BIT_MODE_SET | checksum;
-
-	write_9(payload_chk, length + 1);
+	write_9(BIT_MODE_SET | checksum);
 }
 
 // Main MDB loop function
@@ -1229,9 +1262,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	    ESP_LOGI( TAG, "DATA_LEN= %d", event->data_len);
 	    ESP_LOGI( TAG, "DATA= %.*s", event->data_len, event->data);
 
-		size_t topic_len = strlen(event->topic);
-
-		if (topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
+		if (event->topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
 
 			uint16_t fundsAvailable;
 			if(xorDecodeWithPasskey(&fundsAvailable, NULL, (uint8_t*) event->data)){
@@ -1296,6 +1327,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 }
 
 void app_main(void) {
+
+    gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
+    gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
+	//
 
 	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);
@@ -1448,8 +1483,6 @@ void app_main(void) {
 
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//
-    mdb_9th_init();
-
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
 	xTaskCreate(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL);
 
