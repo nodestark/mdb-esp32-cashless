@@ -21,6 +21,7 @@
     <thead class="bg-gray-100 text-left">
       <tr>
         <th class="p-3">Name</th>
+        <th class="p-3">Model</th>
         <th class="p-3">Embedded</th>
         <th class="p-3">Status</th>
         <th class="p-3">Actions</th>
@@ -37,6 +38,10 @@
 
         <td class="p-3">
           {{ machine.name }}
+        </td>
+
+        <td class="p-3">
+          {{ machine.machine_models.name }}
         </td>
 
         <td class="p-3">
@@ -66,16 +71,21 @@
 
           <button
             @click="openLinkModal(machine)"
-            class="px-3 py-1 bg-blue-600 text-white rounded"
-          >
+            class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40" >
+
             Link Embedded
           </button>
           <button
             :disabled="!machine.embedded"
             @click="openCreditModal(machine)"
-            class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40"
-          >
+            class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40" >
+
             Send Credit
+          </button>
+
+          <button @click="openModelDialog(machine)"
+                  class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40" >
+            Link Model
           </button>
         </td>
 
@@ -179,6 +189,48 @@
 
 </div>
 
+  <div
+  v-if="showModelDialog"
+  class="fixed inset-0 bg-black/40 flex items-center justify-center"
+>
+  <div class="bg-white p-6 rounded-xl w-96">
+
+    <h2 class="text-lg font-semibold mb-4">
+      Link Model
+    </h2>
+
+    <select
+      v-model="selectedModelId"
+      class="w-full border rounded p-2 mb-4"
+    >
+      <option disabled value="">Selecione um modelo</option>
+      <option
+        v-for="model in machineModels"
+        :key="model.id"
+        :value="model.id"
+      >
+        {{ model.name }}
+      </option>
+    </select>
+
+    <div class="flex justify-end gap-2">
+      <button
+        @click="showModelDialog = false"
+        class="px-3 py-1 border rounded"
+      >
+        Cancel
+      </button>
+
+      <button
+        @click="linkModel"
+        class="px-3 py-1 bg-green-600 text-white rounded"
+      >
+        Link
+      </button>
+    </div>
+
+  </div>
+</div>
 <!-- SEND CREDIT MODAL -->
 
 <div
@@ -248,8 +300,11 @@ export default {
       selectedMachine: null,
       selectedEmbedded: null,
 
-      creditAmount: null
+      creditAmount: null,
 
+      showModelDialog: false,
+      selectedModelId: null,
+      machineModels: []
     }
   },
 
@@ -259,18 +314,52 @@ export default {
 
   methods: {
 
+    async openModelDialog(machine) {
+      this.selectedMachine = machine;
+      this.selectedModelId = machine.model_id || null;
+
+      if (!this.machineModels.length) {
+        await this.fetchModels();
+      }
+
+      this.showModelDialog = true;
+    },
+    async fetchModels() {
+      const { data, error } = await supabase
+        .from("machine_models")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error(error);
+        alert("Erro ao carregar modelos");
+        return;
+      }
+
+      this.machineModels = data;
+    },
+    async linkModel() {
+      if (!this.selectedMachine || !this.selectedModelId) return;
+
+      const { error } = await supabase
+        .from("machines")
+        .update({ model_id: this.selectedModelId })
+        .eq("id", this.selectedMachine.id);
+
+      if (error) {
+        console.error(error);
+        alert("Erro ao vincular modelo");
+        return;
+      }
+
+      this.selectedMachine.model_id = this.selectedModelId;
+      this.showModelDialog = false;
+    },
     async loadMachines() {
 
       const { data, error } = await supabase
         .from("machines")
-        .select(`
-          *,
-          embedded (
-            id,
-            subdomain,
-            status
-          )
-        `)
+        .select(`*,machine_models(name),embedded(id,subdomain,status)`)
 
       if (error) {
         console.error(error)
