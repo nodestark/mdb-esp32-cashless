@@ -15,7 +15,6 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/ringbuf.h>
-#include <freertos/stream_buffer.h>
 #include <math.h>
 #include <mqtt_client.h>
 #include <nvs_flash.h>
@@ -24,10 +23,6 @@
 #include <esp_sntp.h>
 #include <time.h>
 #include <rom/ets_sys.h>
-
-#include <esp_adc/adc_oneshot.h>
-#include <esp_adc/adc_cali.h>
-#include <esp_adc/adc_cali_scheme.h>
 
 #include "led_strip.h"
 
@@ -1354,20 +1349,6 @@ void app_main(void) {
     };
 
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
-
-	//--------------- ADC Init (NTC thermistor) ----------------//
-	//----------------------------------------------------------//
-    adc_oneshot_unit_handle_t adc_handle;
-    adc_oneshot_unit_init_cfg_t init_config = { .unit_id = ADC_UNIT_THERMISTOR, };
-    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc_handle));
-
-    adc_oneshot_chan_cfg_t config = { .atten = ADC_ATTEN_DB_12, .bitwidth = ADC_BITWIDTH_DEFAULT, };
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, ADC_CHANNEL_THERMISTOR, &config));
-
-    int adc_raw_value;
-
-    ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL_THERMISTOR, &adc_raw_value));
-    ESP_LOGI(TAG, "ADC Raw Data: %d", adc_raw_value);
 
 	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
 	//----------------------------------------------------------//
