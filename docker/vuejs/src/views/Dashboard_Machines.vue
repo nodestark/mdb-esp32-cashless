@@ -41,19 +41,21 @@
         </td>
 
         <td class="p-3">
-          {{ machine.machine_models.name }}
+          <span v-if="machine.machine_models">
+            {{ machine.machine_models.name }}
+          </span>
+          <span v-else class="text-gray-400">
+            No model
+          </span>
         </td>
 
         <td class="p-3">
-
           <span v-if="machine.embedded">
             {{ machine.embedded.subdomain }}
           </span>
-
           <span v-else class="text-gray-400">
             Not linked
           </span>
-
         </td>
 
         <td class="p-3">
