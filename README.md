@@ -1,7 +1,18 @@
+<div align="center">
+
 [![PCBWay Award](https://img.shields.io/badge/%F0%9F%8F%86%20PCBWay-Popular%20Prize%202026-orange?style=for-the-badge)](pcbway-award-2026.jpg)
 [![VMFlow Dashboard](https://img.shields.io/badge/VMFlow-Web%20Dashboard-0f172a?style=for-the-badge&logo=grafana&logoColor=white)](https://vmflow.xyz/dashboard)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.x-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://docs.espressif.com/projects/esp-idf/)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white)](https://vuejs.org)
+[![Supabase](https://img.shields.io/badge/Supabase-Self--Hosted-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
 
-# MDB Protocol Implementation for Cashless Vending Machine with ESP32
+# VMflow — Open-Source Vending Machine IoT Platform
+
+**Turn any vending machine into a connected, cashless, remotely managed device.**
+</div>
+
+---
 
 The project aims to provide a modern, open, and extensible platform for vending machine connectivity. Based on the ESP32 platform, it enables machines to communicate via Bluetooth and cloud services, receive remote credits, report telemetry, and integrate with mobile applications and web dashboards.
 
