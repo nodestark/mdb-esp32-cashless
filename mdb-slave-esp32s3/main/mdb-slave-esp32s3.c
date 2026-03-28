@@ -5,27 +5,24 @@
  *
  */
 
-#include <esp_log.h>
-
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/ringbuf.h>
 #include <sdkconfig.h>
 #include <driver/gpio.h>
 #include <driver/uart.h>
-#include <esp_wifi.h>
+#include <esp_log.h>
 #include <esp_random.h>
+#include <esp_sntp.h>
 #include <esp_timer.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/ringbuf.h>
-#include <math.h>
+#include <esp_wifi.h>
 #include <mqtt_client.h>
 #include <nvs_flash.h>
-#include <stdio.h>
-#include <string.h>
-#include <esp_sntp.h>
-#include <time.h>
 #include <rom/ets_sys.h>
-
-#include "led_strip.h"
-
+#include <led_strip.h>
 #include "nimble.h"
 
 #define TAG "mdb_cashless"
@@ -133,6 +130,8 @@ bool vend_approved_todo = false;
 bool vend_denied_todo = false;
 bool cashless_reset_todo = false;
 bool out_of_sequence_todo = false;
+
+static uint8_t vmc_feature_level = 1; // VMC feature level from SETUP (default Level 1)
 
 RingbufHandle_t dexRingbuf;
 
@@ -254,23 +253,23 @@ void mdb_main_loop() {
 						uint8_t vmcRowsOnDisplay = read_9(&checksum);
 						uint8_t vmcDisplayInfo = read_9(&checksum);
 
+                        if (read_9(NULL) != checksum) continue;
+
 						(void) vmcDisplayInfo;
 						(void) vmcRowsOnDisplay;
 						(void) vmcColumnsOnDisplay;
-						(void) vmcFeatureLevel;
-
-                        if (read_9(NULL) != checksum) continue;
+                        vmc_feature_level = vmcFeatureLevel;
 
 						machine_state = DISABLED_STATE;
 
-                        mdb_payload[0] = 0x01;                                  // Reader Config Data
-                        mdb_payload[1] = 1;                                     // Reader Feature Level
-						mdb_payload[2] = CONFIG_MDB_CURRENCY_CODE >> 8;         // Country Code High
-						mdb_payload[3] = CONFIG_MDB_CURRENCY_CODE & 0xff;       // Country Code Low
-						mdb_payload[4] = CONFIG_MDB_SCALE_FACTOR;               // Scale Factor
-						mdb_payload[5] = CONFIG_MDB_DECIMAL_PLACES;             // Decimal Places
-						mdb_payload[6] = 3;                                     // Maximum Response Time (5s)
-						mdb_payload[7] = 0b00001001;                            // Miscellaneous Options
+                        mdb_payload[0] = 0x01;                                              // Reader Config Data
+                        mdb_payload[1] = vmc_feature_level <= 3 ? vmc_feature_level : 3;     // Report up to Level 3
+						mdb_payload[2] = CONFIG_MDB_CURRENCY_CODE >> 8;                     // Country Code High
+						mdb_payload[3] = CONFIG_MDB_CURRENCY_CODE & 0xff;                   // Country Code Low
+						mdb_payload[4] = CONFIG_MDB_SCALE_FACTOR;                           // Scale Factor
+						mdb_payload[5] = CONFIG_MDB_DECIMAL_PLACES;                         // Decimal Places
+						mdb_payload[6] = 3;                                                 // Maximum Response Time (5s)
+						mdb_payload[7] = 0b00001001;                                        // Miscellaneous Options
 						available_tx = 8;
 
 						// idf.py menuconfig -> "MDB Cashless Device"
@@ -280,11 +279,34 @@ void mdb_main_loop() {
 					}
 					case MAX_MIN_PRICES: {
 
-						uint16_t maxPrice = (read_9(&checksum) << 8) | read_9(&checksum);
-						uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+                        if (vmc_feature_level == 3) {
 
-						(void) maxPrice;
-						(void) minPrice;
+                            uint16_t maxPrice =
+                                (read_9(&checksum) << 24) |
+						        (read_9(&checksum) << 16) |
+						        (read_9(&checksum) << 8) |
+						        (read_9(&checksum) << 0);
+
+                            uint16_t minPrice =
+                                (read_9(&checksum) << 24) |
+						        (read_9(&checksum) << 16) |
+						        (read_9(&checksum) << 8) |
+						        (read_9(&checksum) << 0);
+
+                            uint16_t currencyCode = (read_9(&checksum) << 8) | read_9(&checksum);
+
+                            (void) maxPrice;
+                            (void) minPrice;
+                            (void) currencyCode;
+
+                        } else {
+
+                            uint16_t maxPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+                            uint16_t minPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+
+                            (void) maxPrice;
+                            (void) minPrice;
+                        }
 
                         if (read_9(NULL) != checksum) continue;
 
@@ -311,10 +333,49 @@ void mdb_main_loop() {
 
 						machine_state = IDLE_STATE;
 
-						mdb_payload[0] = 0x03;
-                        mdb_payload[1] = fundsAvailable >> 8;
-                        mdb_payload[2] = fundsAvailable;
-                        available_tx = 3;
+                        if (vmc_feature_level == 3) {
+
+                            mdb_payload[0] = 0x03;
+                            mdb_payload[1] = fundsAvailable >> 24;  // Funds available
+                            mdb_payload[2] = fundsAvailable >> 16;
+                            mdb_payload[3] = fundsAvailable >> 8;
+                            mdb_payload[4] = fundsAvailable >> 0;
+							mdb_payload[5] = 0xFF;                  // Payment media ID
+							mdb_payload[6] = 0xFF;
+							mdb_payload[7] = 0xFF;
+							mdb_payload[8] = 0xFF;
+							mdb_payload[9] = 0x00;                  // Payment type
+							mdb_payload[10] = fundsAvailable >> 8;   // Payment data
+							mdb_payload[11] = fundsAvailable;
+							mdb_payload[12] = 0xff;                  // User language
+							mdb_payload[13] = 0xff;
+							mdb_payload[14] = 0xff;                  // User currency code
+							mdb_payload[15] = 0xff;
+							mdb_payload[16] = 0b00000000;           // Card options
+
+							available_tx = 17;
+
+						} else if (vmc_feature_level == 2) {
+
+                            mdb_payload[0] = 0x03;
+                            mdb_payload[1] = fundsAvailable >> 8;
+                            mdb_payload[2] = fundsAvailable;
+							mdb_payload[3] = 0xFF; // Media ID byte 0 (no specific card)
+							mdb_payload[4] = 0xFF; // Media ID byte 1
+							mdb_payload[5] = 0xFF; // Media ID byte 2
+							mdb_payload[6] = 0xFF; // Media ID byte 3
+							mdb_payload[7] = 0x00; // Payment Type: normal vend
+							mdb_payload[8] = fundsAvailable >> 8; // Payment Data = funds
+							mdb_payload[9] = fundsAvailable;
+							available_tx = 10;
+
+						} else {
+
+						    mdb_payload[0] = 0x03;
+                            mdb_payload[1] = fundsAvailable >> 8;
+                            mdb_payload[2] = fundsAvailable;
+                            available_tx = 3;
+						}
 
 						time( &session_begin_time);
 
@@ -329,10 +390,22 @@ void mdb_main_loop() {
 						// Vend approved
 						vend_approved_todo = false;
 
-						mdb_payload[0] = 0x05;
-						mdb_payload[1] = itemPrice >> 8;
-						mdb_payload[2] = itemPrice;
-						available_tx = 3;
+                        if(vmc_feature_level == 3){
+
+                            mdb_payload[0] = 0x05;
+                            mdb_payload[1] = itemPrice >> 8;
+                            mdb_payload[2] = itemPrice;
+                            available_tx = 3;
+
+                        } else {
+
+                            mdb_payload[0] = 0x05;
+                            mdb_payload[1] = itemPrice >> 24;
+                            mdb_payload[2] = itemPrice >> 16;
+                            mdb_payload[3] = itemPrice >> 8;
+                            mdb_payload[4] = itemPrice >> 0;
+                            available_tx = 5;
+                        }
 
 					} else if (vend_denied_todo) {
 						// Vend denied
@@ -372,8 +445,22 @@ void mdb_main_loop() {
 					switch (read_9(&checksum)) {
 					case VEND_REQUEST: {
 
-						itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
-						itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+                        if(vmc_feature_level == 3){
+
+						    itemPrice =
+						        (read_9(&checksum) << 24) |
+						        (read_9(&checksum) << 16) |
+						        (read_9(&checksum) << 8) |
+						        (read_9(&checksum) << 0);
+
+    						itemNumber =
+						        (read_9(&checksum) << 8) |
+						        (read_9(&checksum) << 0);
+
+                        } else {
+                            itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+                            itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+                        }
 
                         if (read_9(NULL) != checksum) continue;
 
@@ -448,8 +535,23 @@ void mdb_main_loop() {
 					}
 					case CASH_SALE: {
 
-						uint16_t itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
-						uint16_t itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+                        if(vmc_feature_level == 3){
+
+                            itemPrice =
+                                (read_9(&checksum) << 24) |
+                                (read_9(&checksum) << 16) |
+                                (read_9(&checksum) << 8) |
+                                (read_9(&checksum) << 0);
+
+	    					itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+
+	    					uint16_t itemCurrency = (read_9(&checksum) << 8) | read_9(&checksum);
+                            (void) itemCurrency;
+					    } else {
+
+                            itemPrice = (read_9(&checksum) << 8) | read_9(&checksum);
+                            itemNumber = (read_9(&checksum) << 8) | read_9(&checksum);
+					    }
 
 						if (read_9(NULL) != checksum) continue;
 
@@ -518,14 +620,34 @@ void mdb_main_loop() {
 
 				        if (read_9(NULL) != checksum) continue;
 
-                        mdb_payload[ 0 ] = 0x09;                        // Peripheral ID
+                        if(vmc_feature_level == 3) {
 
-                        memcpy( &mdb_payload[1], "VMF", 3);             // Manufacture code
-                        memcpy( &mdb_payload[4], "            ", 12);   // Serial number
-                        memcpy( &mdb_payload[16], "            ", 12);  // Model number
-                        memcpy( &mdb_payload[28], "03", 2);             // Software version
+                            mdb_payload[ 0 ] = 0x09;                        // Peripheral ID
 
-                        available_tx = 30;
+                            memcpy( &mdb_payload[1], "VMF", 3);             // Manufacture code
+                            memcpy( &mdb_payload[4], "            ", 12);   // Serial number
+                            memcpy( &mdb_payload[16], "            ", 12);  // Model number
+                            mdb_payload[28] = 0x00;                         // Software version v3
+                            mdb_payload[29] = 0x03;
+
+                            mdb_payload[30] = 0x00;                         // Optional feature bits
+                            mdb_payload[31] = 0x00;
+                            mdb_payload[32] = 0x00;
+                            mdb_payload[33] = 0x00;
+
+                            available_tx = 34;
+
+                        } else {
+                            mdb_payload[ 0 ] = 0x09;                        // Peripheral ID
+
+                            memcpy( &mdb_payload[1], "VMF", 3);             // Manufacture code
+                            memcpy( &mdb_payload[4], "            ", 12);   // Serial number
+                            memcpy( &mdb_payload[16], "            ", 12);  // Model number
+                            mdb_payload[28] = 0x00;                         // Software version v3
+                            mdb_payload[29] = 0x03;
+
+                            available_tx = 30;
+                        }
 
                         ESP_LOGI( TAG, "REQUEST_ID");
 						break;
