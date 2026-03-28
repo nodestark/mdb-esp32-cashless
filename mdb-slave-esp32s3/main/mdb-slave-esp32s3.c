@@ -523,7 +523,8 @@ void mdb_main_loop() {
                         memcpy( &mdb_payload[1], "VMF", 3);             // Manufacture code
                         memcpy( &mdb_payload[4], "            ", 12);   // Serial number
                         memcpy( &mdb_payload[16], "            ", 12);  // Model number
-                        memcpy( &mdb_payload[28], "03", 2);             // Software version
+                        mdb_payload[28] = 0x00;                         // Software version v3
+                        mdb_payload[29] = 0x03;
 
                         available_tx = 30;
 
