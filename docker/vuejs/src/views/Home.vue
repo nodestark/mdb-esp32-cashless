@@ -69,7 +69,7 @@
         />
 
         <img
-          src="/images/mdb-slave-esp32s3_pcb_v2.jpg"
+          src="/images/mdb-slave-esp32s3_pcb_v4.jpg"
           class="w-[140px] h-[140px] rounded-full object-cover shadow"
         />
 
