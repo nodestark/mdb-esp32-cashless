@@ -194,8 +194,7 @@ void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(BIT_MODE_SET | checksum);
 }
 
-// Main MDB loop function
-void vTaskMdbEvent(void *pvParameters) {
+void mdb_main_loop() {
 
 	time_t session_begin_time = 0;
 
@@ -1347,8 +1346,10 @@ void app_main(void) {
         .resolution_hz = 10000000, // 10 MHz (1 tick = 0.1 µs)
         .mem_block_symbols = 64,
     };
-
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+
+    xTaskCreate(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL);
+    xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
 	//----------------------------------------------------------//
@@ -1385,7 +1386,6 @@ void app_main(void) {
 	esp_event_loop_create_default();
 
 	esp_netif_create_default_wifi_sta();
-    esp_netif_create_default_wifi_ap();
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	esp_wifi_init(&cfg);
@@ -1393,7 +1393,7 @@ void app_main(void) {
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
 	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
 
-	esp_wifi_set_mode(WIFI_MODE_APSTA);
+	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_start();
 
 	//------------------------ BLUETOOTH -----------------------//
@@ -1426,7 +1426,6 @@ void app_main(void) {
         .arg        = (void*) (uintptr_t) PAX_SCAN_DURATION_SEC,
 		.name       = "task_paxcounter"
 	};
-
     esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
 
     //-------------------------- MQTT --------------------------//
@@ -1465,8 +1464,5 @@ void app_main(void) {
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
-	xTaskCreate(vTaskMdbEvent, "TaskMdbEvent", 4096, NULL, 1, NULL);
-
-    xTaskCreate(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL);
-    xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+    mdb_main_loop();
 }
