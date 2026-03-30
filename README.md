@@ -18,7 +18,7 @@ https://install.vmflow.xyz
 
 The project aims to provide a modern, open, and extensible platform for vending machine connectivity. Based on the ESP32 platform, it enables machines to communicate via Bluetooth and cloud services, receive remote credits, report telemetry, and integrate with mobile applications and web dashboards.
 
-![MDB Cashless](1411051686640.jpg)
+![MDB Cashless](1411051686640.png)
 
 # Features
 - Implementation of the MDB protocol for communication with vending machines, offering telemetry and cashless payment
