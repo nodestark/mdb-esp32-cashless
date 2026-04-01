@@ -7911,7 +7911,7 @@
 	(text_box "PULSE"
 		(exclude_from_sim no)
 		(at 494.03 262.89 0)
-		(size 54.61 71.12)
+		(size 54.61 60.96)
 		(margins 0.9525 0.9525 0.9525 0.9525)
 		(stroke
 			(width 0)
@@ -8049,12 +8049,6 @@
 		(uuid "3b8fe3b8-264b-4cc1-89ec-e599c78afbb9")
 	)
 	(junction
-		(at 519.43 307.34)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "3d642f38-af93-417f-9321-90c5d541d51a")
-	)
-	(junction
 		(at 203.2 60.96)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8071,6 +8065,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "5396e794-9906-435c-b34e-dfece1c2fb85")
+	)
+	(junction
+		(at 521.97 311.15)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "546eb2b0-1921-446d-9d05-dcd1c34bfe79")
 	)
 	(junction
 		(at 81.28 133.35)
@@ -8167,12 +8167,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "b7ef8db0-3ccb-454d-bcb9-3202c30bf993")
-	)
-	(junction
-		(at 521.97 293.37)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "bbd0443d-c2ed-40e6-8e90-20f49c480fa9")
 	)
 	(junction
 		(at 63.5 123.19)
@@ -8672,16 +8666,6 @@
 	)
 	(wire
 		(pts
-			(xy 505.46 307.34) (xy 508 307.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "172d60aa-1a84-415a-97c2-cd031a829706")
-	)
-	(wire
-		(pts
 			(xy 425.45 163.83) (xy 425.45 160.02)
 		)
 		(stroke
@@ -8742,6 +8726,16 @@
 	)
 	(wire
 		(pts
+			(xy 518.16 311.15) (xy 521.97 311.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1e81fdd5-b9db-40d5-a60e-49c7efa904ca")
+	)
+	(wire
+		(pts
 			(xy 80.01 147.32) (xy 81.28 147.32)
 		)
 		(stroke
@@ -8762,26 +8756,6 @@
 	)
 	(wire
 		(pts
-			(xy 538.48 307.34) (xy 533.4 307.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "260bff87-abd0-4ad0-8446-5c3863d5198f")
-	)
-	(wire
-		(pts
-			(xy 534.67 293.37) (xy 535.94 293.37)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "264516a6-debc-45bf-b329-e3db90ba157c")
-	)
-	(wire
-		(pts
 			(xy 196.85 60.96) (xy 196.85 58.42)
 		)
 		(stroke
@@ -8789,16 +8763,6 @@
 			(type default)
 		)
 		(uuid "278eebe2-842f-471d-85a8-94487b77235c")
-	)
-	(wire
-		(pts
-			(xy 527.05 293.37) (xy 521.97 293.37)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "289a05d5-cf89-4670-83bb-4de2bcb106c8")
 	)
 	(wire
 		(pts
@@ -8892,6 +8856,16 @@
 	)
 	(wire
 		(pts
+			(xy 538.48 311.15) (xy 530.86 311.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "343ff48d-f54f-4bdd-90b9-970318944b78")
+	)
+	(wire
+		(pts
 			(xy 80.01 130.81) (xy 81.28 130.81)
 		)
 		(stroke
@@ -8922,7 +8896,7 @@
 	)
 	(wire
 		(pts
-			(xy 513.08 284.48) (xy 516.89 284.48)
+			(xy 505.46 284.48) (xy 516.89 284.48)
 		)
 		(stroke
 			(width 0)
@@ -9229,16 +9203,6 @@
 			(type default)
 		)
 		(uuid "558d9e53-f02d-412e-acc9-a392531afdb1")
-	)
-	(wire
-		(pts
-			(xy 528.32 323.85) (xy 528.32 325.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "568f0bf5-8f8a-4f05-b84c-c16944326909")
 	)
 	(wire
 		(pts
@@ -9732,16 +9696,6 @@
 	)
 	(wire
 		(pts
-			(xy 519.43 307.34) (xy 523.24 307.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8ee9252e-8584-4b2b-869c-8a92473707d2")
-	)
-	(wire
-		(pts
 			(xy 71.12 130.81) (xy 71.12 144.78)
 		)
 		(stroke
@@ -9829,16 +9783,6 @@
 			(type default)
 		)
 		(uuid "96a39a38-b033-4b19-af65-dc5c29b5fdbd")
-	)
-	(wire
-		(pts
-			(xy 515.62 307.34) (xy 519.43 307.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9789f3aa-bdbe-42b9-8dad-ea8f48a2a9d9")
 	)
 	(wire
 		(pts
@@ -10039,6 +9983,16 @@
 			(type default)
 		)
 		(uuid "a4a9bd98-42a1-4e63-8870-7d387972f078")
+	)
+	(wire
+		(pts
+			(xy 504.19 311.15) (xy 510.54 311.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a4c220d0-f3ae-495e-a789-b8d6d0ad19f9")
 	)
 	(wire
 		(pts
@@ -10322,16 +10276,6 @@
 	)
 	(wire
 		(pts
-			(xy 528.32 316.23) (xy 528.32 314.96)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c0f49bb0-7d43-4568-a32b-e9ff1d65b4c8")
-	)
-	(wire
-		(pts
 			(xy 165.1 171.45) (xy 167.64 171.45)
 		)
 		(stroke
@@ -10469,6 +10413,16 @@
 			(type default)
 		)
 		(uuid "d0a9134b-d8e2-4e15-95ab-e9d4f4a1d753")
+	)
+	(wire
+		(pts
+			(xy 521.97 318.77) (xy 521.97 311.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d14d7f27-27d7-4271-9645-29eaa5c769ea")
 	)
 	(wire
 		(pts
@@ -10822,16 +10776,6 @@
 	)
 	(wire
 		(pts
-			(xy 519.43 304.8) (xy 519.43 307.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ee26c6dd-fa15-45b9-83aa-7d454aba3a82")
-	)
-	(wire
-		(pts
 			(xy 292.1 144.78) (xy 292.1 147.32)
 		)
 		(stroke
@@ -10859,6 +10803,16 @@
 			(type default)
 		)
 		(uuid "f0f3b629-9b14-4421-ad38-8d22e1fe88c1")
+	)
+	(wire
+		(pts
+			(xy 521.97 311.15) (xy 523.24 311.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f2926e05-793a-44e7-89e5-d5b70fbaff20")
 	)
 	(wire
 		(pts
@@ -11030,16 +10984,6 @@
 		)
 		(uuid "00827b7d-29b9-4d1c-9d27-7c1fe1d6440c")
 	)
-	(label "io6"
-		(at 519.43 304.8 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "018305aa-9a3c-4c18-a354-fa859d91be9f")
-	)
 	(label "io7"
 		(at 212.09 148.59 0)
 		(effects
@@ -11149,16 +11093,6 @@
 			(justify right bottom)
 		)
 		(uuid "20ca2781-2d90-481e-96ae-d8e0afb7f221")
-	)
-	(label "pulse"
-		(at 538.48 307.34 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "23838e91-c8e7-47dd-994c-ac7eb846f161")
 	)
 	(label "boot"
 		(at 167.64 129.54 0)
@@ -11309,6 +11243,16 @@
 			(justify left bottom)
 		)
 		(uuid "5288d284-b806-411a-98c9-45bc52402947")
+	)
+	(label "pulse"
+		(at 538.48 311.15 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5f86c4a9-3556-41bb-99d0-d92d08dc91dc")
 	)
 	(label "io1"
 		(at 167.64 133.35 0)
@@ -11501,7 +11445,7 @@
 		(uuid "908e1925-629c-4ce7-8f49-353af28757f2")
 	)
 	(label "pulse"
-		(at 513.08 284.48 180)
+		(at 505.46 284.48 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -11539,6 +11483,16 @@
 			(justify left bottom)
 		)
 		(uuid "9b09c6de-d893-430a-9778-ba0c546292d7")
+	)
+	(label "io6"
+		(at 521.97 318.77 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a6d34951-4573-4f94-9b82-7245b4d11ac0")
 	)
 	(label "io11"
 		(at 167.64 158.75 0)
@@ -16445,151 +16399,6 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 528.32 320.04 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "5ad6d4dd-646b-4b87-85b1-71ae54007838")
-		(property "Reference" "R30"
-			(at 530.86 318.7699 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "10k"
-			(at 530.86 321.3099 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 526.542 320.04 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 528.32 320.04 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 528.32 320.04 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "LCSC#" "C98220"
-			(at 528.32 320.04 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "3a7a711f-236a-43bc-84d0-a6436698cebf")
-		)
-		(pin "2"
-			(uuid "4fa623b5-e804-4915-bcf0-218601f41d0b")
-		)
-		(instances
-			(project "mdb-slave-esp32s3-sim7080g"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "R30")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 505.46 307.34 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "5e51d847-62ba-470e-9290-63cc8e215397")
-		(property "Reference" "#PWR050"
-			(at 509.27 307.34 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 500.888 305.054 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 505.46 307.34 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 505.46 307.34 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 505.46 307.34 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "b267b864-35b6-41d6-9f10-25c7df4f86bc")
-		)
-		(instances
-			(project "mdb-slave-esp32s3-sim7080g"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "#PWR050")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:R")
 		(at 182.88 130.81 90)
 		(unit 1)
 		(exclude_from_sim no)
@@ -16938,116 +16747,6 @@
 			(project ""
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "BZ1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Transistor_BJT:MMBT3904")
-		(at 528.32 309.88 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "68c0d550-c051-449b-a296-56a6834fd7ff")
-		(property "Reference" "Q9"
-			(at 528.32 300.99 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "MMBT3904"
-			(at 528.32 303.53 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
-			(at 530.225 304.8 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-					(italic yes)
-				)
-				(justify left)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "https://www.onsemi.com/pdf/datasheet/pzt3904-d.pdf"
-			(at 528.32 309.88 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-				(hide yes)
-			)
-		)
-		(property "Description" "0.2A Ic, 40V Vce, Small Signal NPN Transistor, SOT-23"
-			(at 528.32 309.88 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "LCSC#" "C916374"
-			(at 528.32 309.88 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Sim.Device" ""
-			(at 528.32 309.88 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Sim.Pins" ""
-			(at 528.32 309.88 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Sim.Type" ""
-			(at 528.32 309.88 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "3"
-			(uuid "ba00e54a-f3b4-4cd2-97ac-bbdc7e4793d4")
-		)
-		(pin "2"
-			(uuid "9eb99e0e-078b-4644-b344-bb6bc7254ca8")
-		)
-		(pin "1"
-			(uuid "5821c87a-0463-4193-bdf4-f94276f07e53")
-		)
-		(instances
-			(project "mdb-slave-esp32s3-sim7080g"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "Q9")
 					(unit 1)
 				)
 			)
@@ -17453,6 +17152,83 @@
 			(project ""
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "U3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Schottky")
+		(at 527.05 311.15 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6ebb085f-077d-4676-acf7-ad6b10b62580")
+		(property "Reference" "D3"
+			(at 527.3675 304.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "D_Schottky"
+			(at 527.3675 307.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 527.05 311.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 527.05 311.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Schottky diode"
+			(at 527.05 311.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C18195164"
+			(at 527.05 311.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "eea42367-6c59-422d-b543-00417892fa4a")
+		)
+		(pin "1"
+			(uuid "a4e52033-9454-4168-ba1e-398082aab95c")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "D3")
 					(unit 1)
 				)
 			)
@@ -18112,17 +17888,17 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 535.94 293.37 90)
+		(lib_id "power:+3V3")
+		(at 504.19 311.15 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "7adb1fe6-1d99-4dd8-80a2-89c0a3531682")
-		(property "Reference" "#PWR047"
-			(at 542.29 293.37 0)
+		(uuid "7b8eb89b-7bfc-4e8a-9e41-286f38dadff1")
+		(property "Reference" "#PWR08"
+			(at 508 311.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18130,16 +17906,17 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "GND"
-			(at 541.02 293.37 0)
+		(property "Value" "+3V3"
+			(at 500.38 311.1499 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
-			(at 535.94 293.37 0)
+			(at 504.19 311.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18148,7 +17925,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 535.94 293.37 0)
+			(at 504.19 311.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18157,7 +17934,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 535.94 293.37 0)
+			(at 504.19 311.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18166,12 +17943,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "57e2f434-951d-4689-b78e-9ec0e1d9f62d")
+			(uuid "29c93158-9cb0-4779-9abf-b4fad61bac06")
 		)
 		(instances
 			(project "mdb-slave-esp32s3-sim7080g"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "#PWR047")
+					(reference "#PWR08")
 					(unit 1)
 				)
 			)
@@ -18866,72 +18643,6 @@
 			(project "mdb-slave-esp32s3"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "C12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 528.32 325.12 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "8311bd71-99f4-4b24-8d5f-7bb2c998965a")
-		(property "Reference" "#PWR066"
-			(at 528.32 321.31 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 528.32 330.2 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 528.32 325.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 528.32 325.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 528.32 325.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "5354c146-8104-433f-918c-85210ec3410a")
-		)
-		(instances
-			(project "mdb-slave-esp32s3-sim7080g"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "#PWR066")
 					(unit 1)
 				)
 			)
@@ -23391,83 +23102,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R")
-		(at 511.81 307.34 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "e23476cc-be80-44e9-a868-a53993922b48")
-		(property "Reference" "R29"
-			(at 511.81 300.99 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "1k"
-			(at 511.81 303.53 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 511.81 309.118 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 511.81 307.34 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 511.81 307.34 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "LCSC#" "C2907113"
-			(at 511.81 307.34 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "824bc80c-c51c-4b56-80a8-81f00882f769")
-		)
-		(pin "2"
-			(uuid "28ea246f-6e67-43a7-b3fb-739f47dc2da8")
-		)
-		(instances
-			(project "mdb-slave-esp32s3-sim7080g"
-				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "R29")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 219.71 132.08 180)
 		(unit 1)
@@ -23681,16 +23315,15 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 530.86 293.37 270)
+		(at 514.35 311.15 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "e9537ef5-6362-4cd7-b871-ec8bf585fdff")
-		(property "Reference" "R28"
-			(at 530.86 287.02 90)
+		(uuid "e90168ad-3160-46a9-af33-ba56697a8a9c")
+		(property "Reference" "R27"
+			(at 514.35 304.8 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23698,7 +23331,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 530.86 289.56 90)
+			(at 514.35 307.34 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23706,7 +23339,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 530.86 291.592 90)
+			(at 514.35 312.928 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23715,7 +23348,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 530.86 293.37 0)
+			(at 514.35 311.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23724,7 +23357,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 530.86 293.37 0)
+			(at 514.35 311.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23733,7 +23366,7 @@
 			)
 		)
 		(property "LCSC#" "C98220"
-			(at 530.86 293.37 0)
+			(at 514.35 311.15 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23742,15 +23375,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "8e426927-e324-419c-b3df-6a702df0d90e")
+			(uuid "a87d2f43-3a1e-4dd7-897f-49c52033c10f")
 		)
 		(pin "2"
-			(uuid "ca1b35c0-e8ff-4ba9-821f-301b0737e377")
+			(uuid "8805045c-1dce-45cc-a8a6-f403cec980b4")
 		)
 		(instances
 			(project "mdb-slave-esp32s3-sim7080g"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
-					(reference "R28")
+					(reference "R27")
 					(unit 1)
 				)
 			)
