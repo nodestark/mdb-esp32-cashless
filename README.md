@@ -55,7 +55,7 @@ Use the **VMFlow Android app** to register the board and link it to your operato
 ![MDB Cashless](mdb-slave-esp32s3/mdb-slave-esp32s3-sim7080g_pcb_v2.jpg)
 ![MDB Cashless](mdb-slave-esp32s3/mdb-slave-esp32s3_pcb_v4.jpg)
 
-[![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/shareproject/mdb_esp32_cashless_bc6bf8d8.html)
+[![PCBWay](https://www.pcbway.com/project/img/images/frompcbway-1220.png)](https://www.pcbway.com/project/member/?bmbno=1B3B95CB-4E28-4D)
 
 ---
 
