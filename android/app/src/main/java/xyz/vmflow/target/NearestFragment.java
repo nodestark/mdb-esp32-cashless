@@ -2,6 +2,7 @@ package xyz.vmflow.target;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationManager;
@@ -236,6 +237,8 @@ public class NearestFragment extends Fragment {
                                                                                 editor.apply();
 
                                                                                 retry = true;
+                                                                            } else {
+                                                                                redirectToLogin();
                                                                             }
                                                                         }
 
@@ -433,6 +436,17 @@ public class NearestFragment extends Fragment {
         if (bleWifiDisposable != null && !bleWifiDisposable.isDisposed()) {
             bleWifiDisposable.dispose();
         }
+    }
+
+    private void redirectToLogin() {
+        if (getActivity() == null) return;
+        getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
+                .edit().remove("auth_json").apply();
+        getActivity().runOnUiThread(() -> {
+            Intent intent = new Intent(getActivity(), LoginActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+        });
     }
 
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
