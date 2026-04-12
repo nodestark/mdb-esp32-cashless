@@ -32,5 +32,5 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_menu_send"
-        android:contentDescription="Enviar crédito" />
+        android:contentDescription="Send credit" />
 </LinearLayout>

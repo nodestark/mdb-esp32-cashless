@@ -47,16 +47,16 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import xyz.vmflow.BuildConfig;
 import xyz.vmflow.R;
 
 public class EmbeddesFragment extends Fragment {
+    private static final String TAG = "EmbeddesFragment";
+
     private static final UUID WRITE_CHARACTERISTIC_UUID = UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002");
 
     private final List<JSONObject> mListEmbeddeds = new ArrayList<>();
     private final ItemAdapter_ itemAdapter_ = new ItemAdapter_();
-
-    private static final String SUPABASE_URL = "https://supabase.vmflow.xyz";
-    private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4";
 
     private RxBleClient mRxBleClient;
     private View mProgressBar;
@@ -94,8 +94,8 @@ public class EmbeddesFragment extends Fragment {
                 builder.setPositiveButton("Send", (dialog, which) -> {
 
                     ProgressDialog progressDialog = new ProgressDialog(getContext());
-                    progressDialog.setMessage("Carregando...");
-                    progressDialog.setCancelable(false); // não fecha ao tocar fora
+                    progressDialog.setMessage("Loading...");
+                    progressDialog.setCancelable(false);
                     progressDialog.show();
 
                     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -122,9 +122,9 @@ public class EmbeddesFragment extends Fragment {
 
                                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
-                                Request request = new Request.Builder().url(SUPABASE_URL + "/functions/v1/send-credit")
+                                Request request = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/functions/v1/send-credit")
                                         .post(requestBody)
-                                        .addHeader("apikey", SUPABASE_KEY)
+                                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                                         .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                                         .addHeader("Content-Type", "application/json")
                                         .build();
@@ -132,16 +132,16 @@ public class EmbeddesFragment extends Fragment {
                                 Response response = new OkHttpClient().newCall(request).execute();
                                 if(response.isSuccessful()){
 
-                                    Log.d("send-credit", response.body().string());
+                                    Log.d(TAG, response.body().string());
                                     getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Success", Toast.LENGTH_SHORT).show());
 
                                 } else if (response.code() == 401) {
 
                                     RequestBody requestBody_ = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
 
-                                    Request request_ = new Request.Builder().url(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
+                                    Request request_ = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
                                             .post(requestBody_)
-                                            .addHeader("apikey", SUPABASE_KEY)
+                                            .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                                             .addHeader("Content-Type", "application/json")
                                             .build();
 
@@ -155,7 +155,7 @@ public class EmbeddesFragment extends Fragment {
                                         retry = true;
                                     }
                                 } else {
-                                    getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Erro: " + response.code(), Toast.LENGTH_SHORT).show());
+                                    getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
                                 }
 
                             } catch (JSONException | IOException e) {
@@ -181,7 +181,7 @@ public class EmbeddesFragment extends Fragment {
 
             try {
 
-                holder.deviceNameText.setText(String.format("Machine: %06d", jsonEmbedded.getInt("subdomain")));
+                holder.deviceNameText.setText(String.format("Device: %06d", jsonEmbedded.getInt("subdomain")));
 
                 int color = ContextCompat.getColor(getContext(), "online".equals(jsonEmbedded.getString("status")) ? R.color.green : R.color.red);
                 holder.viewDeviceOffline.setBackgroundColor(color);
@@ -215,7 +215,7 @@ public class EmbeddesFragment extends Fragment {
             ProgressDialog progressDialog = new ProgressDialog(getContext());
 
             progressDialog.setMessage("Connecting to 0.vmflow.xyz");
-            progressDialog.setCancelable(false); // não fecha ao tocar fora
+            progressDialog.setCancelable(false);
 
             progressDialog.show();
 
@@ -256,8 +256,8 @@ public class EmbeddesFragment extends Fragment {
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
-                        .url(SUPABASE_URL + "/rest/v1/embedded")
-                        .addHeader("apikey", SUPABASE_KEY)
+                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded")
+                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                         .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                         .addHeader("Content-Type", "application/json")
                         .build();
@@ -284,9 +284,9 @@ public class EmbeddesFragment extends Fragment {
 
                     RequestBody requestBody = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
 
-                    Request request_ = new Request.Builder().url(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
+                    Request request_ = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
                             .post(requestBody)
-                            .addHeader("apikey", SUPABASE_KEY)
+                            .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                             .addHeader("Content-Type", "application/json")
                             .build();
 
@@ -300,7 +300,7 @@ public class EmbeddesFragment extends Fragment {
                         retry = true;
                     }
                 } else if(getActivity() != null)
-                    getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Erro: " + response.code(), Toast.LENGTH_SHORT).show());
+                    getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
 
             } catch (JSONException | IOException e) {
                 e.printStackTrace();
@@ -313,7 +313,7 @@ public class EmbeddesFragment extends Fragment {
     }
 
     private void rxBleInstall(ScanResult scanResult) {
-        Log.d("rxBle_", "rxBleInstall");
+        Log.d(TAG, "BLE install started");
 
         RxBleDevice rxBleDevice = scanResult.getBleDevice();
 
@@ -334,9 +334,9 @@ public class EmbeddesFragment extends Fragment {
 
                     JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
-                    Request request = new Request.Builder().url(SUPABASE_URL + "/rest/v1/embedded")
+                    Request request = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded")
                             .post(requestBody)
-                            .addHeader("apikey", SUPABASE_KEY)
+                            .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                             .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                             .addHeader("Content-Type", "application/json")
                             .addHeader("Prefer", "return=representation")
@@ -350,7 +350,7 @@ public class EmbeddesFragment extends Fragment {
 
                         Disposable disposable = rxBleDevice.establishConnection(false)
                                 .flatMap(rxBleConnection -> {
-                                    Log.d("rxBle_", "Conectado!");
+                                    Log.d(TAG, "BLE connected");
 
                                     // --- Prepara payloads ---
                                     byte[] payloadSubdomain = new byte[22];
@@ -371,19 +371,19 @@ public class EmbeddesFragment extends Fragment {
 
                                     return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSubdomain)
                                             .flatMap(bytes -> {
-                                                Log.d("rxBle_", "Write 1 OK: " + new String(bytes));
+                                                Log.d(TAG, "Write 1 OK: " + new String(bytes));
                                                 return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPasskey);
                                             }).toObservable();
                                 })
                                 .subscribe(
                                         bytes -> {
-                                            Log.d("rxBle_", "Write 2 OK: " + new String(bytes));
+                                            Log.d(TAG, "Write 2 OK: " + new String(bytes));
                                         },
                                         err -> {
-                                            Log.e("rxBle_", "Erro na conexão ou nos writes", err);
+                                            Log.e(TAG, "BLE connection or write error", err);
 
                                             getActivity().runOnUiThread(() ->
-                                                    Toast.makeText(getContext(), "Erro BLE", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(getContext(), "BLE error", Toast.LENGTH_SHORT).show()
                                             );
                                         }, () -> {}
                                 );
@@ -404,9 +404,9 @@ public class EmbeddesFragment extends Fragment {
 
                         RequestBody requestBody_ = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
 
-                        Request request_ = new Request.Builder().url(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
+                        Request request_ = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
                                 .post(requestBody_)
-                                .addHeader("apikey", SUPABASE_KEY)
+                                .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                                 .addHeader("Content-Type", "application/json")
                                 .build();
 
@@ -420,7 +420,7 @@ public class EmbeddesFragment extends Fragment {
                             retry = true;
                         }
                     } else {
-                        getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Erro: " + response.code(), Toast.LENGTH_SHORT).show());
+                        getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
                     }
 
                 } catch (JSONException | IOException e) {

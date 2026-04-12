@@ -11,5 +11,5 @@
     <item
         android:id="@+id/nav_embeddeds"
         android:icon="@android:drawable/ic_menu_manage"
-        android:title="Embeddeds" />
+        android:title="Embedded" />
 </menu>

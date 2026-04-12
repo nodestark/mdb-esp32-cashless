@@ -25,7 +25,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="32dp"
-        android:contentDescription="Adicionar"
+        android:contentDescription="Add"
         app:srcCompat="@android:drawable/ic_input_add" />
 
     <ProgressBar

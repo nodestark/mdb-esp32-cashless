@@ -22,15 +22,13 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import xyz.vmflow.BuildConfig;
 import xyz.vmflow.R;
 
 public class LoginActivity extends AppCompatActivity {
 
     private EditText editEmail, editSenha;
     private Button btnLogin;
-
-    private static final String SUPABASE_URL = "https://supabase.vmflow.xyz";
-    private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,7 +68,7 @@ public class LoginActivity extends AppCompatActivity {
         String senha = editSenha.getText().toString().trim();
 
         if (email.isEmpty() || senha.isEmpty()) {
-            Toast.makeText(this, "Preencha todos os campos!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please fill in all required fields.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -84,8 +82,8 @@ public class LoginActivity extends AppCompatActivity {
             RequestBody requestBody = RequestBody.create( json.toString(), MediaType.parse("application/json") );
 
             Request request = new Request.Builder()
-                    .url(SUPABASE_URL + "/auth/v1/token?grant_type=password")
-                    .addHeader("apikey", SUPABASE_KEY)
+                    .url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=password")
+                    .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                     .addHeader("Content-Type", "application/json")
                     .post(requestBody)
                     .build();

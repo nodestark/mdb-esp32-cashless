@@ -30,5 +30,5 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_lock_lock"
-        android:contentDescription="Definir senha" />
+        android:contentDescription="Set password" />
 </LinearLayout>

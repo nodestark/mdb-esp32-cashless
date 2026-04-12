@@ -50,28 +50,41 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import xyz.vmflow.BuildConfig;
 import xyz.vmflow.R;
 
 public class NearestFragment extends Fragment {
 
-    private static final String SUPABASE_URL = "https://supabase.vmflow.xyz";
-    private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4";
+    private static final String TAG = "NearestFragment";
 
     private static final UUID WRITE_CHARACTERISTIC_UUID = UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002");
 
+    // BLE protocol commands (host → device)
+    private static final byte CMD_BEGIN_SESSION  = 0x02;
+    private static final byte CMD_CANCEL_SESSION = 0x04;
+    private static final byte CMD_SEND_SSID      = 0x06;
+    private static final byte CMD_SEND_PASSWORD  = 0x07;
+
+    // BLE protocol events (device → host)
+    private static final byte EVT_VEND_REQUEST    = 0x0a;
+    private static final byte EVT_VEND_SUCCESS    = 0x0b;
+    private static final byte EVT_VEND_FAILURE    = 0x0c;
+    private static final byte EVT_SESSION_COMPLETE = 0x0d;
+
     private final List<RxBleDevice> mListRxBleDevices = new ArrayList<>();
-    private final ItemAdapter_ itemAdapter_ = new ItemAdapter_();
+    private final BleDeviceAdapter bleDeviceAdapter = new BleDeviceAdapter();
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private View mProgressBar;
 
     private Disposable bleConnectionDisposable;
+    private Disposable bleWifiDisposable;
 
-    class ViewHolder_ extends RecyclerView.ViewHolder {
+    class BleDeviceViewHolder extends RecyclerView.ViewHolder {
 
         TextView viewText;
         ImageButton btnSetPassword;
 
-        public ViewHolder_(@NonNull View itemView) {
+        public BleDeviceViewHolder(@NonNull View itemView) {
             super(itemView);
 
             viewText = itemView.findViewById(R.id.textViewNearest);
@@ -79,13 +92,14 @@ public class NearestFragment extends Fragment {
         }
     }
 
-    class ItemAdapter_ extends RecyclerView.Adapter<ViewHolder_> {
+    class BleDeviceAdapter extends RecyclerView.Adapter<BleDeviceViewHolder> {
 
         private RxBleConnection mRxBleConnection;
 
-        public ViewHolder_ onCreateViewHolder(ViewGroup parent, int viewType) {
+        @Override
+        public BleDeviceViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_nearest_layout, parent, false);
-            ViewHolder_ holder = new ViewHolder_(view);
+            BleDeviceViewHolder holder = new BleDeviceViewHolder(view);
 
             view.setOnClickListener(v -> {
                 int pos = holder.getAdapterPosition();
@@ -94,26 +108,23 @@ public class NearestFragment extends Fragment {
                     RxBleDevice device = mListRxBleDevices.get(pos);
 
                     AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-                    builder.setNegativeButton("Cancel", (dialog_, which) -> {
+                    builder.setNegativeButton("Cancel", (cancelDialog, which) -> {
 
-                        if(mRxBleConnection != null){
-                            Disposable dis = mRxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{0x04} /*cancel_session*/).toObservable().subscribe(bytes -> {
+                        if (mRxBleConnection != null) {
+                            Disposable dis = mRxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_CANCEL_SESSION}).toObservable().subscribe(ignored -> {
                             }, throwable -> {
                             }, () -> {
                                 bleConnectionDisposable.dispose();
 
-                                getActivity().runOnUiThread(() -> {
-
+                                if (getActivity() != null) getActivity().runOnUiThread(() -> {
                                     mProgressBar.setVisibility(View.VISIBLE);
-
                                     mListRxBleDevices.clear();
-                                    itemAdapter_.notifyDataSetChanged();
-                                } );
+                                    bleDeviceAdapter.notifyDataSetChanged();
+                                });
 
                                 ExecutorService executor = Executors.newSingleThreadExecutor();
-                                executor.execute(() -> {
-                                    fetchNearestData();
-                                });
+                                executor.execute(NearestFragment.this::fetchNearestData);
+                                executor.shutdown();
                             });
                         }
 
@@ -128,49 +139,45 @@ public class NearestFragment extends Fragment {
 
                     bleConnectionDisposable = device.establishConnection(false)
                             .doOnDispose(() -> dialog.dismiss())
-                            .flatMap(rxBleConnection -> rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, new byte[]{0x02 /*begin_session*/} ).toObservable()
+                            .flatMap(rxBleConnection -> rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_BEGIN_SESSION}).toObservable()
                                     .flatMap(initResult -> {
-                                        Log.d("rxBle_", "Sessão iniciada: ");
+                                        Log.d(TAG, "Session started");
 
-                                        getActivity().runOnUiThread(() -> dialog.setMessage("Please select a product on the machine.") );
+                                        if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Please select a product on the machine."));
 
                                         mRxBleConnection = rxBleConnection;
-                                        
+
                                         return rxBleConnection.setupNotification(WRITE_CHARACTERISTIC_UUID)
                                                 .flatMap(notificationObservable ->
-                                                        notificationObservable.flatMap(bytes -> {
+                                                        notificationObservable.flatMap(notification -> {
 
-                                                            Log.d("rxBle_", "Recebido: " + Integer.toHexString(bytes[0]));
+                                                            Log.d(TAG, "Received: " + Integer.toHexString(notification[0]));
 
-                                                            if(bytes[0] == 0x0d /*session_complete*/){
+                                                            if (notification[0] == EVT_SESSION_COMPLETE) {
                                                                 bleConnectionDisposable.dispose();
 
-                                                                getActivity().runOnUiThread(() -> {
-
+                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> {
                                                                     dialog.setMessage("Session finished.");
-
                                                                     mProgressBar.setVisibility(View.VISIBLE);
-
                                                                     mListRxBleDevices.clear();
-                                                                    itemAdapter_.notifyDataSetChanged();
-                                                                } );
+                                                                    bleDeviceAdapter.notifyDataSetChanged();
+                                                                });
 
                                                                 ExecutorService executor = Executors.newSingleThreadExecutor();
-                                                                executor.execute(() -> {
-                                                                    fetchNearestData();
-                                                                });
+                                                                executor.execute(NearestFragment.this::fetchNearestData);
+                                                                executor.shutdown();
                                                             }
 
-                                                            if(bytes[0] == 0x0c /*vend_failure*/){
-                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Purchase failed. Please try again.") );
+                                                            if (notification[0] == EVT_VEND_FAILURE) {
+                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Purchase failed. Please try again."));
                                                             }
 
-                                                            if(bytes[0] == 0x0b /*vend_succecss*/){
-                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Product dispensed successfully!") );
+                                                            if (notification[0] == EVT_VEND_SUCCESS) {
+                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Product dispensed successfully!"));
                                                             }
 
-                                                            if(bytes[0] == 0x0a /*vend_request*/){
-                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Processing payment...") );
+                                                            if (notification[0] == EVT_VEND_REQUEST) {
+                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Processing payment..."));
 
                                                                 boolean retry;
                                                                 do {
@@ -183,46 +190,49 @@ public class NearestFragment extends Fragment {
 
                                                                         SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
-                                                                        JSONObject jsonObjectSend= new JSONObject();
-                                                                        jsonObjectSend.put("payload", Base64.encodeToString(bytes, Base64.NO_WRAP));
-                                                                        jsonObjectSend.put("subdomain", device.getName().split("\\.")[0] );
-                                                                        jsonObjectSend.put("lat", location.getLatitude());
-                                                                        jsonObjectSend.put("lng", location.getLongitude() );
+                                                                        JSONObject body = new JSONObject();
+                                                                        body.put("payload", Base64.encodeToString(notification, Base64.NO_WRAP));
+                                                                        body.put("subdomain", device.getName().split("\\.")[0]);
 
-                                                                        RequestBody requestBody = RequestBody.create( jsonObjectSend.toString(), MediaType.parse("application/json") );
+                                                                        if (location != null) {
+                                                                            body.put("lat", location.getLatitude());
+                                                                            body.put("lng", location.getLongitude());
+                                                                        }
+
+                                                                        RequestBody requestBody = RequestBody.create(body.toString(), MediaType.parse("application/json"));
 
                                                                         JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
-                                                                        Request request = new Request.Builder().url(SUPABASE_URL + "/functions/v1/request-credit")
+                                                                        Request request = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/functions/v1/request-credit")
                                                                                 .post(requestBody)
-                                                                                .addHeader("apikey", SUPABASE_KEY)
+                                                                                .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                                                                                 .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                                                                                 .addHeader("Content-Type", "application/json")
                                                                                 .build();
 
                                                                         Response response = new OkHttpClient().newCall(request).execute();
-                                                                        if(response.isSuccessful()){
+                                                                        if (response.isSuccessful()) {
 
-                                                                            JSONObject jsonObject = new JSONObject(response.body().string());
-                                                                            byte[] payload = Base64.decode(jsonObject.getString("payload"), Base64.NO_WRAP);
+                                                                            JSONObject responseBody = new JSONObject(response.body().string());
+                                                                            byte[] payload = Base64.decode(responseBody.getString("payload"), Base64.NO_WRAP);
 
-                                                                            return rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, payload ).toObservable();
+                                                                            return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payload).toObservable();
 
                                                                         } else if (response.code() == 401) {
 
-                                                                            RequestBody requestBody_ = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
+                                                                            RequestBody refreshRequestBody = RequestBody.create(jsonAuth.toString(), MediaType.parse("application/json"));
 
-                                                                            Request request_ = new Request.Builder().url(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
-                                                                                    .post(requestBody_)
-                                                                                    .addHeader("apikey", SUPABASE_KEY)
+                                                                            Request refreshRequest = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
+                                                                                    .post(refreshRequestBody)
+                                                                                    .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                                                                                     .addHeader("Content-Type", "application/json")
                                                                                     .build();
 
-                                                                            Response response_ = new OkHttpClient().newCall(request_).execute();
-                                                                            if (response_.isSuccessful()) {
+                                                                            Response refreshResponse = new OkHttpClient().newCall(refreshRequest).execute();
+                                                                            if (refreshResponse.isSuccessful()) {
 
                                                                                 SharedPreferences.Editor editor = prefs.edit();
-                                                                                editor.putString("auth_json", response_.body().string());
+                                                                                editor.putString("auth_json", refreshResponse.body().string());
                                                                                 editor.apply();
 
                                                                                 retry = true;
@@ -230,27 +240,25 @@ public class NearestFragment extends Fragment {
                                                                         }
 
                                                                     } catch (JSONException | IOException e) {
-                                                                        e.printStackTrace();
+                                                                        Log.e(TAG, "Payment request error", e);
                                                                     }
 
-                                                                } while(retry);
+                                                                } while (retry);
 
-                                                                getActivity().runOnUiThread(() -> dialog.setMessage("Falha no pagamento.") );
+                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Payment failed."));
 
-                                                                return rxBleConnection.writeCharacteristic( WRITE_CHARACTERISTIC_UUID, new byte[]{0x04 /*cancel_session*/} ).toObservable();
+                                                                return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_CANCEL_SESSION}).toObservable();
                                                             }
                                                             return Observable.empty();
                                                         })
                                                 );
-                                            })
+                                    })
                             )
                             .retry(2)
                             .subscribe(
-                                    result -> Log.d("rxBle_", "Escrita/Resposta concluída"),
-                                    throwable -> Log.e("rxBle_", "Erro BLE", throwable),
-                                    () -> {
-                                        Log.d("rxBle_", "It's all");
-                                    }
+                                    result -> Log.d(TAG, "Write/response completed"),
+                                    throwable -> Log.e(TAG, "BLE error", throwable),
+                                    () -> Log.d(TAG, "BLE stream complete")
                             );
 
                 }
@@ -292,7 +300,7 @@ public class NearestFragment extends Fragment {
                     String ssid = editTextSsid.getText().toString().trim();
                     String password = editTextPassword.getText().toString().trim();
 
-                    if (ssid.isEmpty() ) {
+                    if (ssid.isEmpty()) {
                         Toast.makeText(getContext(), "Select SSID", Toast.LENGTH_SHORT).show();
                         return;
                     }
@@ -301,7 +309,7 @@ public class NearestFragment extends Fragment {
                     {
                         byte[] arrSsid = ssid.getBytes(StandardCharsets.UTF_8);
 
-                        payloadSsid[0] = 0x06;
+                        payloadSsid[0] = CMD_SEND_SSID;
                         System.arraycopy(arrSsid, 0, payloadSsid, 1, arrSsid.length);
 
                         payloadSsid[1 + arrSsid.length] = 0x00;
@@ -311,26 +319,26 @@ public class NearestFragment extends Fragment {
                     {
                         byte[] arrPswd = password.getBytes(StandardCharsets.UTF_8);
 
-                        payloadPswd[0] = 0x07;
+                        payloadPswd[0] = CMD_SEND_PASSWORD;
                         System.arraycopy(arrPswd, 0, payloadPswd, 1, arrPswd.length);
 
                         payloadPswd[1 + arrPswd.length] = 0x00;
                     }
 
                     RxBleDevice rxBleDevice = mListRxBleDevices.get(holder.getAdapterPosition());
-                    Disposable disposable = rxBleDevice.establishConnection(false)
+                    bleWifiDisposable = rxBleDevice.establishConnection(false)
                             .flatMap(rxBleConnection -> {
                                 return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSsid)
                                         .timeout(3, TimeUnit.SECONDS)
-                                        .flatMap(bytes -> {
-                                            Log.d("rxBle_", "Write 1 OK: " + new String(bytes));
+                                        .flatMap(writeResult -> {
+                                            Log.d(TAG, "SSID written OK");
                                             return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPswd).timeout(3, TimeUnit.SECONDS);
                                         }).toObservable();
                             })
                             .retry(2)
                             .subscribe(
-                                    bytes -> Log.d("rxBle_", "Write 2 OK: " + new String(bytes)),
-                                    err -> Log.e("rxBle_", "Erro em algum write", err),
+                                    writeResult -> Log.d(TAG, "Password written OK"),
+                                    error -> Log.e(TAG, "Wi-Fi config write error", error),
                                     () -> {}
                             );
                 });
@@ -342,7 +350,8 @@ public class NearestFragment extends Fragment {
             return holder;
         }
 
-        public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
+        @Override
+        public void onBindViewHolder(@NonNull BleDeviceViewHolder holder, int position) {
 
             RxBleDevice rxBleDevice = mListRxBleDevices.get(position);
             holder.viewText.setText(rxBleDevice.getName());
@@ -355,23 +364,21 @@ public class NearestFragment extends Fragment {
     }
 
     @Override
-    public void onViewCreated(@NonNull View view_, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view_, savedInstanceState);
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-        mProgressBar = view_.findViewById(R.id.progressBar);
+        mProgressBar = view.findViewById(R.id.progressBar);
 
-        RecyclerView recyclerView = view_.findViewById(R.id.recyclerView);
+        RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        recyclerView.setAdapter( itemAdapter_ );
+        recyclerView.setAdapter(bleDeviceAdapter);
 
-        mSwipeRefreshLayout = view_.findViewById(R.id.swipeRefresh);
+        mSwipeRefreshLayout = view.findViewById(R.id.swipeRefresh);
         mSwipeRefreshLayout.setOnRefreshListener(() -> {
 
             ExecutorService executor = Executors.newSingleThreadExecutor();
-            executor.execute(() -> {
-
-                fetchNearestData();
-            });
+            executor.execute(this::fetchNearestData);
+            executor.shutdown();
         });
     }
 
@@ -382,32 +389,27 @@ public class NearestFragment extends Fragment {
         mListRxBleDevices.clear();
         Disposable scanDisposable = rxBleClient.scanBleDevices(new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build())
                 .take(3, TimeUnit.SECONDS)
-                .filter(sr -> sr.getBleDevice().getName() != null
-                        && !sr.getBleDevice().getName().isEmpty()
-                        && sr.getBleDevice().getName().endsWith(".vmflow.xyz")
-                        && !sr.getBleDevice().getName().equals("0.vmflow.xyz") )
-                .distinct(sr -> sr.getBleDevice().getMacAddress()) // chave: MAC -> remove repetições
-                .subscribe( sr -> {
-                    Log.d("rxBle_", sr.getBleDevice().getName());
-
-                    mListRxBleDevices.add(sr.getBleDevice());
-                }, th -> {
-                    Log.d("rxBle_", th.toString());
+                .filter(scanResult -> scanResult.getBleDevice().getName() != null
+                        && !scanResult.getBleDevice().getName().isEmpty()
+                        && scanResult.getBleDevice().getName().endsWith(".vmflow.xyz")
+                        && !scanResult.getBleDevice().getName().equals("0.vmflow.xyz"))
+                .distinct(scanResult -> scanResult.getBleDevice().getMacAddress())
+                .subscribe(scanResult -> {
+                    Log.d(TAG, scanResult.getBleDevice().getName());
+                    mListRxBleDevices.add(scanResult.getBleDevice());
+                }, error -> {
+                    Log.e(TAG, "BLE scan error", error);
                 }, () -> {
 
-                    if(getActivity() != null)
+                    if (getActivity() != null)
                         getActivity().runOnUiThread(() -> {
 
-                            itemAdapter_.notifyDataSetChanged();
+                            bleDeviceAdapter.notifyDataSetChanged();
                             mSwipeRefreshLayout.setRefreshing(false);
-
                             mProgressBar.setVisibility(View.GONE);
 
-                            Log.d("rxBle_", "...GONE");
-
+                            Log.d(TAG, "Scan complete");
                         });
-
-                    Log.d("rxBle_", "...end");
                 });
     }
 
@@ -418,9 +420,19 @@ public class NearestFragment extends Fragment {
         mProgressBar.setVisibility(View.VISIBLE);
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(() -> {
-            fetchNearestData();
-        });
+        executor.execute(this::fetchNearestData);
+        executor.shutdown();
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (bleConnectionDisposable != null && !bleConnectionDisposable.isDisposed()) {
+            bleConnectionDisposable.dispose();
+        }
+        if (bleWifiDisposable != null && !bleWifiDisposable.isDisposed()) {
+            bleWifiDisposable.dispose();
+        }
     }
 
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
