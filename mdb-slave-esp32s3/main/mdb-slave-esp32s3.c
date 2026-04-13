@@ -197,7 +197,7 @@ void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(BIT_MODE_SET | checksum);
 }
 
-void mdb_main_loop() {
+void mdb_cashless_loop() {
 
 	time_t session_begin_time = 0;
 
@@ -245,7 +245,7 @@ void mdb_main_loop() {
                     xEventGroupClearBits(xLedEventGroup, BIT_EVT_MDB);
                     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
-					ESP_LOGI( TAG, "RESET");
+                    ESP_LOGI( TAG, "RESET");
 					break;
 				}
 				case SETUP: {
@@ -1086,7 +1086,7 @@ void requestTelemetryData(void *arg) {
     vRingbufferReturnItem(dexRingbuf, (void*) dex);
 }
 
-void vTaskBitEvent(void *pvParameters) {
+void led_status_task(void *pvParameters) {
 
     while(1){
         EventBits_t uxBits = xEventGroupWaitBits(xLedEventGroup, BIT_EVT_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY );
@@ -1359,7 +1359,7 @@ void app_main(void) {
     };
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-    xTaskCreate(vTaskBitEvent, "TaskBitEvent", 2048, NULL, 1, NULL);
+    xTaskCreate(led_status_task, "led_status", 2048, NULL, 1, NULL);
     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
@@ -1475,5 +1475,5 @@ void app_main(void) {
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
-    mdb_main_loop();
+	mdb_cashless_loop();
 }
