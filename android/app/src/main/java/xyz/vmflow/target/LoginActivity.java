@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -57,6 +58,10 @@ public class LoginActivity extends AppCompatActivity {
 
         Button btnRegister = findViewById(R.id.btnRegister);
         btnRegister.setOnClickListener(v -> registerUser());
+
+        TextView txtForgotPassword = findViewById(R.id.txtForgotPassword);
+        txtForgotPassword.setOnClickListener(v ->
+                startActivity(new Intent(LoginActivity.this, ForgotPasswordActivity.class)));
     }
 
     private void registerUser(){
