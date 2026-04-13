@@ -196,8 +196,7 @@ void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 	// CHK* ACK*
 	write_9(BIT_MODE_SET | checksum);
 }
-
-void mdb_cashless_loop() {
+void mdb_cashless_task(void *pvParameters) {
 
 	time_t session_begin_time = 0;
 
@@ -1359,7 +1358,7 @@ void app_main(void) {
     };
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-    xTaskCreate(led_status_task, "led_status", 2048, NULL, 1, NULL);
+    xTaskCreatePinnedToCore(led_status_task, "led_status", 2048, NULL, 1, NULL, 0);
     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
@@ -1475,5 +1474,5 @@ void app_main(void) {
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
-	mdb_cashless_loop();
+    xTaskCreatePinnedToCore(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL, 1);
 }
