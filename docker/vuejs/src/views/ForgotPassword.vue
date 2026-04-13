@@ -15,35 +15,26 @@
 
     </div>
 
-    <!-- LOGIN AREA -->
+    <!-- FORGOT PASSWORD AREA -->
     <div class="flex flex-1 items-center justify-center bg-gray-100 px-6">
 
       <div class="w-full max-w-md bg-white p-10 rounded-2xl shadow-lg">
 
         <div class="text-center mb-8">
           <h2 class="text-2xl font-bold text-gray-800">
-            Sign in
+            Forgot password
           </h2>
           <p class="text-gray-500 text-sm mt-1">
-            Access your account
+            Enter your email and we'll send you a reset link
           </p>
         </div>
 
-        <form @submit.prevent="login" class="space-y-4">
+        <form @submit.prevent="sendReset" class="space-y-4">
 
           <input
             v-model="email"
             type="email"
             placeholder="Email"
-            required
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg
-            focus:outline-none focus:ring-2 focus:ring-slate-800"
-          />
-
-          <input
-            v-model="password"
-            type="password"
-            placeholder="Password"
             required
             class="w-full px-4 py-3 border border-gray-300 rounded-lg
             focus:outline-none focus:ring-2 focus:ring-slate-800"
@@ -55,8 +46,15 @@
             class="w-full py-3 bg-slate-900 text-white font-medium rounded-lg
             hover:bg-slate-800 transition disabled:opacity-60"
           >
-            {{ loading ? 'Signing in...' : 'Sign in' }}
+            {{ loading ? 'Sending...' : 'Send reset link' }}
           </button>
+
+          <p
+            v-if="message"
+            class="text-green-600 text-sm text-center"
+          >
+            {{ message }}
+          </p>
 
           <p
             v-if="error"
@@ -64,15 +62,6 @@
           >
             {{ error }}
           </p>
-
-          <div class="text-center">
-            <RouterLink
-              to="/forgot-password"
-              class="text-sm text-slate-600 hover:text-slate-900 transition"
-            >
-              Forgot password?
-            </RouterLink>
-          </div>
 
         </form>
 
@@ -85,20 +74,19 @@
 
           <div class="relative text-center">
             <span class="bg-white px-3 text-sm text-gray-500">
-              or
+              remembered your password?
             </span>
           </div>
 
         </div>
 
-        <!-- REGISTER -->
         <RouterLink
-          to="/register"
+          to="/login"
           class="block w-full text-center py-3 border border-slate-900
           text-slate-900 font-medium rounded-lg hover:bg-slate-900
           hover:text-white transition"
         >
-          Create an account
+          Sign in
         </RouterLink>
 
       </div>
@@ -109,46 +97,45 @@
 </template>
 
 <script>
-import { supabase } from '@/lib/supabase'
-import { useRouter } from 'vue-router'
 import { ref } from 'vue'
+import { supabase } from '@/lib/supabase'
 
 export default {
   setup() {
 
-    const router = useRouter()
-
     const email = ref('')
-    const password = ref('')
     const loading = ref(false)
     const error = ref(null)
+    const message = ref(null)
 
-    const login = async () => {
+    const sendReset = async () => {
 
       loading.value = true
       error.value = null
+      message.value = null
 
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: email.value,
-        password: password.value
-      })
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.value,
+        { redirectTo: `${window.location.origin}/reset-password` }
+      )
 
       loading.value = false
 
-      if (loginError) {
-        error.value = loginError.message
+      if (resetError) {
+        error.value = resetError.message
         return
       }
 
-      router.push('/dashboard')
+      message.value = 'Check your email for the password reset link.'
+
     }
 
     return {
       email,
-      password,
-      login,
+      sendReset,
       loading,
-      error
+      error,
+      message
     }
 
   }

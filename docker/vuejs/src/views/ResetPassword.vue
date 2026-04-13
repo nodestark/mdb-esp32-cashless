@@ -15,35 +15,35 @@
 
     </div>
 
-    <!-- LOGIN AREA -->
+    <!-- RESET PASSWORD AREA -->
     <div class="flex flex-1 items-center justify-center bg-gray-100 px-6">
 
       <div class="w-full max-w-md bg-white p-10 rounded-2xl shadow-lg">
 
         <div class="text-center mb-8">
           <h2 class="text-2xl font-bold text-gray-800">
-            Sign in
+            Reset password
           </h2>
           <p class="text-gray-500 text-sm mt-1">
-            Access your account
+            Enter your new password
           </p>
         </div>
 
-        <form @submit.prevent="login" class="space-y-4">
+        <form @submit.prevent="updatePassword" class="space-y-4">
 
           <input
-            v-model="email"
-            type="email"
-            placeholder="Email"
+            v-model="password"
+            type="password"
+            placeholder="New password"
             required
             class="w-full px-4 py-3 border border-gray-300 rounded-lg
             focus:outline-none focus:ring-2 focus:ring-slate-800"
           />
 
           <input
-            v-model="password"
+            v-model="confirmPassword"
             type="password"
-            placeholder="Password"
+            placeholder="Confirm new password"
             required
             class="w-full px-4 py-3 border border-gray-300 rounded-lg
             focus:outline-none focus:ring-2 focus:ring-slate-800"
@@ -55,8 +55,15 @@
             class="w-full py-3 bg-slate-900 text-white font-medium rounded-lg
             hover:bg-slate-800 transition disabled:opacity-60"
           >
-            {{ loading ? 'Signing in...' : 'Sign in' }}
+            {{ loading ? 'Updating...' : 'Update password' }}
           </button>
+
+          <p
+            v-if="message"
+            class="text-green-600 text-sm text-center"
+          >
+            {{ message }}
+          </p>
 
           <p
             v-if="error"
@@ -65,41 +72,7 @@
             {{ error }}
           </p>
 
-          <div class="text-center">
-            <RouterLink
-              to="/forgot-password"
-              class="text-sm text-slate-600 hover:text-slate-900 transition"
-            >
-              Forgot password?
-            </RouterLink>
-          </div>
-
         </form>
-
-        <!-- divider -->
-        <div class="relative my-8">
-
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-300"></div>
-          </div>
-
-          <div class="relative text-center">
-            <span class="bg-white px-3 text-sm text-gray-500">
-              or
-            </span>
-          </div>
-
-        </div>
-
-        <!-- REGISTER -->
-        <RouterLink
-          to="/register"
-          class="block w-full text-center py-3 border border-slate-900
-          text-slate-900 font-medium rounded-lg hover:bg-slate-900
-          hover:text-white transition"
-        >
-          Create an account
-        </RouterLink>
 
       </div>
 
@@ -109,46 +82,59 @@
 </template>
 
 <script>
+import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'vue-router'
-import { ref } from 'vue'
 
 export default {
   setup() {
 
     const router = useRouter()
 
-    const email = ref('')
     const password = ref('')
+    const confirmPassword = ref('')
     const loading = ref(false)
     const error = ref(null)
+    const message = ref(null)
 
-    const login = async () => {
+    const updatePassword = async () => {
 
       loading.value = true
       error.value = null
+      message.value = null
 
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: email.value,
+      if (password.value !== confirmPassword.value) {
+        error.value = 'Passwords do not match.'
+        loading.value = false
+        return
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
         password: password.value
       })
 
       loading.value = false
 
-      if (loginError) {
-        error.value = loginError.message
+      if (updateError) {
+        error.value = updateError.message
         return
       }
 
-      router.push('/dashboard')
+      message.value = 'Password updated successfully!'
+
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 2000)
+
     }
 
     return {
-      email,
       password,
-      login,
+      confirmPassword,
+      updatePassword,
       loading,
-      error
+      error,
+      message
     }
 
   }

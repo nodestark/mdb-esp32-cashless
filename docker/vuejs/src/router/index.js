@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase'
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
 import Register from '@/views/Register.vue'
+import ForgotPassword from '@/views/ForgotPassword.vue'
+import ResetPassword from '@/views/ResetPassword.vue'
 
 import Dashboard from '@/views/Dashboard.vue'
 import DashboardHome from '@/views/Dashboard_Home.vue'
@@ -32,7 +34,9 @@ const routes = [
     ]
   },
   { path: '/login', component: Login },
-  { path: '/register', component: Register }
+  { path: '/register', component: Register },
+  { path: '/forgot-password', component: ForgotPassword },
+  { path: '/reset-password', component: ResetPassword }
 ]
 
 const router = createRouter({
@@ -45,7 +49,7 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.meta.requiresAuth && !session) {
     next('/login')
-  } else if ((to.path === '/login' || to.path === '/register') && session) {
+  } else if ((to.path === '/login' || to.path === '/register' || to.path === '/forgot-password') && session) {
     next('/dashboard')
   } else {
     next()
