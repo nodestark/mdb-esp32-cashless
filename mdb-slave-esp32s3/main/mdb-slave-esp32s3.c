@@ -76,6 +76,9 @@ esp_timer_handle_t periodic_pax_timer;
 static bool mqtt_started = false;
 static bool sntp_started = false;
 
+#define WIFI_MAX_RETRY 5
+static uint8_t wifi_retry_count = 0;
+
 char my_subdomain[32];
 char my_passkey[18];
 
@@ -1287,6 +1290,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 			esp_wifi_connect();
 			break;
 		case WIFI_EVENT_STA_CONNECTED:
+			wifi_retry_count = 0;
 			break;
 		case WIFI_EVENT_STA_DISCONNECTED:
 
@@ -1295,7 +1299,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                 mqtt_started = false;
             }
 
-            esp_wifi_connect();
+            if (wifi_retry_count < WIFI_MAX_RETRY) {
+                wifi_retry_count++;
+                ESP_LOGI(TAG, "WiFi reconnect attempt %d/%d", wifi_retry_count, WIFI_MAX_RETRY);
+                esp_wifi_connect();
+            } else {
+                ESP_LOGW(TAG, "WiFi max retries reached (%d), stopping reconnect", WIFI_MAX_RETRY);
+            }
 
 			break;
 		}
