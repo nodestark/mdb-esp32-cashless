@@ -45,6 +45,13 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+  // Check if this is a recovery redirect from Supabase (hash fragment contains type=recovery)
+  const hash = window.location.hash
+  if (hash && hash.includes('type=recovery')) {
+    next('/reset-password')
+    return
+  }
+
   const { data: { session } } = await supabase.auth.getSession()
 
   if (to.meta.requiresAuth && !session) {
