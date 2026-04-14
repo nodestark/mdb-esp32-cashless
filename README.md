@@ -2,7 +2,7 @@
 
 [![PCBWay Award](https://img.shields.io/badge/%F0%9F%8F%86%20PCBWay-Popular%20Prize%202026-orange?style=for-the-badge)](pcbway-award-2026.jpg)
 [![VMFlow Dashboard](https://img.shields.io/badge/VMFlow-Web%20Dashboard-0f172a?style=for-the-badge&logo=grafana&logoColor=white)](https://vmflow.xyz/dashboard)
-[![Discord](https://img.shields.io/badge/Discord-Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/H6wQAQMg)
+[![Discord](https://img.shields.io/badge/Discord-Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/YgnusQaDHM)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.x-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://docs.espressif.com/projects/esp-idf/)
 
