@@ -70,7 +70,7 @@ def on_message(client, userdata, msg):
                                                          "value": pax_counter}]).execute()
 
             if event_type == "sale":
-                res = supabase.table("embedded").select("passkey,subdomain,id,owner_id").eq("subdomain", domain_id).execute()
+                res = supabase.table("embedded").select("passkey,subdomain,id,owner_id,machine_id").eq("subdomain", domain_id).execute()
 
                 embedded = res.data[0]
                 passkey = [ord(c) for c in embedded["passkey"]]
@@ -89,11 +89,12 @@ def on_message(client, userdata, msg):
                         item_price = int.from_bytes(payload[2:6], byteorder="big")
                         item_number = int.from_bytes(payload[6:8], byteorder="big")
 
-                        supabase.table("sales").insert([{"owner_id": embedded["owner_id"],
+                        supabase.table("sales").insert([{"owner_id":   embedded["owner_id"],
                                                          "embedded_id": embedded["id"],
+                                                         "machine_id":  embedded["machine_id"],
                                                          "item_number": item_number,
-                                                         "item_price": from_scale_factor(item_price, 1, 2),
-                                                         "channel": "cash"}]).execute()
+                                                         "item_price":  from_scale_factor(item_price, 1, 2),
+                                                         "channel":     "cash"}]).execute()
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 

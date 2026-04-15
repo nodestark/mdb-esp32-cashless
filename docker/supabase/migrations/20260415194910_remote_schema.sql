@@ -114,6 +114,34 @@ $$;
 ALTER FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."fill_sale_coil_data"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    -- Skip if machine or item are not identified
+    IF NEW.machine_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    -- Skip if product was already set by the caller
+    IF NEW.product_id IS NOT NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT product_id, alias
+    INTO NEW.product_id, NEW.coil_alias
+    FROM "public"."machine_coils"
+    WHERE machine_id = NEW.machine_id AND item_number = NEW.item_number
+    LIMIT 1;
+
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."fill_sale_coil_data"() OWNER TO "supabase_admin";
+
+
 CREATE OR REPLACE FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$ begin perform pg_notify('n8n_channel_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c', row_to_json(new)::text); return null; end; $$;
@@ -206,7 +234,8 @@ CREATE TABLE IF NOT EXISTS "public"."machine_coils" (
     "item_number" smallint,
     "alias" "text",
     "capacity" integer,
-    "machine_id" "uuid"
+    "machine_id" "uuid",
+    "item_price" real DEFAULT '0'::real NOT NULL
 );
 
 
@@ -318,7 +347,8 @@ CREATE TABLE IF NOT EXISTS "public"."sales" (
     "channel" "public"."sale_channel" NOT NULL,
     "owner_id" "uuid" DEFAULT "auth"."uid"(),
     "lat" double precision,
-    "lng" double precision
+    "lng" double precision,
+    "coil_alias" "text"
 );
 
 
@@ -390,6 +420,10 @@ CREATE OR REPLACE TRIGGER "n8n_trigger_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c" AFT
 
 
 CREATE OR REPLACE TRIGGER "n8n_trigger_ccf0f211_2d2e_4889_97ae_7e172d45dba8" AFTER INSERT ON "public"."sales" FOR EACH ROW EXECUTE FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_fill_sale_coil_data" BEFORE INSERT ON "public"."sales" FOR EACH ROW EXECUTE FUNCTION "public"."fill_sale_coil_data"();
 
 
 
@@ -476,6 +510,10 @@ CREATE POLICY "policy_insert" ON "public"."machine_coils" FOR INSERT TO "authent
 
 
 
+CREATE POLICY "policy_select" ON "public"."machine_coils" FOR SELECT TO "authenticated" USING (true);
+
+
+
 ALTER TABLE "public"."products" ENABLE ROW LEVEL SECURITY;
 
 
@@ -513,6 +551,14 @@ CREATE POLICY "select_policy" ON "public"."sales" FOR SELECT TO "authenticated" 
 
 
 CREATE POLICY "update_policy" ON "public"."embedded" FOR UPDATE TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id")) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
+CREATE POLICY "update_policy" ON "public"."machine_coils" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."machines" "m"
+  WHERE (("m"."id" = "machine_coils"."machine_id") AND ("m"."owner_id" = "auth"."uid"()))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."machines" "m"
+  WHERE (("m"."id" = "machine_coils"."machine_id") AND ("m"."owner_id" = "auth"."uid"())))));
 
 
 
@@ -714,6 +760,13 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 GRANT ALL ON FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "postgres";
+GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "anon";
+GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "service_role";
 
 
 
