@@ -110,7 +110,8 @@
       >
 
         <input
-          v-model="coil.alias"
+          :value="coil.alias"
+          @input="coil.alias = $event.target.value.toUpperCase()"
           placeholder="Alias (A1, B3...)"
           class="border rounded p-2 w-28"
           :class="{ 'border-red-400': coilErrors[index]?.alias }"
@@ -207,7 +208,7 @@ function closeModal(){
 }
 
 function addCoil(){
-  coils.value.push({ alias: "", capacity: 0 })
+  coils.value.push({ alias: "", capacity: null })
   coilErrors.value.push({})
 }
 

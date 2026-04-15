@@ -162,7 +162,7 @@
   <div class="bg-white p-6 rounded-xl w-96">
 
     <h2 class="text-lg font-semibold mb-4">
-      Link Embedded
+      Link Device
     </h2>
 
     <select
@@ -202,7 +202,9 @@
 
 </div>
 
-  <div
+<!-- LINK MODEL MODAL -->
+
+<div
   v-if="showModelDialog"
   class="fixed inset-0 bg-black/40 flex items-center justify-center"
 >
@@ -216,7 +218,7 @@
       v-model="selectedModelId"
       class="w-full border rounded p-2 mb-4"
     >
-      <option disabled value="">Selecione um modelo</option>
+      <option disabled value="">Select a model</option>
       <option
         v-for="model in machineModels"
         :key="model.id"
@@ -244,6 +246,7 @@
 
   </div>
 </div>
+
 <!-- SEND CREDIT MODAL -->
 
 <div
@@ -296,7 +299,7 @@
   v-if="showCoilsModal"
   class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
 >
-  <div class="bg-white rounded-xl w-full max-w-2xl mx-4 flex flex-col max-h-[80vh]">
+  <div class="bg-white rounded-xl w-full max-w-3xl mx-4 flex flex-col max-h-[80vh]">
 
     <!-- HEADER -->
     <div class="p-5 border-b flex justify-between items-center">
@@ -328,7 +331,8 @@
             <th class="p-4 w-12">#</th>
             <th class="p-4">Slot</th>
             <th class="p-4">Product</th>
-            <th class="p-4 w-24">Capacity</th>
+            <th class="p-4 w-32">Price</th>
+            <th class="p-4 w-24 text-center">Capacity</th>
           </tr>
         </thead>
 
@@ -349,7 +353,8 @@
 
             <td class="p-4">
               <select
-                v-model="coilEdits[coil.id]"
+                v-model="coil.selectedProductId"
+                @change="onProductChange(coil)"
                 class="w-full border rounded px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <option :value="null">— unassigned —</option>
@@ -361,6 +366,17 @@
                   {{ product.name }}
                 </option>
               </select>
+            </td>
+
+            <td class="p-4">
+              <input
+                v-model.number="coil.selectedItemPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Price"
+                class="w-full border rounded px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
             </td>
 
             <td class="p-4 text-gray-500 text-center">
@@ -427,7 +443,6 @@ export default {
       loadingCoils: false,
       savingCoils: false,
       coils: [],
-      coilEdits: {},
       allProducts: []
     }
   },
@@ -438,90 +453,37 @@ export default {
 
   methods: {
 
-    async openModelDialog(machine) {
-      this.selectedMachine = machine;
-      this.selectedModelId = machine.model_id || null;
-
-      if (!this.machineModels.length) {
-        await this.fetchModels();
-      }
-
-      this.showModelDialog = true;
-    },
-    async fetchModels() {
-      const { data, error } = await supabase
-        .from("machine_models")
-        .select("*")
-        .order("name", { ascending: true });
-
-      if (error) {
-        console.error(error);
-        alert("Erro ao carregar modelos");
-        return;
-      }
-
-      this.machineModels = data;
-    },
-    async linkModel() {
-      if (!this.selectedMachine || !this.selectedModelId) return;
-
-      const { error } = await supabase
-        .from("machines")
-        .update({ model_id: this.selectedModelId })
-        .eq("id", this.selectedMachine.id);
-
-      if (error) {
-        console.error(error);
-        alert("Erro ao vincular modelo");
-        return;
-      }
-
-      this.selectedMachine.model_id = this.selectedModelId;
-      this.showModelDialog = false;
-    },
     async loadMachines() {
-
       const { data, error } = await supabase
         .from("machines")
-        .select(`*,machine_models(name),embedded(id,subdomain,status)`)
+        .select(`*, machine_models(name), embedded(id, subdomain, status)`)
 
       if (error) {
-        console.error(error)
+        console.error("Failed to load machines:", error)
         return
       }
 
       this.machines = data
-
     },
 
     async createMachine() {
-
-      if (!this.newMachineName) {
-        alert("Machine name required")
-        return
-      }
+      if (!this.newMachineName) return
 
       const { error } = await supabase
         .from("machines")
-        .insert({
-          name: this.newMachineName
-        })
+        .insert({ name: this.newMachineName })
 
       if (error) {
-        console.error(error)
-        alert("Error creating machine")
+        console.error("Failed to create machine:", error)
         return
       }
 
       this.newMachineName = ""
       this.showAddModal = false
-
       await this.loadMachines()
-
     },
 
     async openLinkModal(machine) {
-
       this.selectedMachine = machine
       this.showLinkModal = true
 
@@ -531,84 +493,104 @@ export default {
         .is("machine_id", null)
 
       if (error) {
-        console.error(error)
+        console.error("Failed to load available devices:", error)
         return
       }
 
       this.availableEmbeddeds = data
-
     },
 
     async linkEmbedded() {
-
-      if (!this.selectedEmbedded) {
-        alert("Select an embedded")
-        return
-      }
+      if (!this.selectedEmbedded) return
 
       const { error } = await supabase.rpc("bind_embedded_machine", {
-          embedded_id_: this.selectedEmbedded.id,
-          machine_id_: this.selectedMachine.id
+        embedded_id_: this.selectedEmbedded.id,
+        machine_id_: this.selectedMachine.id
       })
 
       if (error) {
-        console.error(error)
-        alert("Failed to link embedded")
+        console.error("Failed to link device:", error)
         return
       }
+
       this.showLinkModal = false
       this.selectedEmbedded = null
-
       await this.loadMachines()
     },
 
     openCreditModal(machine) {
-
-      if (!machine.embedded) {
-        alert("Machine has no embedded linked")
-        return
-      }
-
       this.selectedMachine = machine
       this.creditAmount = null
       this.showCreditModal = true
-
     },
 
     async sendCredit() {
-
-      const subdomain = this.selectedMachine.embedded.subdomain
-
-      const { error } = await supabase.functions.invoke(
-        "send-credit",
-        {
-          body: {
-            subdomain: subdomain,
-            amount: parseFloat(this.creditAmount)
-          }
+      const { error } = await supabase.functions.invoke("send-credit", {
+        body: {
+          subdomain: this.selectedMachine.embedded.subdomain,
+          amount: parseFloat(this.creditAmount)
         }
-      )
+      })
 
       if (error) {
-        console.error(error)
-        alert("Failed to send credit")
+        console.error("Failed to send credit:", error)
         return
       }
 
       this.showCreditModal = false
-      alert("Credit sent")
+    },
 
+    async openModelDialog(machine) {
+      this.selectedMachine = machine
+      this.selectedModelId = machine.model_id || null
+
+      if (!this.machineModels.length) {
+        await this.fetchModels()
+      }
+
+      this.showModelDialog = true
+    },
+
+    async fetchModels() {
+      const { data, error } = await supabase
+        .from("machine_models")
+        .select("*")
+        .order("name", { ascending: true })
+
+      if (error) {
+        console.error("Failed to load models:", error)
+        return
+      }
+
+      this.machineModels = data
+    },
+
+    async linkModel() {
+      if (!this.selectedMachine || !this.selectedModelId) return
+
+      const { error } = await supabase
+        .from("machines")
+        .update({ model_id: this.selectedModelId })
+        .eq("id", this.selectedMachine.id)
+
+      if (error) {
+        console.error("Failed to link model:", error)
+        return
+      }
+
+      this.selectedMachine.model_id = this.selectedModelId
+      this.showModelDialog = false
     },
 
     async openCoilsModal(machine) {
       this.selectedMachine = machine
       this.coils = []
-      this.coilEdits = {}
       this.showCoilsModal = true
-      await Promise.all([
-        this.loadCoils(machine.id),
-        this.allProducts.length === 0 ? this.fetchAllProducts() : Promise.resolve()
-      ])
+
+      if (this.allProducts.length === 0) {
+        await this.fetchAllProducts()
+      }
+      await this.loadCoils(machine.id)
     },
 
     async loadCoils(machineId) {
@@ -616,15 +598,23 @@ export default {
 
       const { data, error } = await supabase
         .from("machine_coils")
-        .select("id, item_number, alias, capacity, product_id")
+        .select("id, item_number, alias, capacity, product_id, item_price")
         .eq("machine_id", machineId)
         .order("item_number")
 
       if (error) {
-        console.error(error)
+        console.error("Failed to load coils:", error)
       } else {
-        this.coils = data
-        this.coilEdits = Object.fromEntries(data.map(c => [c.id, c.product_id]))
+        this.coils = data.map(c => {
+          const product = c.product_id
+            ? this.allProducts.find(p => p.id === c.product_id)
+            : null
+          return {
+            ...c,
+            selectedProductId: c.product_id ?? null,
+            selectedItemPrice: c.item_price ?? product?.price ?? null
+          }
+        })
       }
 
       this.loadingCoils = false
@@ -637,30 +627,38 @@ export default {
         .eq("enabled", true)
         .order("name")
 
-      if (!error) this.allProducts = data
+      if (!error) this.allProducts = data ?? []
+    },
+
+    onProductChange(coil) {
+      const product = this.allProducts.find(p => p.id === coil.selectedProductId)
+      coil.selectedItemPrice = product?.price ?? null
     },
 
     async saveCoils() {
       this.savingCoils = true
 
-      const updates = this.coils.map(coil =>
-        supabase
-          .from("machine_coils")
-          .update({ product_id: this.coilEdits[coil.id] ?? null })
-          .eq("id", coil.id)
-      )
+      try {
+        for (const coil of this.coils) {
+          const { data: updated, error } = await supabase
+            .from("machine_coils")
+            .update({
+              product_id: coil.selectedProductId ?? null,
+              item_price: coil.selectedItemPrice ?? null
+            })
+            .eq("id", coil.id)
+            .select("id")
 
-      const results = await Promise.all(updates)
-      const failed = results.find(r => r.error)
-
-      if (failed) {
-        console.error(failed.error)
-        alert("Failed to save coils")
-      } else {
+          if (error) throw error
+          if (!updated?.length) throw new Error(`Failed to update slot "${coil.alias || coil.id}"`)
+        }
         this.showCoilsModal = false
+      } catch (err) {
+        console.error("Failed to save coils:", err)
+        alert("Failed to save coils: " + err.message)
+      } finally {
+        this.savingCoils = false
       }
-
-      this.savingCoils = false
     }
 
   }
