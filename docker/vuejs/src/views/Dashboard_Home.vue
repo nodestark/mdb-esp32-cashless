@@ -12,9 +12,7 @@
 
       <div class="bg-white shadow rounded-xl p-4">
         <p class="text-sm text-gray-500">Sales Today</p>
-        <p class="text-2xl font-semibold text-green-600">
-          {{ formatCurrency(salesToday) }}
-        </p>
+        <p class="text-2xl font-semibold text-green-600">{{ formatCurrency(salesToday) }}</p>
       </div>
 
       <div class="bg-white shadow rounded-xl p-4">
@@ -72,21 +70,29 @@
             </td>
 
             <td class="p-4 font-medium text-gray-700">
-              {{ sale.machines?.name || '-' }}
+              {{ sale.machines?.name || sale.embedded?.machines?.name || '-' }}
             </td>
 
             <td class="p-4 text-gray-500">
-              {{ sale.product_id || '-' }}
+              {{ sale.products?.name || '-' }}
             </td>
 
-            <td class="p-4 text-gray-500">
-              {{ sale.channel }}
+            <td class="p-4">
+              <span :class="channelClass(sale.channel)">
+                {{ sale.channel }}
+              </span>
             </td>
 
             <td class="p-4 font-semibold text-green-600">
               {{ formatCurrency(sale.item_price) }}
             </td>
 
+          </tr>
+
+          <tr v-if="!loading && sales.length === 0">
+            <td colspan="5" class="p-8 text-center text-gray-400">
+              No sales recorded yet.
+            </td>
           </tr>
 
         </tbody>
@@ -145,11 +151,12 @@ export default {
           id,
           created_at,
           item_price,
-          product_id,
           channel,
-          machines (
-            name
-          )
+          machines!sale_machine_id_fkey (name),
+          embedded!sales_embedded_id_fkey (
+            machines!embedded_machine_id_fkey (name)
+          ),
+          products!sale_product_id_fkey (name)
         `)
         .order("created_at", { ascending: false })
         .limit(20)
@@ -209,6 +216,15 @@ export default {
 
     formatDate(date) {
       return new Date(date).toLocaleString()
+    },
+
+    channelClass(channel) {
+      const map = {
+        ble:  'px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700',
+        mqtt: 'px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700',
+        cash: 'px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600',
+      }
+      return map[channel] ?? 'px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500'
     }
 
   }

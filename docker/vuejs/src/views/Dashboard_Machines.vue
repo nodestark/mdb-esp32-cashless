@@ -73,22 +73,26 @@
 
           <button
             @click="openLinkModal(machine)"
-            class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40" >
-
-            Link Embedded
+            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition"
+          >
+            Link Device
           </button>
+
           <button
             :disabled="!machine.embedded"
             @click="openCreditModal(machine)"
-            class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40" >
-
+            class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-sm rounded transition disabled:opacity-40"
+          >
             Send Credit
           </button>
 
-          <button @click="openModelDialog(machine)"
-                  class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40" >
+          <button
+            @click="openModelDialog(machine)"
+            class="px-3 py-1 border border-slate-400 hover:bg-slate-100 text-slate-700 text-sm rounded transition"
+          >
             Link Model
           </button>
+
         </td>
 
       </tr>

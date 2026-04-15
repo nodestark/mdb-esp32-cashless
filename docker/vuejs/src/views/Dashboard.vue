@@ -96,8 +96,8 @@
       <!-- TOPBAR -->
       <header class="h-16 bg-white border-b flex items-center justify-between px-8">
 
-        <div class="text-sm text-gray-500">
-          Dashboard
+        <div class="text-sm font-medium text-gray-700">
+          {{ $route.name ?? 'Dashboard' }}
         </div>
 
         <div class="flex items-center gap-4">

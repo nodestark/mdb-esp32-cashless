@@ -24,13 +24,13 @@ const routes = [
     component: Dashboard,
     meta: { requiresAuth: true },
     children: [
-      { path: '', component: DashboardHome },
-      { path: 'machines', component: DashboardMachines },
-      { path: 'machine-models', component: DashboardMachineModels },
-      { path: 'products', component: DashboardProducts },
-      { path: 'settings', component: DashboardSettings },
-      { path: 'metrics', component: DashboardMetrics },
-      { path: 'devices', component: DashboardEmbedded }
+      { path: '',               component: DashboardHome,         name: 'Home' },
+      { path: 'machines',       component: DashboardMachines,     name: 'Machines' },
+      { path: 'machine-models', component: DashboardMachineModels,name: 'Machine Models' },
+      { path: 'products',       component: DashboardProducts,     name: 'Products' },
+      { path: 'settings',       component: DashboardSettings,     name: 'Settings' },
+      { path: 'metrics',        component: DashboardMetrics,      name: 'Metrics' },
+      { path: 'devices',        component: DashboardEmbedded,     name: 'Devices' }
     ]
   },
   { path: '/login', component: Login },

@@ -62,8 +62,8 @@
               {{ device.subdomain }}
             </td>
 
-            <td class="p-4 text-gray-500">
-              <span v-if="device":class="device.status === 'online' ? 'text-green-600' : 'text-red-600 font-bold'" >
+            <td class="p-4">
+              <span :class="statusClass(device.status)">
                 {{ device.status }}
               </span>
             </td>
@@ -152,10 +152,14 @@ export default {
       this.loading = false
     },
     formatDate(date) {
-
       if (!date) return "-"
-
       return new Date(date).toLocaleString()
+    },
+
+    statusClass(status) {
+      return status === 'online'
+        ? 'px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700'
+        : 'px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700'
     }
 
   }
