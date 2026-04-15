@@ -1,8 +1,6 @@
 # VMFlow Android App
 
 [![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white)](https://www.android.com)
-[![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-1E88E5?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![BLE](https://img.shields.io/badge/BLE-0078D4?logo=bluetooth&logoColor=white)](https://developer.android.com/guide/topics/connectivity/bluetooth)
 [![MQTT](https://img.shields.io/badge/MQTT-3C5280?logo=eclipsemosquitto&logoColor=white)](https://mqtt.org)
 [![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
