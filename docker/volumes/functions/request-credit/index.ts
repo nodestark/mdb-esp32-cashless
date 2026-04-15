@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
             { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         )
 
-        const { data: embeddedData, error } = await supabase.from("embedded").select("passkey,subdomain,id").eq("subdomain", body.subdomain);
+        const { data: embeddedData, error } = await supabase.from("embedded").select("passkey,subdomain,id,machine_id").eq("subdomain", body.subdomain);
 
         const passkey: number[] = [...embeddedData[0].passkey].map(c => c.charCodeAt(0));
 
@@ -41,11 +41,12 @@ Deno.serve(async (req) => {
 
 	        const { data: saleData, error } = await supabase.from("sales").insert([{
             	embedded_id: embeddedData[0].id,
+            	machine_id:  embeddedData[0].machine_id ?? null,
             	item_number: itemNumber,
-            	item_price: fromScaleFactor(itemPrice, 1, 2),
-            	channel: "ble",
-            	lat: (body.lat !== undefined ? body.lat : null),
-		        lng: (body.lng !== undefined ? body.lng : null) }]).select("id").single()
+            	item_price:  fromScaleFactor(itemPrice, 1, 2),
+            	channel:     "ble",
+            	lat:         (body.lat !== undefined ? body.lat : null),
+		        lng:         (body.lng !== undefined ? body.lng : null) }]).select("id").single()
 
             payload[0] = 0x03;
 

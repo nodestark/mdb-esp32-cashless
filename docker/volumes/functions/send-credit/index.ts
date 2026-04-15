@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
             { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         )
 
-        const { data: embeddedData, error } = await supabase.from("embedded").select("passkey,subdomain,status,id").eq("subdomain", body.subdomain);
+        const { data: embeddedData, error } = await supabase.from("embedded").select("passkey,subdomain,status,id,machine_id").eq("subdomain", body.subdomain);
 
         const cipher: number[] = [...embeddedData[0].passkey].map(c => c.charCodeAt(0));
 
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
         let salesId: string | null = null;
         if ("online" === embeddedData[0].status){
 
-            const { data: saleData, error } = await supabase.from("sales").insert([{ embedded_id: embeddedData[0].id, item_price: fromScaleFactor(itemPrice, 1, 2), channel: "mqtt" }]).select("id").single()
+            const { data: saleData, error } = await supabase.from("sales").insert([{ embedded_id: embeddedData[0].id, machine_id: embeddedData[0].machine_id ?? null, item_price: fromScaleFactor(itemPrice, 1, 2), channel: "mqtt" }]).select("id").single()
 
             salesId = saleData.id
         }

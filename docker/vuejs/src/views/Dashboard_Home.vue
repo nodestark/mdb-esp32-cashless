@@ -70,11 +70,14 @@
             </td>
 
             <td class="p-4 font-medium text-gray-700">
-              {{ sale.machines?.name || sale.embedded?.machines?.name || '-' }}
+              {{ sale.machines?.name || '-' }}
             </td>
 
             <td class="p-4 text-gray-500">
               {{ sale.products?.name || '-' }}
+              <span v-if="sale.coil_alias" class="ml-1 px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500 font-mono">
+                {{ sale.coil_alias }}
+              </span>
             </td>
 
             <td class="p-4">
@@ -152,10 +155,8 @@ export default {
           created_at,
           item_price,
           channel,
+          coil_alias,
           machines!sale_machine_id_fkey (name),
-          embedded!sales_embedded_id_fkey (
-            machines!embedded_machine_id_fkey (name)
-          ),
           products!sale_product_id_fkey (name)
         `)
         .order("created_at", { ascending: false })
