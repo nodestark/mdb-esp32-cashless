@@ -100,6 +100,73 @@ CREATE TYPE "public"."sale_channel" AS ENUM (
 
 ALTER TYPE "public"."sale_channel" OWNER TO "supabase_admin";
 
+
+CREATE OR REPLACE FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+	update embedded set machine_id = null where machine_id = machine_id_;
+	update embedded set machine_id = machine_id_ where id = embedded_id_;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$ begin perform pg_notify('n8n_channel_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c', row_to_json(new)::text); return null; end; $$;
+
+
+ALTER FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$ begin perform pg_notify('n8n_channel_ccd0ec78_6984_40d0_86fd_38388a729dee', row_to_json(new)::text); return null; end; $$;
+
+
+ALTER FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$ begin perform pg_notify('n8n_channel_ccf0f211_2d2e_4889_97ae_7e172d45dba8', row_to_json(new)::text); return null; end; $$;
+
+
+ALTER FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."sync_machine_coils_on_model_change"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    -- Só executa se o model_id realmente mudou
+    IF NEW.model_id IS DISTINCT FROM OLD.model_id THEN
+
+        -- Remove coils antigos da máquina
+        DELETE FROM machine_coils
+        WHERE machine_id = NEW.id;
+
+        -- Replica coils do novo modelo
+        INSERT INTO machine_coils (machine_id, alias, capacity)
+        SELECT
+            NEW.id,
+            mc.alias,
+            mc.capacity
+        FROM model_coils mc
+        WHERE mc.model_id = NEW.model_id;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."sync_machine_coils_on_model_change"() OWNER TO "supabase_admin";
+
 SET default_tablespace = '';
 
 SET default_table_access_method = "heap";
@@ -136,8 +203,10 @@ CREATE TABLE IF NOT EXISTS "public"."machine_coils" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "product_id" "uuid",
-    "alias" smallint,
-    "capacity" smallint DEFAULT '0'::smallint NOT NULL
+    "item_number" smallint,
+    "alias" "text",
+    "capacity" integer,
+    "machine_id" "uuid"
 );
 
 
@@ -146,7 +215,10 @@ ALTER TABLE "public"."machine_coils" OWNER TO "supabase_admin";
 
 CREATE TABLE IF NOT EXISTS "public"."machine_models" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "name" "text",
+    "manufacturer" "text",
+    "owner_id" "uuid" DEFAULT "auth"."uid"()
 );
 
 
@@ -159,7 +231,8 @@ CREATE TABLE IF NOT EXISTS "public"."machines" (
     "owner_id" "uuid" DEFAULT "auth"."uid"(),
     "serial_number" "text",
     "name" "text",
-    "refilled_at" timestamp with time zone DEFAULT ("now"() AT TIME ZONE 'utc'::"text") NOT NULL
+    "refilled_at" timestamp with time zone DEFAULT ("now"() AT TIME ZONE 'utc'::"text") NOT NULL,
+    "model_id" "uuid"
 );
 
 
@@ -200,9 +273,10 @@ ALTER TABLE "public"."metrics_2026_2036" OWNER TO "supabase_admin";
 CREATE TABLE IF NOT EXISTS "public"."model_coils" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "model_id" "uuid" DEFAULT "gen_random_uuid"(),
-    "alias" smallint,
-    "item_number" smallint
+    "alias" "text",
+    "item_number" smallint,
+    "capacity" smallint,
+    "model_id" "uuid"
 );
 
 
@@ -223,7 +297,10 @@ CREATE TABLE IF NOT EXISTS "public"."products" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "name" "text",
     "barcode" "text",
-    "owner_id" "uuid" DEFAULT "auth"."uid"() NOT NULL
+    "owner_id" "uuid" DEFAULT "auth"."uid"() NOT NULL,
+    "image_url" "text",
+    "price" real,
+    "enabled" boolean DEFAULT true NOT NULL
 );
 
 
@@ -246,6 +323,17 @@ CREATE TABLE IF NOT EXISTS "public"."sales" (
 
 
 ALTER TABLE "public"."sales" OWNER TO "supabase_admin";
+
+
+CREATE OR REPLACE VIEW "public"."sales_metrics_v1" AS
+ SELECT "s"."machine_id",
+    "date_trunc"('hour'::"text", "s"."created_at") AS "created_at",
+    "count"(*) AS "total"
+   FROM "public"."sales" "s"
+  GROUP BY "s"."machine_id", ("date_trunc"('hour'::"text", "s"."created_at"));
+
+
+ALTER VIEW "public"."sales_metrics_v1" OWNER TO "postgres";
 
 
 ALTER TABLE ONLY "public"."metrics" ATTACH PARTITION "public"."metrics_2026_2036" FOR VALUES FROM ('2026-01-01 00:00:00+00') TO ('2036-01-01 00:00:00+00');
@@ -297,8 +385,25 @@ ALTER TABLE ONLY "public"."sales"
 
 
 
+CREATE OR REPLACE TRIGGER "n8n_trigger_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c" AFTER INSERT ON "public"."embedded" FOR EACH ROW EXECUTE FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"();
+
+
+
+CREATE OR REPLACE TRIGGER "n8n_trigger_ccf0f211_2d2e_4889_97ae_7e172d45dba8" AFTER INSERT ON "public"."sales" FOR EACH ROW EXECUTE FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_sync_machine_coils" AFTER UPDATE OF "model_id" ON "public"."machines" FOR EACH ROW EXECUTE FUNCTION "public"."sync_machine_coils_on_model_change"();
+
+
+
 ALTER TABLE ONLY "public"."embedded"
     ADD CONSTRAINT "embedded_machine_id_fkey" FOREIGN KEY ("machine_id") REFERENCES "public"."machines"("id");
+
+
+
+ALTER TABLE ONLY "public"."machines"
+    ADD CONSTRAINT "machines_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."machine_models"("id");
 
 
 
@@ -329,7 +434,15 @@ CREATE POLICY "insert_policy" ON "public"."embedded" FOR INSERT TO "authenticate
 
 
 
+CREATE POLICY "insert_policy" ON "public"."machine_models" FOR INSERT TO "authenticated" WITH CHECK (true);
+
+
+
 CREATE POLICY "insert_policy" ON "public"."machines" FOR INSERT TO "authenticated" WITH CHECK (true);
+
+
+
+CREATE POLICY "insert_policy" ON "public"."model_coils" FOR INSERT TO "authenticated" WITH CHECK (true);
 
 
 
@@ -350,10 +463,17 @@ ALTER TABLE "public"."machine_models" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."machines" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."metrics" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."model_coils" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."payments" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "policy_insert" ON "public"."machine_coils" FOR INSERT TO "authenticated" WITH CHECK (true);
+
 
 
 ALTER TABLE "public"."products" ENABLE ROW LEVEL SECURITY;
@@ -366,7 +486,21 @@ CREATE POLICY "select_policy" ON "public"."embedded" FOR SELECT TO "authenticate
 
 
 
+CREATE POLICY "select_policy" ON "public"."machine_models" FOR SELECT TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
 CREATE POLICY "select_policy" ON "public"."machines" FOR SELECT TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
+CREATE POLICY "select_policy" ON "public"."metrics" FOR SELECT TO "authenticated" USING (true);
+
+
+
+CREATE POLICY "select_policy" ON "public"."model_coils" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."machine_models" "m"
+  WHERE (("m"."id" = "model_coils"."model_id") AND ("m"."owner_id" = "auth"."uid"())))));
 
 
 
@@ -378,7 +512,15 @@ CREATE POLICY "select_policy" ON "public"."sales" FOR SELECT TO "authenticated" 
 
 
 
+CREATE POLICY "update_policy" ON "public"."embedded" FOR UPDATE TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id")) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
 CREATE POLICY "update_policy" ON "public"."machines" FOR UPDATE TO "authenticated" USING (true) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
+CREATE POLICY "update_policy" ON "public"."products" FOR UPDATE TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id")) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
 
 
 
@@ -569,6 +711,37 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() TO "anon";
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() TO "anon";
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() TO "anon";
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."sync_machine_coils_on_model_change"() TO "postgres";
+GRANT ALL ON FUNCTION "public"."sync_machine_coils_on_model_change"() TO "anon";
+GRANT ALL ON FUNCTION "public"."sync_machine_coils_on_model_change"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."sync_machine_coils_on_model_change"() TO "service_role";
+
+
+
 
 
 
@@ -658,6 +831,12 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public".
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."sales" TO "anon";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."sales" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."sales" TO "service_role";
+
+
+
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."sales_metrics_v1" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."sales_metrics_v1" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."sales_metrics_v1" TO "service_role";
 
 
 
