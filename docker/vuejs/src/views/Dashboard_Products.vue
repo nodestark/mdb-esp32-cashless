@@ -13,6 +13,15 @@
     </button>
   </div>
 
+  <!-- SEARCH -->
+  <div class="mb-4">
+    <input
+      v-model="search"
+      placeholder="Search by name..."
+      class="w-full max-w-sm border rounded px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+    />
+  </div>
+
   <table class="w-full border rounded-xl overflow-hidden">
 
     <thead class="bg-gray-100 text-left">
@@ -27,7 +36,7 @@
     <tbody>
 
       <tr
-        v-for="product in products"
+        v-for="product in filteredProducts"
         :key="product.id"
         class="border-t"
       >
@@ -44,26 +53,32 @@
           {{ product.name }}
         </td>
 
-        <td class="p-3">
-          {{ product.price }}
+        <td class="p-3 font-medium text-green-600">
+          {{ formatCurrency(product.price) }}
         </td>
-        
+
         <td class="p-3 flex gap-2">
 
-        <button
-          @click="editProduct(product)"
-          class="px-2 py-1 text-sm bg-yellow-500 text-white rounded"
-        >
-        Edit
-        </button>
+          <button
+            @click="editProduct(product)"
+            class="px-2 py-1 text-sm bg-yellow-500 text-white rounded"
+          >
+            Edit
+          </button>
 
-        <button
-          @click="confirmDisable(product)"
-          class="px-2 py-1 text-sm bg-red-600 text-white rounded"
-        >
-        Disable
-        </button>
+          <button
+            @click="confirmDisable(product)"
+            class="px-2 py-1 text-sm bg-red-600 text-white rounded"
+          >
+            Disable
+          </button>
 
+        </td>
+      </tr>
+
+      <tr v-if="filteredProducts.length === 0">
+        <td colspan="4" class="p-8 text-center text-gray-400 text-sm">
+          {{ search ? 'No products match your search.' : 'No products yet. Add your first product.' }}
         </td>
       </tr>
 
@@ -96,11 +111,14 @@
       v-model="newProductPrice"
       type="number"
       placeholder="Price"
+      min="0.01"
+      step="0.01"
       class="w-full border rounded p-2 mb-3"
     />
 
     <input
       type="file"
+      accept="image/*"
       @change="handleImage"
       class="mb-4"
     />
@@ -150,11 +168,14 @@
       v-model="editProductPrice"
       type="number"
       placeholder="Price"
+      min="0.01"
+      step="0.01"
       class="w-full border rounded p-2 mb-3"
     />
 
     <input
       type="file"
+      accept="image/*"
       @change="handleEditImage"
       class="mb-4"
     />
@@ -222,10 +243,11 @@
 
 <script setup>
 
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { supabase } from "@/lib/supabase"
 
 const products = ref([])
+const search = ref("")
 
 const showAddModal = ref(false)
 const showEditModal = ref(false)
@@ -241,15 +263,25 @@ const editProductName = ref("")
 const editProductPrice = ref("")
 const editProductImage = ref(null)
 
-function handleImage(e){
+const filteredProducts = computed(() => {
+  if (!search.value.trim()) return products.value
+  const term = search.value.trim().toLowerCase()
+  return products.value.filter(p => p.name?.toLowerCase().includes(term))
+})
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value ?? 0)
+}
+
+function handleImage(e) {
   productImage.value = e.target.files[0]
 }
 
-function handleEditImage(e){
+function handleEditImage(e) {
   editProductImage.value = e.target.files[0]
 }
 
-function editProduct(product){
+function editProduct(product) {
   editingProduct.value = product
   editProductName.value = product.name
   editProductPrice.value = product.price
@@ -257,19 +289,17 @@ function editProduct(product){
   showEditModal.value = true
 }
 
-async function loadProducts(){
-
+async function loadProducts() {
   const { data } = await supabase
     .from("products")
     .select("*")
     .eq("enabled", true)
-    .order("created_at")
+    .order("name")
 
-  products.value = data
+  products.value = data ?? []
 }
 
-async function uploadImage(file){
-
+async function uploadImage(file) {
   const fileName = `${crypto.randomUUID()}.jpg`
 
   const { error } = await supabase
@@ -277,7 +307,7 @@ async function uploadImage(file){
     .from("product-images")
     .upload(fileName, file)
 
-  if(error) throw error
+  if (error) throw error
 
   const { data } = supabase
     .storage
@@ -287,21 +317,18 @@ async function uploadImage(file){
   return data.publicUrl
 }
 
-async function createProduct(){
+async function createProduct() {
+  if (!newProductName.value.trim()) return
+  if (!newProductPrice.value || Number(newProductPrice.value) <= 0) return
 
   let imageUrl = null
+  if (productImage.value) imageUrl = await uploadImage(productImage.value)
 
-  if(productImage.value){
-    imageUrl = await uploadImage(productImage.value)
-  }
-
-  await supabase
-    .from("products")
-    .insert({
-      name: newProductName.value,
-      price: newProductPrice.value,
-      image_url: imageUrl
-    })
+  await supabase.from("products").insert({
+    name: newProductName.value.trim(),
+    price: Number(newProductPrice.value),
+    image_url: imageUrl
+  })
 
   showAddModal.value = false
   newProductName.value = ""
@@ -311,19 +338,18 @@ async function createProduct(){
   loadProducts()
 }
 
-async function updateProduct(){
+async function updateProduct() {
+  if (!editProductName.value.trim()) return
+  if (!editProductPrice.value || Number(editProductPrice.value) <= 0) return
 
   let imageUrl = editingProduct.value.image_url
-
-  if(editProductImage.value){
-    imageUrl = await uploadImage(editProductImage.value)
-  }
+  if (editProductImage.value) imageUrl = await uploadImage(editProductImage.value)
 
   await supabase
     .from("products")
     .update({
-      name: editProductName.value,
-      price: editProductPrice.value,
+      name: editProductName.value.trim(),
+      price: Number(editProductPrice.value),
       image_url: imageUrl
     })
     .eq("id", editingProduct.value.id)
@@ -334,13 +360,12 @@ async function updateProduct(){
   loadProducts()
 }
 
-function confirmDisable(product){
+function confirmDisable(product) {
   productToDisable.value = product
   showConfirmModal.value = true
 }
 
-async function disableProduct(){
-
+async function disableProduct() {
   await supabase
     .from("products")
     .update({ enabled: false })
