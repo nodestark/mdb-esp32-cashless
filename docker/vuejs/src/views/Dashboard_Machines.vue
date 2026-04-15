@@ -1,4 +1,15 @@
 <template>
+
+<!-- TOAST -->
+<transition name="fade">
+  <div
+    v-if="toast"
+    class="fixed bottom-6 right-6 z-50 px-4 py-3 bg-slate-800 text-white text-sm rounded-xl shadow-lg"
+  >
+    {{ toast }}
+  </div>
+</transition>
+
 <div class="p-6">
 
   <!-- HEADER -->
@@ -79,7 +90,7 @@
           </button>
 
           <button
-            :disabled="!machine.embedded"
+            :disabled="!machine.embedded || machine.embedded.status === 'offline'"
             @click="openCreditModal(machine)"
             class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-sm rounded transition disabled:opacity-40"
           >
@@ -165,11 +176,16 @@
       Link Device
     </h2>
 
+    <div v-if="availableEmbeddeds.length === 0" class="text-sm text-gray-400 text-center py-4 mb-4">
+      No available devices. Register a new device first.
+    </div>
+
     <select
+      v-else
       v-model="selectedEmbedded"
       class="w-full border rounded p-2 mb-4"
     >
-
+      <option :value="null" disabled>Select a device</option>
       <option
         v-for="embedded in availableEmbeddeds"
         :key="embedded.id"
@@ -177,7 +193,6 @@
       >
         {{ embedded.subdomain }}
       </option>
-
     </select>
 
     <div class="flex justify-end gap-2">
@@ -190,8 +205,9 @@
       </button>
 
       <button
+        :disabled="availableEmbeddeds.length === 0"
         @click="linkEmbedded"
-        class="px-3 py-1 bg-green-600 text-white rounded"
+        class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40"
       >
         Link
       </button>
@@ -443,7 +459,9 @@ export default {
       loadingCoils: false,
       savingCoils: false,
       coils: [],
-      allProducts: []
+      allProducts: [],
+
+      toast: null
     }
   },
 
@@ -538,6 +556,12 @@ export default {
       }
 
       this.showCreditModal = false
+      this.showToast("Credit sent successfully")
+    },
+
+    showToast(message) {
+      this.toast = message
+      setTimeout(() => { this.toast = null }, 3000)
     },
 
     async openModelDialog(machine) {
@@ -555,6 +579,7 @@ export default {
       const { data, error } = await supabase
         .from("machine_models")
         .select("*")
+        .eq("enabled", true)
         .order("name", { ascending: true })
 
       if (error) {
@@ -666,3 +691,8 @@ export default {
 }
 
 </script>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s, transform 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(8px); }
+</style>

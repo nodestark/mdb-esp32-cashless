@@ -25,6 +25,7 @@
         <th class="p-3">Name</th>
         <th class="p-3">Manufacturer</th>
         <th class="p-3">Coils</th>
+        <th class="p-3"></th>
       </tr>
     </thead>
 
@@ -45,6 +46,15 @@
 
         <td class="p-3">
           {{ model.coils_count }}
+        </td>
+
+        <td class="p-3">
+          <button
+            @click="confirmDelete(model)"
+            class="px-3 py-1 text-sm border border-red-300 hover:bg-red-50 text-red-600 rounded transition"
+          >
+            Delete
+          </button>
         </td>
 
       </tr>
@@ -169,6 +179,40 @@
 
 </div>
 
+<!-- DELETE CONFIRM MODAL -->
+
+<div
+  v-if="showDeleteModal"
+  class="fixed inset-0 bg-black/40 flex items-center justify-center"
+>
+  <div class="bg-white p-6 rounded-xl w-96">
+
+    <h2 class="text-lg font-semibold mb-2">Disable Model</h2>
+
+    <p class="text-gray-600 mb-6">
+      Are you sure you want to disable
+      <span class="font-medium text-gray-900">{{ modelToDelete?.name }}</span>?
+    </p>
+
+    <div class="flex justify-end gap-2">
+      <button
+        @click="showDeleteModal = false"
+        class="px-3 py-1 border rounded text-sm"
+      >
+        Cancel
+      </button>
+      <button
+        @click="deleteModel"
+        :disabled="deleting"
+        class="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-sm rounded transition disabled:opacity-50"
+      >
+        {{ deleting ? 'Deleting...' : 'Delete' }}
+      </button>
+    </div>
+
+  </div>
+</div>
+
 </template>
 
 
@@ -184,6 +228,10 @@ const showModal = ref(false)
 const saving = ref(false)
 const formError = ref("")
 const coilErrors = ref([])
+
+const showDeleteModal = ref(false)
+const modelToDelete = ref(null)
+const deleting = ref(false)
 
 const modelName = ref("")
 const manufacturer = ref("")
@@ -252,6 +300,35 @@ function validate(){
   return true
 }
 
+function confirmDelete(model){
+  modelToDelete.value = model
+  showDeleteModal.value = true
+}
+
+async function deleteModel(){
+  if(!modelToDelete.value) return
+
+  deleting.value = true
+
+  try {
+    const { error } = await supabase
+      .from("machine_models")
+      .update({ enabled: false })
+      .eq("id", modelToDelete.value.id)
+
+    if(error) throw error
+
+    showDeleteModal.value = false
+    modelToDelete.value = null
+    await loadModels()
+
+  } catch(err) {
+    console.error("Failed to disable model:", err)
+  } finally {
+    deleting.value = false
+  }
+}
+
 async function loadModels(){
 
   const { data, error } = await supabase
@@ -262,8 +339,7 @@ async function loadModels(){
       manufacturer,
       model_coils(id)
     `)
-
-  console.log(data)
+    .eq("enabled", true)
 
   if(error){
     console.error("Failed to load models:", error)
