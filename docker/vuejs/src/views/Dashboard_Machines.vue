@@ -10,109 +10,116 @@
   </div>
 </transition>
 
-<div class="p-6">
+<div class="p-6 space-y-6">
 
   <!-- HEADER -->
-
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Machines</h1>
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Machines</h1>
+      <p class="text-gray-500">Manage your vending machines</p>
+    </div>
 
     <button
       @click="showAddModal = true"
-      class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700"
+      class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
     >
       + Add Machine
     </button>
   </div>
 
   <!-- TABLE -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
 
-  <table class="w-full border rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
 
-    <thead class="bg-gray-100 text-left">
-      <tr>
-        <th class="p-3">Name</th>
-        <th class="p-3">Model</th>
-        <th class="p-3">Embedded</th>
-        <th class="p-3">Status</th>
-        <th class="p-3">Actions</th>
-      </tr>
-    </thead>
+      <thead class="bg-gray-50">
+        <tr class="text-left text-gray-600">
+          <th class="p-4">Name</th>
+          <th class="p-4">Model</th>
+          <th class="p-4">Device</th>
+          <th class="p-4">Status</th>
+          <th class="p-4">Actions</th>
+        </tr>
+      </thead>
 
-    <tbody>
+      <tbody>
 
-      <tr
-        v-for="machine in machines"
-        :key="machine.id"
-        class="border-t"
-      >
+        <tr
+          v-for="machine in machines"
+          :key="machine.id"
+          class="border-t hover:bg-gray-50"
+        >
 
-        <td class="p-3">
-          {{ machine.name }}
-        </td>
+          <td class="p-4 font-medium text-gray-700">
+            {{ machine.name }}
+          </td>
 
-        <td class="p-3">
-          <span v-if="machine.machine_models">
-            {{ machine.machine_models.name }}
-          </span>
-          <span v-else class="text-gray-400">
-            No model
-          </span>
-        </td>
+          <td class="p-4 text-gray-500">
+            <span v-if="machine.machine_models">{{ machine.machine_models.name }}</span>
+            <span v-else class="text-gray-300">—</span>
+          </td>
 
-        <td class="p-3">
-          <span v-if="machine.embedded">
-            {{ machine.embedded.subdomain }}
-          </span>
-          <span v-else class="text-gray-400">
-            Not linked
-          </span>
-        </td>
+          <td class="p-4 text-gray-500">
+            <span v-if="machine.embedded">{{ machine.embedded.subdomain }}</span>
+            <span v-else class="text-gray-300">—</span>
+          </td>
 
-        <td class="p-3">
-          <span v-if="machine.embedded" :class="statusClass(machine.embedded.status)">
-            {{ machine.embedded.status }}
-          </span>
-        </td>
+          <td class="p-4">
+            <span v-if="machine.embedded" :class="statusClass(machine.embedded.status)">
+              {{ machine.embedded.status }}
+            </span>
+          </td>
 
-        <td class="p-3 flex gap-2">
+          <td class="p-4 flex gap-2">
 
-          <button
-            @click="openLinkModal(machine)"
-            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition"
-          >
-            Link Device
-          </button>
+            <button
+              @click="openLinkModal(machine)"
+              class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition"
+            >
+              Link Device
+            </button>
 
-          <button
-            :disabled="!machine.embedded || machine.embedded.status === 'offline'"
-            @click="openCreditModal(machine)"
-            class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-sm rounded transition disabled:opacity-40"
-          >
-            Send Credit
-          </button>
+            <button
+              :disabled="!machine.embedded || machine.embedded.status === 'offline'"
+              @click="openCreditModal(machine)"
+              class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-sm rounded transition disabled:opacity-40"
+            >
+              Send Credit
+            </button>
 
-          <button
-            @click="openModelDialog(machine)"
-            class="px-3 py-1 border border-slate-400 hover:bg-slate-100 text-slate-700 text-sm rounded transition"
-          >
-            Link Model
-          </button>
+            <button
+              @click="openModelDialog(machine)"
+              class="px-3 py-1 border border-slate-400 hover:bg-slate-100 text-slate-700 text-sm rounded transition"
+            >
+              Link Model
+            </button>
 
-          <button
-            @click="openCoilsModal(machine)"
-            class="px-3 py-1 border border-blue-400 hover:bg-blue-50 text-blue-700 text-sm rounded transition"
-          >
-            Coils
-          </button>
+            <button
+              @click="openCoilsModal(machine)"
+              class="px-3 py-1 border border-blue-400 hover:bg-blue-50 text-blue-700 text-sm rounded transition"
+            >
+              Coils
+            </button>
 
-        </td>
+          </td>
 
-      </tr>
+        </tr>
 
-    </tbody>
+        <tr v-if="!loadingMachines && machines.length === 0">
+          <td colspan="5" class="p-8 text-center text-gray-400">
+            No machines yet. Add your first machine.
+          </td>
+        </tr>
 
-  </table>
+      </tbody>
+
+    </table>
+
+    <div v-if="loadingMachines" class="p-6 text-center text-gray-500 text-sm">
+      Loading machines...
+    </div>
+
+  </div>
 
 </div>
 
@@ -450,6 +457,8 @@ export default {
       selectedModelId: null,
       machineModels: [],
 
+      loadingMachines: false,
+
       showCoilsModal: false,
       loadingCoils: false,
       savingCoils: false,
@@ -473,16 +482,19 @@ export default {
     },
 
     async loadMachines() {
+      this.loadingMachines = true
+
       const { data, error } = await supabase
         .from("machines")
         .select(`*, machine_models(name), embedded(id, subdomain, status)`)
 
       if (error) {
         console.error("Failed to load machines:", error)
-        return
+      } else {
+        this.machines = data
       }
 
-      this.machines = data
+      this.loadingMachines = false
     },
 
     async createMachine() {

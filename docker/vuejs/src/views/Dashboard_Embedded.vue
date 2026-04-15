@@ -74,6 +74,12 @@
 
           </tr>
 
+          <tr v-if="!loading && devices.length === 0">
+            <td colspan="5" class="p-8 text-center text-gray-400">
+              No devices registered yet.
+            </td>
+          </tr>
+
         </tbody>
 
       </table>

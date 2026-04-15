@@ -1,20 +1,24 @@
 <template>
 
-<div class="p-6">
+<div class="p-6 space-y-6">
 
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Products</h1>
+  <!-- HEADER -->
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Products</h1>
+      <p class="text-gray-500">Product catalog available for vending machines</p>
+    </div>
 
     <button
       @click="showAddModal = true"
-      class="px-4 py-2 bg-slate-800 text-white rounded"
+      class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
     >
       + Add Product
     </button>
   </div>
 
   <!-- SEARCH -->
-  <div class="mb-4">
+  <div>
     <input
       v-model="search"
       placeholder="Search by name..."
@@ -22,69 +26,73 @@
     />
   </div>
 
-  <table class="w-full border rounded-xl overflow-hidden">
+  <!-- TABLE -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
 
-    <thead class="bg-gray-100 text-left">
-      <tr>
-        <th class="p-3">Image</th>
-        <th class="p-3">Name</th>
-        <th class="p-3">Price</th>
-        <th class="p-3">Actions</th>
-      </tr>
-    </thead>
+    <table class="w-full text-sm">
 
-    <tbody>
+      <thead class="bg-gray-50">
+        <tr class="text-left text-gray-600">
+          <th class="p-4">Image</th>
+          <th class="p-4">Name</th>
+          <th class="p-4">Price</th>
+          <th class="p-4">Actions</th>
+        </tr>
+      </thead>
 
-      <tr
-        v-for="product in filteredProducts"
-        :key="product.id"
-        class="border-t"
-      >
+      <tbody>
 
-        <td class="p-3">
-          <img
-            v-if="product.image_url"
-            :src="product.image_url"
-            class="w-12 h-12 object-cover rounded"
-          />
-        </td>
+        <tr
+          v-for="product in filteredProducts"
+          :key="product.id"
+          class="border-t hover:bg-gray-50"
+        >
 
-        <td class="p-3">
-          {{ product.name }}
-        </td>
+          <td class="p-4">
+            <img
+              v-if="product.image_url"
+              :src="product.image_url"
+              class="w-12 h-12 object-cover rounded"
+            />
+            <div v-else class="w-12 h-12 rounded bg-gray-100"></div>
+          </td>
 
-        <td class="p-3 font-medium text-green-600">
-          {{ formatCurrency(product.price) }}
-        </td>
+          <td class="p-4 font-medium text-gray-700">{{ product.name }}</td>
 
-        <td class="p-3 flex gap-2">
+          <td class="p-4 font-medium text-green-600">{{ formatCurrency(product.price) }}</td>
 
-          <button
-            @click="editProduct(product)"
-            class="px-2 py-1 text-sm bg-yellow-500 text-white rounded"
-          >
-            Edit
-          </button>
+          <td class="p-4 flex gap-2">
+            <button
+              @click="editProduct(product)"
+              class="px-2 py-1 text-sm bg-yellow-500 hover:bg-yellow-400 text-white rounded transition"
+            >
+              Edit
+            </button>
+            <button
+              @click="confirmDisable(product)"
+              class="px-2 py-1 text-sm border border-red-300 hover:bg-red-50 text-red-600 rounded transition"
+            >
+              Disable
+            </button>
+          </td>
 
-          <button
-            @click="confirmDisable(product)"
-            class="px-2 py-1 text-sm bg-red-600 text-white rounded"
-          >
-            Disable
-          </button>
+        </tr>
 
-        </td>
-      </tr>
+        <tr v-if="!loading && filteredProducts.length === 0">
+          <td colspan="4" class="p-8 text-center text-gray-400 text-sm">
+            {{ search ? 'No products match your search.' : 'No products yet. Add your first product.' }}
+          </td>
+        </tr>
 
-      <tr v-if="filteredProducts.length === 0">
-        <td colspan="4" class="p-8 text-center text-gray-400 text-sm">
-          {{ search ? 'No products match your search.' : 'No products yet. Add your first product.' }}
-        </td>
-      </tr>
+      </tbody>
 
-    </tbody>
+    </table>
 
-  </table>
+    <div v-if="loading" class="p-6 text-center text-gray-500 text-sm">
+      Loading products...
+    </div>
+
+  </div>
 
 </div>
 
@@ -247,6 +255,7 @@ import { ref, computed, onMounted } from "vue"
 import { supabase } from "@/lib/supabase"
 
 const products = ref([])
+const loading = ref(false)
 const search = ref("")
 
 const showAddModal = ref(false)
@@ -290,6 +299,8 @@ function editProduct(product) {
 }
 
 async function loadProducts() {
+  loading.value = true
+
   const { data } = await supabase
     .from("products")
     .select("*")
@@ -297,6 +308,7 @@ async function loadProducts() {
     .order("name")
 
   products.value = data ?? []
+  loading.value = false
 }
 
 async function uploadImage(file) {

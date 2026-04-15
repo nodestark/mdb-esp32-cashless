@@ -1,67 +1,71 @@
 <template>
 
-<div class="p-6">
+<div class="p-6 space-y-6">
 
   <!-- HEADER -->
-
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Machine Models</h1>
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Machine Models</h1>
+      <p class="text-gray-500">Templates used to configure machine coils</p>
+    </div>
 
     <button
       @click="openCreate"
-      class="px-4 py-2 bg-slate-800 text-white rounded"
+      class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
     >
       + Add Model
     </button>
   </div>
 
-
   <!-- TABLE -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
 
-  <table class="w-full border rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
 
-    <thead class="bg-gray-100 text-left">
-      <tr>
-        <th class="p-3">Name</th>
-        <th class="p-3">Manufacturer</th>
-        <th class="p-3">Coils</th>
-        <th class="p-3"></th>
-      </tr>
-    </thead>
+      <thead class="bg-gray-50">
+        <tr class="text-left text-gray-600">
+          <th class="p-4">Name</th>
+          <th class="p-4">Manufacturer</th>
+          <th class="p-4">Coils</th>
+          <th class="p-4"></th>
+        </tr>
+      </thead>
 
-    <tbody>
+      <tbody>
 
-      <tr
-        v-for="model in models"
-        :key="model.id"
-        class="border-t"
-      >
-        <td class="p-3">
-          {{ model.name }}
-        </td>
+        <tr
+          v-for="model in models"
+          :key="model.id"
+          class="border-t hover:bg-gray-50"
+        >
+          <td class="p-4 font-medium text-gray-700">{{ model.name }}</td>
+          <td class="p-4 text-gray-500">{{ model.manufacturer }}</td>
+          <td class="p-4 text-gray-500">{{ model.coils_count }}</td>
+          <td class="p-4">
+            <button
+              @click="confirmDelete(model)"
+              class="px-3 py-1 text-sm border border-red-300 hover:bg-red-50 text-red-600 rounded transition"
+            >
+              Disable
+            </button>
+          </td>
+        </tr>
 
-        <td class="p-3">
-          {{ model.manufacturer }}
-        </td>
+        <tr v-if="!loading && models.length === 0">
+          <td colspan="4" class="p-8 text-center text-gray-400">
+            No models yet. Add your first machine model.
+          </td>
+        </tr>
 
-        <td class="p-3">
-          {{ model.coils_count }}
-        </td>
+      </tbody>
 
-        <td class="p-3">
-          <button
-            @click="confirmDelete(model)"
-            class="px-3 py-1 text-sm border border-red-300 hover:bg-red-50 text-red-600 rounded transition"
-          >
-            Delete
-          </button>
-        </td>
+    </table>
 
-      </tr>
+    <div v-if="loading" class="p-6 text-center text-gray-500 text-sm">
+      Loading models...
+    </div>
 
-    </tbody>
-
-  </table>
+  </div>
 
 </div>
 
@@ -223,6 +227,7 @@ import { ref, onMounted } from "vue"
 import { supabase } from "@/lib/supabase"
 
 const models = ref([])
+const loading = ref(false)
 
 const showModal = ref(false)
 const saving = ref(false)
@@ -330,6 +335,7 @@ async function deleteModel(){
 }
 
 async function loadModels(){
+  loading.value = true
 
   const { data, error } = await supabase
     .from("machine_models")
@@ -343,14 +349,14 @@ async function loadModels(){
 
   if(error){
     console.error("Failed to load models:", error)
-    return
+  } else {
+    models.value = data.map(m => ({
+      ...m,
+      coils_count: m.model_coils?.length || 0
+    }))
   }
 
-  models.value = data.map(m => ({
-    ...m,
-    coils_count: m.model_coils?.length || 0
-  }))
-
+  loading.value = false
 }
 
 async function createModel(){
