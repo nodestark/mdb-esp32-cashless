@@ -70,12 +70,7 @@
         </td>
 
         <td class="p-3">
-          <span
-            v-if="machine.embedded"
-            :class="machine.embedded.status === 'online'
-              ? 'text-green-600'
-              : 'text-red-600 font-bold'"
-          >
+          <span v-if="machine.embedded" :class="statusClass(machine.embedded.status)">
             {{ machine.embedded.status }}
           </span>
         </td>
@@ -470,6 +465,12 @@ export default {
   },
 
   methods: {
+
+    statusClass(status) {
+      return status === 'online'
+        ? 'px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700'
+        : 'px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700'
+    },
 
     async loadMachines() {
       const { data, error } = await supabase

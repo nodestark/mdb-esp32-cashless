@@ -17,23 +17,17 @@
 
       <div class="bg-white shadow rounded-xl p-4">
         <p class="text-sm text-gray-500">Sales This Month</p>
-        <p class="text-2xl font-semibold">
-          {{ formatCurrency(salesMonth) }}
-        </p>
+        <p class="text-2xl font-semibold">{{ formatCurrency(salesMonth) }}</p>
       </div>
 
       <div class="bg-white shadow rounded-xl p-4">
         <p class="text-sm text-gray-500">Total Sales</p>
-        <p class="text-2xl font-semibold">
-          {{ totalSales }}
-        </p>
+        <p class="text-2xl font-semibold">{{ totalSales }}</p>
       </div>
 
       <div class="bg-white shadow rounded-xl p-4">
         <p class="text-sm text-gray-500">Machines Active</p>
-        <p class="text-2xl font-semibold text-blue-600">
-          {{ machinesActive }}
-        </p>
+        <p class="text-2xl font-semibold text-blue-600">{{ machinesActive }}</p>
       </div>
 
     </div>
@@ -41,8 +35,33 @@
     <!-- SALES TABLE -->
     <div class="bg-white rounded-xl shadow overflow-hidden">
 
-      <div class="p-4 border-b">
+      <!-- TABLE HEADER -->
+      <div class="p-4 border-b flex flex-wrap items-center justify-between gap-3">
         <h2 class="font-semibold text-gray-700">Latest Sales</h2>
+
+        <div class="flex items-center gap-2 text-sm">
+          <input
+            v-model="dateFrom"
+            type="date"
+            class="border rounded px-2 py-1 text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            @change="applyFilter"
+          />
+          <span class="text-gray-400">—</span>
+          <input
+            v-model="dateTo"
+            type="date"
+            class="border rounded px-2 py-1 text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            @change="applyFilter"
+          />
+          <button
+            v-if="dateFrom || dateTo"
+            @click="clearFilter"
+            class="px-2 py-1 text-gray-400 hover:text-gray-600 transition"
+            title="Clear filter"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <table class="w-full text-sm">
@@ -64,14 +83,9 @@
             :key="sale.id"
             class="border-t hover:bg-gray-50"
           >
+            <td class="p-4 text-gray-500">{{ formatDate(sale.created_at) }}</td>
 
-            <td class="p-4 text-gray-500">
-              {{ formatDate(sale.created_at) }}
-            </td>
-
-            <td class="p-4 font-medium text-gray-700">
-              {{ sale.machines?.name || '-' }}
-            </td>
+            <td class="p-4 font-medium text-gray-700">{{ sale.machines?.name || '-' }}</td>
 
             <td class="p-4 text-gray-500">
               {{ sale.products?.name || '-' }}
@@ -81,33 +95,42 @@
             </td>
 
             <td class="p-4">
-              <span :class="channelClass(sale.channel)">
-                {{ sale.channel }}
-              </span>
+              <span :class="channelClass(sale.channel)">{{ sale.channel }}</span>
             </td>
 
-            <td class="p-4 font-semibold text-green-600">
-              {{ formatCurrency(sale.item_price) }}
-            </td>
-
+            <td class="p-4 font-semibold text-green-600">{{ formatCurrency(sale.item_price) }}</td>
           </tr>
 
           <tr v-if="!loading && sales.length === 0">
-            <td colspan="5" class="p-8 text-center text-gray-400">
-              No sales recorded yet.
-            </td>
+            <td colspan="5" class="p-8 text-center text-gray-400">No sales recorded yet.</td>
           </tr>
 
         </tbody>
 
       </table>
 
-      <div v-if="loading" class="p-6 text-center text-gray-500">
-        Loading sales...
-      </div>
+      <div v-if="loading" class="p-6 text-center text-gray-500">Loading sales...</div>
+      <div v-if="error" class="p-6 text-red-500">{{ error }}</div>
 
-      <div v-if="error" class="p-6 text-red-500">
-        {{ error }}
+      <!-- PAGINATION -->
+      <div v-if="totalCount > pageSize" class="p-4 border-t flex items-center justify-between text-sm text-gray-500">
+        <span>{{ paginationLabel }}</span>
+        <div class="flex gap-2">
+          <button
+            :disabled="page === 0"
+            @click="goToPage(page - 1)"
+            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-40 transition"
+          >
+            ← Prev
+          </button>
+          <button
+            :disabled="(page + 1) * pageSize >= totalCount"
+            @click="goToPage(page + 1)"
+            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-40 transition"
+          >
+            Next →
+          </button>
+        </div>
       </div>
 
     </div>
@@ -117,6 +140,8 @@
 
 <script>
 import { supabase } from '@/lib/supabase'
+
+const PAGE_SIZE = 20
 
 export default {
 
@@ -128,10 +153,25 @@ export default {
       loading: false,
       error: null,
 
+      page: 0,
+      pageSize: PAGE_SIZE,
+      totalCount: 0,
+
+      dateFrom: '',
+      dateTo: '',
+
       salesToday: 0,
       salesMonth: 0,
       totalSales: 0,
       machinesActive: 0
+    }
+  },
+
+  computed: {
+    paginationLabel() {
+      const from = this.page * this.pageSize + 1
+      const to = Math.min((this.page + 1) * this.pageSize, this.totalCount)
+      return `${from}–${to} of ${this.totalCount}`
     }
   },
 
@@ -145,10 +185,13 @@ export default {
   methods: {
 
     async loadSales() {
-
       this.loading = true
+      this.error = null
 
-      const { data, error } = await supabase
+      const from = this.page * this.pageSize
+      const to = from + this.pageSize - 1
+
+      let query = supabase
         .from("sales")
         .select(`
           id,
@@ -158,52 +201,76 @@ export default {
           coil_alias,
           machines!sale_machine_id_fkey (name),
           products!sale_product_id_fkey (name)
-        `)
+        `, { count: 'exact' })
         .order("created_at", { ascending: false })
-        .limit(20)
+        .range(from, to)
+
+      if (this.dateFrom) {
+        query = query.gte("created_at", new Date(this.dateFrom).toISOString())
+      }
+      if (this.dateTo) {
+        const end = new Date(this.dateTo)
+        end.setHours(23, 59, 59, 999)
+        query = query.lte("created_at", end.toISOString())
+      }
+
+      const { data, error, count } = await query
 
       if (error) {
         this.error = error.message
       } else {
         this.sales = data
+        this.totalCount = count ?? 0
       }
 
       this.loading = false
     },
 
-    async loadMetrics() {
+    applyFilter() {
+      this.page = 0
+      this.loadSales()
+    },
 
+    clearFilter() {
+      this.dateFrom = ''
+      this.dateTo = ''
+      this.page = 0
+      this.loadSales()
+    },
+
+    goToPage(p) {
+      this.page = p
+      this.loadSales()
+    },
+
+    async loadMetrics() {
       const today = new Date()
-      today.setHours(0,0,0,0)
+      today.setHours(0, 0, 0, 0)
 
       const month = new Date()
       month.setDate(1)
-      month.setHours(0,0,0,0)
+      month.setHours(0, 0, 0, 0)
 
-      // SALES TODAY
       const { data: todayData } = await supabase
         .from("sales")
         .select("item_price")
         .gte("created_at", today.toISOString())
 
-      // SALES MONTH
       const { data: monthData } = await supabase
         .from("sales")
         .select("item_price")
         .gte("created_at", month.toISOString())
 
-      // TOTAL SALES
       const { count } = await supabase
         .from("sales")
         .select("*", { count: "exact", head: true })
 
-      // MACHINES ACTIVE
       const { count: machines } = await supabase
         .from("machines")
         .select("*", { count: "exact", head: true })
 
-      this.salesToday = todayData?.reduce((a,b)=>a + Number(b.item_price),0) || 0
-      this.salesMonth = monthData?.reduce((a,b)=>a + Number(b.item_price),0) || 0
+      this.salesToday = todayData?.reduce((a, b) => a + Number(b.item_price), 0) || 0
+      this.salesMonth = monthData?.reduce((a, b) => a + Number(b.item_price), 0) || 0
       this.totalSales = count || 0
       this.machinesActive = machines || 0
     },
