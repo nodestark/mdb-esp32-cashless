@@ -302,7 +302,7 @@ async function createModel(){
     if(coils.value.length){
 
       const rows = coils.value.map(c => ({
-        machine_model_id: model.id,
+        model_id: model.id,
         alias: c.alias.trim(),
         capacity: c.capacity
       }))
