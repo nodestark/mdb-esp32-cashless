@@ -13,21 +13,28 @@
       <div class="bg-white shadow rounded-xl p-4">
         <p class="text-sm text-gray-500">Sales Today</p>
         <p class="text-2xl font-semibold text-green-600">{{ formatCurrency(salesToday) }}</p>
+        <p v-if="todayVariation !== null" class="text-xs mt-1" :class="variationClass(todayVariation)">
+          {{ variationLabel(todayVariation) }} vs yesterday
+        </p>
+        <p v-else class="text-xs mt-1 text-gray-400">no data yesterday</p>
       </div>
 
       <div class="bg-white shadow rounded-xl p-4">
         <p class="text-sm text-gray-500">Sales This Month</p>
         <p class="text-2xl font-semibold">{{ formatCurrency(salesMonth) }}</p>
+        <p class="text-xs mt-1 text-gray-400">current month</p>
       </div>
 
       <div class="bg-white shadow rounded-xl p-4">
         <p class="text-sm text-gray-500">Total Sales</p>
         <p class="text-2xl font-semibold">{{ totalSales }}</p>
+        <p class="text-xs mt-1 text-gray-400">all time</p>
       </div>
 
       <div class="bg-white shadow rounded-xl p-4">
-        <p class="text-sm text-gray-500">Machines Active</p>
-        <p class="text-2xl font-semibold text-blue-600">{{ machinesActive }}</p>
+        <p class="text-sm text-gray-500">Machines Online</p>
+        <p class="text-2xl font-semibold text-blue-600">{{ machinesOnline }}<span class="text-base text-gray-400"> / {{ machinesActive }}</span></p>
+        <p class="text-xs mt-1 text-gray-400">online / total</p>
       </div>
 
     </div>
@@ -163,7 +170,9 @@ export default {
       salesToday: 0,
       salesMonth: 0,
       totalSales: 0,
-      machinesActive: 0
+      machinesActive: 0,
+      machinesOnline: 0,
+      todayVariation: null
     }
   },
 
@@ -243,36 +252,53 @@ export default {
       this.loadSales()
     },
 
+    sumPrices(data) {
+      return data?.reduce((a, b) => a + Number(b.item_price), 0) || 0
+    },
+
+    calcVariation(current, previous) {
+      if (!previous) return null
+      return Math.round(((current - previous) / previous) * 100)
+    },
+
+    variationLabel(pct) {
+      if (pct === null) return '—'
+      if (pct === 0) return '0%'
+      return (pct > 0 ? '↑ +' : '↓ ') + pct + '%'
+    },
+
+    variationClass(pct) {
+      if (pct === null || pct === 0) return 'text-gray-400'
+      return pct > 0 ? 'text-green-500' : 'text-red-500'
+    },
+
     async loadMetrics() {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      const now = new Date()
+      const todayStart     = new Date(now); todayStart.setHours(0, 0, 0, 0)
+      const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1)
+      const monthStart     = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
 
-      const month = new Date()
-      month.setDate(1)
-      month.setHours(0, 0, 0, 0)
+      const [
+        { data: todayData },
+        { data: yesterdayData },
+        { data: monthData },
+        { count },
+        { data: embeddeds }
+      ] = await Promise.all([
+        supabase.from("sales").select("item_price").gte("created_at", todayStart.toISOString()),
+        supabase.from("sales").select("item_price").gte("created_at", yesterdayStart.toISOString()).lt("created_at", todayStart.toISOString()),
+        supabase.from("sales").select("item_price").gte("created_at", monthStart.toISOString()),
+        supabase.from("sales").select("*", { count: "exact", head: true }),
+        supabase.from("embedded").select("machine_id, status")
+      ])
 
-      const { data: todayData } = await supabase
-        .from("sales")
-        .select("item_price")
-        .gte("created_at", today.toISOString())
-
-      const { data: monthData } = await supabase
-        .from("sales")
-        .select("item_price")
-        .gte("created_at", month.toISOString())
-
-      const { count } = await supabase
-        .from("sales")
-        .select("*", { count: "exact", head: true })
-
-      const { count: machines } = await supabase
-        .from("machines")
-        .select("*", { count: "exact", head: true })
-
-      this.salesToday = todayData?.reduce((a, b) => a + Number(b.item_price), 0) || 0
-      this.salesMonth = monthData?.reduce((a, b) => a + Number(b.item_price), 0) || 0
-      this.totalSales = count || 0
-      this.machinesActive = machines || 0
+      const linked = (embeddeds ?? []).filter(e => e.machine_id)
+      this.salesToday     = this.sumPrices(todayData)
+      this.salesMonth     = this.sumPrices(monthData)
+      this.totalSales     = count || 0
+      this.machinesActive = linked.length
+      this.machinesOnline = linked.filter(e => e.status === 'online').length
+      this.todayVariation = this.calcVariation(this.salesToday, this.sumPrices(yesterdayData))
     },
 
     formatCurrency(value) {

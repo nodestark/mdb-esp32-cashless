@@ -8,7 +8,6 @@
       <h1 class="text-2xl font-bold text-gray-800">Machine Models</h1>
       <p class="text-gray-500">Templates used to configure machine coils</p>
     </div>
-
     <button
       @click="openCreate"
       class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
@@ -19,29 +18,27 @@
 
   <!-- TABLE -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
-
     <table class="w-full text-sm">
-
       <thead class="bg-gray-50">
         <tr class="text-left text-gray-600">
           <th class="p-4">Name</th>
           <th class="p-4">Manufacturer</th>
-          <th class="p-4">Coils</th>
+          <th class="p-4 text-center w-20">Coils</th>
           <th class="p-4"></th>
         </tr>
       </thead>
-
       <tbody>
-
-        <tr
-          v-for="model in models"
-          :key="model.id"
-          class="border-t hover:bg-gray-50"
-        >
+        <tr v-for="model in models" :key="model.id" class="border-t hover:bg-gray-50">
           <td class="p-4 font-medium text-gray-700">{{ model.name }}</td>
           <td class="p-4 text-gray-500">{{ model.manufacturer }}</td>
-          <td class="p-4 text-gray-500">{{ model.coils_count }}</td>
-          <td class="p-4">
+          <td class="p-4 text-center text-gray-500">{{ model.coils_count }}</td>
+          <td class="p-4 flex gap-2 justify-end">
+            <button
+              @click="openEditCoils(model)"
+              class="px-3 py-1 text-sm border border-slate-400 hover:bg-slate-50 text-slate-700 rounded transition"
+            >
+              Edit Coils
+            </button>
             <button
               @click="confirmDelete(model)"
               class="px-3 py-1 text-sm border border-red-300 hover:bg-red-50 text-red-600 rounded transition"
@@ -50,356 +47,292 @@
             </button>
           </td>
         </tr>
-
         <tr v-if="!loading && models.length === 0">
           <td colspan="4" class="p-8 text-center text-gray-400">
             No models yet. Add your first machine model.
           </td>
         </tr>
-
       </tbody>
-
     </table>
-
-    <div v-if="loading" class="p-6 text-center text-gray-500 text-sm">
-      Loading models...
-    </div>
-
+    <div v-if="loading" class="p-6 text-center text-gray-500 text-sm">Loading models...</div>
   </div>
 
 </div>
 
 
 <!-- CREATE MODAL -->
+<div v-if="showModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+  <div class="bg-white p-6 rounded-xl w-[580px] max-h-[90vh] flex flex-col">
 
-<div
-  v-if="showModal"
-  class="fixed inset-0 bg-black/40 flex items-center justify-center"
->
+    <h2 class="text-lg font-semibold mb-4">Create Machine Model</h2>
 
-  <div class="bg-white p-6 rounded-xl w-[520px]">
+    <div class="space-y-3 mb-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">Model name</label>
+        <input v-model="modelName" placeholder="ex: Crane 474" class="w-full border rounded p-2" />
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">Manufacturer</label>
+        <input v-model="manufacturer" placeholder="ex: Crane" class="w-full border rounded p-2" />
+      </div>
+    </div>
 
-    <h2 class="text-lg font-semibold mb-4">
-      Create Machine Model
-    </h2>
-
-
-    <!-- MODEL DATA -->
-
-    <input
-      v-model="modelName"
-      placeholder="Model name"
-      class="w-full border rounded p-2 mb-3"
-    />
-
-    <input
-      v-model="manufacturer"
-      placeholder="Manufacturer"
-      class="w-full border rounded p-2 mb-4"
-    />
-
-
-    <!-- COILS -->
-
-    <div class="mb-3 flex justify-between items-center">
-      <h3 class="font-medium">
-        Coils
-      </h3>
-
-      <button
-        @click="addCoil"
-        class="text-sm px-3 py-1 bg-slate-800 text-white rounded"
-      >
+    <!-- COILS HEADER -->
+    <div class="flex justify-between items-center mb-2">
+      <h3 class="font-medium text-gray-700">Coils</h3>
+      <button @click="addCoil" class="text-sm px-3 py-1 bg-slate-800 text-white rounded">
         + Add Coil
       </button>
     </div>
 
+    <!-- COILS TABLE HEADER -->
+    <div v-if="coils.length" class="grid grid-cols-[80px_100px_80px_24px] gap-3 px-1 mb-1 text-xs text-gray-400 font-medium uppercase tracking-wide">
+      <span>Alias</span>
+      <span>Item Number</span>
+      <span>Capacity</span>
+      <span></span>
+    </div>
 
-    <div class="space-y-2 max-h-60 overflow-y-auto">
-
+    <!-- COILS LIST -->
+    <div class="space-y-1.5 overflow-y-auto flex-1 pr-1">
       <div
         v-for="(coil, index) in coils"
         :key="index"
-        class="flex gap-2 items-center"
+        class="grid grid-cols-[80px_100px_80px_24px] gap-3 items-center"
       >
-
         <input
           :value="coil.alias"
           @input="coil.alias = $event.target.value.toUpperCase()"
-          placeholder="Alias (A1, B3...)"
-          class="border rounded p-2 w-28"
+          placeholder="A1"
+          class="border rounded px-2 py-1.5 text-sm w-full"
           :class="{ 'border-red-400': coilErrors[index]?.alias }"
         />
-
+        <input
+          v-model.number="coil.item_number"
+          type="number"
+          min="0"
+          placeholder="1"
+          class="border rounded px-2 py-1.5 text-sm w-full"
+          :class="{ 'border-red-400': coilErrors[index]?.item_number }"
+        />
         <input
           v-model.number="coil.capacity"
           type="number"
-          placeholder="Capacity"
+          placeholder="10"
           min="1"
-          class="border rounded p-2 w-28"
+          class="border rounded px-2 py-1.5 text-sm w-full"
           :class="{ 'border-red-400': coilErrors[index]?.capacity }"
         />
-
-        <button
-          @click="removeCoil(index)"
-          class="px-2 py-1 text-sm bg-red-600 text-white rounded"
-        >
-          X
-        </button>
-
+        <button @click="removeCoil(index)" class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>
       </div>
 
+      <p v-if="coils.length === 0" class="text-sm text-gray-400 text-center py-4">
+        No coils added yet.
+      </p>
     </div>
 
-    <!-- VALIDATION ERROR -->
+    <p v-if="formError" class="text-red-500 text-sm mt-3">{{ formError }}</p>
 
-    <p v-if="formError" class="text-red-500 text-sm mt-3">
-      {{ formError }}
-    </p>
-
-
-    <!-- ACTIONS -->
-
-    <div class="flex justify-end gap-2 mt-6">
-
-      <button
-        @click="closeModal"
-        class="px-3 py-1 border rounded"
-      >
-        Cancel
-      </button>
-
+    <div class="flex justify-end gap-2 mt-4 pt-4 border-t">
+      <button @click="closeModal" class="px-3 py-1 border rounded text-sm">Cancel</button>
       <button
         @click="createModel"
         :disabled="saving"
-        class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50"
+        class="px-4 py-2 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
       >
         {{ saving ? 'Saving...' : 'Create' }}
       </button>
-
     </div>
 
   </div>
-
 </div>
 
-<!-- DELETE CONFIRM MODAL -->
 
-<div
-  v-if="showDeleteModal"
-  class="fixed inset-0 bg-black/40 flex items-center justify-center"
->
+<!-- EDIT COILS MODAL -->
+<div v-if="showEditModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl w-[620px] max-h-[90vh] flex flex-col">
+
+    <!-- HEADER -->
+    <div class="p-5 border-b flex justify-between items-center">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">Edit Coils</h2>
+        <p class="text-sm text-gray-500">{{ editingModel?.name }}</p>
+      </div>
+      <button @click="showEditModal = false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+    </div>
+
+    <!-- COILS TABLE HEADER -->
+    <div class="grid grid-cols-[80px_100px_80px] gap-3 px-5 pt-3 pb-1 text-xs text-gray-400 font-medium uppercase tracking-wide">
+      <span>Alias</span>
+      <span>Item Number</span>
+      <span>Capacity</span>
+    </div>
+
+    <!-- COILS -->
+    <div class="overflow-y-auto flex-1 px-5 pb-2 space-y-1.5">
+      <div
+        v-for="coil in editCoils"
+        :key="coil.id"
+        class="grid grid-cols-[80px_100px_80px] gap-3 items-center"
+      >
+        <span class="px-2 py-1.5 text-sm bg-gray-50 border rounded text-gray-600 font-medium">{{ coil.alias }}</span>
+        <input
+          v-model.number="coil.item_number"
+          type="number"
+          min="0"
+          class="border rounded px-2 py-1.5 text-sm w-full"
+        />
+        <input
+          v-model.number="coil.capacity"
+          type="number"
+          min="1"
+          class="border rounded px-2 py-1.5 text-sm w-full"
+        />
+      </div>
+
+      <p v-if="editCoils.length === 0" class="text-sm text-gray-400 text-center py-6">No coils found.</p>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="p-4 border-t flex justify-end gap-2">
+      <button @click="showEditModal = false" class="px-4 py-2 border rounded text-sm text-gray-600">Cancel</button>
+      <button
+        @click="saveCoils"
+        :disabled="savingCoils"
+        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition disabled:opacity-50"
+      >
+        {{ savingCoils ? 'Saving...' : 'Save' }}
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- DISABLE CONFIRM MODAL -->
+<div v-if="showDeleteModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
   <div class="bg-white p-6 rounded-xl w-96">
-
     <h2 class="text-lg font-semibold mb-2">Disable Model</h2>
-
     <p class="text-gray-600 mb-6">
       Are you sure you want to disable
       <span class="font-medium text-gray-900">{{ modelToDelete?.name }}</span>?
     </p>
-
     <div class="flex justify-end gap-2">
-      <button
-        @click="showDeleteModal = false"
-        class="px-3 py-1 border rounded text-sm"
-      >
-        Cancel
-      </button>
+      <button @click="showDeleteModal = false" class="px-3 py-1 border rounded text-sm">Cancel</button>
       <button
         @click="deleteModel"
         :disabled="deleting"
         class="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-sm rounded transition disabled:opacity-50"
       >
-        {{ deleting ? 'Deleting...' : 'Delete' }}
+        {{ deleting ? 'Disabling...' : 'Disable' }}
       </button>
     </div>
-
   </div>
 </div>
 
 </template>
 
 
-
 <script setup>
-
 import { ref, onMounted } from "vue"
 import { supabase } from "@/lib/supabase"
 
-const models = ref([])
+const models  = ref([])
 const loading = ref(false)
 
-const showModal = ref(false)
-const saving = ref(false)
-const formError = ref("")
+// create modal
+const showModal  = ref(false)
+const saving     = ref(false)
+const formError  = ref("")
 const coilErrors = ref([])
-
-const showDeleteModal = ref(false)
-const modelToDelete = ref(null)
-const deleting = ref(false)
-
-const modelName = ref("")
+const modelName  = ref("")
 const manufacturer = ref("")
 const coils = ref([])
 
-function openCreate(){
-  modelName.value = ""
+// edit coils modal
+const showEditModal  = ref(false)
+const savingCoils    = ref(false)
+const editingModel   = ref(null)
+const editCoils      = ref([])
+
+// disable modal
+const showDeleteModal = ref(false)
+const modelToDelete   = ref(null)
+const deleting        = ref(false)
+
+function openCreate() {
+  modelName.value    = ""
   manufacturer.value = ""
-  coils.value = []
-  formError.value = ""
-  coilErrors.value = []
-  showModal.value = true
+  coils.value        = []
+  formError.value    = ""
+  coilErrors.value   = []
+  showModal.value    = true
 }
 
-function closeModal(){
-  modelName.value = ""
-  manufacturer.value = ""
-  coils.value = []
-  formError.value = ""
-  coilErrors.value = []
+function closeModal() {
   showModal.value = false
 }
 
-function addCoil(){
-  coils.value.push({ alias: "", capacity: null })
+function addCoil() {
+  coils.value.push({ alias: "", item_number: 0, capacity: null })
   coilErrors.value.push({})
 }
 
-function removeCoil(index){
+function removeCoil(index) {
   coils.value.splice(index, 1)
   coilErrors.value.splice(index, 1)
 }
 
-function validate(){
-  formError.value = ""
+function validate() {
+  formError.value  = ""
   coilErrors.value = coils.value.map(() => ({}))
 
-  if(!modelName.value.trim()){
+  if (!modelName.value.trim()) {
     formError.value = "Model name is required."
     return false
   }
-
-  if(!manufacturer.value.trim()){
+  if (!manufacturer.value.trim()) {
     formError.value = "Manufacturer is required."
     return false
   }
 
-  let hasCoilError = false
-
+  let hasError = false
   coils.value.forEach((coil, i) => {
-    if(!coil.alias.trim()){
-      coilErrors.value[i].alias = true
-      hasCoilError = true
-    }
-    if(!coil.capacity || coil.capacity <= 0){
-      coilErrors.value[i].capacity = true
-      hasCoilError = true
-    }
+    if (!coil.alias.trim())                   { coilErrors.value[i].alias       = true; hasError = true }
+    if (coil.item_number === '' || coil.item_number == null) { coilErrors.value[i].item_number = true; hasError = true }
+    if (!coil.capacity || coil.capacity <= 0) { coilErrors.value[i].capacity    = true; hasError = true }
   })
 
-  if(hasCoilError){
-    formError.value = "Fill in all coil fields with valid values."
+  if (hasError) {
+    formError.value = "Fill in all coil fields."
     return false
   }
-
   return true
 }
 
-function confirmDelete(model){
-  modelToDelete.value = model
-  showDeleteModal.value = true
-}
-
-async function deleteModel(){
-  if(!modelToDelete.value) return
-
-  deleting.value = true
-
-  try {
-    const { error } = await supabase
-      .from("machine_models")
-      .update({ enabled: false })
-      .eq("id", modelToDelete.value.id)
-
-    if(error) throw error
-
-    showDeleteModal.value = false
-    modelToDelete.value = null
-    await loadModels()
-
-  } catch(err) {
-    console.error("Failed to disable model:", err)
-  } finally {
-    deleting.value = false
-  }
-}
-
-async function loadModels(){
-  loading.value = true
-
-  const { data, error } = await supabase
-    .from("machine_models")
-    .select(`
-      id,
-      name,
-      manufacturer,
-      model_coils(id)
-    `)
-    .eq("enabled", true)
-
-  if(error){
-    console.error("Failed to load models:", error)
-  } else {
-    models.value = data.map(m => ({
-      ...m,
-      coils_count: m.model_coils?.length || 0
-    }))
-  }
-
-  loading.value = false
-}
-
-async function createModel(){
-
-  if(!validate()) return
-
+async function createModel() {
+  if (!validate()) return
   saving.value = true
 
   try {
-
     const { data: model, error } = await supabase
       .from("machine_models")
-      .insert({
-        name: modelName.value.trim(),
-        manufacturer: manufacturer.value.trim()
-      })
+      .insert({ name: modelName.value.trim(), manufacturer: manufacturer.value.trim() })
       .select()
       .single()
 
-    if(error){
-      formError.value = "Error creating model. Try again."
-      console.error(error)
-      return
-    }
+    if (error) { formError.value = "Error creating model."; return }
 
-    if(coils.value.length){
-
+    if (coils.value.length) {
       const rows = coils.value.map(c => ({
-        model_id: model.id,
-        alias: c.alias.trim(),
-        capacity: c.capacity
+        model_id:    model.id,
+        alias:       c.alias.trim(),
+        item_number: c.item_number,
+        capacity:    c.capacity
       }))
 
-      const { error: coilError } = await supabase
-        .from("model_coils")
-        .insert(rows)
-
-      if(coilError){
-        formError.value = "Model created but failed to save coils."
-        console.error(coilError)
-        return
-      }
-
+      const { error: coilError } = await supabase.from("model_coils").insert(rows)
+      if (coilError) { formError.value = "Model created but failed to save coils."; return }
     }
 
     closeModal()
@@ -408,9 +341,89 @@ async function createModel(){
   } finally {
     saving.value = false
   }
+}
 
+async function openEditCoils(model) {
+  editingModel.value = model
+
+  const { data, error } = await supabase
+    .from("model_coils")
+    .select("id, alias, item_number, capacity")
+    .eq("model_id", model.id)
+    .order("alias")
+
+  if (error) { console.error(error); return }
+
+  editCoils.value   = data ?? []
+  showEditModal.value = true
+}
+
+async function saveCoils() {
+  savingCoils.value = true
+
+  try {
+    for (const coil of editCoils.value) {
+      const { error } = await supabase
+        .from("model_coils")
+        .update({ item_number: coil.item_number, capacity: coil.capacity })
+        .eq("id", coil.id)
+
+      if (error) throw error
+    }
+    showEditModal.value = false
+    await loadModels()
+  } catch (err) {
+    console.error("Failed to save coils:", err)
+  } finally {
+    savingCoils.value = false
+  }
+}
+
+function confirmDelete(model) {
+  modelToDelete.value  = model
+  showDeleteModal.value = true
+}
+
+async function deleteModel() {
+  if (!modelToDelete.value) return
+  deleting.value = true
+
+  try {
+    const { error } = await supabase
+      .from("machine_models")
+      .update({ enabled: false })
+      .eq("id", modelToDelete.value.id)
+
+    if (error) throw error
+
+    showDeleteModal.value = false
+    modelToDelete.value   = null
+    await loadModels()
+
+  } catch (err) {
+    console.error("Failed to disable model:", err)
+  } finally {
+    deleting.value = false
+  }
+}
+
+async function loadModels() {
+  loading.value = true
+
+  const { data, error } = await supabase
+    .from("machine_models")
+    .select("id, name, manufacturer, model_coils(id)")
+    .eq("enabled", true)
+    .order("name")
+
+  if (error) {
+    console.error(error)
+  } else {
+    models.value = data.map(m => ({ ...m, coils_count: m.model_coils?.length ?? 0 }))
+  }
+
+  loading.value = false
 }
 
 onMounted(loadModels)
-
 </script>

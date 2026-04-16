@@ -116,7 +116,7 @@
 
           <!-- EXPANDED: PER-MACHINE BREAKDOWN -->
           <tr v-if="expanded === row.product_id" class="bg-slate-50">
-            <td colspan="5" class="px-10 pb-4 pt-2">
+            <td colspan="6" class="px-10 pb-4 pt-2">
 
               <table class="w-full text-xs">
                 <thead>
@@ -162,7 +162,7 @@
         </template>
 
         <tr v-if="byProduct.length === 0">
-          <td colspan="5" class="p-8 text-center text-gray-400">
+          <td colspan="6" class="p-8 text-center text-gray-400">
             No inventory data. Assign products to coils first.
           </td>
         </tr>
