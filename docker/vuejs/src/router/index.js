@@ -14,7 +14,9 @@ import DashboardMachineModels from '@/views/Dashboard_MachineModels.vue'
 import DashboardProducts from '@/views/Dashboard_Products.vue'
 import DashboardEmbedded from '@/views/Dashboard_Embedded.vue'
 import DashboardSettings from '@/views/Dashboard_Settings.vue'
-import DashboardMetrics from '@/views/Dashboard_Metrics.vue' // ✅ typo corrigido
+import DashboardMetrics from '@/views/Dashboard_Metrics.vue'
+import DashboardInventory from '@/views/Dashboard_Inventory.vue'
+import DashboardMap from '@/views/Dashboard_Map.vue'
 
 const routes = [
   { path: '/', redirect: '/home' },
@@ -30,7 +32,9 @@ const routes = [
       { path: 'products',       component: DashboardProducts,     name: 'Products' },
       { path: 'settings',       component: DashboardSettings,     name: 'Settings' },
       { path: 'metrics',        component: DashboardMetrics,      name: 'Metrics' },
-      { path: 'devices',        component: DashboardEmbedded,     name: 'Devices' }
+      { path: 'devices',        component: DashboardEmbedded,     name: 'Devices' },
+      { path: 'inventory',      component: DashboardInventory,    name: 'Inventory' },
+      { path: 'map',            component: DashboardMap,          name: 'Map' }
     ]
   },
   { path: '/login', component: Login },

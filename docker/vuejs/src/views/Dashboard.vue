@@ -40,7 +40,7 @@
           class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
           active-class="bg-slate-800 text-white"
         >
-          <span>🌀</span>
+          <span>🧩</span>
           Machine Models
         </RouterLink>
 
@@ -54,12 +54,30 @@
         </RouterLink>
 
         <RouterLink
+          to="/dashboard/inventory"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
+          active-class="bg-slate-800 text-white"
+        >
+          <span>📦</span>
+          Inventory
+        </RouterLink>
+
+        <RouterLink
           to="/dashboard/products"
           class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
           active-class="bg-slate-800 text-white"
         >
-          <span>🍩</span>
+          <span>🏷️</span>
           Products
+        </RouterLink>
+
+        <RouterLink
+          to="/dashboard/map"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
+          active-class="bg-slate-800 text-white"
+        >
+          <span>📍</span>
+          Map
         </RouterLink>
 
         <RouterLink

@@ -38,6 +38,7 @@
           <th class="p-4">Model</th>
           <th class="p-4">Device</th>
           <th class="p-4">Status</th>
+          <th class="p-4 w-40">Stock</th>
           <th class="p-4">Actions</th>
         </tr>
       </thead>
@@ -70,43 +71,37 @@
             </span>
           </td>
 
-          <td class="p-4 flex gap-2">
+          <td class="p-4 w-40">
+            <div v-if="machineHasCoils(machine)" class="flex items-center gap-2">
+              <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  :class="machineBarClass(machine)"
+                  :style="{ width: machinePct(machine) + '%' }"
+                  class="h-full rounded-full transition-all"
+                />
+              </div>
+              <span class="text-xs text-gray-500 w-8 text-right">{{ machinePct(machine) }}%</span>
+            </div>
+            <span v-else class="text-xs text-gray-300">—</span>
+          </td>
 
+          <td class="p-4">
             <button
-              @click="openLinkModal(machine)"
-              class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition"
+              @click.stop="toggleMenu(machine.id, $event)"
+              class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition"
             >
-              Link Device
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <circle cx="10" cy="4" r="1.5"/>
+                <circle cx="10" cy="10" r="1.5"/>
+                <circle cx="10" cy="16" r="1.5"/>
+              </svg>
             </button>
-
-            <button
-              :disabled="!machine.embedded || machine.embedded.status === 'offline'"
-              @click="openCreditModal(machine)"
-              class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-sm rounded transition disabled:opacity-40"
-            >
-              Send Credit
-            </button>
-
-            <button
-              @click="openModelDialog(machine)"
-              class="px-3 py-1 border border-slate-400 hover:bg-slate-100 text-slate-700 text-sm rounded transition"
-            >
-              Link Model
-            </button>
-
-            <button
-              @click="openCoilsModal(machine)"
-              class="px-3 py-1 border border-blue-400 hover:bg-blue-50 text-blue-700 text-sm rounded transition"
-            >
-              Coils
-            </button>
-
           </td>
 
         </tr>
 
         <tr v-if="!loadingMachines && machines.length === 0">
-          <td colspan="5" class="p-8 text-center text-gray-400">
+          <td colspan="6" class="p-8 text-center text-gray-400">
             No machines yet. Add your first machine.
           </td>
         </tr>
@@ -350,7 +345,8 @@
             <th class="p-4">Slot</th>
             <th class="p-4">Product</th>
             <th class="p-4 w-32">Price</th>
-            <th class="p-4 w-24 text-center">Capacity</th>
+            <th class="p-4 w-36 text-center">Stock</th>
+            <th class="p-4 w-20 text-center">Refill</th>
           </tr>
         </thead>
 
@@ -397,8 +393,29 @@
               />
             </td>
 
-            <td class="p-4 text-gray-500 text-center">
-              {{ coil.capacity ?? '-' }}
+            <td class="p-4 text-center">
+              <div class="flex flex-col items-center gap-1">
+                <span :class="stockBadgeClass(coil)" class="text-xs font-semibold px-2 py-0.5 rounded-full">
+                  {{ coil.current_stock ?? 0 }} / {{ coil.capacity ?? 0 }}
+                </span>
+                <div class="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    :class="stockBarClass(coil)"
+                    :style="{ width: stockPct(coil) + '%' }"
+                    class="h-full rounded-full transition-all"
+                  />
+                </div>
+              </div>
+            </td>
+
+            <td class="p-4 text-center">
+              <button
+                @click="refillCoil(coil)"
+                :disabled="coil.current_stock === coil.capacity"
+                class="px-2 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded transition disabled:opacity-30"
+              >
+                Refill
+              </button>
             </td>
 
           </tr>
@@ -409,23 +426,62 @@
     </div>
 
     <!-- FOOTER -->
-    <div class="p-4 border-t flex justify-end gap-2">
+    <div class="p-4 border-t flex justify-between items-center">
       <button
-        @click="showCoilsModal = false"
-        class="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50 transition"
+        :disabled="coils.length === 0"
+        @click="refillAll"
+        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm rounded transition disabled:opacity-40"
       >
-        Cancel
+        Refill All
       </button>
-      <button
-        :disabled="savingCoils || coils.length === 0"
-        @click="saveCoils"
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition disabled:opacity-40"
-      >
-        {{ savingCoils ? 'Saving...' : 'Save' }}
-      </button>
+      <div class="flex gap-2">
+        <button
+          @click="showCoilsModal = false"
+          class="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50 transition"
+        >
+          Cancel
+        </button>
+        <button
+          :disabled="savingCoils || coils.length === 0"
+          @click="saveCoils"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition disabled:opacity-40"
+        >
+          {{ savingCoils ? 'Saving...' : 'Save' }}
+        </button>
+      </div>
     </div>
 
   </div>
+</div>
+
+<!-- ACTIONS DROPDOWN (fixed to avoid overflow-hidden clipping) -->
+<div
+  v-if="openMenuId"
+  :style="{ position: 'fixed', top: menuPosition.top + 'px', right: menuPosition.right + 'px' }"
+  class="w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1"
+>
+  <template v-for="machine in machines" :key="machine.id">
+    <template v-if="openMenuId === machine.id">
+      <button
+        @click.stop="openLinkModal(machine); openMenuId = null"
+        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+      >Link Device</button>
+      <button
+        @click.stop="openModelDialog(machine); openMenuId = null"
+        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+      >Link Model</button>
+      <button
+        @click.stop="openCoilsModal(machine); openMenuId = null"
+        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+      >Coils</button>
+      <div class="border-t border-gray-100 my-1"/>
+      <button
+        :disabled="!machine.embedded || machine.embedded.status === 'offline'"
+        @click.stop="openCreditModal(machine); openMenuId = null"
+        class="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+      >Send Credit</button>
+    </template>
+  </template>
 </div>
 
 </template>
@@ -433,6 +489,7 @@
 <script>
 
 import { supabase } from "@/lib/supabase"
+import { lowStockThreshold } from "@/lib/settings"
 
 export default {
 
@@ -465,15 +522,60 @@ export default {
       coils: [],
       allProducts: [],
 
-      toast: null
+      toast: null,
+      openMenuId: null,
+      menuPosition: { top: 0, right: 0 }
     }
   },
 
   mounted() {
     this.loadMachines()
+    document.addEventListener('click', this.closeMenu)
+  },
+
+  beforeUnmount() {
+    document.removeEventListener('click', this.closeMenu)
   },
 
   methods: {
+
+    toggleMenu(id, event) {
+      if (this.openMenuId === id) {
+        this.openMenuId = null
+        return
+      }
+      const rect = event.currentTarget.getBoundingClientRect()
+      this.menuPosition = {
+        top: rect.bottom + window.scrollY,
+        right: window.innerWidth - rect.right
+      }
+      this.openMenuId = id
+    },
+
+    closeMenu() {
+      this.openMenuId = null
+    },
+
+    machineHasCoils(machine) {
+      return machine.machine_coils?.length > 0
+    },
+
+    machinePct(machine) {
+      const coils = machine.machine_coils ?? []
+      const totalStock = coils.reduce((s, c) => s + (c.current_stock ?? 0), 0)
+      const totalCap   = coils.reduce((s, c) => s + (c.capacity ?? 0), 0)
+      if (!totalCap) return 0
+      return Math.round((totalStock / totalCap) * 100)
+    },
+
+    machineBarClass(machine) {
+      const pct = this.machinePct(machine)
+      const t = lowStockThreshold.value
+      if (pct === 0)    return 'bg-red-500'
+      if (pct <= t)     return 'bg-orange-400'
+      if (pct <= t * 2) return 'bg-yellow-400'
+      return 'bg-green-500'
+    },
 
     statusClass(status) {
       return status === 'online'
@@ -486,7 +588,7 @@ export default {
 
       const { data, error } = await supabase
         .from("machines")
-        .select(`*, machine_models(name), embedded(id, subdomain, status)`)
+        .select(`*, machine_models(name), embedded(id, subdomain, status), machine_coils(capacity, current_stock)`)
 
       if (error) {
         console.error("Failed to load machines:", error)
@@ -636,7 +738,7 @@ export default {
 
       const { data, error } = await supabase
         .from("machine_coils")
-        .select("id, item_number, alias, capacity, product_id, item_price")
+        .select("id, item_number, alias, capacity, current_stock, product_id, item_price")
         .eq("machine_id", machineId)
         .order("item_number")
 
@@ -661,7 +763,7 @@ export default {
     async fetchAllProducts() {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price")
+        .select("id, name, price, current_stock")
         .eq("enabled", true)
         .order("name")
 
@@ -671,6 +773,92 @@ export default {
     onProductChange(coil) {
       const product = this.allProducts.find(p => p.id === coil.selectedProductId)
       coil.selectedItemPrice = product?.price ?? null
+    },
+
+    stockPct(coil) {
+      if (!coil.capacity) return 0
+      return Math.round(((coil.current_stock ?? 0) / coil.capacity) * 100)
+    },
+
+    stockBadgeClass(coil) {
+      const pct = this.stockPct(coil)
+      const t = lowStockThreshold.value
+      if (pct === 0)    return 'bg-red-100 text-red-700'
+      if (pct <= t)     return 'bg-orange-100 text-orange-700'
+      if (pct <= t * 2) return 'bg-yellow-100 text-yellow-700'
+      return 'bg-green-100 text-green-700'
+    },
+
+    stockBarClass(coil) {
+      const pct = this.stockPct(coil)
+      const t = lowStockThreshold.value
+      if (pct === 0)    return 'bg-red-500'
+      if (pct <= t)     return 'bg-orange-400'
+      if (pct <= t * 2) return 'bg-yellow-400'
+      return 'bg-green-500'
+    },
+
+    async debitProductStock(productId, qty) {
+      if (!productId || qty <= 0) return
+      const product = this.allProducts.find(p => p.id === productId)
+      if (!product) return
+      const newStock = Math.max(0, (product.current_stock ?? 0) - qty)
+      await supabase.from("products").update({ current_stock: newStock }).eq("id", productId)
+      product.current_stock = newStock
+    },
+
+    async refillCoil(coil) {
+      const debit = (coil.capacity ?? 0) - (coil.current_stock ?? 0)
+
+      const { error } = await supabase
+        .from("machine_coils")
+        .update({ current_stock: coil.capacity })
+        .eq("id", coil.id)
+
+      if (error) {
+        console.error("Failed to refill coil:", error)
+        return
+      }
+
+      coil.current_stock = coil.capacity
+      await this.debitProductStock(coil.selectedProductId, debit)
+      this.showToast(`Coil ${coil.alias || coil.item_number} refilled`)
+    },
+
+    async refillAll() {
+      const toRefill = this.coils.filter(c => c.current_stock !== c.capacity && c.capacity)
+
+      const updates = toRefill.map(c =>
+        supabase.from("machine_coils").update({ current_stock: c.capacity }).eq("id", c.id)
+      )
+
+      const results = await Promise.all(updates)
+      const failed = results.filter(r => r.error)
+
+      if (failed.length) {
+        console.error("Some coils failed to refill:", failed)
+        return
+      }
+
+      // debit per product (group debits)
+      const debits = {}
+      for (const c of toRefill) {
+        if (!c.selectedProductId) continue
+        const qty = (c.capacity ?? 0) - (c.current_stock ?? 0)
+        debits[c.selectedProductId] = (debits[c.selectedProductId] ?? 0) + qty
+      }
+      await Promise.all(
+        Object.entries(debits).map(([pid, qty]) => this.debitProductStock(pid, qty))
+      )
+
+      this.coils.forEach(c => { if (c.capacity) c.current_stock = c.capacity })
+
+      await supabase
+        .from("machines")
+        .update({ refilled_at: new Date().toISOString() })
+        .eq("id", this.selectedMachine.id)
+
+      this.showToast("All coils refilled")
     },
 
     async saveCoils() {

@@ -36,6 +36,7 @@
           <th class="p-4">Image</th>
           <th class="p-4">Name</th>
           <th class="p-4">Price</th>
+          <th class="p-4 w-28 text-center">Warehouse</th>
           <th class="p-4">Actions</th>
         </tr>
       </thead>
@@ -61,7 +62,22 @@
 
           <td class="p-4 font-medium text-green-600">{{ formatCurrency(product.price) }}</td>
 
-          <td class="p-4 flex gap-2">
+          <td class="p-4 text-center">
+            <span
+              class="text-sm font-semibold"
+              :class="(product.current_stock ?? 0) === 0 ? 'text-red-600' : (product.current_stock ?? 0) <= 10 ? 'text-orange-500' : 'text-gray-700'"
+            >
+              {{ product.current_stock ?? 0 }}
+            </span>
+          </td>
+
+          <td class="p-4 flex gap-2 items-center">
+            <button
+              @click="openStockModal(product)"
+              class="px-2 py-1 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded transition"
+            >
+              + Stock
+            </button>
             <button
               @click="editProduct(product)"
               class="px-2 py-1 text-sm bg-yellow-500 hover:bg-yellow-400 text-white rounded transition"
@@ -79,7 +95,7 @@
         </tr>
 
         <tr v-if="!loading && filteredProducts.length === 0">
-          <td colspan="4" class="p-8 text-center text-gray-400 text-sm">
+          <td colspan="5" class="p-8 text-center text-gray-400 text-sm">
             {{ search ? 'No products match your search.' : 'No products yet. Add your first product.' }}
           </td>
         </tr>
@@ -166,12 +182,14 @@
       Edit Product
     </h2>
 
+    <label class="block text-sm text-gray-600 mb-1">Name</label>
     <input
       v-model="editProductName"
       placeholder="Product name"
       class="w-full border rounded p-2 mb-3"
     />
 
+    <label class="block text-sm text-gray-600 mb-1">Price</label>
     <input
       v-model="editProductPrice"
       type="number"
@@ -181,6 +199,17 @@
       class="w-full border rounded p-2 mb-3"
     />
 
+    <label class="block text-sm text-gray-600 mb-1">Warehouse Stock</label>
+    <input
+      v-model.number="editProductStock"
+      type="number"
+      placeholder="Quantity"
+      min="0"
+      step="1"
+      class="w-full border rounded p-2 mb-3"
+    />
+
+    <label class="block text-sm text-gray-600 mb-1">Image</label>
     <input
       type="file"
       accept="image/*"
@@ -208,6 +237,34 @@
 
   </div>
 
+</div>
+
+<!-- ADD STOCK MODAL -->
+
+<div
+  v-if="showStockModal"
+  class="fixed inset-0 bg-black/40 flex items-center justify-center"
+>
+  <div class="bg-white p-6 rounded-xl w-80">
+
+    <h2 class="text-lg font-semibold mb-1">Add Stock</h2>
+    <p class="text-sm text-gray-500 mb-4">{{ stockProduct?.name }}</p>
+
+    <input
+      v-model.number="stockAmount"
+      type="number"
+      placeholder="Quantity received"
+      min="1"
+      step="1"
+      class="w-full border rounded p-2 mb-4"
+    />
+
+    <div class="flex justify-end gap-2">
+      <button @click="showStockModal = false" class="px-3 py-1 border rounded">Cancel</button>
+      <button @click="addStock" class="px-3 py-1 bg-emerald-600 text-white rounded">Add</button>
+    </div>
+
+  </div>
 </div>
 
 <!-- CONFIRM DISABLE MODAL -->
@@ -263,6 +320,10 @@ const showEditModal = ref(false)
 const showConfirmModal = ref(false)
 const productToDisable = ref(null)
 
+const showStockModal = ref(false)
+const stockProduct = ref(null)
+const stockAmount = ref(null)
+
 const newProductName = ref("")
 const newProductPrice = ref("")
 const productImage = ref(null)
@@ -270,6 +331,7 @@ const productImage = ref(null)
 const editingProduct = ref(null)
 const editProductName = ref("")
 const editProductPrice = ref("")
+const editProductStock = ref(0)
 const editProductImage = ref(null)
 
 const filteredProducts = computed(() => {
@@ -294,6 +356,7 @@ function editProduct(product) {
   editingProduct.value = product
   editProductName.value = product.name
   editProductPrice.value = product.price
+  editProductStock.value = product.current_stock ?? 0
   editProductImage.value = null
   showEditModal.value = true
 }
@@ -362,6 +425,7 @@ async function updateProduct() {
     .update({
       name: editProductName.value.trim(),
       price: Number(editProductPrice.value),
+      current_stock: Math.max(0, editProductStock.value ?? 0),
       image_url: imageUrl
     })
     .eq("id", editingProduct.value.id)
@@ -375,6 +439,26 @@ async function updateProduct() {
 function confirmDisable(product) {
   productToDisable.value = product
   showConfirmModal.value = true
+}
+
+function openStockModal(product) {
+  stockProduct.value = product
+  stockAmount.value = null
+  showStockModal.value = true
+}
+
+async function addStock() {
+  if (!stockAmount.value || stockAmount.value < 1) return
+
+  await supabase
+    .from("products")
+    .update({ current_stock: (stockProduct.value.current_stock ?? 0) + stockAmount.value })
+    .eq("id", stockProduct.value.id)
+
+  showStockModal.value = false
+  stockProduct.value = null
+  stockAmount.value = null
+  loadProducts()
 }
 
 async function disableProduct() {

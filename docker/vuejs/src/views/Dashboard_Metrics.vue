@@ -19,6 +19,7 @@
       @change="loadMetrics"
       class="border rounded p-2"
     >
+      <option :value="null">All Machines</option>
       <option
         v-for="machine in machines"
         :key="machine.id"
@@ -110,14 +111,8 @@ export default {
   },
 
   async mounted() {
-
     await this.loadMachines()
-
-    if (this.machines.length) {
-      this.selectedMachine = this.machines[0].id
-      await this.loadMetrics()
-    }
-
+    await this.loadMetrics()
   },
 
   methods: {
@@ -160,21 +155,21 @@ export default {
 
     async loadMetrics() {
 
-      if (!this.selectedMachine) return
-
       const start = this.getPeriodStart()
 
-        /* ---------------------------
-        PAX COUNTER
-        --------------------------- */
-
-      const { data, error } = await supabase
+      /* ---------------------------
+         PAX COUNTER
+      --------------------------- */
+      let paxQuery = supabase
         .from("metrics")
         .select("value, created_at")
-        .eq("machine_id", this.selectedMachine)
         .eq("name", "paxcounter")
         .gte("created_at", start)
         .order("created_at")
+
+      if (this.selectedMachine) paxQuery = paxQuery.eq("machine_id", this.selectedMachine)
+
+      const { data, error } = await paxQuery
 
       if (error) {
         console.error(error)
@@ -186,16 +181,18 @@ export default {
         y: m.value
       }))
 
-
       /* ---------------------------
          SALES
       --------------------------- */
-      const { data: sales, error: salesError } = await supabase
-      .from("sales_metrics_v1")
-      .select("created_at, total")
-      .eq("machine_id", this.selectedMachine)
-      .gte("created_at", start)
-      .order("created_at")
+      let salesQuery = supabase
+        .from("sales_metrics_v1")
+        .select("created_at, total")
+        .gte("created_at", start)
+        .order("created_at")
+
+      if (this.selectedMachine) salesQuery = salesQuery.eq("machine_id", this.selectedMachine)
+
+      const { data: sales, error: salesError } = await salesQuery
 
       if (salesError) {
         console.error(salesError)
