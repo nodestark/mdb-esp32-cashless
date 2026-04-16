@@ -145,7 +145,8 @@
 <script>
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'vue-router'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { startAlerts, stopAlerts } from '@/lib/useAlerts'
 
 export default {
   name: 'Dashboard',
@@ -171,7 +172,20 @@ export default {
       }
     }
 
-    onMounted(loadUser)
+    const initNotifications = async () => {
+      if (!('Notification' in window)) return
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission()
+      }
+      startAlerts()
+    }
+
+    onMounted(() => {
+      loadUser()
+      initNotifications()
+    })
+
+    onBeforeUnmount(stopAlerts)
 
     return {
       logout,
