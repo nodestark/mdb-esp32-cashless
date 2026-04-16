@@ -10,7 +10,7 @@
     </div>
 
     <button
-      @click="showAddModal = true"
+      @click="showAddModal = true; createError = null"
       class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
     >
       + Add Product
@@ -147,20 +147,24 @@
       class="mb-4"
     />
 
+    <p v-if="createError" class="text-red-500 text-sm mb-3">{{ createError }}</p>
+
     <div class="flex justify-end gap-2">
 
       <button
         @click="showAddModal=false"
-        class="px-3 py-1 border rounded"
+        :disabled="createSaving"
+        class="px-3 py-1 border rounded disabled:opacity-50"
       >
         Cancel
       </button>
 
       <button
         @click="createProduct"
-        class="px-3 py-1 bg-blue-600 text-white rounded"
+        :disabled="createSaving"
+        class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50"
       >
-        Create
+        {{ createSaving ? 'Creating...' : 'Create' }}
       </button>
 
     </div>
@@ -217,20 +221,24 @@
       class="mb-4"
     />
 
+    <p v-if="editError" class="text-red-500 text-sm mb-3">{{ editError }}</p>
+
     <div class="flex justify-end gap-2">
 
       <button
         @click="showEditModal=false"
-        class="px-3 py-1 border rounded"
+        :disabled="editSaving"
+        class="px-3 py-1 border rounded disabled:opacity-50"
       >
         Cancel
       </button>
 
       <button
         @click="updateProduct"
-        class="px-3 py-1 bg-yellow-500 text-white rounded"
+        :disabled="editSaving"
+        class="px-3 py-1 bg-yellow-500 text-white rounded disabled:opacity-50"
       >
-        Save
+        {{ editSaving ? 'Saving...' : 'Save' }}
       </button>
 
     </div>
@@ -327,12 +335,16 @@ const stockAmount = ref(null)
 const newProductName = ref("")
 const newProductPrice = ref("")
 const productImage = ref(null)
+const createSaving = ref(false)
+const createError = ref(null)
 
 const editingProduct = ref(null)
 const editProductName = ref("")
 const editProductPrice = ref("")
 const editProductStock = ref(0)
 const editProductImage = ref(null)
+const editSaving = ref(false)
+const editError = ref(null)
 
 const filteredProducts = computed(() => {
   if (!search.value.trim()) return products.value
@@ -358,6 +370,7 @@ function editProduct(product) {
   editProductPrice.value = product.price
   editProductStock.value = product.current_stock ?? 0
   editProductImage.value = null
+  editError.value = null
   showEditModal.value = true
 }
 
@@ -375,20 +388,16 @@ async function loadProducts() {
 }
 
 async function uploadImage(file) {
-  const fileName = `${crypto.randomUUID()}.jpg`
+  const ext = file.name.split(".").pop() || "jpg"
+  const fileName = `${crypto.randomUUID()}.${ext}`
 
-  const { error } = await supabase
-    .storage
+  const { error } = await supabase.storage
     .from("product-images")
     .upload(fileName, file)
 
   if (error) throw error
 
-  const { data } = supabase
-    .storage
-    .from("product-images")
-    .getPublicUrl(fileName)
-
+  const { data } = supabase.storage.from("product-images").getPublicUrl(fileName)
   return data.publicUrl
 }
 
@@ -396,44 +405,66 @@ async function createProduct() {
   if (!newProductName.value.trim()) return
   if (!newProductPrice.value || Number(newProductPrice.value) <= 0) return
 
-  let imageUrl = null
-  if (productImage.value) imageUrl = await uploadImage(productImage.value)
+  createSaving.value = true
+  createError.value = null
 
-  await supabase.from("products").insert({
-    name: newProductName.value.trim(),
-    price: Number(newProductPrice.value),
-    image_url: imageUrl
-  })
+  try {
+    let imageUrl = null
+    if (productImage.value) imageUrl = await uploadImage(productImage.value)
 
-  showAddModal.value = false
-  newProductName.value = ""
-  newProductPrice.value = ""
-  productImage.value = null
+    const { error } = await supabase.from("products").insert({
+      name: newProductName.value.trim(),
+      price: Number(newProductPrice.value),
+      image_url: imageUrl
+    })
 
-  loadProducts()
+    if (error) throw error
+
+    showAddModal.value = false
+    newProductName.value = ""
+    newProductPrice.value = ""
+    productImage.value = null
+    loadProducts()
+  } catch (err) {
+    createError.value = err.message ?? "Failed to create product"
+    console.error("createProduct error:", err)
+  } finally {
+    createSaving.value = false
+  }
 }
 
 async function updateProduct() {
   if (!editProductName.value.trim()) return
   if (!editProductPrice.value || Number(editProductPrice.value) <= 0) return
 
-  let imageUrl = editingProduct.value.image_url
-  if (editProductImage.value) imageUrl = await uploadImage(editProductImage.value)
+  editSaving.value = true
+  editError.value = null
 
-  await supabase
-    .from("products")
-    .update({
-      name: editProductName.value.trim(),
-      price: Number(editProductPrice.value),
-      current_stock: Math.max(0, editProductStock.value ?? 0),
-      image_url: imageUrl
-    })
-    .eq("id", editingProduct.value.id)
+  try {
+    let imageUrl = editingProduct.value.image_url
+    if (editProductImage.value) imageUrl = await uploadImage(editProductImage.value)
 
-  showEditModal.value = false
-  editingProduct.value = null
+    const { error } = await supabase
+      .from("products")
+      .update({
+        name: editProductName.value.trim(),
+        price: Number(editProductPrice.value),
+        current_stock: Math.max(0, editProductStock.value ?? 0),
+        image_url: imageUrl
+      })
+      .eq("id", editingProduct.value.id)
 
-  loadProducts()
+    if (error) throw error
+
+    showEditModal.value = false
+    editingProduct.value = null
+    loadProducts()
+  } catch (err) {
+    editError.value = err.message ?? "Failed to save product"
+    console.error("updateProduct error:", err)
+  } finally {
+    editSaving.value = false
+  }
 }
 
 function confirmDisable(product) {
@@ -462,10 +493,19 @@ async function addStock() {
 }
 
 async function disableProduct() {
+  const product = productToDisable.value
+
+  if (product.image_url) {
+    const parts = product.image_url.split("/product-images/")
+    if (parts[1]) {
+      await supabase.storage.from("product-images").remove([parts[1]])
+    }
+  }
+
   await supabase
     .from("products")
-    .update({ enabled: false })
-    .eq("id", productToDisable.value.id)
+    .update({ enabled: false, image_url: null })
+    .eq("id", product.id)
 
   showConfirmModal.value = false
   productToDisable.value = null
