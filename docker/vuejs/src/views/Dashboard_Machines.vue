@@ -19,12 +19,23 @@
       <p class="text-gray-500">Manage your vending machines</p>
     </div>
 
-    <button
-      @click="showAddModal = true; createError = null"
-      class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
-    >
-      + Add Machine
-    </button>
+    <div class="flex gap-2">
+      <button
+        @click="planRoute"
+        class="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded transition"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503-10.498l4.875 2.437c.381.19.622.58.622 1.006V17.25a.75.75 0 01-.437.688l-4.875 2.437a.75.75 0 01-.688 0l-4.875-2.437a.75.75 0 01-.437-.688V6.689c0-.426.24-.816.622-1.006l4.875-2.437a.75.75 0 01.688 0z"/>
+        </svg>
+        Plan Route
+      </button>
+      <button
+        @click="showAddModal = true; createError = null"
+        class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
+      >
+        + Add Machine
+      </button>
+    </div>
   </div>
 
   <!-- TABLE -->
@@ -167,6 +178,20 @@
       placeholder="0.00"
       min="0"
       step="0.01"
+      class="w-full border rounded p-2 mb-3"
+    />
+
+    <label class="block text-sm text-gray-600 mb-1">Location Name</label>
+    <input
+      v-model="newMachineLocation"
+      placeholder="ex: Shopping Iguatemi L2"
+      class="w-full border rounded p-2 mb-3"
+    />
+
+    <label class="block text-sm text-gray-600 mb-1">Address</label>
+    <input
+      v-model="newMachineAddress"
+      placeholder="ex: Av. Brig. Faria Lima, 2232"
       class="w-full border rounded p-2 mb-4"
     />
 
@@ -527,6 +552,50 @@
   </div>
 </div>
 
+<!-- PLAN ROUTE MODAL -->
+
+<div
+  v-if="showRouteModal"
+  class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+>
+  <div class="bg-white rounded-xl w-full max-w-2xl mx-4 flex flex-col max-h-[85vh]">
+
+    <div class="p-5 border-b flex justify-between items-center">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">Route Plan</h2>
+        <p class="text-sm text-gray-500">AI-optimized restock route for today</p>
+      </div>
+      <button @click="closeRoute" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="p-5 overflow-y-auto flex-1">
+      <div v-if="routeLoading" class="flex items-center gap-3 text-gray-500 text-sm py-4">
+        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+        </svg>
+        Analyzing stock levels and sales data...
+      </div>
+      <p v-else-if="routeError" class="text-red-500 text-sm">{{ routeError }}</p>
+      <p v-else-if="routeText" class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ routeText }}</p>
+    </div>
+
+    <div class="p-4 border-t flex justify-between items-center">
+      <button
+        @click="planRoute"
+        :disabled="routeLoading"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border hover:bg-gray-50 disabled:opacity-50"
+      >
+        Regenerate
+      </button>
+      <button @click="closeRoute" class="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50">
+        Close
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <!-- EDIT MACHINE MODAL -->
 
 <div
@@ -562,6 +631,20 @@
       placeholder="0.00"
       min="0"
       step="0.01"
+      class="w-full border rounded p-2 mb-3"
+    />
+
+    <label class="block text-sm text-gray-600 mb-1">Location Name</label>
+    <input
+      v-model="editMachineLocation"
+      placeholder="ex: Shopping Iguatemi L2"
+      class="w-full border rounded p-2 mb-3"
+    />
+
+    <label class="block text-sm text-gray-600 mb-1">Address</label>
+    <input
+      v-model="editMachineAddress"
+      placeholder="ex: Av. Brig. Faria Lima, 2232"
       class="w-full border rounded p-2 mb-4"
     />
 
@@ -643,8 +726,16 @@ export default {
       newMachineName: "",
       newMachineCategory: null,
       newMachineRent: null,
+      newMachineLocation: "",
+      newMachineAddress: "",
       createSaving: false,
       createError: null,
+
+      showRouteModal: false,
+      routeLoading: false,
+      routeText: '',
+      routeError: '',
+      routeAbort: null,
 
       selectedMachine: null,
       selectedEmbedded: null,
@@ -679,6 +770,8 @@ export default {
       editMachineName: "",
       editMachineCategory: null,
       editMachineRent: null,
+      editMachineLocation: "",
+      editMachineAddress: "",
       editSaving: false,
       editError: null
     }
@@ -770,7 +863,9 @@ export default {
           .insert({
             name: this.newMachineName.trim(),
             category: this.newMachineCategory ?? null,
-            monthly_rent: this.newMachineRent ?? null
+            monthly_rent: this.newMachineRent ?? null,
+            location_name: this.newMachineLocation.trim() || null,
+            address: this.newMachineAddress.trim() || null
           })
 
         if (error) throw error
@@ -778,6 +873,8 @@ export default {
         this.newMachineName = ""
         this.newMachineCategory = null
         this.newMachineRent = null
+        this.newMachineLocation = ""
+        this.newMachineAddress = ""
         this.showAddModal = false
         await this.loadMachines()
       } catch (err) {
@@ -1042,7 +1139,7 @@ export default {
         const since = new Date()
         since.setDate(since.getDate() - 30)
 
-        const [salesRes, coilsRes] = await Promise.all([
+        const [salesRes, coilsRes, paxRes] = await Promise.all([
           supabase
             .from('sales')
             .select('item_price, product_id')
@@ -1051,11 +1148,19 @@ export default {
           supabase
             .from('machine_coils')
             .select('alias, capacity, current_stock, item_price, products(name)')
+            .eq('machine_id', machine.id),
+          supabase
+            .from('metrics')
+            .select('value, created_at')
             .eq('machine_id', machine.id)
+            .eq('name', 'paxcounter')
+            .gte('created_at', since.toISOString())
+            .order('created_at')
         ])
 
         const sales = salesRes.data ?? []
         const coils = coilsRes.data ?? []
+        const paxData = paxRes.data ?? []
 
         const totalRevenue = sales.reduce((s, r) => s + (r.item_price ?? 0), 0)
         const totalSales = sales.length
@@ -1078,6 +1183,9 @@ export default {
           .map(c => c.products?.name)
           .filter(Boolean)
 
+        const totalPax = paxData.reduce((s, p) => s + (p.value ?? 0), 0)
+        const conversionRate = totalPax > 0 ? ((totalSales / totalPax) * 100).toFixed(1) : null
+
         const lang = navigator.language || 'en'
         const prompt = `You are a vending machine business analyst. Analyze the following data and provide practical insights and recommendations. Respond in the user's language: ${lang}.
 
@@ -1092,8 +1200,10 @@ Last 30 days:
 - Average ticket: R$ ${ticketMedio.toFixed(2)}
 - Stock occupancy: ${stockPct}%
 - Top selling products: ${topProducts.length ? topProducts.join(', ') : 'no data'}
+- PAX Counter (people detected): ${totalPax > 0 ? totalPax : 'no data'}
+- Sales conversion rate: ${conversionRate !== null ? conversionRate + '%' : 'no data'} (sales / people detected)
 
-Provide 3 to 5 concise and actionable insights about this machine's performance, profitability, and opportunities for improvement.`
+Provide 3 to 5 concise and actionable insights about this machine's performance, profitability, foot traffic conversion, and opportunities for improvement.`
 
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -1132,6 +1242,8 @@ Provide 3 to 5 concise and actionable insights about this machine's performance,
       this.editMachineName = machine.name ?? ""
       this.editMachineCategory = machine.category ?? null
       this.editMachineRent = machine.monthly_rent ?? null
+      this.editMachineLocation = machine.location_name ?? ""
+      this.editMachineAddress = machine.address ?? ""
       this.editError = null
       this.showEditModal = true
     },
@@ -1148,7 +1260,9 @@ Provide 3 to 5 concise and actionable insights about this machine's performance,
           .update({
             name: this.editMachineName.trim(),
             category: this.editMachineCategory ?? null,
-            monthly_rent: this.editMachineRent ?? null
+            monthly_rent: this.editMachineRent ?? null,
+            location_name: this.editMachineLocation.trim() || null,
+            address: this.editMachineAddress.trim() || null
           })
           .eq("id", this.editingMachine.id)
 
@@ -1163,6 +1277,108 @@ Provide 3 to 5 concise and actionable insights about this machine's performance,
         console.error("saveMachineEdit error:", err)
       } finally {
         this.editSaving = false
+      }
+    },
+
+    closeRoute() {
+      if (this.routeAbort) { this.routeAbort.abort(); this.routeAbort = null }
+      this.showRouteModal = false
+      this.routeLoading = false
+    },
+
+    async planRoute() {
+      if (this.routeAbort) this.routeAbort.abort()
+
+      this.routeText = ''
+      this.routeError = ''
+      this.routeLoading = true
+      this.showRouteModal = true
+
+      const abort = new AbortController()
+      this.routeAbort = abort
+
+      try {
+        const { data: cred } = await supabase
+          .from('credentials')
+          .select('value')
+          .eq('key', 'openai_api_key')
+          .maybeSingle()
+
+        if (!cred?.value) throw new Error('OpenAI API key not configured. Add it in Settings → API Keys.')
+
+        const since = new Date()
+        since.setDate(since.getDate() - 7)
+
+        const [machinesRes, salesRes] = await Promise.all([
+          supabase.from('machines').select('id, name, location_name, address, category, refilled_at, machine_coils(product_id, alias, capacity, current_stock, products(name))'),
+          supabase.from('sales').select('machine_id, product_id').gte('created_at', since.toISOString())
+        ])
+
+        const machines = machinesRes.data ?? []
+        const sales = salesRes.data ?? []
+
+        const lang = navigator.language || 'en'
+
+        const machineLines = machines.map(m => {
+          const coils = m.machine_coils ?? []
+          const totalStock = coils.reduce((s, c) => s + (c.current_stock ?? 0), 0)
+          const totalCap = coils.reduce((s, c) => s + (c.capacity ?? 0), 0)
+          const stockPct = totalCap > 0 ? Math.round((totalStock / totalCap) * 100) : 0
+          const daysSinceRefill = m.refilled_at
+            ? Math.floor((Date.now() - new Date(m.refilled_at)) / 86400000)
+            : '?'
+
+          const machineSales = sales.filter(s => s.machine_id === m.id)
+          const salesByProduct = {}
+          for (const s of machineSales) {
+            salesByProduct[s.product_id] = (salesByProduct[s.product_id] ?? 0) + 1
+          }
+
+          const coilLines = coils.map(c => {
+            const sold = salesByProduct[c.product_id] ?? 0
+            return `    • ${c.alias ?? '?'} — ${c.products?.name ?? 'unassigned'} | stock: ${c.current_stock ?? 0}/${c.capacity ?? 0} | sold last 7d: ${sold}`
+          }).join('\n')
+
+          return `
+Machine: ${m.name}
+Location: ${m.location_name ?? 'N/A'} | Address: ${m.address ?? 'N/A'}
+Category: ${m.category ?? 'N/A'} | Stock: ${stockPct}% | Days since last refill: ${daysSinceRefill}
+Coils:
+${coilLines || '    (no coils configured)'}`
+        }).join('\n---')
+
+        const prompt = `You are a vending machine field operations assistant. Based on the stock and sales data below, plan an optimized restock route for today. Respond in the user's language: ${lang}.
+
+${machineLines}
+
+Instructions:
+- Prioritize machines by urgency: critically low stock (< 20%) first, then days without refill, then moderate stock
+- For each machine, list exactly which products to bring and estimated quantity based on recent sales pace
+- Flag machines that can wait (stock > 60% and refilled recently)
+- Keep the response structured and practical for a field technician`
+
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cred.value}` },
+          body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], temperature: 0.5 }),
+          signal: abort.signal
+        })
+
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error?.message ?? 'OpenAI request failed')
+        }
+
+        const json = await res.json()
+        this.routeText = json.choices[0].message.content
+
+      } catch (err) {
+        if (err.name === 'AbortError') return
+        this.routeError = err.message
+        console.error('planRoute error:', err)
+      } finally {
+        this.routeAbort = null
+        this.routeLoading = false
       }
     },
 
