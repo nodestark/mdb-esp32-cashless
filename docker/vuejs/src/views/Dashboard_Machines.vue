@@ -20,7 +20,7 @@
     </div>
 
     <button
-      @click="showAddModal = true"
+      @click="showAddModal = true; createError = null"
       class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
     >
       + Add Machine
@@ -86,16 +86,28 @@
           </td>
 
           <td class="p-4">
-            <button
-              @click.stop="toggleMenu(machine.id, $event)"
-              class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition"
-            >
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <circle cx="10" cy="4" r="1.5"/>
-                <circle cx="10" cy="10" r="1.5"/>
-                <circle cx="10" cy="16" r="1.5"/>
-              </svg>
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                @click.stop="openInsight(machine)"
+                class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition"
+                title="AI Insight"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+                </svg>
+                Insight
+              </button>
+              <button
+                @click.stop="toggleMenu(machine.id, $event)"
+                class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <circle cx="10" cy="4" r="1.5"/>
+                  <circle cx="10" cy="10" r="1.5"/>
+                  <circle cx="10" cy="16" r="1.5"/>
+                </svg>
+              </button>
+            </div>
           </td>
 
         </tr>
@@ -134,24 +146,48 @@
     <input
       v-model="newMachineName"
       placeholder="Machine name"
-      class="w-full border rounded p-2 mb-4"
-      @keyup.enter="createMachine"
+      class="w-full border rounded p-2 mb-3"
     />
+
+    <label class="block text-sm text-gray-600 mb-1">Category</label>
+    <select v-model="newMachineCategory" class="w-full border rounded p-2 mb-3">
+      <option :value="null">— none —</option>
+      <option value="snack">Snack</option>
+      <option value="drink">Drink</option>
+      <option value="frozen">Frozen</option>
+      <option value="candy">Candy</option>
+      <option value="personal_care">Personal Care</option>
+      <option value="other">Other</option>
+    </select>
+
+    <label class="block text-sm text-gray-600 mb-1">Monthly Rent (R$)</label>
+    <input
+      v-model.number="newMachineRent"
+      type="number"
+      placeholder="0.00"
+      min="0"
+      step="0.01"
+      class="w-full border rounded p-2 mb-4"
+    />
+
+    <p v-if="createError" class="text-red-500 text-sm mb-3">{{ createError }}</p>
 
     <div class="flex justify-end gap-2">
 
       <button
         @click="showAddModal=false"
-        class="px-3 py-1 border rounded"
+        :disabled="createSaving"
+        class="px-3 py-1 border rounded disabled:opacity-50"
       >
         Cancel
       </button>
 
       <button
         @click="createMachine"
-        class="px-3 py-1 bg-blue-600 text-white rounded"
+        :disabled="createSaving"
+        class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50"
       >
-        Create
+        {{ createSaving ? 'Creating...' : 'Create' }}
       </button>
 
     </div>
@@ -454,6 +490,103 @@
   </div>
 </div>
 
+<!-- INSIGHT MODAL -->
+
+<div
+  v-if="showInsightModal"
+  class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+>
+  <div class="bg-white rounded-xl w-full max-w-lg mx-4 flex flex-col max-h-[80vh]">
+
+    <div class="p-5 border-b flex justify-between items-center">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">AI Insight</h2>
+        <p class="text-sm text-gray-500">{{ insightMachine?.name }}</p>
+      </div>
+      <button @click="closeInsight" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="p-5 overflow-y-auto flex-1">
+      <div v-if="insightLoading" class="flex items-center gap-3 text-gray-500 text-sm">
+        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+        </svg>
+        Analyzing machine data...
+      </div>
+      <p v-else-if="insightError" class="text-red-500 text-sm">{{ insightError }}</p>
+      <p v-else class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{{ insightText }}</p>
+    </div>
+
+    <div class="p-4 border-t flex justify-end">
+      <button @click="closeInsight" class="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50">
+        Close
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- EDIT MACHINE MODAL -->
+
+<div
+  v-if="showEditModal"
+  class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+>
+  <div class="bg-white p-6 rounded-xl w-80">
+
+    <h2 class="text-lg font-semibold mb-4">Edit Machine</h2>
+
+    <label class="block text-sm text-gray-600 mb-1">Name</label>
+    <input
+      v-model="editMachineName"
+      placeholder="Machine name"
+      class="w-full border rounded p-2 mb-3"
+    />
+
+    <label class="block text-sm text-gray-600 mb-1">Category</label>
+    <select v-model="editMachineCategory" class="w-full border rounded p-2 mb-3">
+      <option :value="null">— none —</option>
+      <option value="snack">Snack</option>
+      <option value="drink">Drink</option>
+      <option value="frozen">Frozen</option>
+      <option value="candy">Candy</option>
+      <option value="personal_care">Personal Care</option>
+      <option value="other">Other</option>
+    </select>
+
+    <label class="block text-sm text-gray-600 mb-1">Monthly Rent (R$)</label>
+    <input
+      v-model.number="editMachineRent"
+      type="number"
+      placeholder="0.00"
+      min="0"
+      step="0.01"
+      class="w-full border rounded p-2 mb-4"
+    />
+
+    <p v-if="editError" class="text-red-500 text-sm mb-3">{{ editError }}</p>
+
+    <div class="flex justify-end gap-2">
+      <button
+        @click="showEditModal = false"
+        :disabled="editSaving"
+        class="px-3 py-1 border rounded disabled:opacity-50"
+      >
+        Cancel
+      </button>
+      <button
+        @click="saveMachineEdit"
+        :disabled="editSaving"
+        class="px-3 py-1 bg-yellow-500 text-white rounded disabled:opacity-50"
+      >
+        {{ editSaving ? 'Saving...' : 'Save' }}
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <!-- ACTIONS DROPDOWN (fixed to avoid overflow-hidden clipping) -->
 <div
   v-if="openMenuId"
@@ -462,6 +595,10 @@
 >
   <template v-for="machine in machines" :key="machine.id">
     <template v-if="openMenuId === machine.id">
+      <button
+        @click.stop="openEditModal(machine); openMenuId = null"
+        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+      >Edit</button>
       <button
         @click.stop="openLinkModal(machine); openMenuId = null"
         class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -504,6 +641,10 @@ export default {
       showCreditModal: false,
 
       newMachineName: "",
+      newMachineCategory: null,
+      newMachineRent: null,
+      createSaving: false,
+      createError: null,
 
       selectedMachine: null,
       selectedEmbedded: null,
@@ -524,7 +665,22 @@ export default {
 
       toast: null,
       openMenuId: null,
-      menuPosition: { top: 0, right: 0 }
+      menuPosition: { top: 0, right: 0 },
+
+      showInsightModal: false,
+      insightMachine: null,
+      insightLoading: false,
+      insightText: '',
+      insightError: '',
+      insightAbort: null,
+
+      showEditModal: false,
+      editingMachine: null,
+      editMachineName: "",
+      editMachineCategory: null,
+      editMachineRent: null,
+      editSaving: false,
+      editError: null
     }
   },
 
@@ -600,20 +756,36 @@ export default {
     },
 
     async createMachine() {
-      if (!this.newMachineName) return
-
-      const { error } = await supabase
-        .from("machines")
-        .insert({ name: this.newMachineName })
-
-      if (error) {
-        console.error("Failed to create machine:", error)
+      if (!this.newMachineName.trim()) {
+        this.createError = "Machine name is required"
         return
       }
 
-      this.newMachineName = ""
-      this.showAddModal = false
-      await this.loadMachines()
+      this.createSaving = true
+      this.createError = null
+
+      try {
+        const { error } = await supabase
+          .from("machines")
+          .insert({
+            name: this.newMachineName.trim(),
+            category: this.newMachineCategory ?? null,
+            monthly_rent: this.newMachineRent ?? null
+          })
+
+        if (error) throw error
+
+        this.newMachineName = ""
+        this.newMachineCategory = null
+        this.newMachineRent = null
+        this.showAddModal = false
+        await this.loadMachines()
+      } catch (err) {
+        this.createError = err.message ?? "Failed to create machine"
+        console.error("createMachine error:", err)
+      } finally {
+        this.createSaving = false
+      }
     },
 
     async openLinkModal(machine) {
@@ -859,6 +1031,173 @@ export default {
         .eq("id", this.selectedMachine.id)
 
       this.showToast("All coils refilled")
+    },
+
+    closeInsight() {
+      if (this.insightAbort) {
+        this.insightAbort.abort()
+        this.insightAbort = null
+      }
+      this.showInsightModal = false
+      this.insightLoading = false
+    },
+
+    async openInsight(machine) {
+      if (this.insightAbort) this.insightAbort.abort()
+
+      this.insightMachine = machine
+      this.insightText = ''
+      this.insightLoading = true
+      this.showInsightModal = true
+
+      const abort = new AbortController()
+      this.insightAbort = abort
+
+      try {
+        const { data: cred } = await supabase
+          .from('credentials')
+          .select('value')
+          .eq('key', 'openai_api_key')
+          .maybeSingle()
+
+        if (!cred?.value) throw new Error('OpenAI API key not configured. Add it in Settings → API Keys.')
+
+        const since = new Date()
+        since.setDate(since.getDate() - 30)
+
+        const [salesRes, coilsRes] = await Promise.all([
+          supabase
+            .from('sales')
+            .select('item_price, product_id')
+            .eq('machine_id', machine.id)
+            .gte('created_at', since.toISOString()),
+          supabase
+            .from('machine_coils')
+            .select('alias, capacity, current_stock, item_price, products(name)')
+            .eq('machine_id', machine.id)
+        ])
+
+        const sales = salesRes.data ?? []
+        const coils = coilsRes.data ?? []
+
+        const totalRevenue = sales.reduce((s, r) => s + (r.item_price ?? 0), 0)
+        const totalSales = sales.length
+        const ticketMedio = totalSales > 0 ? (totalRevenue / totalSales) : 0
+
+        const totalStock = coils.reduce((s, c) => s + (c.current_stock ?? 0), 0)
+        const totalCap = coils.reduce((s, c) => s + (c.capacity ?? 0), 0)
+        const stockPct = totalCap > 0 ? Math.round((totalStock / totalCap) * 100) : 0
+
+        const productCount = {}
+        for (const s of sales) {
+          if (s.product_id) productCount[s.product_id] = (productCount[s.product_id] ?? 0) + 1
+        }
+        const topProductIds = Object.entries(productCount)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([id]) => id)
+        const topProducts = coils
+          .filter(c => c.products && topProductIds.includes(c.products?.id))
+          .map(c => c.products?.name)
+          .filter(Boolean)
+
+        const prompt = `You are a vending machine business analyst. Analyze the following data and provide practical insights and recommendations in Portuguese (Brazil).
+
+Machine: ${machine.name}
+Category: ${machine.category ?? 'not defined'}
+Monthly Rent: R$ ${machine.monthly_rent?.toFixed(2) ?? 'not defined'}
+Status: ${machine.embedded?.status ?? 'unknown'}
+
+Last 30 days:
+- Total sales: ${totalSales}
+- Total revenue: R$ ${totalRevenue.toFixed(2)}
+- Average ticket: R$ ${ticketMedio.toFixed(2)}
+- Stock occupancy: ${stockPct}%
+- Top selling products: ${topProducts.length ? topProducts.join(', ') : 'no data'}
+
+Provide 3 to 5 concise and actionable insights about this machine's performance, profitability, and opportunities for improvement.`
+
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${cred.value}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.7
+          }),
+          signal: abort.signal
+        })
+
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error?.message ?? 'OpenAI request failed')
+        }
+
+        const json = await res.json()
+        this.insightText = json.choices[0].message.content
+
+      } catch (err) {
+        if (err.name === 'AbortError') return
+        this.insightError = err.message
+        console.error('openInsight error:', err)
+      } finally {
+        this.insightAbort = null
+        this.insightLoading = false
+      }
+    },
+
+    openEditModal(machine) {
+      this.editingMachine = machine
+      this.editMachineName = machine.name ?? ""
+      this.editMachineCategory = machine.category ?? null
+      this.editMachineRent = machine.monthly_rent ?? null
+      this.editError = null
+      this.showEditModal = true
+    },
+
+    async saveMachineEdit() {
+      if (!this.editMachineName.trim()) return
+
+      this.editSaving = true
+      this.editError = null
+
+      try {
+        const { error } = await supabase
+          .from("machines")
+          .update({
+            name: this.editMachineName.trim(),
+            category: this.editMachineCategory ?? null,
+            monthly_rent: this.editMachineRent ?? null
+          })
+          .eq("id", this.editingMachine.id)
+
+        if (error) throw error
+
+        this.showEditModal = false
+        this.editingMachine = null
+        await this.loadMachines()
+        this.showToast("Machine updated")
+      } catch (err) {
+        this.editError = err.message ?? "Failed to save"
+        console.error("saveMachineEdit error:", err)
+      } finally {
+        this.editSaving = false
+      }
+    },
+
+    categoryClass(cat) {
+      const map = {
+        snack:         'bg-yellow-100 text-yellow-700',
+        drink:         'bg-blue-100 text-blue-700',
+        frozen:        'bg-cyan-100 text-cyan-700',
+        candy:         'bg-pink-100 text-pink-700',
+        personal_care: 'bg-purple-100 text-purple-700',
+        other:         'bg-slate-100 text-slate-600',
+      }
+      return map[cat] ?? 'bg-slate-100 text-slate-600'
     },
 
     async saveCoils() {

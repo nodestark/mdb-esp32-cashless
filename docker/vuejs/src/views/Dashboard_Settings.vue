@@ -45,6 +45,39 @@
 
   </div>
 
+  <!-- API KEYS -->
+  <div class="bg-white rounded-xl shadow p-6 space-y-4">
+
+    <h2 class="font-semibold text-gray-700">API Keys</h2>
+
+    <div>
+      <label class="block text-sm text-gray-600 mb-1">OpenAI API Key</label>
+      <input
+        v-model="claudeApiKey"
+        type="password"
+        placeholder="sk-..."
+        class="w-full border rounded p-2 text-sm font-mono"
+      />
+      <p class="text-xs text-gray-400 mt-1">
+        Used to generate AI insights per machine. Stored securely per account.
+      </p>
+    </div>
+
+    <p v-if="apiKeyError" class="text-sm text-red-500">{{ apiKeyError }}</p>
+    <p v-if="apiKeySuccess" class="text-sm text-green-600">{{ apiKeySuccess }}</p>
+
+    <div class="flex justify-end">
+      <button
+        @click="saveApiKey"
+        :disabled="savingApiKey"
+        class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded transition disabled:opacity-40"
+      >
+        {{ savingApiKey ? 'Saving...' : 'Save' }}
+      </button>
+    </div>
+
+  </div>
+
   <!-- CHANGE PASSWORD -->
   <div class="bg-white rounded-xl shadow p-6 space-y-4">
 
@@ -99,6 +132,47 @@ const threshold = ref(lowStockThreshold.value)
 function saveThreshold() {
   lowStockThreshold.value = threshold.value
 }
+
+const claudeApiKey = ref('')
+const savingApiKey = ref(false)
+const apiKeyError = ref('')
+const apiKeySuccess = ref('')
+
+async function loadApiKey() {
+  const { data } = await supabase
+    .from('credentials')
+    .select('value')
+    .eq('key', 'openai_api_key')
+    .maybeSingle()
+
+  if (data) claudeApiKey.value = data.value
+}
+
+async function saveApiKey() {
+  apiKeyError.value = ''
+  apiKeySuccess.value = ''
+
+  if (!claudeApiKey.value.trim()) {
+    apiKeyError.value = 'API key cannot be empty.'
+    return
+  }
+
+  savingApiKey.value = true
+
+  const { error } = await supabase
+    .from('credentials')
+    .upsert({ key: 'openai_api_key', value: claudeApiKey.value.trim() }, { onConflict: 'owner_id,key' })
+
+  savingApiKey.value = false
+
+  if (error) {
+    apiKeyError.value = error.message
+  } else {
+    apiKeySuccess.value = 'API key saved.'
+  }
+}
+
+loadApiKey()
 
 const newPassword = ref('')
 const confirmPassword = ref('')
