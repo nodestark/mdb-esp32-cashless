@@ -22,7 +22,8 @@
     <div class="flex gap-2">
       <button
         @click="planRoute"
-        class="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded transition"
+        :disabled="machines.length === 0"
+        class="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded transition disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503-10.498l4.875 2.437c.381.19.622.58.622 1.006V17.25a.75.75 0 01-.437.688l-4.875 2.437a.75.75 0 01-.688 0l-4.875-2.437a.75.75 0 01-.437-.688V6.689c0-.426.24-.816.622-1.006l4.875-2.437a.75.75 0 01.688 0z"/>
@@ -537,7 +538,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
         </svg>
-        Analyzing machine data...
+        Analyzing machine data... please wait.
       </div>
       <p v-else-if="insightError" class="text-red-500 text-sm">{{ insightError }}</p>
       <p v-else class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{{ insightText }}</p>
@@ -574,23 +575,45 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
         </svg>
-        Analyzing stock levels and sales data...
+        Analyzing stock levels and sales data... please wait.
       </div>
       <p v-else-if="routeError" class="text-red-500 text-sm">{{ routeError }}</p>
       <p v-else-if="routeText" class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ routeText }}</p>
     </div>
 
-    <div class="p-4 border-t flex justify-between items-center">
+    <div class="p-4 border-t flex justify-between items-center gap-2">
       <button
         @click="planRoute"
         :disabled="routeLoading"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border hover:bg-gray-50 disabled:opacity-50"
+        class="px-3 py-1.5 rounded text-sm border hover:bg-gray-50 disabled:opacity-50"
       >
         Regenerate
       </button>
-      <button @click="closeRoute" class="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50">
-        Close
-      </button>
+      <div class="flex gap-2">
+        <button
+          v-if="routeText"
+          @click="copyRoute"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border hover:bg-gray-50"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/>
+          </svg>
+          {{ routeCopied ? 'Copied!' : 'Copy' }}
+        </button>
+        <button
+          v-if="routeText && canShare"
+          @click="shareRoute"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border hover:bg-gray-50"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"/>
+          </svg>
+          Share
+        </button>
+        <button @click="closeRoute" class="px-4 py-1.5 border rounded text-sm text-gray-600 hover:bg-gray-50">
+          Close
+        </button>
+      </div>
     </div>
 
   </div>
@@ -736,6 +759,7 @@ export default {
       routeText: '',
       routeError: '',
       routeAbort: null,
+      routeCopied: false,
 
       selectedMachine: null,
       selectedEmbedded: null,
@@ -774,6 +798,12 @@ export default {
       editMachineAddress: "",
       editSaving: false,
       editError: null
+    }
+  },
+
+  computed: {
+    canShare() {
+      return !!navigator.share
     }
   },
 
@@ -1284,6 +1314,27 @@ Provide 3 to 5 concise and actionable insights about this machine's performance,
       if (this.routeAbort) { this.routeAbort.abort(); this.routeAbort = null }
       this.showRouteModal = false
       this.routeLoading = false
+    },
+
+    async copyRoute() {
+      try {
+        await navigator.clipboard.writeText(this.routeText)
+      } catch {
+        const el = document.createElement('textarea')
+        el.value = this.routeText
+        el.style.position = 'fixed'
+        el.style.opacity = '0'
+        document.body.appendChild(el)
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+      }
+      this.routeCopied = true
+      setTimeout(() => { this.routeCopied = false }, 2000)
+    },
+
+    async shareRoute() {
+      await navigator.share({ title: 'Route Plan', text: this.routeText })
     },
 
     async planRoute() {

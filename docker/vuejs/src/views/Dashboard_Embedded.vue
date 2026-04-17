@@ -10,19 +10,22 @@
     <!-- METRICS -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-      <div class="bg-white rounded-xl shadow p-4">
-        <p class="text-gray-500 text-sm">Total Devices</p>
-        <p class="text-2xl font-semibold">{{ devices.length }}</p>
+      <div class="bg-white shadow rounded-xl p-4">
+        <p class="text-sm text-gray-500">Total Devices</p>
+        <p class="text-2xl font-semibold text-gray-800">{{ devices.length }}</p>
+        <p class="text-xs mt-1 text-gray-400">registered</p>
       </div>
 
-      <div class="bg-white rounded-xl shadow p-4">
-        <p class="text-gray-500 text-sm">Online</p>
+      <div class="bg-white shadow rounded-xl p-4">
+        <p class="text-sm text-gray-500">Online</p>
         <p class="text-2xl font-semibold text-green-600">{{ onlineDevices }}</p>
+        <p class="text-xs mt-1 text-gray-400">currently connected</p>
       </div>
 
-      <div class="bg-white rounded-xl shadow p-4">
-        <p class="text-gray-500 text-sm">Offline</p>
+      <div class="bg-white shadow rounded-xl p-4">
+        <p class="text-sm text-gray-500">Offline</p>
         <p class="text-2xl font-semibold text-red-600">{{ offlineDevices }}</p>
+        <p class="text-xs mt-1 text-gray-400">not responding</p>
       </div>
 
     </div>

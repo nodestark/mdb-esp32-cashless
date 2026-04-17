@@ -11,19 +11,22 @@
   <!-- KPI CARDS -->
   <div class="grid grid-cols-3 gap-4">
 
-    <div class="bg-white rounded-xl shadow p-5">
-      <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Products Tracked</p>
-      <p class="text-3xl font-bold text-gray-800">{{ stats.products }}</p>
+    <div class="bg-white shadow rounded-xl p-4">
+      <p class="text-sm text-gray-500">Products Tracked</p>
+      <p class="text-2xl font-semibold text-gray-800">{{ stats.products }}</p>
+      <p class="text-xs mt-1 text-gray-400">active in warehouse</p>
     </div>
 
-    <div class="bg-white rounded-xl shadow p-5">
-      <p class="text-xs text-orange-400 uppercase tracking-wide mb-1">Low Stock</p>
-      <p class="text-3xl font-bold text-orange-600">{{ stats.low }}</p>
+    <div class="bg-white shadow rounded-xl p-4">
+      <p class="text-sm text-gray-500">Low Stock</p>
+      <p class="text-2xl font-semibold text-orange-500">{{ stats.low }}</p>
+      <p class="text-xs mt-1 text-gray-400">coils below threshold</p>
     </div>
 
-    <div class="bg-white rounded-xl shadow p-5">
-      <p class="text-xs text-red-400 uppercase tracking-wide mb-1">Empty Coils</p>
-      <p class="text-3xl font-bold text-red-600">{{ stats.empty }}</p>
+    <div class="bg-white shadow rounded-xl p-4">
+      <p class="text-sm text-gray-500">Empty Coils</p>
+      <p class="text-2xl font-semibold text-red-600">{{ stats.empty }}</p>
+      <p class="text-xs mt-1 text-gray-400">need immediate refill</p>
     </div>
 
   </div>
