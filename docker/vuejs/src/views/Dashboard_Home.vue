@@ -501,7 +501,8 @@ Provide:
             channel,
             coil_alias,
             machines!sale_machine_id_fkey (name),
-            products!sale_product_id_fkey (name)
+            products!sale_product_id_fkey (name),
+            embedded!sales_embedded_id_fkey (subdomain)
           `)
           .order('created_at', { ascending: false })
           .limit(10000)
@@ -517,10 +518,11 @@ Provide:
         if (error) throw error
 
         const rows = [
-          ['Date', 'Machine', 'Product', 'Coil', 'Channel', 'Price (R$)'],
+          ['Date', 'Machine', 'Device (Subdomain)', 'Product', 'Coil', 'Channel', 'Price (R$)'],
           ...(data ?? []).map(s => [
             new Date(s.created_at).toLocaleString(),
             s.machines?.name ?? '',
+            s.embedded?.subdomain ?? '',
             s.products?.name ?? '',
             s.coil_alias ?? '',
             s.channel ?? '',
