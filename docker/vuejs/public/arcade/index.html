@@ -30,6 +30,7 @@
       border-radius: 12px;
       display: block;
       cursor: pointer;
+      outline: none;
     }
     #info {
       margin-top: 12px;
@@ -446,6 +447,8 @@ document.addEventListener('visibilitychange', () => {
 })
 
 init()
+canvas.setAttribute('tabindex', '0')
+canvas.focus()
 requestAnimationFrame(loop)
 </script>
 </body>

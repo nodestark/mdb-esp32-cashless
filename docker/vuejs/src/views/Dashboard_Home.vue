@@ -103,6 +103,17 @@
           >
             ✕
           </button>
+          <button
+            @click="exportCSV"
+            :disabled="exportingCSV"
+            class="flex items-center gap-1.5 px-3 py-1 border rounded hover:bg-gray-50 text-gray-600 transition disabled:opacity-50"
+            title="Export CSV"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+            </svg>
+            {{ exportingCSV ? 'Exporting...' : 'Export CSV' }}
+          </button>
         </div>
       </div>
 
@@ -208,6 +219,7 @@ export default {
       machinesActive: 0,
       machinesOnline: 0,
       todayVariation: null,
+      exportingCSV: false,
 
       diagnosisText: '',
       diagnosisLoading: false,
@@ -473,6 +485,63 @@ Provide:
       } finally {
         this.diagnosisAbort = null
         this.diagnosisLoading = false
+      }
+    },
+
+    async exportCSV() {
+      this.exportingCSV = true
+
+      try {
+        let query = supabase
+          .from('sales')
+          .select(`
+            id,
+            created_at,
+            item_price,
+            channel,
+            coil_alias,
+            machines!sale_machine_id_fkey (name),
+            products!sale_product_id_fkey (name)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(10000)
+
+        if (this.dateFrom) query = query.gte('created_at', new Date(this.dateFrom).toISOString())
+        if (this.dateTo) {
+          const end = new Date(this.dateTo)
+          end.setHours(23, 59, 59, 999)
+          query = query.lte('created_at', end.toISOString())
+        }
+
+        const { data, error } = await query
+        if (error) throw error
+
+        const rows = [
+          ['Date', 'Machine', 'Product', 'Coil', 'Channel', 'Price (R$)'],
+          ...(data ?? []).map(s => [
+            new Date(s.created_at).toLocaleString(),
+            s.machines?.name ?? '',
+            s.products?.name ?? '',
+            s.coil_alias ?? '',
+            s.channel ?? '',
+            (s.item_price ?? 0).toFixed(2)
+          ])
+        ]
+
+        const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        const from = this.dateFrom || 'all'
+        const to   = this.dateTo   || 'today'
+        a.href     = url
+        a.download = `vmflow-sales-${from}-${to}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+      } catch (err) {
+        console.error('exportCSV error:', err)
+      } finally {
+        this.exportingCSV = false
       }
     },
 

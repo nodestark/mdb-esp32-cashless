@@ -157,6 +157,7 @@
         <button @click="showArcade = false" class="text-slate-400 hover:text-white text-xl leading-none">✕</button>
       </div>
       <iframe
+        ref="arcadeFrame"
         src="/arcade/index.html"
         class="rounded-xl border-2 border-slate-700 shadow-2xl"
         style="width: 860px; max-width: 95vw; height: 380px; background: #0f172a;"
@@ -172,7 +173,7 @@
 <script>
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'vue-router'
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { startAlerts, stopAlerts } from '@/lib/useAlerts'
 
 export default {
@@ -185,6 +186,7 @@ export default {
     const userEmail   = ref("")
     const userInitial = ref("?")
     const showArcade  = ref(false)
+    const arcadeFrame = ref(null)
 
     let keyBuffer = ''
     const KONAMI  = 'vmflow'
@@ -192,7 +194,11 @@ export default {
     const onKey = (e) => {
       if (e.key === 'Escape') { showArcade.value = false; return }
       keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-KONAMI.length)
-      if (keyBuffer === KONAMI) { showArcade.value = true; keyBuffer = '' }
+      if (keyBuffer === KONAMI) {
+        showArcade.value = true
+        keyBuffer = ''
+        nextTick(() => arcadeFrame.value?.focus())
+      }
     }
 
     const logout = async () => {
@@ -232,7 +238,8 @@ export default {
       logout,
       userEmail,
       userInitial,
-      showArcade
+      showArcade,
+      arcadeFrame
     }
   }
 }
