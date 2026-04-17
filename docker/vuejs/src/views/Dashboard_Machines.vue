@@ -970,18 +970,7 @@ export default {
       return 'bg-green-500'
     },
 
-    async debitProductStock(productId, qty) {
-      if (!productId || qty <= 0) return
-      const product = this.allProducts.find(p => p.id === productId)
-      if (!product) return
-      const newStock = Math.max(0, (product.current_stock ?? 0) - qty)
-      await supabase.from("products").update({ current_stock: newStock }).eq("id", productId)
-      product.current_stock = newStock
-    },
-
     async refillCoil(coil) {
-      const debit = (coil.capacity ?? 0) - (coil.current_stock ?? 0)
-
       const { error } = await supabase
         .from("machine_coils")
         .update({ current_stock: coil.capacity })
@@ -993,7 +982,6 @@ export default {
       }
 
       coil.current_stock = coil.capacity
-      await this.debitProductStock(coil.selectedProductId, debit)
       this.showToast(`Coil ${coil.alias || coil.item_number} refilled`)
     },
 
@@ -1011,17 +999,6 @@ export default {
         console.error("Some coils failed to refill:", failed)
         return
       }
-
-      // debit per product (group debits)
-      const debits = {}
-      for (const c of toRefill) {
-        if (!c.selectedProductId) continue
-        const qty = (c.capacity ?? 0) - (c.current_stock ?? 0)
-        debits[c.selectedProductId] = (debits[c.selectedProductId] ?? 0) + qty
-      }
-      await Promise.all(
-        Object.entries(debits).map(([pid, qty]) => this.debitProductStock(pid, qty))
-      )
 
       this.coils.forEach(c => { if (c.capacity) c.current_stock = c.capacity })
 
