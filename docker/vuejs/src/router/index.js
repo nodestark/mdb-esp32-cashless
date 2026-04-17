@@ -17,6 +17,7 @@ import DashboardSettings from '@/views/Dashboard_Settings.vue'
 import DashboardMetrics from '@/views/Dashboard_Metrics.vue'
 import DashboardInventory from '@/views/Dashboard_Inventory.vue'
 import DashboardMap from '@/views/Dashboard_Map.vue'
+import DashboardArcade from '@/views/Dashboard_Arcade.vue'
 
 const routes = [
   { path: '/', redirect: '/home' },
@@ -34,7 +35,8 @@ const routes = [
       { path: 'metrics',        component: DashboardMetrics,      name: 'Metrics' },
       { path: 'devices',        component: DashboardEmbedded,     name: 'Devices' },
       { path: 'inventory',      component: DashboardInventory,    name: 'Inventory' },
-      { path: 'map',            component: DashboardMap,          name: 'Map' }
+      { path: 'map',            component: DashboardMap,          name: 'Map' },
+      { path: 'arcade',         component: DashboardArcade,       name: 'Arcade' }
     ]
   },
   { path: '/login', component: Login },

@@ -7,7 +7,7 @@
       <!-- LOGO -->
       <div class="px-6 py-5 border-b border-slate-800">
         <h1 class="text-xl font-bold tracking-wide">
-          VMFlow
+          VMflow
         </h1>
         <p class="text-xs text-slate-400">
           Vending Management
@@ -89,7 +89,13 @@
           Metrics
         </RouterLink>
 
-        <RouterLink to="/dashboard/settings" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition" active-class="bg-slate-800 text-white" > <span>⚙️</span> Settings </RouterLink>
+        <RouterLink
+          to="/dashboard/settings"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
+          active-class="bg-slate-800 text-white"
+        >
+          <span>⚙️</span> Settings
+        </RouterLink>
 
       </nav>
 
@@ -139,6 +145,27 @@
 
     </div>
 
+  <!-- EASTER EGG ARCADE MODAL -->
+  <div
+    v-if="showArcade"
+    class="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+    @click.self="showArcade = false"
+  >
+    <div class="flex flex-col items-center gap-4">
+      <div class="flex items-center justify-between w-full px-1">
+        <span class="text-green-400 font-mono text-sm tracking-widest">⚡ VMflow Runner</span>
+        <button @click="showArcade = false" class="text-slate-400 hover:text-white text-xl leading-none">✕</button>
+      </div>
+      <iframe
+        src="/arcade/index.html"
+        class="rounded-xl border-2 border-slate-700 shadow-2xl"
+        style="width: 860px; max-width: 95vw; height: 380px; background: #0f172a;"
+        frameborder="0"
+      />
+      <p class="text-slate-600 text-xs font-mono">ESC or click outside to close</p>
+    </div>
+  </div>
+
   </div>
 </template>
 
@@ -155,8 +182,18 @@ export default {
 
     const router = useRouter()
 
-    const userEmail = ref("")
+    const userEmail   = ref("")
     const userInitial = ref("?")
+    const showArcade  = ref(false)
+
+    let keyBuffer = ''
+    const KONAMI  = 'vmflow'
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { showArcade.value = false; return }
+      keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-KONAMI.length)
+      if (keyBuffer === KONAMI) { showArcade.value = true; keyBuffer = '' }
+    }
 
     const logout = async () => {
       await supabase.auth.signOut()
@@ -183,14 +220,19 @@ export default {
     onMounted(() => {
       loadUser()
       initNotifications()
+      window.addEventListener('keydown', onKey)
     })
 
-    onBeforeUnmount(stopAlerts)
+    onBeforeUnmount(() => {
+      stopAlerts()
+      window.removeEventListener('keydown', onKey)
+    })
 
     return {
       logout,
       userEmail,
-      userInitial
+      userInitial,
+      showArcade
     }
   }
 }

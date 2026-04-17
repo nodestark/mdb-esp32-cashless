@@ -5,7 +5,7 @@
     <div class="hidden lg:flex lg:w-1/2 bg-slate-900 text-white flex-col justify-center px-20">
 
       <h1 class="text-4xl font-bold mb-4">
-        VMFlow
+        VMflow
       </h1>
 
       <p class="text-slate-400 text-lg max-w-md">

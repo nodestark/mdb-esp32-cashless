@@ -1,12 +1,12 @@
 <div align="center">
 
 [![PCBWay Award](https://img.shields.io/badge/%F0%9F%8F%86%20PCBWay-Popular%20Prize%202026-orange?style=for-the-badge)](pcbway-award-2026.jpg)
-[![VMFlow Dashboard](https://img.shields.io/badge/VMFlow-Web%20Dashboard-0f172a?style=for-the-badge&logo=grafana&logoColor=white)](https://vmflow.xyz/dashboard)
+[![VMflow Dashboard](https://img.shields.io/badge/VMflow-Web%20Dashboard-0f172a?style=for-the-badge&logo=grafana&logoColor=white)](https://vmflow.xyz/dashboard)
 [![Discord](https://img.shields.io/badge/Discord-Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/YgnusQaDHM)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.x-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://docs.espressif.com/projects/esp-idf/)
 
-# VMFlow — Open-Source Vending Machine IoT Platform
+# VMflow — Open-Source Vending Machine IoT Platform
 
 **Turn any vending machine into a connected, cashless, remotely managed device.**
 </div>
@@ -23,6 +23,7 @@ The project aims to provide a modern, open, and extensible platform for vending 
 - PCB design done in **KiCad**, facilitating production and customization of the hardware
 - Support for **EVA DTS DEX/DDCMP** (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
 - **Web Dashboard**: [📊 Open Dashboard](https://vmflow.xyz/dashboard) – Centralized interface to monitor the vending machine network in real time, including device status, telemetry, sales data, inventory control, product catalog management, and real-time stock alerts. Features AI-powered diagnostics (via OpenAI) for operation-wide analysis, per-machine insights, and product catalog recommendations.
+- **VMflow Runner**: a hidden arcade game easter egg built into the dashboard — find it yourself 🕹️
 - **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights.
 
 # Getting Started
@@ -40,9 +41,9 @@ cd mdb-slave-esp32s3
 
 idf.py flash monitor
 ```
-### 2. Register and Configure the Device — VMFlow [Android App](./android)
+### 2. Register and Configure the Device — VMflow [Android App](./android)
 
-Use the **VMFlow Android app** to register the board and link it to your operator account. The app allows you to:
+Use the **VMflow Android app** to register the board and link it to your operator account. The app allows you to:
 
 - **Device Registration**: register telemetry boards and bind them to your operator account
 - **Wi-Fi Configuration**: remotely configure the Wi-Fi network of your devices via Bluetooth

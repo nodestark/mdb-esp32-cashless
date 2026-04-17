@@ -8,9 +8,12 @@ function notify(title, body) {
   new Notification(title, { body, icon: '/favicon.ico' })
 }
 
-export function startAlerts() {
+export async function startAlerts() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
   channel = supabase
-    .channel('vmflow-alerts')
+    .channel(`vmflow-alerts-${user.id}`)
 
     .on(
       'postgres_changes',
