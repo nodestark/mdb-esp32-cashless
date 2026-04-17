@@ -416,7 +416,8 @@ export default {
         const globalTicket = totalSalesCount > 0 ? totalRevenue / totalSalesCount : 0
         const onlineCount = machines.filter(m => m.embedded?.status === 'online').length
 
-        const prompt = `You are a vending machine business analyst. Analyze the operational data below and provide a complete diagnosis in Portuguese (Brazil), with practical and actionable insights.
+        const lang = navigator.language || 'en'
+        const prompt = `You are a vending machine business analyst. Analyze the operational data below and provide a complete diagnosis with practical and actionable insights. Respond in the user's language: ${lang}.
 
 GENERAL OVERVIEW (last 30 days):
 - Total machines: ${machines.length} (${onlineCount} online)

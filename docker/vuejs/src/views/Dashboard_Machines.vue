@@ -1101,7 +1101,8 @@ export default {
           .map(c => c.products?.name)
           .filter(Boolean)
 
-        const prompt = `You are a vending machine business analyst. Analyze the following data and provide practical insights and recommendations in Portuguese (Brazil).
+        const lang = navigator.language || 'en'
+        const prompt = `You are a vending machine business analyst. Analyze the following data and provide practical insights and recommendations. Respond in the user's language: ${lang}.
 
 Machine: ${machine.name}
 Category: ${machine.category ?? 'not defined'}

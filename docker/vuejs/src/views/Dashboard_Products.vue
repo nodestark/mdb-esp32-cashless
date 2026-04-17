@@ -606,7 +606,8 @@ async function generateProductsDiagnosis() {
     const totalRevenue = sales.reduce((s, r) => s + (r.item_price ?? 0), 0)
     const totalCount = sales.length
 
-    const prompt = `You are a vending machine business analyst. Analyze the complete product catalog data below and provide a general diagnosis in Portuguese (Brazil).
+    const lang = navigator.language || 'en'
+    const prompt = `You are a vending machine business analyst. Analyze the complete product catalog data below and provide a general diagnosis. Respond in the user's language: ${lang}.
 
 OVERVIEW (last 30 days):
 - Total products: ${products.value.length}
