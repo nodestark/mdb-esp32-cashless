@@ -26,6 +26,38 @@
     />
   </div>
 
+  <!-- AI DIAGNOSIS -->
+  <div class="bg-white rounded-xl shadow p-5">
+
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="font-semibold text-gray-700">AI Products Diagnosis</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Analysis of all products in the last 30 days</p>
+      </div>
+      <button
+        @click="generateProductsDiagnosis"
+        :disabled="diagnosisLoading"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition disabled:opacity-50"
+      >
+        <svg class="w-4 h-4" :class="{ 'animate-spin': diagnosisLoading }" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path v-if="!diagnosisLoading" stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+          <path v-else stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+        </svg>
+        {{ diagnosisLoading ? 'Analyzing...' : diagnosisText ? 'Refresh' : 'Generate Diagnosis' }}
+      </button>
+    </div>
+
+    <div v-if="!diagnosisText && !diagnosisLoading && !diagnosisError" class="text-center py-8 text-gray-400 text-sm">
+      Click "Generate Diagnosis" to get an AI analysis of your product catalog.
+    </div>
+    <div v-if="diagnosisLoading" class="text-sm text-gray-500 py-4 text-center">
+      Collecting product data and generating insights...
+    </div>
+    <p v-if="diagnosisError" class="text-sm text-red-500">{{ diagnosisError }}</p>
+    <p v-if="diagnosisText" class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ diagnosisText }}</p>
+
+  </div>
+
   <!-- TABLE -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
 
@@ -511,6 +543,116 @@ async function disableProduct() {
   productToDisable.value = null
 
   loadProducts()
+}
+
+// --- PRODUCTS GENERAL DIAGNOSIS ---
+
+const diagnosisText = ref('')
+const diagnosisLoading = ref(false)
+const diagnosisError = ref('')
+const diagnosisAbort = ref(null)
+
+async function generateProductsDiagnosis() {
+  if (diagnosisAbort.value) diagnosisAbort.value.abort()
+
+  diagnosisLoading.value = true
+  diagnosisError.value = ''
+  diagnosisText.value = ''
+
+  const abort = new AbortController()
+  diagnosisAbort.value = abort
+
+  try {
+    const { data: cred } = await supabase
+      .from('credentials')
+      .select('value')
+      .eq('key', 'openai_api_key')
+      .maybeSingle()
+
+    if (!cred?.value) throw new Error('OpenAI API key not configured. Add it in Settings → API Keys.')
+
+    const since = new Date()
+    since.setDate(since.getDate() - 30)
+
+    const [salesRes, coilsRes] = await Promise.all([
+      supabase
+        .from('sales')
+        .select('product_id, item_price, products(name)')
+        .gte('created_at', since.toISOString()),
+      supabase
+        .from('machine_coils')
+        .select('product_id, current_stock, capacity')
+    ])
+
+    const sales = salesRes.data ?? []
+    const coils = coilsRes.data ?? []
+
+    const statsMap = {}
+    for (const s of sales) {
+      const id = s.product_id
+      if (!id) continue
+      if (!statsMap[id]) statsMap[id] = { name: s.products?.name ?? id, count: 0, revenue: 0 }
+      statsMap[id].count++
+      statsMap[id].revenue += s.item_price ?? 0
+    }
+
+    const productLines = products.value.map(p => {
+      const s = statsMap[p.id] ?? { count: 0, revenue: 0 }
+      const deployedIn = coils.filter(c => c.product_id === p.id).length
+      const totalCoilStock = coils.filter(c => c.product_id === p.id).reduce((a, c) => a + (c.current_stock ?? 0), 0)
+      return `  - ${p.name} | price: R$ ${p.price?.toFixed(2)} | warehouse: ${p.current_stock ?? 0} | machines: ${deployedIn} | sales: ${s.count} | revenue: R$ ${s.revenue.toFixed(2)} | coil stock: ${totalCoilStock}`
+    }).join('\n')
+
+    const totalRevenue = sales.reduce((s, r) => s + (r.item_price ?? 0), 0)
+    const totalCount = sales.length
+
+    const prompt = `You are a vending machine business analyst. Analyze the complete product catalog data below and provide a general diagnosis in Portuguese (Brazil).
+
+OVERVIEW (last 30 days):
+- Total products: ${products.value.length}
+- Total transactions: ${totalCount}
+- Total revenue: R$ ${totalRevenue.toFixed(2)}
+
+PRODUCTS (name | price | warehouse stock | machines deployed | sales | revenue | coil stock):
+${productLines}
+
+Provide:
+1. Overall assessment of the catalog performance
+2. Best selling products and why they stand out
+3. Products with low or zero sales — should they be reviewed or removed?
+4. Stock situation — any products at risk of running out?
+5. 3 to 5 prioritized recommendations to improve the catalog`
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${cred.value}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7
+      }),
+      signal: abort.signal
+    })
+
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error?.message ?? 'OpenAI request failed')
+    }
+
+    const json = await res.json()
+    diagnosisText.value = json.choices[0].message.content
+
+  } catch (err) {
+    if (err.name === 'AbortError') return
+    diagnosisError.value = err.message
+    console.error('generateProductsDiagnosis error:', err)
+  } finally {
+    diagnosisAbort.value = null
+    diagnosisLoading.value = false
+  }
 }
 
 onMounted(loadProducts)

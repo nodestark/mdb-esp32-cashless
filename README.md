@@ -22,7 +22,7 @@ The project aims to provide a modern, open, and extensible platform for vending 
 - ESP32 hardware platform offering flexibility and advanced IoT features
 - PCB design done in **KiCad**, facilitating production and customization of the hardware
 - Support for **EVA DTS DEX/DDCMP** (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
-- **Web Dashboard**: [📊 Open Dashboard](https://vmflow.xyz/dashboard) – Centralized interface to monitor the vending machine network in real time, including device status, telemetry, sales data, and operational insights collected from connected machines.
+- **Web Dashboard**: [📊 Open Dashboard](https://vmflow.xyz/dashboard) – Centralized interface to monitor the vending machine network in real time, including device status, telemetry, sales data, inventory control, product catalog management, and real-time stock alerts. Features AI-powered diagnostics (via OpenAI) for operation-wide analysis, per-machine insights, and product catalog recommendations.
 - **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights.
 
 # Getting Started

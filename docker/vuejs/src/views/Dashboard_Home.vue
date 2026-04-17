@@ -39,6 +39,41 @@
 
     </div>
 
+    <!-- AI DIAGNOSIS -->
+    <div class="bg-white rounded-xl shadow p-5">
+
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="font-semibold text-gray-700">AI Operation Diagnosis</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Analysis of all machines in the last 30 days</p>
+        </div>
+        <button
+          @click="generateDiagnosis"
+          :disabled="diagnosisLoading"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition disabled:opacity-50"
+        >
+          <svg class="w-4 h-4" :class="{ 'animate-spin': diagnosisLoading }" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path v-if="!diagnosisLoading" stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+            <path v-else stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+          </svg>
+          {{ diagnosisLoading ? 'Analyzing...' : diagnosisText ? 'Refresh' : 'Generate Diagnosis' }}
+        </button>
+      </div>
+
+      <div v-if="!diagnosisText && !diagnosisLoading && !diagnosisError" class="text-center py-8 text-gray-400 text-sm">
+        Click "Generate Diagnosis" to get an AI analysis of your operation.
+      </div>
+
+      <div v-if="diagnosisLoading" class="text-sm text-gray-500 py-4 text-center">
+        Collecting machine data and generating insights...
+      </div>
+
+      <p v-if="diagnosisError" class="text-sm text-red-500">{{ diagnosisError }}</p>
+
+      <p v-if="diagnosisText" class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ diagnosisText }}</p>
+
+    </div>
+
     <!-- SALES TABLE -->
     <div class="bg-white rounded-xl shadow overflow-hidden">
 
@@ -172,7 +207,12 @@ export default {
       totalSales: 0,
       machinesActive: 0,
       machinesOnline: 0,
-      todayVariation: null
+      todayVariation: null,
+
+      diagnosisText: '',
+      diagnosisLoading: false,
+      diagnosisError: '',
+      diagnosisAbort: null
     }
   },
 
@@ -310,6 +350,129 @@ export default {
 
     formatDate(date) {
       return new Date(date).toLocaleString()
+    },
+
+    async generateDiagnosis() {
+      if (this.diagnosisAbort) this.diagnosisAbort.abort()
+
+      this.diagnosisLoading = true
+      this.diagnosisError = ''
+      this.diagnosisText = ''
+
+      const abort = new AbortController()
+      this.diagnosisAbort = abort
+
+      try {
+        const { data: cred } = await supabase
+          .from('credentials')
+          .select('value')
+          .eq('key', 'openai_api_key')
+          .maybeSingle()
+
+        if (!cred?.value) throw new Error('OpenAI API key not configured. Add it in Settings → API Keys.')
+
+        const since = new Date()
+        since.setDate(since.getDate() - 30)
+
+        const [machinesRes, salesRes] = await Promise.all([
+          supabase
+            .from('machines')
+            .select('id, name, category, monthly_rent, machine_coils(capacity, current_stock), embedded(status)'),
+          supabase
+            .from('sales')
+            .select('machine_id, item_price')
+            .gte('created_at', since.toISOString())
+        ])
+
+        const machines = machinesRes.data ?? []
+        const sales = salesRes.data ?? []
+
+        const machineStats = machines.map(m => {
+          const mSales = sales.filter(s => s.machine_id === m.id)
+          const revenue = mSales.reduce((s, r) => s + (r.item_price ?? 0), 0)
+          const count = mSales.length
+          const ticket = count > 0 ? revenue / count : 0
+          const coils = m.machine_coils ?? []
+          const totalStock = coils.reduce((s, c) => s + (c.current_stock ?? 0), 0)
+          const totalCap = coils.reduce((s, c) => s + (c.capacity ?? 0), 0)
+          const stockPct = totalCap > 0 ? Math.round((totalStock / totalCap) * 100) : null
+          const profit = m.monthly_rent ? revenue - m.monthly_rent : null
+
+          return {
+            name: m.name,
+            category: m.category ?? 'N/A',
+            status: m.embedded?.status ?? 'unknown',
+            monthly_rent: m.monthly_rent ?? null,
+            revenue: revenue.toFixed(2),
+            sales_count: count,
+            avg_ticket: ticket.toFixed(2),
+            stock_pct: stockPct !== null ? stockPct + '%' : 'N/A',
+            net_profit: profit !== null ? profit.toFixed(2) : 'N/A'
+          }
+        })
+
+        const totalRevenue = sales.reduce((s, r) => s + (r.item_price ?? 0), 0)
+        const totalSalesCount = sales.length
+        const globalTicket = totalSalesCount > 0 ? totalRevenue / totalSalesCount : 0
+        const onlineCount = machines.filter(m => m.embedded?.status === 'online').length
+
+        const prompt = `You are a vending machine business analyst. Analyze the operational data below and provide a complete diagnosis in Portuguese (Brazil), with practical and actionable insights.
+
+GENERAL OVERVIEW (last 30 days):
+- Total machines: ${machines.length} (${onlineCount} online)
+- Total revenue: R$ ${totalRevenue.toFixed(2)}
+- Total transactions: ${totalSalesCount}
+- Global average ticket: R$ ${globalTicket.toFixed(2)}
+
+PERFORMANCE PER MACHINE:
+${machineStats.map(m => `
+  Machine: ${m.name}
+  - Category: ${m.category}
+  - Status: ${m.status}
+  - Revenue: R$ ${m.revenue}
+  - Transactions: ${m.sales_count}
+  - Average ticket: R$ ${m.avg_ticket}
+  - Stock level: ${m.stock_pct}
+  - Monthly rent: ${m.monthly_rent ? 'R$ ' + m.monthly_rent : 'not defined'}
+  - Net profit (revenue - rent): ${m.net_profit !== 'N/A' ? 'R$ ' + m.net_profit : 'N/A'}
+`).join('')}
+
+Provide:
+1. Overall assessment of the operation
+2. Best and worst performing machines and why
+3. Machines with risk (low stock, offline, negative ROI)
+4. 3 to 5 prioritized recommendations to improve results`
+
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${cred.value}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.7
+          }),
+          signal: abort.signal
+        })
+
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error?.message ?? 'OpenAI request failed')
+        }
+
+        const json = await res.json()
+        this.diagnosisText = json.choices[0].message.content
+
+      } catch (err) {
+        if (err.name === 'AbortError') return
+        this.diagnosisError = err.message
+        console.error('generateDiagnosis error:', err)
+      } finally {
+        this.diagnosisAbort = null
+        this.diagnosisLoading = false
+      }
     },
 
     channelClass(channel) {
