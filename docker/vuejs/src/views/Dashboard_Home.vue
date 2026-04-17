@@ -518,7 +518,7 @@ Provide:
         if (error) throw error
 
         const rows = [
-          ['Date', 'Machine', 'Device (Subdomain)', 'Product', 'Coil', 'Channel', 'Price (R$)'],
+          ['Date', 'Machine', 'Device', 'Product', 'Coil', 'Channel', 'Price'],
           ...(data ?? []).map(s => [
             new Date(s.created_at).toLocaleString(),
             s.machines?.name ?? '',
