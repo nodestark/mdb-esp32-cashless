@@ -75,6 +75,19 @@ CREATE TYPE "public"."embedded_status" AS ENUM (
 ALTER TYPE "public"."embedded_status" OWNER TO "supabase_admin";
 
 
+CREATE TYPE "public"."machine_category" AS ENUM (
+    'snack',
+    'drink',
+    'frozen',
+    'candy',
+    'personal_care',
+    'other'
+);
+
+
+ALTER TYPE "public"."machine_category" OWNER TO "supabase_admin";
+
+
 CREATE TYPE "public"."metric_name" AS ENUM (
     'paxcounter'
 );
@@ -114,19 +127,31 @@ $$;
 ALTER FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "machine_id_" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."debit_product_stock_on_coil_refill"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$                                                            
+  DECLARE
+      v_diff integer;                                                                               
+  BEGIN                                                     
+      v_diff := NEW.current_stock - OLD.current_stock;
+                                                                                                    
+      IF v_diff > 0 AND NEW.product_id IS NOT NULL THEN
+          UPDATE public.products                                                                    
+          SET current_stock = GREATEST(0, current_stock - v_diff)
+          WHERE id = NEW.product_id;
+      END IF;
+
+      RETURN NEW;
+  END;
+  $$;
+
+
+ALTER FUNCTION "public"."debit_product_stock_on_coil_refill"() OWNER TO "supabase_admin";
+
+
 CREATE OR REPLACE FUNCTION "public"."fill_sale_coil_data"() RETURNS "trigger"
     LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-    -- Skip if machine or item are not identified
-    IF NEW.machine_id IS NULL THEN
-        RETURN NEW;
-    END IF;
-
-    -- Skip if product was already set by the caller
-    IF NEW.product_id IS NOT NULL THEN
-        RETURN NEW;
-    END IF;
+    AS $$BEGIN
 
     SELECT product_id, alias
     INTO NEW.product_id, NEW.coil_alias
@@ -134,9 +159,11 @@ BEGIN
     WHERE machine_id = NEW.machine_id AND item_number = NEW.item_number
     LIMIT 1;
 
+    UPDATE public.machine_coils set current_stock = greatest(0, current_stock - 1)
+    where machine_id = NEW.machine_id and item_number = NEW.item_number;
+
     RETURN NEW;
-END;
-$$;
+END;$$;
 
 
 ALTER FUNCTION "public"."fill_sale_coil_data"() OWNER TO "supabase_admin";
@@ -200,6 +227,18 @@ SET default_tablespace = '';
 SET default_table_access_method = "heap";
 
 
+CREATE TABLE IF NOT EXISTS "public"."credentials" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "owner_id" "uuid" DEFAULT "auth"."uid"() NOT NULL,
+    "key" "text" NOT NULL,
+    "value" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."credentials" OWNER TO "supabase_admin";
+
+
 CREATE TABLE IF NOT EXISTS "public"."embedded" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
@@ -235,7 +274,8 @@ CREATE TABLE IF NOT EXISTS "public"."machine_coils" (
     "alias" "text",
     "capacity" integer,
     "machine_id" "uuid",
-    "item_price" real DEFAULT '0'::real NOT NULL
+    "item_price" real DEFAULT '0'::real NOT NULL,
+    "current_stock" integer DEFAULT 0 NOT NULL
 );
 
 
@@ -247,7 +287,8 @@ CREATE TABLE IF NOT EXISTS "public"."machine_models" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "name" "text",
     "manufacturer" "text",
-    "owner_id" "uuid" DEFAULT "auth"."uid"()
+    "owner_id" "uuid" DEFAULT "auth"."uid"(),
+    "enabled" boolean DEFAULT true NOT NULL
 );
 
 
@@ -261,7 +302,13 @@ CREATE TABLE IF NOT EXISTS "public"."machines" (
     "serial_number" "text",
     "name" "text",
     "refilled_at" timestamp with time zone DEFAULT ("now"() AT TIME ZONE 'utc'::"text") NOT NULL,
-    "model_id" "uuid"
+    "model_id" "uuid",
+    "lat" double precision,
+    "lng" double precision,
+    "monthly_rent" real DEFAULT '0'::real,
+    "category" "public"."machine_category" DEFAULT 'other'::"public"."machine_category",
+    "location_name" "text",
+    "address" "text"
 );
 
 
@@ -329,7 +376,8 @@ CREATE TABLE IF NOT EXISTS "public"."products" (
     "owner_id" "uuid" DEFAULT "auth"."uid"() NOT NULL,
     "image_url" "text",
     "price" real,
-    "enabled" boolean DEFAULT true NOT NULL
+    "enabled" boolean DEFAULT true NOT NULL,
+    "current_stock" integer DEFAULT 0 NOT NULL
 );
 
 
@@ -367,6 +415,16 @@ ALTER VIEW "public"."sales_metrics_v1" OWNER TO "postgres";
 
 
 ALTER TABLE ONLY "public"."metrics" ATTACH PARTITION "public"."metrics_2026_2036" FOR VALUES FROM ('2026-01-01 00:00:00+00') TO ('2036-01-01 00:00:00+00');
+
+
+
+ALTER TABLE ONLY "public"."credentials"
+    ADD CONSTRAINT "credentials_owner_id_key_key" UNIQUE ("owner_id", "key");
+
+
+
+ALTER TABLE ONLY "public"."credentials"
+    ADD CONSTRAINT "credentials_pkey" PRIMARY KEY ("id");
 
 
 
@@ -423,6 +481,10 @@ CREATE OR REPLACE TRIGGER "n8n_trigger_ccf0f211_2d2e_4889_97ae_7e172d45dba8" AFT
 
 
 
+CREATE OR REPLACE TRIGGER "trg_debit_product_stock_on_coil_refill" AFTER UPDATE OF "current_stock" ON "public"."machine_coils" FOR EACH ROW EXECUTE FUNCTION "public"."debit_product_stock_on_coil_refill"();
+
+
+
 CREATE OR REPLACE TRIGGER "trg_fill_sale_coil_data" BEFORE INSERT ON "public"."sales" FOR EACH ROW EXECUTE FUNCTION "public"."fill_sale_coil_data"();
 
 
@@ -433,6 +495,16 @@ CREATE OR REPLACE TRIGGER "trg_sync_machine_coils" AFTER UPDATE OF "model_id" ON
 
 ALTER TABLE ONLY "public"."embedded"
     ADD CONSTRAINT "embedded_machine_id_fkey" FOREIGN KEY ("machine_id") REFERENCES "public"."machines"("id");
+
+
+
+ALTER TABLE ONLY "public"."machine_coils"
+    ADD CONSTRAINT "fk_machine_coils_machine" FOREIGN KEY ("machine_id") REFERENCES "public"."machines"("id");
+
+
+
+ALTER TABLE ONLY "public"."machine_coils"
+    ADD CONSTRAINT "fk_machine_coils_product" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id");
 
 
 
@@ -458,6 +530,25 @@ ALTER TABLE ONLY "public"."sales"
 
 ALTER TABLE ONLY "public"."sales"
     ADD CONSTRAINT "sales_embedded_id_fkey" FOREIGN KEY ("embedded_id") REFERENCES "public"."embedded"("id");
+
+
+
+ALTER TABLE "public"."credentials" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "credentials_delete" ON "public"."credentials" FOR DELETE TO "authenticated" USING (("owner_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "credentials_insert" ON "public"."credentials" FOR INSERT TO "authenticated" WITH CHECK (("owner_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "credentials_select" ON "public"."credentials" FOR SELECT TO "authenticated" USING (("owner_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "credentials_update" ON "public"."credentials" FOR UPDATE TO "authenticated" USING (("owner_id" = "auth"."uid"())) WITH CHECK (("owner_id" = "auth"."uid"()));
 
 
 
@@ -510,7 +601,9 @@ CREATE POLICY "policy_insert" ON "public"."machine_coils" FOR INSERT TO "authent
 
 
 
-CREATE POLICY "policy_select" ON "public"."machine_coils" FOR SELECT TO "authenticated" USING (true);
+CREATE POLICY "policy_select" ON "public"."metrics" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."embedded" "e"
+  WHERE (("e"."id" = "metrics"."embedded_id") AND ("e"."owner_id" = "auth"."uid"())))));
 
 
 
@@ -524,15 +617,17 @@ CREATE POLICY "select_policy" ON "public"."embedded" FOR SELECT TO "authenticate
 
 
 
+CREATE POLICY "select_policy" ON "public"."machine_coils" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."machines" "m"
+  WHERE (("m"."id" = "machine_coils"."machine_id") AND ("m"."owner_id" = "auth"."uid"())))));
+
+
+
 CREATE POLICY "select_policy" ON "public"."machine_models" FOR SELECT TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
 
 
 
 CREATE POLICY "select_policy" ON "public"."machines" FOR SELECT TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
-
-
-
-CREATE POLICY "select_policy" ON "public"."metrics" FOR SELECT TO "authenticated" USING (true);
 
 
 
@@ -550,6 +645,10 @@ CREATE POLICY "select_policy" ON "public"."sales" FOR SELECT TO "authenticated" 
 
 
 
+CREATE POLICY "update_model" ON "public"."machine_models" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id")) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
 CREATE POLICY "update_policy" ON "public"."embedded" FOR UPDATE TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id")) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
 
 
@@ -562,7 +661,15 @@ CREATE POLICY "update_policy" ON "public"."machine_coils" FOR UPDATE TO "authent
 
 
 
-CREATE POLICY "update_policy" ON "public"."machines" FOR UPDATE TO "authenticated" USING (true) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+CREATE POLICY "update_policy" ON "public"."machines" FOR UPDATE TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id")) WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
+CREATE POLICY "update_policy" ON "public"."model_coils" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."machine_models" "m"
+  WHERE (("m"."id" = "model_coils"."model_id") AND ("m"."owner_id" = "auth"."uid"()))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."machine_models" "m"
+  WHERE (("m"."id" = "model_coils"."model_id") AND ("m"."owner_id" = "auth"."uid"())))));
 
 
 
@@ -573,6 +680,14 @@ CREATE POLICY "update_policy" ON "public"."products" FOR UPDATE TO "authenticate
 
 
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."embedded";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."machine_coils";
+
 
 
 ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."sales";
@@ -763,6 +878,13 @@ GRANT ALL ON FUNCTION "public"."bind_embedded_machine"("embedded_id_" "uuid", "m
 
 
 
+GRANT ALL ON FUNCTION "public"."debit_product_stock_on_coil_refill"() TO "postgres";
+GRANT ALL ON FUNCTION "public"."debit_product_stock_on_coil_refill"() TO "anon";
+GRANT ALL ON FUNCTION "public"."debit_product_stock_on_coil_refill"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."debit_product_stock_on_coil_refill"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "postgres";
 GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "authenticated";
@@ -807,6 +929,13 @@ GRANT ALL ON FUNCTION "public"."sync_machine_coils_on_model_change"() TO "servic
 
 
 
+
+
+
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."credentials" TO "postgres";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."credentials" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."credentials" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."credentials" TO "service_role";
 
 
 
