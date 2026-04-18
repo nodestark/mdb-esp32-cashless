@@ -169,29 +169,6 @@ END;$$;
 ALTER FUNCTION "public"."fill_sale_coil_data"() OWNER TO "supabase_admin";
 
 
-CREATE OR REPLACE FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$ begin perform pg_notify('n8n_channel_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c', row_to_json(new)::text); return null; end; $$;
-
-
-ALTER FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$ begin perform pg_notify('n8n_channel_ccd0ec78_6984_40d0_86fd_38388a729dee', row_to_json(new)::text); return null; end; $$;
-
-
-ALTER FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$ begin perform pg_notify('n8n_channel_ccf0f211_2d2e_4889_97ae_7e172d45dba8', row_to_json(new)::text); return null; end; $$;
-
-
-ALTER FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."sync_machine_coils_on_model_change"() RETURNS "trigger"
     LANGUAGE "plpgsql"
@@ -470,14 +447,6 @@ ALTER TABLE ONLY "public"."products"
 
 ALTER TABLE ONLY "public"."sales"
     ADD CONSTRAINT "sale_pkey" PRIMARY KEY ("id");
-
-
-
-CREATE OR REPLACE TRIGGER "n8n_trigger_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c" AFTER INSERT ON "public"."embedded" FOR EACH ROW EXECUTE FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"();
-
-
-
-CREATE OR REPLACE TRIGGER "n8n_trigger_ccf0f211_2d2e_4889_97ae_7e172d45dba8" AFTER INSERT ON "public"."sales" FOR EACH ROW EXECUTE FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"();
 
 
 
@@ -890,23 +859,6 @@ GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fill_sale_coil_data"() TO "service_role";
 
-
-
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() TO "anon";
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_153d7c01_040f_4ccf_b0e4_81c78f7f5e4c"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() TO "anon";
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccd0ec78_6984_40d0_86fd_38388a729dee"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() TO "anon";
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."n8n_trigger_function_ccf0f211_2d2e_4889_97ae_7e172d45dba8"() TO "service_role";
 
 
 

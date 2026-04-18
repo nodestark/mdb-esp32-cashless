@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — VMFlow</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; }
+    h1 { font-size: 1.8rem; margin-bottom: 8px; }
+    h2 { font-size: 1.2rem; margin-top: 32px; }
+    p, li { line-height: 1.7; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.95rem; }
+    th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: left; }
+    th { background: #f5f5f5; }
+    footer { margin-top: 48px; font-size: 0.85rem; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p>Last updated: April 18, 2026</p>
+
+  <h2>1. Who We Are</h2>
+  <p>
+    VMFlow is a vending machine management platform developed by Nodestark.
+    This policy describes what personal data the VMFlow Android app and web dashboard collect,
+    why, and how it is handled.
+  </p>
+
+  <h2>2. Data We Collect</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Data type</th>
+        <th>Purpose</th>
+        <th>Collected by</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Email address</strong></td>
+        <td>Account creation, login, password reset</td>
+        <td>Android app &amp; web dashboard</td>
+      </tr>
+      <tr>
+        <td><strong>Password</strong></td>
+        <td>Authentication — transmitted securely, never stored in plain text</td>
+        <td>Android app &amp; web dashboard</td>
+      </tr>
+      <tr>
+        <td><strong>Authentication token</strong></td>
+        <td>Maintains the user session after login</td>
+        <td>Android app (stored locally on device)</td>
+      </tr>
+      <tr>
+        <td><strong>OpenAI API key</strong> (optional)</td>
+        <td>Used to generate AI insights for vending machines; stored per account</td>
+        <td>Web dashboard</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    We do <strong>not</strong> collect location data, contacts, device identifiers, advertising IDs,
+    browsing history, or any financial information.
+  </p>
+
+  <h2>3. How Data Is Transmitted and Stored</h2>
+  <p>
+    All data is transmitted over <strong>HTTPS</strong> (encrypted in transit) to our backend,
+    which runs on <strong>Supabase</strong> (self-hosted at <code>supabase.vmflow.xyz</code>).
+    Supabase acts as a data processor under our control — your data is not shared with
+    Supabase's cloud services or any third party.
+  </p>
+  <p>
+    The authentication session token is stored locally on your Android device using
+    Android <code>SharedPreferences</code>. It is never transmitted to any party other than
+    our own Supabase backend for session validation.
+  </p>
+
+  <h2>4. Data Sharing</h2>
+  <p>
+    We do <strong>not</strong> sell, rent, or share your personal data with third parties,
+    advertisers, or analytics providers. Data is used exclusively to operate the VMFlow platform.
+  </p>
+
+  <h2>5. Data Retention</h2>
+  <p>
+    Account data is retained for as long as your account is active. You may request deletion
+    at any time (see section 6). Upon deletion, your email, authentication records, and any
+    stored API keys are permanently removed from our servers.
+  </p>
+
+  <h2>6. Your Rights — Data Deletion Request</h2>
+  <p>
+    You have the right to request access to, correction of, or deletion of your personal data
+    at any time. To submit a deletion request, contact:
+  </p>
+  <p>
+    <strong>Email:</strong> <a href="mailto:leonardobsi@gmail.com">leonardobsi@gmail.com</a><br>
+    <strong>Subject:</strong> VMFlow — Data Deletion Request
+  </p>
+  <p>
+    We will process your request within <strong>30 days</strong> and confirm once completed.
+  </p>
+
+  <h2>7. Security</h2>
+  <p>
+    All communication between the app and our servers uses TLS encryption. Passwords are
+    hashed server-side by Supabase Auth and are never accessible in plain text by us.
+  </p>
+
+  <h2>8. Children's Privacy</h2>
+  <p>
+    VMFlow is intended for business operators and is not directed at children under the age of 13.
+    We do not knowingly collect data from children.
+  </p>
+
+  <h2>9. Open Source</h2>
+  <p>
+    VMFlow is open-source software. The full source code, including the Android app and backend,
+    is publicly available for inspection at
+    <a href="https://github.com/nodestark/mdb-esp32-cashless" target="_blank">
+      github.com/nodestark/mdb-esp32-cashless
+    </a>.
+    You can verify exactly what data is collected and how it is handled by reviewing the code directly.
+  </p>
+
+  <h2>10. Changes to This Policy</h2>
+  <p>
+    We may update this policy as the app evolves. The "Last updated" date at the top of this
+    page will reflect any changes. Continued use of the app after changes constitutes acceptance.
+  </p>
+
+  <h2>11. Contact</h2>
+  <p>
+    For any questions about this privacy policy:
+    <a href="mailto:leonardobsi@gmail.com">leonardobsi@gmail.com</a>
+  </p>
+
+  <footer>VMFlow &copy; 2026 Nodestark</footer>
+</body>
+</html>
