@@ -40,7 +40,6 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void registerUser() {
 
-        EditText editName = findViewById(R.id.etName);
         EditText editEmail = findViewById(R.id.etEmail);
         EditText editPswd = findViewById(R.id.etPassword);
         EditText editConfirmPswd = findViewById(R.id.etConfirmPassword);
@@ -48,7 +47,6 @@ public class RegisterActivity extends AppCompatActivity {
         String email = editEmail.getText().toString().trim();
         String senha = editPswd.getText().toString().trim();
         String confirmPassword = editConfirmPswd.getText().toString().trim();
-        String nome = editName.getText().toString().trim();
 
         if (email.isEmpty() || senha.isEmpty()) {
             Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show();
@@ -66,12 +64,6 @@ public class RegisterActivity extends AppCompatActivity {
 
             json.put("email", email);
             json.put("password", senha);
-
-            JSONObject data = new JSONObject();
-
-            data.put("full_name", nome);
-
-            json.put("data", data);
 
             RequestBody requestBody = RequestBody.create( json.toString(), MediaType.parse("application/json") );
 
