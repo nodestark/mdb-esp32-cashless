@@ -12,7 +12,7 @@
         android:hint="Amount"
         android:inputType="numberDecimal"
         android:drawableStart="@android:drawable/ic_menu_info_details"
-        android:padding="12dp"
+        android:padding="14dp"
         android:layout_marginBottom="16dp" />
 
 </LinearLayout>

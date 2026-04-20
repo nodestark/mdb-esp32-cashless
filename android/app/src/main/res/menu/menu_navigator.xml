@@ -12,4 +12,9 @@
         android:id="@+id/nav_embeddeds"
         android:icon="@android:drawable/ic_menu_manage"
         android:title="Embedded" />
+    <item
+        android:id="@+id/nav_machines"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        android:title="Machines" />
+
 </menu>

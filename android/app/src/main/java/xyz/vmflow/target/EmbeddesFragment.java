@@ -53,6 +53,7 @@ import xyz.vmflow.R;
 
 public class EmbeddesFragment extends Fragment {
     private static final String TAG = "EmbeddesFragment";
+    private static final OkHttpClient HTTP_CLIENT_EMB = new OkHttpClient();
 
     private static final UUID WRITE_CHARACTERISTIC_UUID = UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002");
 
@@ -64,15 +65,18 @@ public class EmbeddesFragment extends Fragment {
 
     class ViewHolder_ extends RecyclerView.ViewHolder {
         View viewDeviceOffline;
-
         TextView deviceNameText;
+        TextView tvMachineName;
         ImageButton btnSendCredit;
+        ImageButton btnLinkMachine;
 
         public ViewHolder_(@NonNull View itemView) {
             super(itemView);
 
             deviceNameText = itemView.findViewById(R.id.textViewDeviceAlias);
+            tvMachineName = itemView.findViewById(R.id.textViewMachineName);
             btnSendCredit = itemView.findViewById(R.id.btnSendCredit);
+            btnLinkMachine = itemView.findViewById(R.id.btnLinkMachine);
             viewDeviceOffline = itemView.findViewById(R.id.viewDeviceOffline);
         }
     }
@@ -82,6 +86,12 @@ public class EmbeddesFragment extends Fragment {
         public ViewHolder_ onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_embedded_layout, parent, false);
             ViewHolder_ holder = new ViewHolder_(view);
+
+            holder.btnLinkMachine.setOnClickListener(v -> {
+                int pos = holder.getAdapterPosition();
+                if (pos != RecyclerView.NO_ID)
+                    showLinkMachineDialog(mListEmbeddeds.get(pos), pos);
+            });
 
             holder.btnSendCredit.setOnClickListener(v -> {
 
@@ -183,11 +193,13 @@ public class EmbeddesFragment extends Fragment {
             JSONObject jsonEmbedded = mListEmbeddeds.get(position);
 
             try {
-
                 holder.deviceNameText.setText(String.format("Device: %06d", jsonEmbedded.getInt("subdomain")));
 
                 int color = ContextCompat.getColor(getContext(), "online".equals(jsonEmbedded.getString("status")) ? R.color.green : R.color.red);
                 holder.viewDeviceOffline.setBackgroundColor(color);
+
+                JSONObject machine = jsonEmbedded.optJSONObject("machine");
+                holder.tvMachineName.setText(machine != null ? machine.optString("name", "—") : "No machine");
             } catch (JSONException e) {
                 throw new RuntimeException(e);
             }
@@ -251,7 +263,7 @@ public class EmbeddesFragment extends Fragment {
 
         boolean retry;
         do {
-            retry = false; // controla se precisa repetir a requisição
+            retry = false; // controls whether the request needs to be retried
 
             try {
                 SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
@@ -259,13 +271,13 @@ public class EmbeddesFragment extends Fragment {
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
-                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded")
+                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded?select=id,subdomain,status,machine_id,machine:machines(id,name)&order=subdomain")
                         .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                         .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                         .addHeader("Content-Type", "application/json")
                         .build();
 
-                Response response = new OkHttpClient().newCall(request).execute();
+                Response response = HTTP_CLIENT_EMB.newCall(request).execute();
                 if(response.isSuccessful()){
 
                     try {
@@ -434,6 +446,102 @@ public class EmbeddesFragment extends Fragment {
                     e.printStackTrace();
                 }
             } while(retry);
+        });
+    }
+
+    private void showLinkMachineDialog(JSONObject embedded, int embeddedPos) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            try {
+                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
+
+                Request request = new Request.Builder()
+                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/machines?select=id,name&order=name")
+                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
+                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
+                        .build();
+
+                Response response = HTTP_CLIENT_EMB.newCall(request).execute();
+                if (!response.isSuccessful() || getActivity() == null) return;
+
+                JSONArray machines = new JSONArray(response.body().string());
+
+                // Build labels: "Nenhuma" + machine names
+                String[] labels = new String[machines.length() + 1];
+                labels[0] = "Nenhuma";
+                for (int i = 0; i < machines.length(); i++)
+                    labels[i + 1] = machines.getJSONObject(i).optString("name", "—");
+
+                // Find current selection
+                String currentMachineId = embedded.optString("machine_id", "");
+                int[] selectedIndex = {0};
+                for (int i = 0; i < machines.length(); i++) {
+                    if (machines.getJSONObject(i).optString("id", "").equals(currentMachineId)) {
+                        selectedIndex[0] = i + 1;
+                        break;
+                    }
+                }
+
+                JSONArray finalMachines = machines;
+                getActivity().runOnUiThread(() -> {
+                    int[] picked = {selectedIndex[0]};
+                    new AlertDialog.Builder(getContext())
+                            .setTitle("Link machine")
+                            .setSingleChoiceItems(labels, selectedIndex[0], (d, which) -> picked[0] = which)
+                            .setPositiveButton("Save", (d, which) -> {
+                                ExecutorService exec2 = Executors.newSingleThreadExecutor();
+                                exec2.execute(() -> {
+                                    try {
+                                        SharedPreferences p2 = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                                        JSONObject auth2 = new JSONObject(p2.getString("auth_json", "{}"));
+
+                                        JSONObject body = new JSONObject();
+                                        if (picked[0] == 0) {
+                                            body.put("machine_id", JSONObject.NULL);
+                                        } else {
+                                            body.put("machine_id", finalMachines.getJSONObject(picked[0] - 1).getString("id"));
+                                        }
+
+                                        Request req = new Request.Builder()
+                                                .url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded?id=eq." + embedded.getString("id"))
+                                                .patch(RequestBody.create(body.toString(), MediaType.parse("application/json")))
+                                                .addHeader("apikey", BuildConfig.SUPABASE_KEY)
+                                                .addHeader("Authorization", "Bearer " + auth2.getString("access_token"))
+                                                .addHeader("Content-Type", "application/json")
+                                                .build();
+
+                                        Response res = HTTP_CLIENT_EMB.newCall(req).execute();
+                                        if (res.isSuccessful()) {
+                                            // Update local object
+                                            if (picked[0] == 0) {
+                                                embedded.put("machine_id", JSONObject.NULL);
+                                                embedded.put("machine", JSONObject.NULL);
+                                            } else {
+                                                JSONObject m = finalMachines.getJSONObject(picked[0] - 1);
+                                                embedded.put("machine_id", m.getString("id"));
+                                                embedded.put("machine", m);
+                                            }
+                                            if (getActivity() != null)
+                                                getActivity().runOnUiThread(() -> {
+                                                    itemAdapter_.notifyItemChanged(embeddedPos);
+                                                    Toast.makeText(getContext(), "Vinculado", Toast.LENGTH_SHORT).show();
+                                                });
+                                        } else if (getActivity() != null) {
+                                            getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Erro: " + res.code(), Toast.LENGTH_SHORT).show());
+                                        }
+                                    } catch (JSONException | IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                });
+                            })
+                            .setNegativeButton("Cancelar", null)
+                            .show();
+                });
+
+            } catch (JSONException | IOException e) {
+                e.printStackTrace();
+            }
         });
     }
 

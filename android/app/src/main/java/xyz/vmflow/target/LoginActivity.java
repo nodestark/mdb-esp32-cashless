@@ -28,19 +28,17 @@ import xyz.vmflow.R;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private EditText editEmail, editSenha;
+    private EditText editEmail, editPassword;
     private Button btnLogin;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Verifica se já existe auth salvo
         SharedPreferences prefs = getSharedPreferences("target_prefs", MODE_PRIVATE);
         String authJson = prefs.getString("auth_json", null);
 
         if (authJson != null && !authJson.isEmpty()) {
-            // Já está logado → vai direto para MainActivity
             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
@@ -51,7 +49,7 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         editEmail = findViewById(R.id.editEmail);
-        editSenha = findViewById(R.id.editSenha);
+        editPassword = findViewById(R.id.editPassword);
 
         btnLogin = findViewById(R.id.btnLogin);
         btnLogin.setOnClickListener(v -> loginUser());
@@ -70,10 +68,15 @@ public class LoginActivity extends AppCompatActivity {
 
     private void loginUser() {
         String email = editEmail.getText().toString().trim();
-        String senha = editSenha.getText().toString().trim();
+        String senha = editPassword.getText().toString();
 
         if (email.isEmpty() || senha.isEmpty()) {
             Toast.makeText(this, "Please fill in all required fields.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -98,22 +101,23 @@ public class LoginActivity extends AppCompatActivity {
                 @Override
                 public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
 
+                    String body = response.body().string();
+
                     if (response.isSuccessful()) {
 
                         SharedPreferences prefs = getSharedPreferences("target_prefs", MODE_PRIVATE);
-                        prefs.edit().putString("auth_json", response.body().string()).apply();
+                        prefs.edit().putString("auth_json", body).apply();
 
-                        Intent intent= new Intent(LoginActivity.this, MainActivity.class);
+                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         startActivity(intent);
                     } else {
                         runOnUiThread(() -> {
                             try {
-                                JSONObject jsonObject = new JSONObject(response.body().string());
-
+                                JSONObject jsonObject = new JSONObject(body);
                                 Toast.makeText(LoginActivity.this, jsonObject.getString("msg"), Toast.LENGTH_SHORT).show();
-                            } catch (IOException | JSONException e) {
-                                e.printStackTrace();
+                            } catch (JSONException e) {
+                                Toast.makeText(LoginActivity.this, "Login failed. Please try again.", Toast.LENGTH_SHORT).show();
                             }
                         });
                     }

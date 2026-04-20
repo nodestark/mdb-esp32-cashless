@@ -1,11 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base -->
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
 
-    <color name="gray">#666666</color>
-
+    <!-- Status (used in Java code) -->
     <color name="red">#B71C1C</color>
     <color name="green">#8BC34A</color>
+
+    <!-- Brand -->
+    <color name="primary">#2563EB</color>
+    <color name="primary_dark">#1565C0</color>
+    <color name="primary_kpi">#1565C0</color>
+
+    <!-- Surfaces -->
+    <color name="bg_screen">#EFF6FF</color>
+    <color name="bg_light_blue">#EFF6FF</color>
+    <color name="btn_secondary_bg">#E5E7EB</color>
+
+    <!-- Text -->
+    <color name="text_primary">#333333</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_tertiary">#999999</color>
+    <color name="text_label">#888888</color>
+    <color name="text_link">#6B7280</color>
+    <color name="text_on_secondary">#111827</color>
+
+    <!-- Semantics -->
+    <color name="status_indicator">#2196F3</color>
+    <color name="kpi_sales">#2E7D32</color>
+
+    <!-- Legacy alias (kept for backward compat with R.color.gray and R.color.blue) -->
+    <color name="gray">#666666</color>
     <color name="blue">#1565C0</color>
 </resources>

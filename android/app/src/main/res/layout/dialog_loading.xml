@@ -1,9 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:padding="20dp"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content">
+    android:padding="20dp">
 
     <ProgressBar
         android:layout_width="wrap_content"
@@ -11,9 +12,11 @@
         style="?android:attr/progressBarStyleLarge" />
 
     <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="10dp"
         android:text="Loading..."
-        android:textSize="18sp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:textSize="16sp"
+        android:textColor="@color/text_primary" />
+
 </LinearLayout>

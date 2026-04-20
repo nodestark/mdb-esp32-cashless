@@ -11,7 +11,7 @@
         android:background="?attr/colorPrimary"
         android:theme="?attr/actionBarTheme"
         android:elevation="4dp"
-        android:titleTextColor="@android:color/white" />
+        app:titleTextColor="@color/white" />
 
     <FrameLayout
         android:id="@+id/container"

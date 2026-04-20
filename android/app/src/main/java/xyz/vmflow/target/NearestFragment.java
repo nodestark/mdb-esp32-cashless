@@ -411,6 +411,9 @@ public class NearestFragment extends Fragment {
                             mSwipeRefreshLayout.setRefreshing(false);
                             mProgressBar.setVisibility(View.GONE);
 
+                            if (mListRxBleDevices.isEmpty())
+                                Toast.makeText(getContext(), "No devices found nearby", Toast.LENGTH_LONG).show();
+
                             Log.d(TAG, "Scan complete");
                         });
                 });

@@ -22,12 +22,10 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import xyz.vmflow.BuildConfig;
 import xyz.vmflow.R;
 
 public class RegisterActivity extends AppCompatActivity {
-
-    private static final String SUPABASE_URL = "https://supabase.vmflow.xyz";
-    private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,16 +43,21 @@ public class RegisterActivity extends AppCompatActivity {
         EditText editConfirmPswd = findViewById(R.id.etConfirmPassword);
 
         String email = editEmail.getText().toString().trim();
-        String senha = editPswd.getText().toString().trim();
-        String confirmPassword = editConfirmPswd.getText().toString().trim();
+        String senha = editPswd.getText().toString();
+        String confirmPassword = editConfirmPswd.getText().toString();
 
         if (email.isEmpty() || senha.isEmpty()) {
             Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         if (!senha.equals(confirmPassword)) {
-            Toast.makeText(this, "Both passwords need to be the same to continue", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -68,8 +71,8 @@ public class RegisterActivity extends AppCompatActivity {
             RequestBody requestBody = RequestBody.create( json.toString(), MediaType.parse("application/json") );
 
             Request request = new Request.Builder()
-                    .url(SUPABASE_URL + "/auth/v1/signup")
-                    .addHeader("apikey", SUPABASE_KEY)
+                    .url(BuildConfig.SUPABASE_URL + "/auth/v1/signup")
+                    .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                     .addHeader("Content-Type", "application/json")
                     .post(requestBody)
                     .build();
@@ -87,17 +90,16 @@ public class RegisterActivity extends AppCompatActivity {
                         editor.putString("auth_json", response.body().string());
                         editor.apply();
 
-                        Intent intent= new Intent(RegisterActivity.this, MainActivity.class);
+                        Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         startActivity(intent);
                     } else {
                         runOnUiThread(() -> {
                             try {
                                 JSONObject jsonObject = new JSONObject(response.body().string());
-
                                 Toast.makeText(RegisterActivity.this, jsonObject.getString("msg"), Toast.LENGTH_SHORT).show();
-                            } catch (IOException | JSONException e) {
-                                e.printStackTrace();
+                            } catch (JSONException | IOException e) {
+                                Toast.makeText(RegisterActivity.this, "Registration failed. Please try again.", Toast.LENGTH_SHORT).show();
                             }
                         });
                     }

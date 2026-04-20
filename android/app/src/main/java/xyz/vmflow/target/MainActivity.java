@@ -103,14 +103,17 @@ public class MainActivity extends AppCompatActivity {
 
             Fragment selectedFragment = null;
 
-            if(item.getItemId() == R.id.nav_embeddeds )
+            if (item.getItemId() == R.id.nav_embeddeds)
                 selectedFragment = new EmbeddesFragment();
 
-            if(item.getItemId() == R.id.nav_nearest )
+            if (item.getItemId() == R.id.nav_nearest)
                 selectedFragment = new NearestFragment();
 
-            if(item.getItemId() == R.id.nav_sales )
+            if (item.getItemId() == R.id.nav_sales)
                 selectedFragment = new SalesFragment();
+
+            if (item.getItemId() == R.id.nav_machines)
+                selectedFragment = new MachinesFragment();
 
             getSupportFragmentManager()
                     .beginTransaction()

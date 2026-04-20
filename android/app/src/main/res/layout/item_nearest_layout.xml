@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/containerNearestItem"
     android:layout_width="match_parent"
@@ -12,7 +13,7 @@
         android:layout_width="4dp"
         android:layout_height="40dp"
         android:layout_marginEnd="8dp"
-        android:background="#2196F3" />
+        android:background="@color/status_indicator" />
 
     <TextView
         android:id="@+id/textViewNearest"
@@ -20,9 +21,9 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="MQTT"
-        android:textStyle="bold"
         android:textSize="16sp"
-        android:textColor="#333333" />
+        android:textStyle="bold"
+        android:textColor="@color/text_primary" />
 
     <ImageButton
         android:id="@+id/btnSetPassword"
@@ -31,4 +32,5 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_lock_lock"
         android:contentDescription="Set password" />
+
 </LinearLayout>
