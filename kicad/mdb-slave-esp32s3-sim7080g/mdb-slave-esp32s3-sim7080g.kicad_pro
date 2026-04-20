@@ -137,7 +137,7 @@
         "min_text_height": 0.8,
         "min_text_thickness": 0.15,
         "min_through_hole_diameter": 0.2,
-        "min_track_width": 0.1016,
+        "min_track_width": 0.2,
         "min_via_annular_width": 0.1016,
         "min_via_diameter": 0.5,
         "solder_mask_to_copper_clearance": 0.0,
