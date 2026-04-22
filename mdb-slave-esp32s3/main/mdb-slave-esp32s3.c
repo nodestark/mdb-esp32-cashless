@@ -628,7 +628,7 @@ void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, 
 
     uint32_t itemPrice32 = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(itemPrice, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
-	esp_fill_random(payload + 1, sizeof(my_passkey));
+	esp_fill_random(payload, 19);
 
 	time_t now = time(NULL);
 
