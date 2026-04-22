@@ -57,12 +57,12 @@ def on_message(client, userdata, msg):
                 chk = sum(payload[:-1])
                 if payload[-1] == (chk & 0xFF):
 
-                    timestamp_sec = int.from_bytes(payload[8:12], byteorder="big")
+                    timestamp_sec = int.from_bytes(payload[7:11], byteorder="big")
 
                     current_time = int(time.time())
 
                     if abs(current_time - timestamp_sec) <= 8:
-                        pax_counter = int.from_bytes(payload[12:14], byteorder="big")
+                        pax_counter = int.from_bytes(payload[5:7], byteorder="big")
 
                         supabase.table("metrics").insert([{"embedded_id": embedded["id"],
                                                          "machine_id": embedded["machine_id"],
@@ -81,13 +81,13 @@ def on_message(client, userdata, msg):
                 chk = sum(payload[:-1])
                 if payload[-1] == (chk & 0xFF):
 
-                    timestamp_sec = int.from_bytes(payload[8:12], byteorder="big")
+                    timestamp_sec = int.from_bytes(payload[7:11], byteorder="big")
 
                     current_time = int(time.time())
 
                     if abs(current_time - timestamp_sec) <= 8:
-                        item_price = int.from_bytes(payload[2:6], byteorder="big")
-                        item_number = int.from_bytes(payload[6:8], byteorder="big")
+                        item_price = int.from_bytes(payload[1:5], byteorder="big")
+                        item_number = int.from_bytes(payload[5:7], byteorder="big")
 
                         supabase.table("sales").insert([{"owner_id":   embedded["owner_id"],
                                                          "embedded_id": embedded["id"],

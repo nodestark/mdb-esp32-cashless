@@ -145,7 +145,7 @@ esp_mqtt_client_handle_t mqttClient = NULL;
 // Message queues for communication
 static QueueHandle_t mdbSessionQueue = NULL;
 
-void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload);
+void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint8_t *payload);
 uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
 
 uint16_t read_9(uint8_t *checksum) {
@@ -392,7 +392,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 						/* PIPE_BLE */
 						uint8_t payload[19];
-						xorEncodeWithPasskey(0x0a, itemPrice, itemNumber, 0, (uint8_t*) &payload);
+						xorEncodeWithPasskey(0x0a, itemPrice, itemNumber, (uint8_t*) &payload);
 
                         ble_notify_send((char*) &payload, sizeof(payload));
 
@@ -415,7 +415,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 						/* PIPE_BLE */
 						uint8_t payload[19];
-						xorEncodeWithPasskey(0x0b, itemPrice, itemNumber, 0, (uint8_t*) &payload);
+						xorEncodeWithPasskey(0x0b, itemPrice, itemNumber, (uint8_t*) &payload);
 
                         ble_notify_send((char*) &payload, sizeof(payload));
 
@@ -429,7 +429,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 					    /* PIPE_BLE */
 						uint8_t payload[19];
-						xorEncodeWithPasskey(0x0c, itemPrice, itemNumber, 0, (uint8_t*) &payload);
+						xorEncodeWithPasskey(0x0c, itemPrice, itemNumber, (uint8_t*) &payload);
 
                         ble_notify_send((char*) &payload, sizeof(payload));
 						break;
@@ -441,7 +441,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 			            /* PIPE_BLE */
 						uint8_t payload[19];
-						xorEncodeWithPasskey(0x0d, itemPrice, itemNumber, 0, (uint8_t*) &payload);
+						xorEncodeWithPasskey(0x0d, itemPrice, itemNumber, (uint8_t*) &payload);
 
                         ble_notify_send((char*) &payload, sizeof(payload));
 
@@ -456,7 +456,7 @@ void mdb_cashless_task(void *pvParameters) {
 						if (read_9(NULL) != checksum) continue;
 
                         uint8_t payload[19];
-                        xorEncodeWithPasskey(0x21, itemPrice, itemNumber, 0, (uint8_t*) &payload);
+                        xorEncodeWithPasskey(0x21, itemPrice, itemNumber, (uint8_t*) &payload);
 
                         char topic[64];
                         snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/sale", my_subdomain);
@@ -598,10 +598,10 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
         return 0;
     }
 
-    int32_t timestamp = ((uint32_t) payload[8] << 24) |
-						((uint32_t) payload[9] << 16) |
-						((uint32_t) payload[10] << 8)  |
-						((uint32_t) payload[11] << 0);
+    int32_t timestamp = ((uint32_t) payload[7] << 24) |
+						((uint32_t) payload[8] << 16) |
+						((uint32_t) payload[9] << 8)  |
+						((uint32_t) payload[10] << 0);
 
     time_t now = time(NULL);
 
@@ -609,22 +609,22 @@ uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t 
         return 0;
     }
 
-    int32_t itemPrice32 =   ((uint32_t) payload[2] << 24) |
-                            ((uint32_t) payload[3] << 16) |
-                            ((uint32_t) payload[4] << 8)  |
-                            ((uint32_t) payload[5] << 0);
+    int32_t itemPrice32 =   ((uint32_t) payload[1] << 24) |
+                            ((uint32_t) payload[2] << 16) |
+                            ((uint32_t) payload[3] << 8)  |
+                            ((uint32_t) payload[4] << 0);
 
     if(itemPrice)
         *itemPrice = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(itemPrice32, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES);
 
     if(itemNumber)
-        *itemNumber = ((uint16_t) payload[6] << 8) | ((uint16_t) payload[7] << 0);
+        *itemNumber = ((uint16_t) payload[5] << 8) | ((uint16_t) payload[6] << 0);
 
     return 1;
 }
 
 // Encode payload to communication between BLE and MQTT
-void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint16_t paxCounter, uint8_t *payload) {
+void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint8_t *payload) {
 
     uint32_t itemPrice32 = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(itemPrice, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
@@ -634,19 +634,17 @@ void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, 
 
     payload[0] = cmd;
 
-	payload[1] = 0x01; 				// version v1
-	payload[2] = itemPrice32 >> 24;	// itemPrice
-    payload[3] = itemPrice32 >> 16;
-	payload[4] = itemPrice32 >> 8;
-	payload[5] = itemPrice32;
-	payload[6] = itemNumber >> 8;	// itemNumber
-	payload[7] = itemNumber;
-	payload[8]  = now >> 24;		// time (sec)
-	payload[9]  = now >> 16;
-	payload[10] = now >> 8;
-	payload[11] = now;
-    payload[12] = paxCounter >> 8;	// paxCounter
-	payload[13] = paxCounter;
+	payload[1] = itemPrice32 >> 24;     // itemPrice
+    payload[2] = itemPrice32 >> 16;
+	payload[3] = itemPrice32 >> 8;
+	payload[4] = itemPrice32;
+	payload[5] = itemNumber >> 8;	    // itemNumber
+	payload[6] = itemNumber;
+	payload[7] = now >> 24;		        // time (sec)
+	payload[8] = now >> 16;
+	payload[9] = now >> 8;
+	payload[10] = now;
+	// ...18
 
 	int p_len = sizeof(my_passkey) + 1;
 
@@ -1115,7 +1113,7 @@ void led_status_task(void *pvParameters) {
 void ble_pax_event_handler(uint16_t devices_count){
 
     uint8_t payload[19];
-    xorEncodeWithPasskey(0x22, 0, 0, devices_count, (uint8_t*) &payload);
+    xorEncodeWithPasskey(0x22, 0, devices_count, (uint8_t*) &payload);
 
     char topic[64];
     snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/paxcounter", my_subdomain);
