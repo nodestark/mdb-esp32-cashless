@@ -79,6 +79,7 @@ esp_timer_handle_t periodic_pax_timer;
 
 static bool mqtt_started = false;
 static bool sntp_started = false;
+
 static bool is_wifi_on = false;
 static bool is_ppp_on = false;
 
@@ -1303,6 +1304,7 @@ void on_internet_status(bool is_ppp_on, bool is_wifi_on){
             mqtt_started = false;
         }
     }
+
 }
 
 static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -1311,8 +1313,6 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
             is_ppp_on = true;
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
             ESP_LOGI(TAG, "ppp got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-            /* Make PPP the default netif so DNS queries route through it */
-            esp_netif_set_default_netif(event->esp_netif);
             break;
         }
         case IP_EVENT_PPP_LOST_IP:
@@ -1359,11 +1359,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 static void sim7080g_pulse_power(void) {
 
-    gpio_set_direction(PIN_SIM7080G_PWR, GPIO_MODE_OUTPUT);
-    gpio_set_level(PIN_SIM7080G_PWR, 0);
-
     /* transistor inverts: GPIO high → PWRKEY low on SIM7080G (active pulse) */
-    vTaskDelay(pdMS_TO_TICKS(100));
     gpio_set_level(PIN_SIM7080G_PWR, 1);
     vTaskDelay(pdMS_TO_TICKS(1200));
     gpio_set_level(PIN_SIM7080G_PWR, 0);
@@ -1455,7 +1451,8 @@ void app_main(void) {
 	esp_netif_init();
 	esp_event_loop_create_default();
 
-	esp_netif_create_default_wifi_sta();
+	esp_netif_t *wifi_netif = esp_netif_create_default_wifi_sta();
+    esp_netif_set_route_prio(wifi_netif, 100);
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	esp_wifi_init(&cfg);
@@ -1555,10 +1552,10 @@ void app_main(void) {
     esp_modem_dce_config_t dce_config = ESP_MODEM_DCE_DEFAULT_CONFIG(CONFIG_SIM7080G_APN);
 
     esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_PPP();
-    esp_netif_t *netif = esp_netif_new(&netif_cfg);
-    assert(netif);
+    esp_netif_t *ppp_netif = esp_netif_new(&netif_cfg);
+    esp_netif_set_route_prio(ppp_netif, 200);
 
-    esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7000, &dte_config, &dce_config, netif);
+    esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7000, &dte_config, &dce_config, ppp_netif);
     assert(dce);
 
     /* try sync — modem may already be on (flash/soft-reset) */
@@ -1566,7 +1563,7 @@ void app_main(void) {
     if (ret != ESP_OK) {
         /* may be stuck in PPP mode from previous session — escape first */
         esp_modem_set_mode(dce, ESP_MODEM_MODE_COMMAND);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(1500));
         ret = esp_modem_sync(dce);
     }
     if (ret != ESP_OK) {
