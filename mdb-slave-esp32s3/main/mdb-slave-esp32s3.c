@@ -5,30 +5,37 @@
  *
  */
 
-#include <esp_log.h>
-
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <time.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/event_groups.h>
+#include <freertos/ringbuf.h>
 #include <sdkconfig.h>
+#include <esp_log.h>
+#include <esp_event.h>
+#include <esp_netif.h>
+#include <esp_timer.h>
+#include <esp_random.h>
+#include <nvs_flash.h>
+#include <rom/ets_sys.h>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_wifi.h>
-#include <esp_random.h>
-#include <esp_timer.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/ringbuf.h>
-#include <math.h>
 #include <mqtt_client.h>
-#include <nvs_flash.h>
-#include <stdio.h>
-#include <string.h>
 #include <esp_sntp.h>
-#include <time.h>
-#include <rom/ets_sys.h>
-
-#include "led_strip.h"
+#include <esp_netif_ppp.h>
+#include <esp_modem_api.h>
+#include <led_strip.h>
 
 #include "nimble.h"
 
 #define TAG "mdb_cashless"
+
+#define STRINGIFY_IMPL(x) #x
+#define STRINGIFY(x)      STRINGIFY_IMPL(x)
 
 #define PIN_I2C_SDA             GPIO_NUM_10
 #define PIN_I2C_SCL             GPIO_NUM_11
@@ -42,9 +49,6 @@
 #define PIN_SIM7080G_TX         GPIO_NUM_17
 #define PIN_SIM7080G_PWR        GPIO_NUM_14
 #define PIN_BUZZER_PWR          GPIO_NUM_12
-
-#define ADC_UNIT_THERMISTOR     ADC_UNIT_1
-#define ADC_CHANNEL_THERMISTOR  ADC_CHANNEL_6   // Define the ADC unit, channel, and attenuation (NTC Thermistor)
 
 // Functions for scale factor conversion
 #define TO_SCALE_FACTOR(p, scale_to, dec_to) (p / scale_to / pow(10, -(dec_to) ))               // Converts to scale factor
@@ -75,6 +79,8 @@ esp_timer_handle_t periodic_pax_timer;
 
 static bool mqtt_started = false;
 static bool sntp_started = false;
+static bool is_wifi_on = false;
+static bool is_ppp_on = false;
 
 #define WIFI_MAX_RETRY 5
 static uint8_t wifi_retry_count = 0;
@@ -551,33 +557,23 @@ void mdb_cashless_task(void *pvParameters) {
 }
 
 /*
- * 19-byte payload:
- * - Initially filled with random data (esp_fill_random)
- * - Fixed fields overwritten according to CMD semantics
- * - Payload XOR-obfuscated with provisioning/session key before TX
+ * VMflow wire payload — 19 bytes, XOR-obfuscated with the device passkey.
  *
- * Byte index →
- * +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
- * |CMD |VER |    ITEM_PRICE     |ITEM_NUMB|       TIME_SEC    |PAX_COUNT|     NOT_USED           |
- * +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
- *   0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16   17   18
+ *   0        CMD    — opcode (see below)
+ *   1– 4     PRICE  — uint32, item price (scale factor applied)
+ *   5– 6     ITEM   — uint16, item number
+ *   7–10     TIME   — uint32, Unix timestamp (seconds)
+ *   11–17    —      — random filler (esp_fill_random)
+ *   18       CHK    — sum of bytes 0–17
  *
- * CMD (byte 0) – vmflow protocol opcode:
- *  BLE target <- client:
- *   0x00 SUBDOMAIN (device_id) | 0x01 PASSKEY (cipher_code) | 0x02 START_SESSION
- *   0x03 APPROVE_SESSION       | 0x04 CLOSE_SESSION
- *   0x06 WIFI_SSID             | 0x07 WIFI_PASSWORD
- *
- *  BLE target -> client:
- *   0x0A VEND_REQUEST | 0x0B VEND_SUCCESS | 0x0C VEND_FAILURE | 0x0D SESSION_COMPLETE
- *
- *  MQTT target <- server:
- *   0x20 CREDIT
- *
- *  MQTT target -> server:
- *   0x21 CASH_SALE | 0x22 PAX_COUNTER
- *
- * [ random filler ] + [ structured fields per CMD ] → XOR → obfuscated payload
+ * Opcodes:
+ *   BLE ← app   0x00 SUBDOMAIN     0x01 PASSKEY  0x02 START_SESSION
+ *               0x03 APPROVE       0x04 CLOSE_SESSION
+ *               0x06 WIFI_SSID     0x07 WIFI_PASSWORD
+ *   BLE → app   0x0A VEND_REQUEST  0x0B VEND_SUCCESS
+ *               0x0C VEND_FAILURE  0x0D SESSION_COMPLETE
+ *   MQTT ← srv  0x20 CREDIT
+ *   MQTT → srv  0x21 CASH_SALE     0x22 PAX_COUNTER (ITEM = device count)
  */
 
 // Decode payload from communication between BLE and MQTT
@@ -1128,15 +1124,15 @@ void ble_event_handler(char *ble_payload) {
 	switch ( (uint8_t) ble_payload[0] ) {
     case 0x00: {
         nvs_handle_t handle;
-		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
+		nvs_open("vmflow", NVS_READWRITE, &handle);
 
 		size_t s_len;
 		if (nvs_get_str(handle, "domain", NULL, &s_len) != ESP_OK) {
 
 			strcpy((char*) &my_subdomain, ble_payload + 1);
 
-			ESP_ERROR_CHECK( nvs_set_str(handle, "domain", (char*) &my_subdomain) );
-			ESP_ERROR_CHECK( nvs_commit(handle) );
+			nvs_set_str(handle, "domain", (char*) &my_subdomain);
+			nvs_commit(handle);
 
 			char myhost[64];
 			snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
@@ -1152,15 +1148,15 @@ void ble_event_handler(char *ble_payload) {
     }
     case 0x01: {
         nvs_handle_t handle;
-		ESP_ERROR_CHECK( nvs_open("vmflow", NVS_READWRITE, &handle) );
+		nvs_open("vmflow", NVS_READWRITE, &handle);
 
 		size_t s_len;
 		if (nvs_get_str(handle, "passkey", NULL, &s_len) != ESP_OK) {
 
 			strcpy((char*) &my_passkey, ble_payload + 1);
 
-			ESP_ERROR_CHECK( nvs_set_str(handle, "passkey", (char*) &my_passkey) );
-			ESP_ERROR_CHECK( nvs_commit(handle) );
+			nvs_set_str(handle, "passkey", (char*) &my_passkey);
+			nvs_commit(handle);
 
             xEventGroupSetBits(xLedEventGroup, BIT_EVT_PSSKEY | BIT_EVT_TRIGGER);
 
@@ -1225,6 +1221,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", my_subdomain);
 
     	esp_mqtt_client_subscribe(mqttClient, topic, 0);
+    	ESP_LOGI(TAG, "subscribed to: %s", topic);
 
     	char topic_[64];
     	snprintf(topic_, sizeof(topic_), "domain.vmflow.xyz/%s/status", my_subdomain);
@@ -1271,6 +1268,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		break;
 	case MQTT_EVENT_ERROR:
+	    if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
+	        ESP_LOGE(TAG, "MQTT TCP error: errno=%d", event->error_handle->esp_transport_sock_errno);
+	    } else if (event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) {
+	        ESP_LOGE(TAG, "MQTT connection refused: 0x%x", event->error_handle->connect_return_code);
+	    }
 		break;
 	default:
 	    ESP_LOGI( TAG, "Other event id: %d", event->event_id);
@@ -1278,54 +1280,114 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	}
 }
 
+void on_internet_status(bool is_ppp_on, bool is_wifi_on){
+
+    if(is_ppp_on || is_wifi_on){
+        if (!mqtt_started) {
+            esp_mqtt_client_start(mqttClient);
+            mqtt_started = true;
+        }
+
+        if (!sntp_started) {
+            esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+            esp_sntp_setservername(0, "pool.ntp.org");
+            esp_sntp_init();
+
+            sntp_started = true;
+        }
+    }
+
+    if(!is_ppp_on && !is_wifi_on){
+        if (mqtt_started) {
+            esp_mqtt_client_stop(mqttClient);
+            mqtt_started = false;
+        }
+    }
+}
+
+static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    switch (event_id) {
+        case IP_EVENT_PPP_GOT_IP: {
+            is_ppp_on = true;
+            ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
+            ESP_LOGI(TAG, "ppp got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+            /* Make PPP the default netif so DNS queries route through it */
+            esp_netif_set_default_netif(event->esp_netif);
+            break;
+        }
+        case IP_EVENT_PPP_LOST_IP:
+            ESP_LOGW(TAG, "ppp lost IP, rebooting...");
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            esp_restart();
+            break;
+        case IP_EVENT_STA_GOT_IP: {
+            is_wifi_on = true;
+            ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
+            ESP_LOGI(TAG, "wifi got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+            break;
+        }
+    }
+
+    on_internet_status(is_ppp_on, is_wifi_on);
+}
+
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
 
-	if (event_base == WIFI_EVENT)
-		switch (event_id) {
-		case WIFI_EVENT_STA_START:
+    switch (event_id) {
+    case WIFI_EVENT_STA_START:
+        esp_wifi_connect();
+        break;
+    case WIFI_EVENT_STA_CONNECTED:
+        wifi_retry_count = 0;
+        break;
+    case WIFI_EVENT_STA_DISCONNECTED:
+		is_wifi_on = false;
 
-			esp_wifi_connect();
-			break;
-		case WIFI_EVENT_STA_CONNECTED:
-			wifi_retry_count = 0;
-			break;
-		case WIFI_EVENT_STA_DISCONNECTED:
+        if (wifi_retry_count < WIFI_MAX_RETRY) {
+            wifi_retry_count++;
+            ESP_LOGI(TAG, "WiFi reconnect attempt %d/%d", wifi_retry_count, WIFI_MAX_RETRY);
+            esp_wifi_connect();
+        } else {
+            ESP_LOGW(TAG, "WiFi max retries reached (%d), stopping reconnect", WIFI_MAX_RETRY);
+        }
 
-            if (mqtt_started) {
-                esp_mqtt_client_stop(mqttClient);
-                mqtt_started = false;
-            }
+        break;
+    }
 
-            if (wifi_retry_count < WIFI_MAX_RETRY) {
-                wifi_retry_count++;
-                ESP_LOGI(TAG, "WiFi reconnect attempt %d/%d", wifi_retry_count, WIFI_MAX_RETRY);
-                esp_wifi_connect();
-            } else {
-                ESP_LOGW(TAG, "WiFi max retries reached (%d), stopping reconnect", WIFI_MAX_RETRY);
-            }
+    on_internet_status(is_ppp_on, is_wifi_on);
+}
 
-			break;
-		}
+static void sim7080g_pulse_power(void) {
 
-	if (event_base == IP_EVENT)
-		switch (event_id) {
-		case IP_EVENT_STA_GOT_IP:
+    gpio_set_direction(PIN_SIM7080G_PWR, GPIO_MODE_OUTPUT);
+    gpio_set_level(PIN_SIM7080G_PWR, 0);
 
-		    if (!mqtt_started) {
-                esp_mqtt_client_start(mqttClient);
-                mqtt_started = true;
-            }
+    /* transistor inverts: GPIO high → PWRKEY low on SIM7080G (active pulse) */
+    vTaskDelay(pdMS_TO_TICKS(100));
+    gpio_set_level(PIN_SIM7080G_PWR, 1);
+    vTaskDelay(pdMS_TO_TICKS(1200));
+    gpio_set_level(PIN_SIM7080G_PWR, 0);
 
-            if (!sntp_started) {
-                esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
-                esp_sntp_setservername(0, "pool.ntp.org");
-                esp_sntp_init();
+    ESP_LOGI(TAG, "waiting for SIM7080G boot...");
+    vTaskDelay(pdMS_TO_TICKS(5000));
+}
 
-                sntp_started = true;
-            }
+/* Wait for EPS network registration (AT+CEREG: stat=1 home, stat=5 roaming) */
+static void sim7080g_wait_registered(esp_modem_dce_t *dce) {
 
-			break;
-		}
+    char resp[64];
+    for (int i = 0; i < 30; i++) {
+        memset(resp, 0, sizeof(resp));
+        esp_modem_at(dce, "AT+CEREG?", resp, 3000);
+        /* response: +CEREG: <n>,<stat> — stat 1=home, 5=roaming */
+        if (strstr(resp, ",1") || strstr(resp, ",5")) {
+            ESP_LOGI(TAG, "network registered (%s)", resp);
+            return;
+        }
+        ESP_LOGW(TAG, "not registered yet: %s", resp);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+    ESP_LOGE(TAG, "network registration timeout");
 }
 
 void app_main(void) {
@@ -1354,7 +1416,7 @@ void app_main(void) {
         .resolution_hz = 10000000, // 10 MHz (1 tick = 0.1 µs)
         .mem_block_symbols = 64,
     };
-    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+    led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip);
 
     xTaskCreatePinnedToCore(led_status_task, "led_status", 2048, NULL, 1, NULL, 0);
     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
@@ -1399,7 +1461,7 @@ void app_main(void) {
 	esp_wifi_init(&cfg);
 
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
-	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
+	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, ip_event_handler, NULL, NULL);
 
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_start();
@@ -1460,10 +1522,13 @@ void app_main(void) {
              .username = "vmflow",
             .authentication.password = "vmflow"
         },
-		.session.last_will.topic = lwt_topic, // LWT (Last Will and Testament)...
+		.session.last_will.topic = lwt_topic,
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,
 		.session.last_will.retain = 1,
+		.session.keepalive = 120,          /* PING interval (s), default 120 */
+		.network.timeout_ms = 20000,       /* TCP read timeout (ms) */
+		.network.reconnect_timeout_ms = 10000,
 	};
 
 	mqttClient = esp_mqtt_client_init(&mqttCfg);
@@ -1473,4 +1538,58 @@ void app_main(void) {
 	//----------------------------------------------------------//
 	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
     xTaskCreatePinnedToCore(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL, 1);
+
+    //------------------- SIM7080g STACK -----------------------//
+	//----------------------------------------------------------//
+    gpio_set_direction(PIN_SIM7080G_PWR, GPIO_MODE_OUTPUT);
+    gpio_set_level(PIN_SIM7080G_PWR, 0);
+
+    esp_modem_dte_config_t dte_config = ESP_MODEM_DTE_DEFAULT_CONFIG();
+    dte_config.uart_config.port_num   = UART_NUM_2;
+    dte_config.uart_config.baud_rate  = 115200;
+    dte_config.uart_config.tx_io_num  = PIN_SIM7080G_TX;
+    dte_config.uart_config.rx_io_num  = PIN_SIM7080G_RX;
+    dte_config.uart_config.rts_io_num = -1;
+    dte_config.uart_config.cts_io_num = -1;
+
+    esp_modem_dce_config_t dce_config = ESP_MODEM_DCE_DEFAULT_CONFIG(CONFIG_SIM7080G_APN);
+
+    esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_PPP();
+    esp_netif_t *netif = esp_netif_new(&netif_cfg);
+    assert(netif);
+
+    esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7000, &dte_config, &dce_config, netif);
+    assert(dce);
+
+    /* try sync — modem may already be on (flash/soft-reset) */
+    esp_err_t ret = esp_modem_sync(dce);
+    if (ret != ESP_OK) {
+        /* may be stuck in PPP mode from previous session — escape first */
+        esp_modem_set_mode(dce, ESP_MODEM_MODE_COMMAND);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        ret = esp_modem_sync(dce);
+    }
+    if (ret != ESP_OK) {
+        /* truly off — pulse to power on */
+        sim7080g_pulse_power();
+        ret = esp_modem_sync(dce);
+        if (ret != ESP_OK) {
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            ret = esp_modem_sync(dce);
+        }
+    } else {
+        ESP_LOGI(TAG, "modem already on");
+    }
+
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "no modem detected, skipping PPP");
+    } else {
+        ESP_LOGI(TAG, "modem detected");
+        esp_modem_at(dce, "AT+CNMP=38", NULL, 3000);
+        esp_modem_at(dce, "AT+CMNB=" STRINGIFY(CONFIG_SIM7080G_CMNB), NULL, 3000);
+        esp_modem_at(dce, "AT+CEREG=1", NULL, 3000);
+        sim7080g_wait_registered(dce);
+        ESP_LOGI(TAG, "setting data mode...");
+        esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
+    }
 }

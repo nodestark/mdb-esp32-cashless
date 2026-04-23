@@ -68,3 +68,32 @@ menu "MDB Cashless Device"
         range 0 3
 
 endmenu # MDB Cashless Device
+
+menu "SIM7080G"
+
+    choice
+        prompt "LTE Network Mode"
+        default SIM7080G_CMNB_BOTH
+
+        config SIM7080G_CMNB_CATM
+            bool "Cat-M only"
+
+        config SIM7080G_CMNB_NBIOT
+            bool "NB-IoT only"
+
+        config SIM7080G_CMNB_BOTH
+            bool "Both (LTE-M + NB-IoT)"
+
+    endchoice
+
+    config SIM7080G_CMNB
+        int
+        default 1 if SIM7080G_CMNB_CATM
+        default 2 if SIM7080G_CMNB_NBIOT
+        default 3 if SIM7080G_CMNB_BOTH
+
+    config SIM7080G_APN
+        string "APN"
+        default "lf.br"
+
+endmenu # SIM7080G
