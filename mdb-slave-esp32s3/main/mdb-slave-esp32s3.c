@@ -1566,6 +1566,7 @@ void app_main(void) {
         vTaskDelay(pdMS_TO_TICKS(1500));
         ret = esp_modem_sync(dce);
     }
+
     if (ret != ESP_OK) {
         /* truly off — pulse to power on */
         sim7080g_pulse_power();
@@ -1586,6 +1587,12 @@ void app_main(void) {
         esp_modem_at(dce, "AT+CMNB=" STRINGIFY(CONFIG_SIM7080G_CMNB), NULL, 3000);
         esp_modem_at(dce, "AT+CEREG=1", NULL, 3000);
         sim7080g_wait_registered(dce);
+
+        int rssi = 0, ber = 0;
+        if (esp_modem_get_signal_quality(dce, &rssi, &ber) == ESP_OK) {
+            ESP_LOGI(TAG, "RSSI: %d dBm, BER: %d", (rssi == 99 ? 0 : -113 + 2 * rssi), ber);
+        }
+
         ESP_LOGI(TAG, "setting data mode...");
         esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
     }
