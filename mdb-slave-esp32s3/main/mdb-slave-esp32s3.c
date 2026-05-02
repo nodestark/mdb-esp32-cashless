@@ -150,29 +150,39 @@ RingbufHandle_t dexRingbuf;
 esp_mqtt_client_handle_t mqttClient = NULL;
 
 // Message queues for communication
-static QueueHandle_t mdbSessionQueue = NULL;
+static QueueHandle_t mdb_session_queue = NULL;
+static QueueHandle_t mdb_rx_queue;
 
 void xorEncodeWithPasskey(uint8_t cmd, uint16_t itemPrice, uint16_t itemNumber, uint8_t *payload);
 uint8_t xorDecodeWithPasskey(uint16_t *itemPrice, uint16_t *itemNumber, uint8_t *payload);
 
+static void IRAM_ATTR mdb_rx_falling_isr(void *arg) {
+    // Disable interrupt for this pin to prevent re-triggering on data bits (0)
+    gpio_intr_disable(PIN_MDB_RX);
+
+    uint16_t coming_read = 0x0000;
+
+    // Wait start bit
+    ets_delay_us(156);
+
+    for (int x = 0; x < 9; x++) {
+        coming_read |= (gpio_get_level(PIN_MDB_RX) << x);
+        ets_delay_us(104); // 9600bps
+    }
+    xQueueSendFromISR(mdb_rx_queue, &coming_read, NULL);
+
+    // Re-enable interrupt for the next byte
+    gpio_intr_enable(PIN_MDB_RX);
+}
+
 uint16_t read_9(uint8_t *checksum) {
+    uint16_t coming_read = 0;
+    xQueueReceive(mdb_rx_queue, &coming_read, portMAX_DELAY);
 
-	uint16_t coming_read = 0;
+    if (checksum)
+        *checksum += coming_read;
 
-	// Wait start bit
-	while (gpio_get_level(PIN_MDB_RX))
-		;
-
-	ets_delay_us(156);
-	for(int x = 0; x < 9; x++){
-		coming_read |= (gpio_get_level(PIN_MDB_RX) << x);
-		ets_delay_us(104); // 9600bps
-	}
-
-	if (checksum)
-		*checksum += coming_read;
-
-	return coming_read;
+    return coming_read;
 }
 
 void write_9(uint16_t nth9) {
@@ -314,7 +324,7 @@ void mdb_cashless_task(void *pvParameters) {
 						mdb_payload[0] = 0x00;
 						available_tx = 1;
 
-					} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdbSessionQueue, &fundsAvailable, 0)) {
+					} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdb_session_queue, &fundsAvailable, 0)) {
 						// Begin session
 						session_begin_todo = false;
 
@@ -686,7 +696,7 @@ void readTelemetryDEX() {
 	uart_write_bytes(UART_NUM_1, "\x05", 1);
 
 	// DLE 0 <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(100));
 	if( data[0] != 0x10 || data[1] != '0' ) return;
 
 	// DLE SOH ->
@@ -720,10 +730,10 @@ void readTelemetryDEX() {
 
 	data[0] = crc % 256;
 	data[1] = crc / 256;
-	uart_write_bytes( UART_NUM_1, &data, 2 );
+	uart_write_bytes( UART_NUM_1, data, 2 );
 
 	// DLE 1 <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(100));
 	if( data[0] != 0x10 || data[1] != '1' ) return;
 
 	// EOT ->
@@ -732,41 +742,41 @@ void readTelemetryDEX() {
 	// -------------------------------------- Second Handshake --------------------------------------
 
 	// ENQ <-
-	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(100));
 	if( data[0] != 0x05 ) return;
 
 	// DLE 0 ->
 	uart_write_bytes(UART_NUM_1, "\x10\x30", 2);
 
 	// DLE SOH <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(100));
 	if( data[0] != 0x10 || data[1] != 0x01 ) return;
 
 	// Response Code <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(100));
 	// Communication ID <-
-	uart_read_bytes(UART_NUM_1, &data, 10, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 10, pdMS_TO_TICKS(100));
 	// Revision & Level <-
-	uart_read_bytes(UART_NUM_1, &data, 6, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 6, pdMS_TO_TICKS(100));
 
 	// DLE ETX <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(100));
 	if( data[0] != 0x10 || data[1] != 0x03 ) return;
 
 	// CRC <-
-	uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(100));
 
 	// DLE 1 ->
 	uart_write_bytes(UART_NUM_1, "\x10\x31", 2);
 
 	// EOT <-
-	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(100));
 	if( data[0] != 0x04 ) return;
 
 	// -------------------------------------- Data transfer --------------------------------------
 
 	// ENQ <-
-	uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(100));
 	if (data[0] != 0x05) return;
 
 	uint8_t block = 0x00;
@@ -774,37 +784,37 @@ void readTelemetryDEX() {
 
 		data[0] = 0x10; 				// DLE
 		data[1] = ('0' + (block++ & 1)); 	// '0'|'1' ->
-		uart_write_bytes(UART_NUM_1, &data, 2);
+		uart_write_bytes(UART_NUM_1, data, 2);
 
 		// DLE STX <-
-		uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
+		uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(200));
 		if (data[0] != 0x10 || data[1] != 0x02) return;
 
 		for (;;) {
 
-			uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(200));
+			uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(200));
 			if (data[0] == 0x10) { // DLE
 
-				uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(200));
+				uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(200));
 
 				if (data[0] == 0x17) { // ETB
 
 					// <- CRC
-					uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
+					uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(200));
 
 					break;
 
 				} else if (data[0] == 0x03) { // ETX
 
 					// CRC <-
-					uart_read_bytes(UART_NUM_1, &data, 2, pdMS_TO_TICKS(200));
+					uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(200));
 
 					data[0] = 0x10; 					// DLE
 					data[1] = ('0' + (block++ & 0x01)); 	// '0'|'1' ->
-					uart_write_bytes(UART_NUM_1, &data, 2);
+					uart_write_bytes(UART_NUM_1, data, 2);
 
 					// EOT <-
-					uart_read_bytes(UART_NUM_1, &data, 1, pdMS_TO_TICKS(200));
+					uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(200));
 
 					return;
 				}
@@ -839,9 +849,9 @@ void readTelemetryDDCMP() {
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x01"), 1 ); // sadd
 	crc_[0] = crc % 256;
 	crc_[1] = crc / 256;
-	uart_write_bytes( UART_NUM_1, &crc_, 2 );
+	uart_write_bytes(UART_NUM_1, crc_, 2 );
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
+	if( uart_read_bytes(UART_NUM_1, buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x07)) {
@@ -860,7 +870,7 @@ void readTelemetryDDCMP() {
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x01"), 1 ); // sadd
 	crc_[0] = crc % 256;
 	crc_[1] = crc / 256;
-	uart_write_bytes( UART_NUM_1, &crc_, 2 );
+	uart_write_bytes(UART_NUM_1, crc_, 2 );
 
 	crc = 0x0000;
 	// who are you...
@@ -886,16 +896,16 @@ void readTelemetryDDCMP() {
 
 	crc_[0] = crc % 256;
 	crc_[1] = crc / 256;
-	uart_write_bytes( UART_NUM_1, &crc_, 2 );
+	uart_write_bytes(UART_NUM_1, crc_, 2 );
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
+	if( uart_read_bytes(UART_NUM_1, buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
 		return;
 	} // ...ack
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
+	if( uart_read_bytes(UART_NUM_1, buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if (buffer_rx[0] != 0x81) {
@@ -907,7 +917,7 @@ void readTelemetryDDCMP() {
 	n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
 	n_bytes_message += 2; // crc16
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
+	if( uart_read_bytes(UART_NUM_1, buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
 		return;
 
 //  if (buffer_rx[2] != 0x01) {
@@ -925,7 +935,7 @@ void readTelemetryDDCMP() {
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x01"), 1 ); 					// sadd
 	crc_[0] = crc % 256;
 	crc_[1] = crc / 256;
-	uart_write_bytes( UART_NUM_1, &crc_, 2 ); // Transmitiu ACK (05 01 40 01 00 01 B8 55)
+	uart_write_bytes(UART_NUM_1, crc_, 2 ); // Transmitiu ACK (05 01 40 01 00 01 B8 55)
 
 	crc = 0x0000;
 
@@ -939,7 +949,7 @@ void readTelemetryDDCMP() {
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x01"), 1 ); 					// sadd
 	crc_[0] = crc % 256;
 	crc_[1] = crc / 256;
-	uart_write_bytes( UART_NUM_1, &crc_, 2 ); // Transmitiu DATA_HEADER (81 09 40 01 02 01 46 B0)
+	uart_write_bytes(UART_NUM_1, crc_, 2 ); // Transmitiu DATA_HEADER (81 09 40 01 02 01 46 B0)
 
 	crc = 0x0000;
 
@@ -954,16 +964,16 @@ void readTelemetryDDCMP() {
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x00"), 1 );
 	crc_[0] = crc % 256;
 	crc_[1] = crc / 256;
-	uart_write_bytes( UART_NUM_1, &crc_, 2 ); // Transmitiu READ_DATA/Audit Collection List (77 E2 00 01 01 00 00 00 00 F0 72)
+	uart_write_bytes(UART_NUM_1, crc_, 2 ); // Transmitiu READ_DATA/Audit Collection List (77 E2 00 01 01 00 00 00 00 F0 72)
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
+	if( uart_read_bytes(UART_NUM_1, buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
 		return;
 	} // ...ack
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
+	if( uart_read_bytes(UART_NUM_1, buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 		return;
 
 	if (buffer_rx[0] != 0x81) {
@@ -975,7 +985,7 @@ void readTelemetryDDCMP() {
 	n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
 	n_bytes_message += 2; // crc16
 
-	if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
+	if( uart_read_bytes(UART_NUM_1, buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
 		return;
 
 	if (buffer_rx[2] != 0x01) {
@@ -992,11 +1002,11 @@ void readTelemetryDDCMP() {
 	uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x01"), 1 );
 	crc_[0] = crc % 256;
 	crc_[1] = crc / 256;
-	uart_write_bytes( UART_NUM_1, &crc_, 2 ); // Transmitiu ACK
+	uart_write_bytes(UART_NUM_1, crc_, 2 ); // Transmitiu ACK
 
 	do {
 
-		if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
+		if( uart_read_bytes(UART_NUM_1, buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 			break;
 
 		if (buffer_rx[0] != 0x81) {
@@ -1009,7 +1019,7 @@ void readTelemetryDDCMP() {
 		n_bytes_message = ((buffer_rx[2] & 0x3f) * 256) + buffer_rx[1];
 		n_bytes_message += 2; // crc16
 
-		if( uart_read_bytes(UART_NUM_1, &buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
+		if( uart_read_bytes(UART_NUM_1, buffer_rx, n_bytes_message, pdMS_TO_TICKS(200)) != n_bytes_message)
 			break;
 		// ...data
 
@@ -1027,7 +1037,7 @@ void readTelemetryDDCMP() {
 		uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x01"), 1 );
 		crc_[0] = crc % 256;
 		crc_[1] = crc / 256;
-		uart_write_bytes( UART_NUM_1, &crc_, 2 ); // Transmitiu ACK
+		uart_write_bytes(UART_NUM_1, crc_, 2 ); // Transmitiu ACK
 
 		if (last_package) {
 
@@ -1041,14 +1051,14 @@ void readTelemetryDDCMP() {
 			uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x01"), 1 ); 					// sadd
 			crc_[0] = crc % 256;
 			crc_[1] = crc / 256;
-			uart_write_bytes( UART_NUM_1, &crc_, 2 ); // Transmitiu DATA HEADER
+			uart_write_bytes(UART_NUM_1, crc_, 2 ); // Transmitiu DATA HEADER
 
 			uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x77"), 1 );
 			uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\xFF"), 1 );
 			uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\x67"), 1 );
 			uart_write_bytes( UART_NUM_1, calc_crc_16(&crc, "\xB0"), 1 ); // Transmitiu FINIS
 
-			if( uart_read_bytes(UART_NUM_1, &buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
+			if( uart_read_bytes(UART_NUM_1, buffer_rx, 8, pdMS_TO_TICKS(200)) != 8)
 				break;
 
 			if ((buffer_rx[0] != 0x05) || (buffer_rx[1] != 0x01)) {
@@ -1071,13 +1081,16 @@ void requestTelemetryData(void *arg) {
 	size_t dex_size;
 	uint8_t *dex = (uint8_t*) xRingbufferReceive(dexRingbuf, &dex_size, 0);
 
-  	char topic[64];
-	snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/dex", my_subdomain);
+    if(dex != NULL){
 
-    esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 0, 0);
-    printf("%.*s", dex_size, (char*) dex);
+        char topic[64];
+        snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/dex", my_subdomain);
 
-    vRingbufferReturnItem(dexRingbuf, (void*) dex);
+        esp_mqtt_client_publish(mqttClient, topic, (char*) dex, dex_size, 0, 0);
+        printf("%.*s", dex_size, (char*) dex);
+
+        vRingbufferReturnItem(dexRingbuf, (void*) dex);
+    }
 }
 
 void led_status_task(void *pvParameters) {
@@ -1169,7 +1182,7 @@ void ble_event_handler(char *ble_payload) {
     }
     case 0x02: /*Starting a vending session*/
         uint16_t fundsAvailable = 0xffff;
-		xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
+		xQueueSend(mdb_session_queue, &fundsAvailable, 0 /*if full, do not wait*/);
 		break;
 	case 0x03: /*Approve the vending session*/
 
@@ -1259,7 +1272,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 			uint16_t fundsAvailable;
 			if(xorDecodeWithPasskey(&fundsAvailable, NULL, (uint8_t*) event->data)){
-			    xQueueSend(mdbSessionQueue, &fundsAvailable, 0 /*if full, do not wait*/);
+			    xQueueSend(mdb_session_queue, &fundsAvailable, 0 /*if full, do not wait*/);
 
                 xEventGroupSetBits(xLedEventGroup, BIT_EVT_BUZZER | BIT_EVT_TRIGGER);
 
@@ -1388,10 +1401,24 @@ static void sim7080g_wait_registered(esp_modem_dce_t *dce) {
 
 void app_main(void) {
 
-    gpio_set_direction(PIN_MDB_RX, GPIO_MODE_INPUT);
     gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
-	//
+    gpio_set_level(PIN_MDB_TX, 1);  // MDB idle = HIGH
 
+    mdb_rx_queue = xQueueCreate(16, sizeof(uint16_t));
+
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << PIN_MDB_RX),
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_NEGEDGE,
+    };
+    gpio_config(&io_conf);
+
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(PIN_MDB_RX, mdb_rx_falling_isr, NULL);
+
+	//
 	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);
 
@@ -1414,7 +1441,8 @@ void app_main(void) {
     };
     led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip);
 
-    xTaskCreatePinnedToCore(led_status_task, "led_status", 2048, NULL, 1, NULL, 0);
+    xTaskCreate(led_status_task, "led_status", 2048, NULL, 1, NULL);
+
     xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
 
 	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
@@ -1533,8 +1561,8 @@ void app_main(void) {
 
     //------------------------ MAIN TASKS ----------------------//
 	//----------------------------------------------------------//
-	mdbSessionQueue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
-    xTaskCreatePinnedToCore(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL, 1);
+	mdb_session_queue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
+        xTaskCreate(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL);
 
     //------------------- SIM7080g STACK -----------------------//
 	//----------------------------------------------------------//
