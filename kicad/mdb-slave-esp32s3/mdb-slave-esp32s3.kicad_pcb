@@ -1249,7 +1249,7 @@
 			(uuid "3f22402a-949b-4351-b9d0-c5b0d0aaeb6c")
 		)
 		(embedded_fonts no)
-		(model "/home/leonardo/Downloads/LIB_7447789156/7447789156/3D/7447789156.stp"
+		(model "${KIPRJMOD}/3d-models/Inductor_WE-7447789156_100uH.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2190,7 +2190,7 @@
 			(uuid "79ee1026-fb9e-4f33-bf6b-eb8b7332d3e8")
 		)
 		(embedded_fonts no)
-		(model "/home/leonardo/Downloads/LIB_2345986-1/2345986-1/3D/2345986-1.stp"
+		(model "${KIPRJMOD}/3d-models/USB-C_Receptacle_G-Switch-GT-USB-7010ASV.stp"
 			(offset
 				(xyz 0 -3.5 1.5)
 			)
@@ -6884,7 +6884,7 @@
 			(uuid "f92582f0-fb9e-4e50-964b-c0542f1f3feb")
 		)
 		(embedded_fonts no)
-		(model "/home/leonardo/Downloads/LIB_CLMUD-FKC-CHJNPM569ABB845343/CLMUD-FKC-CHJNPM569ABB845343/3D/CLMUD-FKC-CHJNPM569ABB845343.stp"
+		(model "${KIPRJMOD}/3d-models/LED_WS2812B-2020_XL-2121RGBC.stp"
 			(offset
 				(xyz 0 0 0.5)
 			)
@@ -12843,7 +12843,7 @@
 			(uuid "38e3fe8a-6835-497b-a8cc-bf394204455a")
 		)
 		(embedded_fonts no)
-		(model "/home/leonardo/Downloads/LIB_39-28-1063/39-28-1063/3D/39-28-1063.stp"
+		(model "${KIPRJMOD}/3d-models/Connector_Molex-MiniJr-39-28-1063_2x03.stp"
 			(offset
 				(xyz 4 -2.5 0)
 			)
