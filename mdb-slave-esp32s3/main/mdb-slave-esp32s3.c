@@ -1560,9 +1560,9 @@ void app_main(void) {
 	esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
 
     //------------------------ MAIN TASKS ----------------------//
-	//----------------------------------------------------------//
-	mdb_session_queue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
-        xTaskCreate(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL);
+    //----------------------------------------------------------//
+    mdb_session_queue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
+    xTaskCreate(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL);
 
     //------------------- SIM7080g STACK -----------------------//
 	//----------------------------------------------------------//
@@ -1583,7 +1583,7 @@ void app_main(void) {
     esp_netif_t *ppp_netif = esp_netif_new(&netif_cfg);
     esp_netif_set_route_prio(ppp_netif, 200);
 
-    esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7000, &dte_config, &dce_config, ppp_netif);
+    esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7070, &dte_config, &dce_config, ppp_netif);
     assert(dce);
 
     /* try sync — modem may already be on (flash/soft-reset) */
