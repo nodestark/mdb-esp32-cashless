@@ -34,21 +34,21 @@
 
 #define TAG "mdb_cashless"
 
-#define STRINGIFY_IMPL(x) #x
-#define STRINGIFY(x)      STRINGIFY_IMPL(x)
+#define STRINGIFY_IMPL(x)   #x
+#define STRINGIFY(x)        STRINGIFY_IMPL(x)
 
-#define PIN_I2C_SDA             GPIO_NUM_10
-#define PIN_I2C_SCL             GPIO_NUM_11
-#define PIN_PULSE_1             GPIO_NUM_13
-#define PIN_MDB_RX              GPIO_NUM_4
-#define PIN_MDB_TX              GPIO_NUM_5
-#define PIN_MDB_LED             GPIO_NUM_21
-#define PIN_DEX_RX              GPIO_NUM_8
-#define PIN_DEX_TX              GPIO_NUM_9
-#define PIN_SIM7080G_RX         GPIO_NUM_18
-#define PIN_SIM7080G_TX         GPIO_NUM_17
-#define PIN_SIM7080G_PWR        GPIO_NUM_14
-#define PIN_BUZZER_PWR          GPIO_NUM_12
+#define PIN_I2C_SDA         GPIO_NUM_10
+#define PIN_I2C_SCL         GPIO_NUM_11
+#define PIN_PULSE_1         GPIO_NUM_13
+#define PIN_MDB_RX          GPIO_NUM_4
+#define PIN_MDB_TX          GPIO_NUM_5
+#define PIN_MDB_LED         GPIO_NUM_21
+#define PIN_DEX_RX          GPIO_NUM_8
+#define PIN_DEX_TX          GPIO_NUM_9
+#define PIN_SIM7080G_RX     GPIO_NUM_18
+#define PIN_SIM7080G_TX     GPIO_NUM_17
+#define PIN_SIM7080G_PWR    GPIO_NUM_14
+#define PIN_BUZZER_PWR      GPIO_NUM_12
 
 // Functions for scale factor conversion
 #define TO_SCALE_FACTOR(p, scale_to, dec_to) (p / scale_to / pow(10, -(dec_to) ))               // Converts to scale factor
@@ -74,14 +74,6 @@ enum BIT_EVENTS {
 };
 
 EventGroupHandle_t xLedEventGroup;
-
-esp_timer_handle_t periodic_pax_timer;
-
-static bool mqtt_started = false;
-static bool sntp_started = false;
-
-static bool is_wifi_on = false;
-static bool is_ppp_on = false;
 
 #define WIFI_MAX_RETRY 5
 static uint8_t wifi_retry_count = 0;
@@ -1244,16 +1236,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
 
-        esp_timer_stop(periodic_pax_timer);
-        esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
-
 		break;
 	case MQTT_EVENT_DISCONNECTED:
 
         xEventGroupClearBits(xLedEventGroup, BIT_EVT_INTERNET);
         xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
-
-        esp_timer_stop(periodic_pax_timer);
 
 		break;
 	case MQTT_EVENT_SUBSCRIBED:
@@ -1294,36 +1281,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	}
 }
 
-void on_internet_status(bool is_ppp_on, bool is_wifi_on){
-
-    if(is_ppp_on || is_wifi_on){
-        if (!mqtt_started) {
-            esp_mqtt_client_start(mqtt_client);
-            mqtt_started = true;
-        }
-
-        if (!sntp_started) {
-            esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
-            esp_sntp_setservername(0, "pool.ntp.org");
-            esp_sntp_init();
-
-            sntp_started = true;
-        }
-    }
-
-    if(!is_ppp_on && !is_wifi_on){
-        if (mqtt_started) {
-            esp_mqtt_client_stop(mqtt_client);
-            mqtt_started = false;
-        }
-    }
-
-}
-
 static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     switch (event_id) {
         case IP_EVENT_PPP_GOT_IP: {
-            is_ppp_on = true;
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
             ESP_LOGI(TAG, "ppp got IP: " IPSTR, IP2STR(&event->ip_info.ip));
             break;
@@ -1334,14 +1294,11 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
             esp_restart();
             break;
         case IP_EVENT_STA_GOT_IP: {
-            is_wifi_on = true;
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
             ESP_LOGI(TAG, "wifi got IP: " IPSTR, IP2STR(&event->ip_info.ip));
             break;
         }
     }
-
-    on_internet_status(is_ppp_on, is_wifi_on);
 }
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -1354,7 +1311,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         wifi_retry_count = 0;
         break;
     case WIFI_EVENT_STA_DISCONNECTED:
-		is_wifi_on = false;
 
         if (wifi_retry_count < WIFI_MAX_RETRY) {
             wifi_retry_count++;
@@ -1366,8 +1322,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
         break;
     }
-
-    on_internet_status(is_ppp_on, is_wifi_on);
 }
 
 static void sim7080g_pulse_power(void) {
@@ -1401,25 +1355,7 @@ static void sim7080g_wait_registered(esp_modem_dce_t *dce) {
 
 void app_main(void) {
 
-    gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
-    gpio_set_level(PIN_MDB_TX, 1);  // MDB idle = HIGH
-
-    mdb_rx_queue = xQueueCreate(16, sizeof(uint16_t));
-
-    gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << PIN_MDB_RX),
-        .mode         = GPIO_MODE_INPUT,
-        .pull_up_en   = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type    = GPIO_INTR_NEGEDGE,
-    };
-    gpio_config(&io_conf);
-
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(PIN_MDB_RX, mdb_rx_falling_isr, NULL);
-
-	//
-	gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
+    gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);
 
 	//---------------- Strip LED configuration -----------------//
@@ -1480,7 +1416,7 @@ void app_main(void) {
 	esp_event_loop_create_default();
 
 	esp_netif_t *wifi_netif = esp_netif_create_default_wifi_sta();
-    esp_netif_set_route_prio(wifi_netif, 100);
+    esp_netif_set_route_prio(wifi_netif, 200);
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	esp_wifi_init(&cfg);
@@ -1516,12 +1452,15 @@ void app_main(void) {
 	}
 	ble_init(myhost, ble_event_handler, ble_pax_event_handler);
 
+    esp_timer_handle_t periodic_pax_timer;
+
 	const esp_timer_create_args_t periodic_pax_timer_args = {
 		.callback   = &ble_scan_start,
         .arg        = (void*) (uintptr_t) PAX_SCAN_DURATION_SEC,
 		.name       = "task_paxcounter"
 	};
     esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
+    esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
@@ -1559,8 +1498,31 @@ void app_main(void) {
 	mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
 	esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
 
+    esp_mqtt_client_start(mqtt_client);
+
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
+
     //------------------------ MAIN TASKS ----------------------//
     //----------------------------------------------------------//
+    gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
+    gpio_set_level(PIN_MDB_TX, 1);  // MDB idle = HIGH
+
+    mdb_rx_queue = xQueueCreate(16, sizeof(uint16_t));
+
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << PIN_MDB_RX),
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_NEGEDGE,
+    };
+    gpio_config(&io_conf);
+
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(PIN_MDB_RX, mdb_rx_falling_isr, NULL);
+
     mdb_session_queue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
     xTaskCreate(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL);
 
@@ -1581,7 +1543,7 @@ void app_main(void) {
 
     esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_PPP();
     esp_netif_t *ppp_netif = esp_netif_new(&netif_cfg);
-    esp_netif_set_route_prio(ppp_netif, 200);
+    esp_netif_set_route_prio(ppp_netif, 100);
 
     esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7070, &dte_config, &dce_config, ppp_netif);
     assert(dce);

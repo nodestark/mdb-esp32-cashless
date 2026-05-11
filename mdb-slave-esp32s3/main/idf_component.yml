@@ -14,5 +14,5 @@ dependencies:
   #   # `public` flag doesn't have an effect dependencies of the `main` component.
   #   # All dependencies of `main` are public by default.
   #   public: true
-  espressif/led_strip: ^3.0.2
-  espressif/esp_modem: ^2.0.0
+  espressif/led_strip: ^3.0.3
+  espressif/esp_modem: ^2.0.1
