@@ -73,7 +73,7 @@ menu "SIM7080G"
 
     choice
         prompt "LTE Network Mode"
-        default SIM7080G_CMNB_NBIOT
+        default SIM7080G_CMNB_BOTH
 
         config SIM7080G_CMNB_CATM
             bool "Cat-M only"

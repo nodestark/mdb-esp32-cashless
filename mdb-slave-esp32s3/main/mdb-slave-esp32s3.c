@@ -63,17 +63,23 @@
 #define BIT_ADD_SET   	0b011111000
 #define BIT_CMD_SET   	0b000000111
 
-enum BIT_EVENTS {
-    BIT_EVT_INTERNET    = (1 << 0),
-    BIT_EVT_MDB         = (1 << 1),
-    BIT_EVT_PSSKEY      = (1 << 2),
-    BIT_EVT_DOMAIN      = (1 << 3),
-    BIT_EVT_BUZZER      = (1 << 4),
-    BIT_EVT_TRIGGER     = (1 << 5),
-    MASK_EVT_INSTALLED  = (BIT_EVT_PSSKEY | BIT_EVT_DOMAIN)
+enum BIT_STATUS {
+    BIT_STATUS_INTERNET    = (1 << 0),
+    BIT_STATUS_MDB         = (1 << 1),
+    BIT_STATUS_PSSKEY      = (1 << 2),
+    BIT_STATUS_DOMAIN      = (1 << 3),
+    BIT_STATUS_BUZZER      = (1 << 4),
+    BIT_STATUS_TRIGGER     = (1 << 5),
+    MASK_STATUS_INSTALLED  = (BIT_STATUS_PSSKEY | BIT_STATUS_DOMAIN)
+};
+
+enum BIT_INTERNET {
+    BIT_PPP_GOT_IP         = (1 << 0),
+    BIT_AT_GOT_IP          = (1 << 1)
 };
 
 EventGroupHandle_t xLedEventGroup;
+EventGroupHandle_t xInternetEventGroup;
 
 #define WIFI_MAX_RETRY 5
 static uint8_t wifi_retry_count = 0;
@@ -146,7 +152,7 @@ static QueueHandle_t mdb_session_queue = NULL;
 static QueueHandle_t mdb_rx_queue;
 
 void xor_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload);
-uint8_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload);
+esp_err_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload);
 
 static void IRAM_ATTR mdb_rx_falling_isr(void *arg) {
     // Disable interrupt for this pin to prevent re-triggering on data bits (0)
@@ -250,8 +256,8 @@ void mdb_cashless_task(void *pvParameters) {
 					cashless_reset_todo = true;
 					machine_state = INACTIVE_STATE;
 
-                    xEventGroupClearBits(xLedEventGroup, BIT_EVT_MDB);
-                    xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+                    xEventGroupClearBits(xLedEventGroup, BIT_STATUS_MDB);
+                    xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
                     ESP_LOGI( TAG, "RESET");
 					break;
@@ -486,8 +492,8 @@ void mdb_cashless_task(void *pvParameters) {
 
 						machine_state = DISABLED_STATE;
 
-                        xEventGroupClearBits(xLedEventGroup, BIT_EVT_MDB);
-                        xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+                        xEventGroupClearBits(xLedEventGroup, BIT_STATUS_MDB);
+                        xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
 						// ESP_LOGI( TAG, "READER_DISABLE");
 						break;
@@ -497,7 +503,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 						machine_state = ENABLED_STATE;
 
-                        xEventGroupSetBits(xLedEventGroup, BIT_EVT_MDB | BIT_EVT_TRIGGER);
+                        xEventGroupSetBits(xLedEventGroup, BIT_STATUS_MDB | BIT_STATUS_TRIGGER);
 
 						// ESP_LOGI( TAG, "READER_ENABLE");
 						break;
@@ -580,7 +586,7 @@ void mdb_cashless_task(void *pvParameters) {
  */
 
 // Decode payload from communication between BLE and MQTT
-uint8_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload) {
+esp_err_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload) {
 
 	for(int x = 0; x < sizeof(my_passkey); x++){
 		payload[x + 1] ^= my_passkey[x];
@@ -594,7 +600,7 @@ uint8_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uin
 	}
 
     if(chk != payload[p_len - 1]){
-        return 0;
+        return ESP_ERR_INVALID_CRC;
     }
 
     int32_t timestamp = ((uint32_t) payload[7] << 24) |
@@ -605,10 +611,10 @@ uint8_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uin
     time_t now = time(NULL);
 
     if( abs((int32_t) now - timestamp) > 8 /*sec*/){
-        return 0;
+        return ESP_ERR_TIMEOUT;
     }
 
-    int32_t item_price_32 =   ((uint32_t) payload[1] << 24) |
+    int32_t item_price_32 = ((uint32_t) payload[1] << 24) |
                             ((uint32_t) payload[2] << 16) |
                             ((uint32_t) payload[3] << 8)  |
                             ((uint32_t) payload[4] << 0);
@@ -619,7 +625,7 @@ uint8_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uin
     if(item_number)
         *item_number = ((uint16_t) payload[5] << 8) | ((uint16_t) payload[6] << 0);
 
-    return 1;
+    return ESP_OK;
 }
 
 // Encode payload to communication between BLE and MQTT
@@ -1088,26 +1094,26 @@ void request_telemetry_data(void *arg) {
 void led_status_task(void *pvParameters) {
 
     while(1){
-        EventBits_t uxBits = xEventGroupWaitBits(xLedEventGroup, BIT_EVT_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY );
+        EventBits_t uxBits = xEventGroupWaitBits(xLedEventGroup, BIT_STATUS_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY );
 
-        if ((uxBits & MASK_EVT_INSTALLED) != MASK_EVT_INSTALLED) {
+        if ((uxBits & MASK_STATUS_INSTALLED) != MASK_STATUS_INSTALLED) {
             led_strip_set_pixel(led_strip, 0, 80, 60, 0);   // Not installed := YELLOW
-        } else if ((uxBits & BIT_EVT_MDB) && (uxBits & BIT_EVT_INTERNET)) {
+        } else if ((uxBits & BIT_STATUS_MDB) && (uxBits & BIT_STATUS_INTERNET)) {
             led_strip_set_pixel(led_strip, 0, 10, 80, 10);  // MDB & Internet := GREEN
-        } else if (uxBits & BIT_EVT_MDB) {
+        } else if (uxBits & BIT_STATUS_MDB) {
             led_strip_set_pixel(led_strip, 0, 5, 15, 80);   // Only MDB := BLUE
         } else {
             led_strip_set_pixel(led_strip, 0, 80, 5, 5);    // Inactive/Disabled := RED
         }
         led_strip_refresh(led_strip);
 
-        if(uxBits & BIT_EVT_BUZZER){
+        if(uxBits & BIT_STATUS_BUZZER){
 
             gpio_set_level(PIN_BUZZER_PWR, 1);
             vTaskDelay(pdMS_TO_TICKS(1000));
             gpio_set_level(PIN_BUZZER_PWR, 0);
 
-            xEventGroupClearBits(xLedEventGroup, BIT_EVT_BUZZER);
+            xEventGroupClearBits(xLedEventGroup, BIT_STATUS_BUZZER);
         }
     }
 }
@@ -1145,7 +1151,7 @@ void ble_event_handler(char *ble_payload) {
 
 			ble_set_device_name(myhost);
 
-            xEventGroupSetBits(xLedEventGroup, BIT_EVT_DOMAIN | BIT_EVT_TRIGGER);
+            xEventGroupSetBits(xLedEventGroup, BIT_STATUS_DOMAIN | BIT_STATUS_TRIGGER);
 
 			ESP_LOGI( TAG, "HOST= %s", myhost);
 		}
@@ -1164,7 +1170,7 @@ void ble_event_handler(char *ble_payload) {
 			nvs_set_str(handle, "passkey", my_passkey);
 			nvs_commit(handle);
 
-            xEventGroupSetBits(xLedEventGroup, BIT_EVT_PSSKEY | BIT_EVT_TRIGGER);
+            xEventGroupSetBits(xLedEventGroup, BIT_STATUS_PSSKEY | BIT_STATUS_TRIGGER);
 
 			ESP_LOGI( TAG, "PASSKEY= %s", my_passkey);
 		}
@@ -1178,7 +1184,7 @@ void ble_event_handler(char *ble_payload) {
 		break;
 	case 0x03: /*Approve the vending session*/
 
-        if(xor_decode_with_passkey(NULL, NULL, (uint8_t*) ble_payload)){
+        if(xor_decode_with_passkey(NULL, NULL, (uint8_t*) ble_payload) == ESP_OK){
             vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
         }
         break;
@@ -1227,41 +1233,43 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", my_subdomain);
 
     	esp_mqtt_client_subscribe(mqtt_client, topic, 0);
-    	ESP_LOGI(TAG, "subscribed to: %s", topic);
 
     	char topic_[64];
     	snprintf(topic_, sizeof(topic_), "domain.vmflow.xyz/%s/status", my_subdomain);
 
 		esp_mqtt_client_publish(mqtt_client, topic_, "online", 0, 1, 1);
 
-        xEventGroupSetBits(xLedEventGroup, BIT_EVT_INTERNET | BIT_EVT_TRIGGER);
+        xEventGroupSetBits(xLedEventGroup, BIT_STATUS_INTERNET | BIT_STATUS_TRIGGER);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
 
-        xEventGroupClearBits(xLedEventGroup, BIT_EVT_INTERNET);
-        xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+        xEventGroupClearBits(xLedEventGroup, BIT_STATUS_INTERNET);
+        xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
 		break;
-	case MQTT_EVENT_SUBSCRIBED:
+	case MQTT_EVENT_SUBSCRIBED: {
+		char sub_topic[64];
+		snprintf(sub_topic, sizeof(sub_topic), "%s.vmflow.xyz/#", my_subdomain);
+		ESP_LOGI(TAG, "mqtt subscribed: %s", sub_topic);
 		break;
+	}
 	case MQTT_EVENT_UNSUBSCRIBED:
 		break;
 	case MQTT_EVENT_PUBLISHED:
+		ESP_LOGI(TAG, "MQTT published msg_id=%d", event->msg_id);
 		break;
 	case MQTT_EVENT_DATA:
 
-	    ESP_LOGI( TAG, "TOPIC= %.*s", event->topic_len, event->topic);
-	    ESP_LOGI( TAG, "DATA_LEN= %d", event->data_len);
-	    ESP_LOGI( TAG, "DATA= %.*s", event->data_len, event->data);
+	    ESP_LOGI(TAG, "MQTT data topic=%.*s len=%d data=%.*s", event->topic_len, event->topic, event->data_len, event->data_len, event->data);
 
 		if (event->topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
 
 			uint16_t funds_available;
-			if(xor_decode_with_passkey(&funds_available, NULL, (uint8_t*) event->data)){
+			if(xor_decode_with_passkey(&funds_available, NULL, (uint8_t*) event->data) == ESP_OK){
 			    xQueueSend(mdb_session_queue, &funds_available, 0 /*if full, do not wait*/);
 
-                xEventGroupSetBits(xLedEventGroup, BIT_EVT_BUZZER | BIT_EVT_TRIGGER);
+                xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 
                 ESP_LOGI( TAG, "Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 			}
@@ -1281,23 +1289,35 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	}
 }
 
+static void ppp_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    ESP_LOGI(TAG, "PPP state changed event d%", event_id);
+}
+
 static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     switch (event_id) {
         case IP_EVENT_PPP_GOT_IP: {
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
             ESP_LOGI(TAG, "ppp got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+            xEventGroupSetBits(xInternetEventGroup, BIT_PPP_GOT_IP);
             break;
         }
         case IP_EVENT_PPP_LOST_IP:
+            xEventGroupClearBits(xInternetEventGroup, BIT_PPP_GOT_IP);
             ESP_LOGW(TAG, "ppp lost IP, rebooting...");
+
             vTaskDelay(pdMS_TO_TICKS(2000));
             esp_restart();
             break;
         case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
             ESP_LOGI(TAG, "wifi got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+            xEventGroupSetBits(xInternetEventGroup, BIT_AT_GOT_IP);
             break;
         }
+        case IP_EVENT_STA_LOST_IP:
+            xEventGroupClearBits(xInternetEventGroup, BIT_AT_GOT_IP);
+            ESP_LOGW(TAG, "wifi lost IP");
+            break;
     }
 }
 
@@ -1312,8 +1332,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         break;
     case WIFI_EVENT_STA_DISCONNECTED:
 
-        if (wifi_retry_count < WIFI_MAX_RETRY) {
-            wifi_retry_count++;
+        if (wifi_retry_count++ < WIFI_MAX_RETRY) {
             ESP_LOGI(TAG, "WiFi reconnect attempt %d/%d", wifi_retry_count, WIFI_MAX_RETRY);
             esp_wifi_connect();
         } else {
@@ -1336,7 +1355,7 @@ static void sim7080g_pulse_power(void) {
 }
 
 /* Wait for EPS network registration (AT+CEREG: stat=1 home, stat=5 roaming) */
-static void sim7080g_wait_registered(esp_modem_dce_t *dce) {
+static esp_err_t sim7080g_wait_registered(esp_modem_dce_t *dce) {
 
     char resp[64];
     for (int i = 0; i < 30; i++) {
@@ -1344,13 +1363,15 @@ static void sim7080g_wait_registered(esp_modem_dce_t *dce) {
         esp_modem_at(dce, "AT+CEREG?", resp, 3000);
         /* response: +CEREG: <n>,<stat> — stat 1=home, 5=roaming */
         if (strstr(resp, ",1") || strstr(resp, ",5")) {
-            ESP_LOGI(TAG, "network registered (%s)", resp);
-            return;
+            ESP_LOGI(TAG, "registered: %s", resp);
+            return ESP_OK;
         }
-        ESP_LOGW(TAG, "not registered yet: %s", resp);
+        ESP_LOGW(TAG, "not registered: %s", resp);
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
-    ESP_LOGE(TAG, "network registration timeout");
+    ESP_LOGE(TAG, "registration timeout");
+
+    return ESP_ERR_TIMEOUT;
 }
 
 void app_main(void) {
@@ -1361,6 +1382,7 @@ void app_main(void) {
 	//---------------- Strip LED configuration -----------------//
 	//----------------------------------------------------------//
     xLedEventGroup = xEventGroupCreate();
+    xInternetEventGroup = xEventGroupCreate();
 
     led_strip_config_t strip_config = {
         .strip_gpio_num = PIN_MDB_LED,
@@ -1379,7 +1401,7 @@ void app_main(void) {
 
     xTaskCreate(led_status_task, "led_status", 2048, NULL, 1, NULL);
 
-    xEventGroupSetBits(xLedEventGroup, BIT_EVT_TRIGGER);
+    xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
 	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
 	//----------------------------------------------------------//
@@ -1423,6 +1445,7 @@ void app_main(void) {
 
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
 	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, ip_event_handler, NULL, NULL);
+	esp_event_handler_instance_register(NETIF_PPP_STATUS, ESP_EVENT_ANY_ID, ppp_event_handler, NULL, NULL);
 
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_start();
@@ -1444,7 +1467,7 @@ void app_main(void) {
 
                 snprintf(myhost, sizeof(myhost), "%s.vmflow.xyz", my_subdomain);
 
-                xEventGroupSetBits(xLedEventGroup, BIT_EVT_PSSKEY | BIT_EVT_DOMAIN | BIT_EVT_TRIGGER);
+                xEventGroupSetBits(xLedEventGroup, BIT_STATUS_PSSKEY | BIT_STATUS_DOMAIN | BIT_STATUS_TRIGGER);
             }
         }
 
@@ -1461,48 +1484,6 @@ void app_main(void) {
 	};
     esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
     esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
-
-    //-------------------------- MQTT --------------------------//
-	//----------------------------------------------------------//
-	char lwt_topic[64];
-	snprintf(lwt_topic, sizeof(lwt_topic), "domain.vmflow.xyz/%s/status", my_subdomain);
-
-	const esp_mqtt_client_config_t mqtt_cfg = {
-		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
-        .credentials = {
-            /* MQTT connection uses username/password authentication ONLY for broker ACL control.
-             * Transport is intentionally non-TLS to reduce overhead on constrained devices.
-             *
-             * Security model:
-             * - MQTT credentials are considered public / non-secret.
-             * - Broker acts as a routing layer, not a security boundary.
-             * - Broker ACLs limit publish/subscribe scope, reducing traffic amplification
-             *   and preserving essential network operation in case of credential exposure.
-             * - All application payloads are protected using a per-device XOR-based cipher,
-             *   with a secret provisioned at installation time.
-             * - Payload signing/obfuscation ensures basic integrity validation and
-             *   prevents trivial message injection without knowledge of the device secret.
-             */
-             .username = "vmflow",
-            .authentication.password = "vmflow"
-        },
-		.session.last_will.topic = lwt_topic,
-		.session.last_will.msg = "offline",
-		.session.last_will.qos = 1,
-		.session.last_will.retain = 1,
-		.session.keepalive = 120,          /* PING interval (s), default 120 */
-		.network.timeout_ms = 20000,       /* TCP read timeout (ms) */
-		.network.reconnect_timeout_ms = 10000,
-	};
-
-	mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
-	esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-
-    esp_mqtt_client_start(mqtt_client);
-
-    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
-    esp_sntp_setservername(0, "pool.ntp.org");
-    esp_sntp_init();
 
     //------------------------ MAIN TASKS ----------------------//
     //----------------------------------------------------------//
@@ -1549,17 +1530,12 @@ void app_main(void) {
     assert(dce);
 
     /* try sync — modem may already be on (flash/soft-reset) */
+    esp_modem_set_mode(dce, ESP_MODEM_MODE_COMMAND);
+
     esp_err_t ret = esp_modem_sync(dce);
     if (ret != ESP_OK) {
-        /* may be stuck in PPP mode from previous session — escape first */
-        esp_modem_set_mode(dce, ESP_MODEM_MODE_COMMAND);
-        vTaskDelay(pdMS_TO_TICKS(1500));
-        ret = esp_modem_sync(dce);
-    }
-
-    if (ret != ESP_OK) {
-        /* truly off — pulse to power on */
         sim7080g_pulse_power();
+
         ret = esp_modem_sync(dce);
         if (ret != ESP_OK) {
             vTaskDelay(pdMS_TO_TICKS(2000));
@@ -1567,23 +1543,72 @@ void app_main(void) {
         }
     } else {
         ESP_LOGI(TAG, "modem already on");
+
+        esp_modem_at(dce, "AT+CFUN=1,1", NULL, 3000);
+        vTaskDelay(pdMS_TO_TICKS(8000));
     }
 
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "no modem detected, skipping PPP");
+        ESP_LOGE(TAG, "modem not found, skip PPP");
     } else {
-        ESP_LOGI(TAG, "modem detected");
+        ESP_LOGI(TAG, "modem ok");
+
         esp_modem_at(dce, "AT+CNMP=38", NULL, 3000);
         esp_modem_at(dce, "AT+CMNB=" STRINGIFY(CONFIG_SIM7080G_CMNB), NULL, 3000);
         esp_modem_at(dce, "AT+CEREG=1", NULL, 3000);
-        sim7080g_wait_registered(dce);
 
-        int rssi = 0, ber = 0;
-        if (esp_modem_get_signal_quality(dce, &rssi, &ber) == ESP_OK) {
-            ESP_LOGI(TAG, "RSSI: %d dBm, BER: %d", (rssi == 99 ? 0 : -113 + 2 * rssi), ber);
+        esp_err_t err = sim7080g_wait_registered(dce);
+        if (err == ESP_OK) {
+
+            err = esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
+            if (err == ESP_OK) {
+                ESP_LOGI(TAG, "data mode");
+            }
         }
-
-        ESP_LOGI(TAG, "setting data mode...");
-        esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
     }
+
+    (void) xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP | BIT_AT_GOT_IP, pdFALSE, pdFALSE, portMAX_DELAY );
+
+    //-------------------------- MQTT --------------------------//
+	//----------------------------------------------------------//
+	char lwt_topic[64];
+	snprintf(lwt_topic, sizeof(lwt_topic), "domain.vmflow.xyz/%s/status", my_subdomain);
+
+	const esp_mqtt_client_config_t mqtt_cfg = {
+		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
+        .credentials = {
+            /* MQTT connection uses username/password authentication ONLY for broker ACL control.
+             * Transport is intentionally non-TLS to reduce overhead on constrained devices.
+             *
+             * Security model:
+             * - MQTT credentials are considered public / non-secret.
+             * - Broker acts as a routing layer, not a security boundary.
+             * - Broker ACLs limit publish/subscribe scope, reducing traffic amplification
+             *   and preserving essential network operation in case of credential exposure.
+             * - All application payloads are protected using a per-device XOR-based cipher,
+             *   with a secret provisioned at installation time.
+             * - Payload signing/obfuscation ensures basic integrity validation and
+             *   prevents trivial message injection without knowledge of the device secret.
+             */
+             .username = "vmflow",
+            .authentication.password = "vmflow"
+        },
+		.session.last_will.topic = lwt_topic,
+		.session.last_will.msg = "offline",
+		.session.last_will.qos = 1,
+		.session.last_will.retain = 1,
+		.session.keepalive = 120,          /* PING interval (s), default 120 */
+		.network.timeout_ms = 20000,       /* TCP read timeout (ms) */
+		.network.reconnect_timeout_ms = 10000,
+	};
+
+	mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+	esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+
+    esp_mqtt_client_start(mqtt_client);
+
+    // sntp
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
 }
