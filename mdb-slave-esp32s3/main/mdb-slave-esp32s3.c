@@ -1250,7 +1250,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 }
 
 static void ppp_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    ESP_LOGI(TAG, "PPP state changed event d%", event_id);
+    ESP_LOGI(TAG, "PPP state changed event %d", event_id);
 }
 
 static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -1514,10 +1514,7 @@ void app_main(void) {
 
         esp_err_t err = sim7080g_wait_registered(dce);
         if (err == ESP_OK) {
-            err = esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
-            if (err == ESP_OK) {
-                ESP_LOGI(TAG, "data mode");
-            }
+            err = esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);            
         }
     }
 
