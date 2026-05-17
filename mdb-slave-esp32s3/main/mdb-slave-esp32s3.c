@@ -1262,7 +1262,6 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
             break;
         }
         case IP_EVENT_PPP_LOST_IP:
-            xEventGroupClearBits(xInternetEventGroup, BIT_PPP_GOT_IP);
             ESP_LOGW(TAG, "ppp lost IP, rebooting...");
 
             vTaskDelay(pdMS_TO_TICKS(2000));
@@ -1518,7 +1517,7 @@ void app_main(void) {
         }
     }
 
-    (void) xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP | BIT_AT_GOT_IP, pdFALSE, pdFALSE, portMAX_DELAY );
+    (void) xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP | BIT_AT_GOT_IP, pdTRUE, pdFALSE, portMAX_DELAY );
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
