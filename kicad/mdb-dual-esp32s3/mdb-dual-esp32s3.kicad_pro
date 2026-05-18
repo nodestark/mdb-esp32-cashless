@@ -37,9 +37,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 0.6,
-          "height": 2.1,
-          "width": 1.0
+          "drill": 1.4,
+          "height": 3.3,
+          "width": 2.7
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -486,7 +486,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "mdb-dual-esp32s3-sim7080g.kicad_pro",
+    "filename": "mdb-dual-esp32s3.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -556,8 +556,8 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "../../../../../Downloads/mdb-slave-sim7080g-gbr/",
-      "pos_files": "../../../../../Downloads/mdb-slave-sim7080g-gbr/",
+      "plot": "../../../../../Downloads/mdb-slave-gbr/",
+      "pos_files": "../../../../../Downloads/mdb-slave-gbr/",
       "specctra_dsn": "../../../mdb-slave-esp32s3.dsn",
       "step": "",
       "svg": "",
@@ -567,7 +567,7 @@
   },
   "schematic": {
     "annotate_start_num": 0,
-    "bom_export_filename": "../../../../../Downloads/mdb-slave-sim7080g-gbr/mdb-slave-esp32s3-sim7080g-bom.csv",
+    "bom_export_filename": "../../../../../Downloads/mdb-slave-esp32s3.csv",
     "bom_fmt_presets": [],
     "bom_fmt_settings": {
       "field_delimiter": ",",
@@ -638,93 +638,9 @@
         },
         {
           "group_by": false,
-          "label": "Description_1",
-          "name": "Description_1",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Availability",
-          "name": "Availability",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MANUFACTURER",
-          "name": "MANUFACTURER",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MAXIMUM_PACKAGE_HEIGHT",
-          "name": "MAXIMUM_PACKAGE_HEIGHT",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MF",
-          "name": "MF",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MP",
-          "name": "MP",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "PARTREV",
-          "name": "PARTREV",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Package",
-          "name": "Package",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Price",
-          "name": "Price",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "STANDARD",
-          "name": "STANDARD",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Sim.Device",
-          "name": "Sim.Device",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Sim.Pins",
-          "name": "Sim.Pins",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Sim.Type",
-          "name": "Sim.Type",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "SnapEDA_Link",
-          "name": "SnapEDA_Link",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Check_prices",
-          "name": "Check_prices",
-          "show": false
+          "label": "LCSC2#",
+          "name": "LCSC2#",
+          "show": true
         }
       ],
       "filter_string": "",
