@@ -20,6 +20,31 @@
     </div>
 
     <div class="flex gap-2">
+      <!-- View toggle -->
+      <div class="flex rounded overflow-hidden border border-gray-200">
+        <button
+          @click="viewMode = 'table'"
+          :class="viewMode === 'table' ? 'bg-slate-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'"
+          class="px-3 py-2 transition"
+          title="Table view"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18"/>
+          </svg>
+        </button>
+        <button
+          @click="viewMode = 'bubble'"
+          :class="viewMode === 'bubble' ? 'bg-slate-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'"
+          class="px-3 py-2 transition border-l border-gray-200"
+          title="Bubble view"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="8" cy="14" r="4" stroke="currentColor" stroke-width="2"/>
+            <circle cx="16" cy="10" r="5" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </button>
+      </div>
+
       <button
         @click="planRoute"
         :disabled="machines.length === 0"
@@ -39,8 +64,119 @@
     </div>
   </div>
 
+  <!-- BUBBLE VIEW -->
+  <div v-if="viewMode === 'bubble'">
+
+    <!-- legend -->
+    <div class="flex flex-wrap gap-3 text-xs text-gray-500 mb-3">
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-400 inline-block"></span> Online / full stock</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span> Low stock</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-orange-500 inline-block"></span> Critical / empty</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Offline</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-slate-400 inline-block"></span> No device</span>
+      <span class="ml-auto text-gray-400">Bubble size = stock level</span>
+    </div>
+
+    <!-- bubble canvas -->
+    <div class="bg-slate-900 rounded-xl p-6 min-h-72 flex flex-wrap gap-5 items-center justify-center">
+      <div
+        v-for="(machine, i) in machines"
+        :key="machine.id"
+        @click="selectedBubble = selectedBubble?.id === machine.id ? null : machine"
+        :style="bubbleStyle(machine, i)"
+        :class="['bubble-float cursor-pointer flex flex-col items-center justify-center rounded-full transition-all duration-200 hover:brightness-110 hover:scale-105 select-none',
+          selectedBubble?.id === machine.id ? 'ring-4 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : ''
+        ]"
+      >
+        <span class="text-white font-semibold text-center leading-tight px-2" :style="{ fontSize: bubbleFontSize(machine) + 'px' }">
+          {{ machine.name }}
+        </span>
+        <span v-if="machineHasCoils(machine)" class="text-white/70 mt-0.5" :style="{ fontSize: Math.max(9, bubbleFontSize(machine) - 2) + 'px' }">
+          {{ machinePct(machine) }}%
+        </span>
+        <span v-else-if="machine.embedded?.status" class="text-white/70 mt-0.5" :style="{ fontSize: '9px' }">
+          {{ machine.embedded.status }}
+        </span>
+      </div>
+
+      <div v-if="!loadingMachines && machines.length === 0" class="text-slate-500 text-sm">
+        No machines yet. Add your first machine.
+      </div>
+      <div v-if="loadingMachines" class="text-slate-500 text-sm">Loading...</div>
+    </div>
+
+    <!-- detail panel -->
+    <transition name="slide-up">
+      <div v-if="selectedBubble" class="bg-white rounded-xl shadow p-5 space-y-4">
+
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex items-start gap-3">
+            <div :style="{ background: bubbleGradient(selectedBubble) }" class="w-10 h-10 rounded-full flex-shrink-0 mt-0.5"></div>
+            <div>
+              <h2 class="text-lg font-bold text-gray-800">{{ selectedBubble.name }}</h2>
+              <p class="text-sm text-gray-500">{{ selectedBubble.location_name || 'No location' }}</p>
+              <p v-if="selectedBubble.address" class="text-xs text-gray-400">{{ selectedBubble.address }}</p>
+            </div>
+          </div>
+          <button @click="selectedBubble = null" class="text-gray-400 hover:text-gray-600 text-xl leading-none flex-shrink-0">&times;</button>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">Status</p>
+            <span v-if="selectedBubble.embedded" :class="statusClass(selectedBubble.embedded.status)" class="text-xs font-medium">
+              {{ selectedBubble.embedded.status }}
+            </span>
+            <span v-else class="text-gray-300 text-xs">No device</span>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">Stock</p>
+            <div v-if="machineHasCoils(selectedBubble)" class="flex items-center gap-2">
+              <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div :class="machineBarClass(selectedBubble)" :style="{ width: machinePct(selectedBubble) + '%' }" class="h-full rounded-full"/>
+              </div>
+              <span class="font-medium text-gray-700">{{ machinePct(selectedBubble) }}%</span>
+            </div>
+            <span v-else class="text-gray-300 text-xs">—</span>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">Model</p>
+            <span class="font-medium text-gray-700 text-xs">{{ selectedBubble.machine_models?.name || '—' }}</span>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">Category</p>
+            <span class="font-medium text-gray-700 text-xs capitalize">{{ selectedBubble.category || '—' }}</span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            @click="openInsight(selectedBubble)"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+            </svg>
+            AI Insight
+          </button>
+          <button @click="openCoilsModal(selectedBubble)" class="px-3 py-1.5 text-xs border rounded-full hover:bg-gray-50 transition">Coils</button>
+          <button @click="openEditModal(selectedBubble)" class="px-3 py-1.5 text-xs border rounded-full hover:bg-gray-50 transition">Edit</button>
+          <button @click="openLinkModal(selectedBubble)" class="px-3 py-1.5 text-xs border rounded-full hover:bg-gray-50 transition">Link Device</button>
+          <button
+            :disabled="!selectedBubble.embedded || selectedBubble.embedded.status === 'offline'"
+            @click="openCreditModal(selectedBubble)"
+            class="px-3 py-1.5 text-xs border rounded-full text-green-700 hover:bg-green-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >Send Credit</button>
+          <button @click="openQrModal(selectedBubble, 'stripe')" class="px-3 py-1.5 text-xs border rounded-full hover:bg-gray-50 transition">QR Stripe</button>
+          <button @click="openQrModal(selectedBubble, 'ml')" class="px-3 py-1.5 text-xs border rounded-full hover:bg-gray-50 transition">QR Mercado Pago</button>
+        </div>
+
+      </div>
+    </transition>
+  </div>
+
   <!-- TABLE -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
+  <div v-if="viewMode === 'table'" class="bg-white rounded-xl shadow overflow-hidden">
 
     <table class="w-full text-sm">
 
@@ -793,6 +929,9 @@ export default {
   data() {
     return {
 
+      viewMode: 'table',
+      selectedBubble: null,
+
       machines: [],
       availableEmbeddeds: [],
 
@@ -1519,6 +1658,38 @@ Instructions:
       }
     },
 
+    bubbleGradient(machine) {
+      const pct = this.machinePct(machine)
+      const status = machine.embedded?.status
+      if (!machine.embedded)      return 'linear-gradient(135deg, #94a3b8, #64748b)'
+      if (status === 'offline')   return 'linear-gradient(135deg, #f87171, #dc2626)'
+      if (!this.machineHasCoils(machine)) return 'linear-gradient(135deg, #60a5fa, #2563eb)'
+      if (pct === 0)              return 'linear-gradient(135deg, #f87171, #b91c1c)'
+      if (pct <= 20)              return 'linear-gradient(135deg, #fb923c, #ea580c)'
+      if (pct <= 50)              return 'linear-gradient(135deg, #fbbf24, #d97706)'
+      return 'linear-gradient(135deg, #34d399, #059669)'
+    },
+
+    bubbleStyle(machine, i) {
+      const pct = this.machinePct(machine)
+      const hasCoils = this.machineHasCoils(machine)
+      const size = hasCoils ? 76 + Math.round(pct * 0.6) : 96
+      return {
+        width:  size + 'px',
+        height: size + 'px',
+        background: this.bubbleGradient(machine),
+        animationDelay: (i * 0.4) + 's',
+        animationDuration: (3.5 + (i % 4) * 0.5) + 's'
+      }
+    },
+
+    bubbleFontSize(machine) {
+      const pct = this.machinePct(machine)
+      const hasCoils = this.machineHasCoils(machine)
+      const size = hasCoils ? 76 + Math.round(pct * 0.6) : 96
+      return Math.max(9, Math.min(13, size / 9))
+    },
+
     categoryClass(cat) {
       const map = {
         snack:         'bg-yellow-100 text-yellow-700',
@@ -1566,4 +1737,19 @@ Instructions:
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s, transform 0.3s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(8px); }
+
+.bubble-float {
+  animation: bubble-float linear infinite;
+}
+@keyframes bubble-float {
+  0%   { transform: translateY(0px); }
+  25%  { transform: translateY(-6px) rotate(1deg); }
+  50%  { transform: translateY(-10px); }
+  75%  { transform: translateY(-5px) rotate(-1deg); }
+  100% { transform: translateY(0px); }
+}
+.bubble-float:hover { animation-play-state: paused; }
+
+.slide-up-enter-active, .slide-up-leave-active { transition: opacity 0.25s, transform 0.25s; }
+.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(12px); }
 </style>
