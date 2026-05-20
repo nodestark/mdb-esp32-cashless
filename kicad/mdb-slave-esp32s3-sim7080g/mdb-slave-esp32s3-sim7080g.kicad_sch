@@ -7693,8 +7693,8 @@
 	)
 	(text_box "i2c"
 		(exclude_from_sim no)
-		(at 401.32 48.26 0)
-		(size 45.72 38.1)
+		(at 402.59 35.56 0)
+		(size 45.72 50.8)
 		(margins 0.9525 0.9525 0.9525 0.9525)
 		(stroke
 			(width 0)
@@ -7910,6 +7910,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "c714397b-e7b3-4912-8ea7-1dbd96047788")
+	)
+	(junction
+		(at 427.99 59.69)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "cb052b6d-faf0-4778-8139-a429e03a8aba")
 	)
 	(junction
 		(at 259.08 270.51)
@@ -8283,7 +8289,7 @@
 	)
 	(wire
 		(pts
-			(xy 416.56 59.69) (xy 426.72 59.69)
+			(xy 416.56 59.69) (xy 427.99 59.69)
 		)
 		(stroke
 			(width 0)
@@ -8480,6 +8486,16 @@
 			(type default)
 		)
 		(uuid "25a6a3a9-d412-4908-9e4e-98bc3991c9a7")
+	)
+	(wire
+		(pts
+			(xy 427.99 45.72) (xy 427.99 46.99)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "25ee0385-6d64-4918-aad1-ddb8017d6d73")
 	)
 	(wire
 		(pts
@@ -8793,6 +8809,16 @@
 	)
 	(wire
 		(pts
+			(xy 427.99 59.69) (xy 430.53 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4a594ad2-c21e-4c1d-915f-82f9c017c57b")
+	)
+	(wire
+		(pts
 			(xy 165.1 148.59) (xy 167.64 148.59)
 		)
 		(stroke
@@ -9013,7 +9039,7 @@
 	)
 	(wire
 		(pts
-			(xy 426.72 57.15) (xy 416.56 57.15)
+			(xy 419.1 57.15) (xy 416.56 57.15)
 		)
 		(stroke
 			(width 0)
@@ -9303,7 +9329,7 @@
 	)
 	(wire
 		(pts
-			(xy 431.8 62.23) (xy 436.88 62.23)
+			(xy 431.8 62.23) (xy 441.96 62.23)
 		)
 		(stroke
 			(width 0)
@@ -10563,6 +10589,16 @@
 	)
 	(wire
 		(pts
+			(xy 427.99 54.61) (xy 427.99 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f7cdb508-420d-4502-9f6f-c9838a6e7985")
+	)
+	(wire
+		(pts
 			(xy 419.1 66.04) (xy 419.1 64.77)
 		)
 		(stroke
@@ -10752,7 +10788,7 @@
 		(uuid "1bda49f0-a430-42ac-9cf0-8d5c1e70d9c1")
 	)
 	(label "io10"
-		(at 436.88 62.23 0)
+		(at 441.96 62.23 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -13951,6 +13987,72 @@
 			(project "vmflow-mdb-esp32-sim7080g"
 				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
 					(reference "R3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 427.99 45.72 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3b10d43d-2f04-4528-ac83-6a533d2d72c3")
+		(property "Reference" "#PWR02"
+			(at 427.99 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 427.99 40.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 427.99 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 427.99 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 427.99 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d170847c-345c-4723-95de-e1704fece75b")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "#PWR02")
 					(unit 1)
 				)
 			)
@@ -18698,7 +18800,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 426.72 57.15 90)
+		(at 419.1 57.15 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -18707,7 +18809,7 @@
 		(fields_autoplaced yes)
 		(uuid "8f86ef33-b731-4f0d-89e0-5735ff7f284b")
 		(property "Reference" "#PWR022"
-			(at 433.07 57.15 0)
+			(at 425.45 57.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18716,7 +18818,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 430.53 57.1499 90)
+			(at 422.91 57.1499 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18725,7 +18827,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 426.72 57.15 0)
+			(at 419.1 57.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18734,7 +18836,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 426.72 57.15 0)
+			(at 419.1 57.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -18743,7 +18845,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 426.72 57.15 0)
+			(at 419.1 57.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -21950,6 +22052,111 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 427.99 50.8 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ce69419a-e276-42b1-8051-a451924838d5")
+		(property "Reference" "C18"
+			(at 436.88 52.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "0.1uF"
+			(at 436.88 49.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 427.0248 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 427.99 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 427.99 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C5137636"
+			(at 427.99 50.8 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Device" ""
+			(at 427.99 50.8 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Pins" ""
+			(at 427.99 50.8 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Type" ""
+			(at 427.99 50.8 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "c1fdaaee-5bc7-4860-b1f2-d0c6a875159e")
+		)
+		(pin "2"
+			(uuid "914ed0a6-fbac-492e-b140-612db6096a8b")
+		)
+		(instances
+			(project "mdb-slave-esp32s3-sim7080g"
+				(path "/95980b25-0707-441d-ba83-7f6c6e1d1aaa"
+					(reference "C18")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 265.43 257.81 180)
 		(unit 1)
@@ -23461,7 +23668,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 426.72 59.69 270)
+		(at 430.53 59.69 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -23470,7 +23677,7 @@
 		(fields_autoplaced yes)
 		(uuid "f653c753-5b7a-4ae2-9a6b-61575db69e92")
 		(property "Reference" "#PWR021"
-			(at 422.91 59.69 0)
+			(at 426.72 59.69 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23479,7 +23686,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 430.53 59.6899 90)
+			(at 434.34 59.6899 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23488,7 +23695,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 426.72 59.69 0)
+			(at 430.53 59.69 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23497,7 +23704,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 426.72 59.69 0)
+			(at 430.53 59.69 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -23506,7 +23713,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 426.72 59.69 0)
+			(at 430.53 59.69 0)
 			(effects
 				(font
 					(size 1.27 1.27)
