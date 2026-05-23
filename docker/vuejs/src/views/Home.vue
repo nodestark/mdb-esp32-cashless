@@ -64,7 +64,7 @@
         />
 
         <img
-          src="/images/mdb-master-esp32s3_assembled.jpeg"
+          src="/images/mdb-slave-esp32s3-sim7080g_pcb_v2.jpg"
           class="w-[140px] h-[140px] rounded-full object-cover shadow"
         />
 
