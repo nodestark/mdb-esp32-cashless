@@ -62,6 +62,18 @@ enum CHANGER_CMD {
 	CHGR_EXPANSION   = 0x07,
 };
 
+// Bill Validator (peripheral 0x30) command set
+enum VALIDATOR_CMD {
+	VLD_RESET     = 0x00,
+	VLD_SETUP     = 0x01,
+	VLD_SECURITY  = 0x02,
+	VLD_POLL      = 0x03,
+	VLD_BILL_TYPE = 0x04,
+	VLD_ESCROW    = 0x05,
+	VLD_STACKER   = 0x06,
+	VLD_EXPANSION = 0x07,
+};
+
 typedef enum MACHINE_STATE {
 	INACTIVE_STATE, DISABLED_STATE, ENABLED_STATE, IDLE_STATE, VEND_STATE
 } machine_state_t;
@@ -95,8 +107,27 @@ typedef struct {
 	machine_state_t machine_state;
 } changer_t;
 
-changer_t  reader0x08 = { .machine_state = INACTIVE_STATE };
-cashless_t reader0x10 = { .machine_state = INACTIVE_STATE };
+// Bill Validator (0x30)
+typedef struct {
+	uint8_t feature_level;
+	uint16_t country_code;
+	uint8_t scale_factor;
+	uint8_t decimal_places;
+	uint16_t bill_stacker_capacity;
+	uint16_t bill_security_levels;
+	uint8_t escrow_capability;
+	uint8_t bill_credit[16];
+	uint16_t credit;
+
+	uint8_t poll_fail_count;
+	machine_state_t machine_state;
+} validator_t;
+
+changer_t   reader0x08 = { .machine_state = INACTIVE_STATE };
+cashless_t  reader0x10 = { .machine_state = INACTIVE_STATE };
+validator_t reader0x30 = { .machine_state = INACTIVE_STATE };
+
+/* PA101 - Product Identifier (MDB item number)
 
 /* PA101 - Product Identifier (MDB item number)
  * PA102 - Product Price
@@ -177,6 +208,12 @@ void mdb_vmc_loop(void *pvParameters) {
 
 			uint16_t item_price = TO_SCALE_FACTOR(coil->pa102, reader0x10.scale_factor, reader0x10.decimal_places);
 			uint16_t coin_price = TO_SCALE_FACTOR(coil->pa102, reader0x08.scale_factor, reader0x08.decimal_places);
+			uint16_t bill_price = TO_SCALE_FACTOR(coil->pa102, reader0x30.scale_factor, reader0x30.decimal_places);
+
+			// Calculate combined cash credit in floating point for easy comparison
+			float coin_credit_val = FROM_SCALE_FACTOR(reader0x08.credit, reader0x08.scale_factor, reader0x08.decimal_places);
+			float bill_credit_val = FROM_SCALE_FACTOR(reader0x30.credit, reader0x30.scale_factor, reader0x30.decimal_places);
+			float total_cash_credit = coin_credit_val + bill_credit_val;
 
 			if (reader0x10.machine_state == IDLE_STATE) {
 				// Cashless session active (funds escrowed) -> request vend from card
@@ -195,13 +232,29 @@ void mdb_vmc_loop(void *pvParameters) {
 
 				reader0x10.machine_state = VEND_STATE;
 
-			} else if (coil->pa102 > 0 && reader0x08.machine_state == ENABLED_STATE && reader0x08.credit >= coin_price) {
-				// Coin payment -> enough credit deposited in the changer
-				reader0x08.credit -= coin_price;
+			} else if (coil->pa102 > 0 && total_cash_credit >= coil->pa102) {
+				
+				// Cash payment (Combined Coins and Bills)
+				float price_to_deduct = coil->pa102;
+				
+				// Deduct from coins first
+				if (coin_credit_val >= price_to_deduct) {
+					reader0x08.credit -= TO_SCALE_FACTOR(price_to_deduct, reader0x08.scale_factor, reader0x08.decimal_places);
+					price_to_deduct = 0;
+				} else {
+					price_to_deduct -= coin_credit_val;
+					reader0x08.credit = 0;
+				}
+
+				// Deduct remaining from bills
+				if (price_to_deduct > 0) {
+					reader0x30.credit -= TO_SCALE_FACTOR(price_to_deduct, reader0x30.scale_factor, reader0x30.decimal_places);
+				}
+
 				++coil->pa201;
 
-				ESP_LOGI( TAG, "Cash vend approved: item=0x%X price=%d credit_left=%d",
-						coil->pa101, coin_price, reader0x08.credit);
+				ESP_LOGI( TAG, "Cash vend approved (Combined): item=0x%X price=%.2f credit_left(coin)=%d credit_left(bill)=%d",
+						coil->pa101, coil->pa102, reader0x08.credit, reader0x30.credit);
 
 				// Report cash sale to cashless device (audit / DEX)
 				if (reader0x10.machine_state == ENABLED_STATE) {
@@ -629,6 +682,132 @@ void mdb_vmc_loop(void *pvParameters) {
 				if (++reader0x08.poll_fail_count >= 3) {
 					ESP_LOGW( TAG, "Changer: Poll timeout - resetting");
 					reader0x08.machine_state = INACTIVE_STATE;
+				}
+			}
+		}
+
+		uart_flush(UART_NUM_2);
+
+		// 0x30 Bill Validator
+		if (reader0x30.machine_state == INACTIVE_STATE) {
+
+			mdb_payload_tx[0] = (0x30 /*Validator*/ & BIT_ADD_SET) | (VLD_RESET & BIT_CMD_SET);
+			write_payload_9(mdb_payload_tx, 1);
+
+			len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(await)); // ACK*
+
+			if (len == 1) {
+				mdb_payload_tx[0] = (0x30 /*Validator*/ & BIT_ADD_SET) | (VLD_POLL & BIT_CMD_SET);
+				write_payload_9(mdb_payload_tx, 1);
+
+				len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 2, pdMS_TO_TICKS(await)); // Just Reset + CHK*
+
+				if (len == 2) {
+					write_9(ACK | BIT_MODE_SET);
+
+					if (mdb_payload_rx[0] == 0x06 /*Just Reset*/) {
+						reader0x30.machine_state = DISABLED_STATE;
+						ESP_LOGI( TAG, "Validator - Just Reset");
+					}
+				}
+			}
+
+		} else if (reader0x30.machine_state == DISABLED_STATE) {
+
+			// SETUP
+			mdb_payload_tx[0] = (0x30 /*Validator*/ & BIT_ADD_SET) | (VLD_SETUP & BIT_CMD_SET);
+			write_payload_9(mdb_payload_tx, 1);
+
+			len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 28, pdMS_TO_TICKS(await)); // 27 + CHK*
+
+			if (len == 28) {
+				write_9(ACK | BIT_MODE_SET);
+
+				reader0x30.feature_level          = mdb_payload_rx[0];
+				reader0x30.country_code           = (mdb_payload_rx[1] << 8) | mdb_payload_rx[2];
+				reader0x30.scale_factor           = (mdb_payload_rx[3] << 8) | mdb_payload_rx[4];
+				reader0x30.decimal_places         = mdb_payload_rx[5];
+				reader0x30.bill_stacker_capacity  = (mdb_payload_rx[6] << 8) | mdb_payload_rx[7];
+				reader0x30.bill_security_levels   = (mdb_payload_rx[8] << 8) | mdb_payload_rx[9];
+				reader0x30.escrow_capability      = mdb_payload_rx[10];
+				for (uint8_t i = 0; i < 16; i++)
+					reader0x30.bill_credit[i] = mdb_payload_rx[11 + i];
+
+				ESP_LOGI( TAG, "Validator Setup: feature=%d scale=%d dec=%d capacity=%d escrow=%d",
+						reader0x30.feature_level, reader0x30.scale_factor,
+						reader0x30.decimal_places, reader0x30.bill_stacker_capacity,
+						reader0x30.escrow_capability);
+
+				// BILL TYPE - enable all bills for acceptance and escrow
+				mdb_payload_tx[0] = (0x30 /*Validator*/ & BIT_ADD_SET) | (VLD_BILL_TYPE & BIT_CMD_SET);
+				mdb_payload_tx[1] = 0xFF;	// Bill Enable High
+				mdb_payload_tx[2] = 0xFF;	// Bill Enable Low
+				mdb_payload_tx[3] = 0xFF;	// Bill Escrow Enable High
+				mdb_payload_tx[4] = 0xFF;	// Bill Escrow Enable Low
+
+				write_payload_9(mdb_payload_tx, 5);
+
+				len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(await)); // ACK*
+
+				if (len == 1) {
+					reader0x30.machine_state = ENABLED_STATE;
+					ESP_LOGI( TAG, "Validator Enabled");
+				}
+			}
+
+		} else {
+			// ENABLED_STATE - POLL for bill events
+
+			mdb_payload_tx[0] = (0x30 /*Validator*/ & BIT_ADD_SET) | (VLD_POLL & BIT_CMD_SET);
+			write_payload_9(mdb_payload_tx, 1);
+
+			len = uart_read_bytes(UART_NUM_2, mdb_payload_rx, 17, pdMS_TO_TICKS(30)); // events + CHK*
+
+			if (len == 1) {
+				// Single byte = validator ACK
+				reader0x30.poll_fail_count = 0;
+
+			} else if (len > 1) {
+				reader0x30.poll_fail_count = 0;
+				write_9(ACK | BIT_MODE_SET);
+
+				// Reset detection
+				if (len == 2 && mdb_payload_rx[0] == 0x06) {
+					reader0x30.machine_state = INACTIVE_STATE;
+					ESP_LOGW( TAG, "Validator reset detected");
+				} else {
+					for (uint8_t i = 0; i + 1 < len; i++) {
+						uint8_t ev = mdb_payload_rx[i];
+						
+						if ((ev & 0x80) && !(ev & 0x40)) { // 1000xxxx - bill stacked
+							uint8_t bill_type = ev & 0x0F;
+							reader0x30.credit += reader0x30.bill_credit[bill_type];
+							ESP_LOGI( TAG, "Bill stacked: type=%d credit+=%d total=%d",
+									bill_type, reader0x30.bill_credit[bill_type], reader0x30.credit);
+						} 
+						else if ((ev & 0x90) == 0x90) { // 1001xxxx - bill in escrow
+							uint8_t bill_type = ev & 0x0F;
+							ESP_LOGI( TAG, "Bill in escrow: type=%d. Validating (Stacking)...", bill_type);
+							
+							// ESCROW command: 0x01 to Stack, 0x00 to Return
+							mdb_payload_tx[0] = (0x30 /*Validator*/ & BIT_ADD_SET) | (VLD_ESCROW & BIT_CMD_SET);
+							mdb_payload_tx[1] = 0x01; // Stack the bill
+							write_payload_9(mdb_payload_tx, 2);
+							
+							uart_read_bytes(UART_NUM_2, mdb_payload_rx, 1, pdMS_TO_TICKS(await)); // ACK*
+						}
+						else if (ev == 0x01) ESP_LOGW(TAG, "Validator: Defective Motor");
+						else if (ev == 0x02) ESP_LOGW(TAG, "Validator: Sensor Problem");
+						else if (ev == 0x05) ESP_LOGW(TAG, "Validator: Jammed");
+						else if (ev == 0x08) ESP_LOGW(TAG, "Validator: Cash Box out of position");
+						else if (ev == 0x09) ESP_LOGW(TAG, "Validator: Disabled");
+					}
+				}
+
+			} else {
+				if (++reader0x30.poll_fail_count >= 3) {
+					ESP_LOGW( TAG, "Validator: Poll timeout - resetting");
+					reader0x30.machine_state = INACTIVE_STATE;
 				}
 			}
 		}
