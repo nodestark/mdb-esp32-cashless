@@ -1,0 +1,3 @@
+[submodule "mdb-esp32-vending-machine-control"]
+	path = mdb-master-esp32s3
+	url = https://github.com/nodestark/mdb-esp32-vending-machine-control
