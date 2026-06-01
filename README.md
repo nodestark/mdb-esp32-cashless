@@ -35,9 +35,9 @@ The project aims to provide a modern, open, and extensible platform for vending 
 👉 Advanced (for development): ESP-IDF
 
 ```bash
-# Clone the repository (with submodules — pulls in the VMC project)
-git clone --recurse-submodules https://github.com/nodestark/mdb-esp32-cashless
-cd mdb-esp32-cashless/mdb-slave-esp32s3
+# Clone the repository
+git clone https://github.com/nodestark/mdb-esp32-cashless
+cd mdb-slave-esp32s3
 
 idf.py flash monitor
 ```
