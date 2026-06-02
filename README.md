@@ -26,21 +26,7 @@ The project aims to provide a modern, open, and extensible platform for vending 
 - **VMflow Runner**: a hidden arcade game easter egg built into the dashboard — find it yourself 🕹️
 - **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights.
 
-# Also part of the ecosystem: VMflow on Apache NuttX
-
-[![Apache NuttX](https://img.shields.io/badge/RTOS-Apache%20NuttX-0d597f?style=for-the-badge&logo=apache&logoColor=white)](https://github.com/nodestark/vmflow-nuttx-apps)
-
-The same MDB vending stack also runs on **[Apache NuttX](https://nuttx.apache.org/)** — a POSIX RTOS — as an out-of-tree application collection: **[vmflow-nuttx-apps](https://github.com/nodestark/vmflow-nuttx-apps)**.
-
-Each capability ships as its own independent NuttX builtin app (NSH command), mounted under `apps/vmflow`:
-
-- **`vmc`** — MDB master / vending machine controller (drives the cashless, changer and validator peripherals; optional EVA-DTS/DEX audit responder on a second UART)
-- **`cashless`** — MDB cashless device slave (`0x10`), full vend session flow + the 19-byte XOR-obfuscated VMflow wire payload codec
-- **`dex`** — EVA-DTS DEX/DDCMP audit collector (DDCMP 2400 baud + DEX 9600 baud handshakes)
-
-MDB's 9-bit mode bit is mapped onto termios mark/space parity (`CMSPAR` + `PARMRK`), so it runs on any UART driver that honors them. Targets `esp32s3-devkit` over native USB-C (USB-Serial-JTAG).
-
-👉 **[Explore the NuttX apps →](https://github.com/nodestark/vmflow-nuttx-apps)**
+> The MDB vending stack also has an [Apache NuttX](https://nuttx.apache.org/) port — `vmc`, `cashless` and `dex` as RTOS builtin apps. See [vmflow-nuttx-apps](https://github.com/nodestark/vmflow-nuttx-apps).
 
 # Getting Started
 
