@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
@@ -14,6 +15,8 @@
 #include <freertos/event_groups.h>
 #include <sdkconfig.h>
 #include <esp_log.h>
+#include <esp_system.h>
+#include <esp_app_desc.h>
 #include <esp_event.h>
 #include <esp_netif.h>
 #include <esp_timer.h>
@@ -24,6 +27,7 @@
 #include <driver/uart.h>
 #include <esp_wifi.h>
 #include <mqtt_client.h>
+#include <mbedtls/md.h>
 #include <esp_sntp.h>
 #include <esp_netif_ppp.h>
 #include <esp_modem_api.h>
@@ -139,6 +143,17 @@ bool vend_approved_todo = false;
 bool vend_denied_todo = false;
 bool cashless_reset_todo = false;
 bool out_of_sequence_todo = false;
+
+// Last completed sale (captured at VEND_SUCCESS), exposed over RPC.
+uint16_t last_sale_price = 0;
+uint16_t last_sale_item = 0;
+
+// Epoch of the last successful vend, and count of failed vends since boot.
+time_t   last_vend_success_time = 0;
+uint32_t vend_fail_count = 0;
+
+// RPC command accepted only if its timestamp is within this many seconds of now.
+#define RPC_FRESHNESS_SEC 10
 
 // MQTT client handle
 esp_mqtt_client_handle_t mqtt_client = NULL;
@@ -409,6 +424,10 @@ void mdb_cashless_task(void *pvParameters) {
 
 						machine_state = IDLE_STATE;
 
+						last_sale_price = item_price;
+						last_sale_item  = item_number;
+						last_vend_success_time = time(NULL);
+
 						/* PIPE_BLE */
 						uint8_t payload[19];
 						xor_encode_with_passkey(0x0b, item_price, item_number, payload);
@@ -422,6 +441,8 @@ void mdb_cashless_task(void *pvParameters) {
                         if (read_9(NULL) != checksum) continue;
 
 						machine_state = IDLE_STATE;
+
+						vend_fail_count++;
 
 					    /* PIPE_BLE */
 						uint8_t payload[19];
@@ -763,6 +784,71 @@ void ble_event_handler(char *ble_payload) {
 	}
 }
 
+// HMAC-SHA256 of payload, keyed with the per-device passkey. output_hmac = 32 bytes.
+void calcular_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac) {
+	const char *key = my_passkey;
+	size_t key_len = strlen(my_passkey);
+
+	mbedtls_md_context_t ctx;
+	mbedtls_md_init(&ctx);
+
+	mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
+	mbedtls_md_hmac_starts(&ctx, (const unsigned char *) key, key_len);
+	mbedtls_md_hmac_update(&ctx, (const unsigned char *) payload, payload_len);
+	mbedtls_md_hmac_finish(&ctx, output_hmac);
+
+	mbedtls_md_free(&ctx);
+}
+
+// Recompute HMAC over msg and compare with the received lowercase-hex signature.
+static bool rpc_verify_hmac(const char *msg, size_t msg_len, const char *sig_hex) {
+	unsigned char hmac[32];
+	calcular_hmac(msg, msg_len, hmac);
+
+	char hex[65];
+	for (int i = 0; i < 32; i++)
+		snprintf(hex + i * 2, 3, "%02x", hmac[i]);
+
+	return strcmp(hex, sig_hex) == 0;
+}
+
+static const char *machine_state_str(machine_state_t s) {
+	switch (s) {
+	case INACTIVE_STATE: return "INACTIVE";
+	case DISABLED_STATE: return "DISABLED";
+	case ENABLED_STATE:  return "ENABLED";
+	case IDLE_STATE:     return "IDLE";
+	case VEND_STATE:     return "VEND";
+	default:             return "OTHER";
+	}
+}
+
+// Publish a device snapshot (JSON) to .../rpc/info for AI agents to consume.
+static void rpc_publish_info(void) {
+	const esp_app_desc_t *app = esp_app_get_description();
+
+	char json[256];
+	int n = snprintf(json, sizeof(json),
+		"{\"version\":\"%s\",\"uptime_s\":%lld,\"reset_reason\":%d,"
+		"\"free_heap\":%lu,\"min_free_heap\":%lu,\"machine_state\":\"%s\","
+		"\"last_sale_price\":%u,\"last_sale_item\":%u,"
+		"\"last_vend_success_time\":%lld,\"vend_fail_count\":%lu}",
+		app->version,
+		(long long) (esp_timer_get_time() / 1000000),
+		(int) esp_reset_reason(),
+		(unsigned long) esp_get_free_heap_size(),
+		(unsigned long) esp_get_minimum_free_heap_size(),
+		machine_state_str(machine_state),
+		last_sale_price, last_sale_item,
+		(long long) last_vend_success_time,
+		(unsigned long) vend_fail_count);
+
+	char topic[64];
+	snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/info", my_subdomain);
+
+	esp_mqtt_client_publish(mqtt_client, topic, json, n, 1, 0);
+}
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
 	esp_mqtt_event_handle_t event = event_data;
 	esp_mqtt_client_handle_t mqtt_client = event->client;
@@ -812,6 +898,71 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                 xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 
                 ESP_LOGI( TAG, "Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
+			}
+		}
+
+		// RPC: payload "<cmd>:<ts>:<hmac_hex>". HMAC (device passkey) covers "<cmd>:<ts>".
+		// Accepted only if <ts> is within RPC_FRESHNESS_SEC of the current time.
+		else if (event->topic_len > 4 && strncmp(event->topic + event->topic_len - 4, "/rpc", 4) == 0) {
+			char buf[128];
+			int len = event->data_len < (int) sizeof(buf) - 1 ? event->data_len : (int) sizeof(buf) - 1;
+			memcpy(buf, event->data, len);
+			buf[len] = '\0';
+
+			char *sig = strrchr(buf, ':');
+			if (sig != NULL) {
+				*sig++ = '\0';   // buf now holds the signed part "<cmd>:<ts>"
+
+				if (rpc_verify_hmac(buf, strlen(buf), sig)) {
+					char *ts_str = strchr(buf, ':');
+					if (ts_str != NULL) {
+						*ts_str++ = '\0';
+						const char *cmd = buf;
+
+						time_t ts  = (time_t) strtoll(ts_str, NULL, 10);
+						time_t now = time(NULL);
+						long dt = (long) (now - ts);
+						if (dt < 0) dt = -dt;
+
+						if (dt <= RPC_FRESHNESS_SEC) {
+							if (strcmp(cmd, "dex") == 0) {
+								request_telemetry_data(NULL);
+								ESP_LOGI(TAG, "RPC dex request started");
+							} else if (strcmp(cmd, "info") == 0) {
+								rpc_publish_info();
+								ESP_LOGI(TAG, "RPC info published");
+							} else if (strcmp(cmd, "oos") == 0) {
+								// Send an MDB "command out of sequence" to the VMC.
+								out_of_sequence_todo = true;
+								ESP_LOGI(TAG, "RPC out-of-sequence queued");
+							} else if (strcmp(cmd, "echo") == 0) {
+								// Reply with the request timestamp: liveness + RTT probe.
+								char etopic[64];
+								snprintf(etopic, sizeof(etopic), "domain.vmflow.xyz/%s/rpc/echo", my_subdomain);
+								esp_mqtt_client_publish(mqtt_client, etopic, ts_str, 0, 1, 0);
+								ESP_LOGI(TAG, "RPC echo");
+							} else if (strcmp(cmd, "buzzer") == 0) {
+								// Sound the buzzer (1s beep, handled by led_status_task).
+								xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
+								ESP_LOGI(TAG, "RPC buzzer triggered");
+							} else if (strcmp(cmd, "restart") == 0) {
+								// Ack first, give MQTT a moment to flush, then reboot.
+								char rtopic[64];
+								snprintf(rtopic, sizeof(rtopic), "domain.vmflow.xyz/%s/rpc/restart", my_subdomain);
+								esp_mqtt_client_publish(mqtt_client, rtopic, "ok", 0, 1, 0);
+								ESP_LOGW(TAG, "RPC restart requested");
+								vTaskDelay(pdMS_TO_TICKS(500));
+								esp_restart();
+							} else {
+								ESP_LOGW(TAG, "RPC unknown command: %s", cmd);
+							}
+						} else {
+							ESP_LOGW(TAG, "RPC rejected: stale ts (dt=%ld)", dt);
+						}
+					}
+				} else {
+					ESP_LOGW(TAG, "RPC rejected: bad HMAC");
+				}
 			}
 		}
 
