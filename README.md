@@ -26,8 +26,6 @@ The project aims to provide a modern, open, and extensible platform for vending 
 - **VMflow Runner**: a hidden arcade game easter egg built into the dashboard — find it yourself 🕹️
 - **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights.
 
-> The MDB vending stack also has an [Apache NuttX](https://nuttx.apache.org/) port — `vmc`, `cashless` and `dex` as RTOS builtin apps. See [vmflow-nuttx-apps](https://github.com/nodestark/vmflow-nuttx-apps).
-
 # Getting Started
 
 ### 1. Flash the Firmware
@@ -108,6 +106,14 @@ curl -X GET 'https://supabase.vmflow.xyz/rest/v1/metrics?name=eq.paxcounter' \
 -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
+
+# VMflow Ecosystem
+
+This repo is one of several in the open **VMflow** platform:
+
+- **[`mdb-esp32-cashless`](https://github.com/nodestark/mdb-esp32-cashless)** *(this repo)* — ESP-IDF cashless / MDB-slave firmware + VMflow platform (dashboard, Supabase, Android app)
+- [`mdb-esp32-master`](https://github.com/nodestark/mdb-esp32-master) — ESP-IDF MDB master / VMC firmware (drives coin, bill, cashless peripherals)
+- [`vmflow-nuttx-apps`](https://github.com/nodestark/vmflow-nuttx-apps) — Apache NuttX home for the full stack (VMC, Cashless, Bill, Coin as builtin apps)
 
 # How to Contribute:
 - Contributions are welcome! Feel free to open issues, send pull requests, or propose new features
