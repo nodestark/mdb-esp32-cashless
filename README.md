@@ -8,7 +8,7 @@
 
 # VMflow — Open-Source Vending Machine IoT Platform
 
-**Turn any vending machine into a connected, cashless, remotely managed device.**
+**The first open-source vending platform designed for AI agents.**
 </div>
 
 ---
@@ -18,13 +18,11 @@ The project aims to provide a modern, open, and extensible platform for vending 
 ![MDB Cashless](1411051686640.png)
 
 # Features
-- Implementation of the MDB protocol for communication with vending machines, offering telemetry and cashless payment
-- ESP32 hardware platform offering flexibility and advanced IoT features
-- PCB design done in **KiCad**, facilitating production and customization of the hardware
-- Support for **EVA DTS DEX/DDCMP** (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines
-- **Web Dashboard**: [📊 Open Dashboard](https://vmflow.xyz/dashboard) – Centralized interface to monitor the vending machine network in real time, including device status, telemetry, sales data, inventory control, product catalog management, and real-time stock alerts. Features AI-powered diagnostics (via OpenAI) for operation-wide analysis, per-machine insights, and product catalog recommendations.
-- **VMflow Runner**: a hidden arcade game easter egg built into the dashboard — find it yourself 🕹️
-- **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights.
+- ESP32-based vending machine controller implementing MDB telemetry, cashless payments, and IoT connectivity;
+- PCB design done in **KiCad**, facilitating production and customization of the hardware;
+- Support for **EVA DTS DEX/DDCMP** (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines;
+- **Web Dashboard**: [📊 Open Dashboard](https://vmflow.xyz/dashboard) – Centralized interface to monitor the vending machine network in real time, including device status, telemetry, sales data, inventory control, product catalog management, and real-time stock alerts. Features AI-powered diagnostics (via OpenAI) for operation-wide analysis, per-machine insights, and product catalog recommendations;
+- **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights;
 
 # Getting Started
 
@@ -106,14 +104,6 @@ curl -X GET 'https://supabase.vmflow.xyz/rest/v1/metrics?name=eq.paxcounter' \
 -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4" \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
-
-# VMflow Ecosystem
-
-This repo is one of several in the open **VMflow** platform:
-
-- **[`mdb-esp32-cashless`](https://github.com/nodestark/mdb-esp32-cashless)** *(this repo)* — ESP-IDF cashless / MDB-slave firmware + VMflow platform (dashboard, Supabase, Android app)
-- [`mdb-esp32-master`](https://github.com/nodestark/mdb-esp32-master) — ESP-IDF MDB master / VMC firmware (drives coin, bill, cashless peripherals)
-- [`vmflow-nuttx-apps`](https://github.com/nodestark/vmflow-nuttx-apps) — Apache NuttX home for the full stack (VMC, Cashless, Bill, Coin as builtin apps)
 
 # How to Contribute:
 - Contributions are welcome! Feel free to open issues, send pull requests, or propose new features
