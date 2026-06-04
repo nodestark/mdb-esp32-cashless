@@ -9,9 +9,6 @@
 # VMflow — Open-Source Vending Machine IoT Platform
 
 **The first open-source vending platform designed for AI agents.**
-
-🤖 Paste into your agent and unlock the whole project:
-`read https://raw.githubusercontent.com/nodestark/mdb-esp32-cashless/main/AGENTS.md`
 </div>
 
 ---
@@ -19,6 +16,14 @@
 The project aims to provide a modern, open, and extensible platform for vending machine connectivity. Based on the ESP32 platform, it enables machines to communicate via Bluetooth and cloud services, receive remote credits, report telemetry, and integrate with mobile applications and web dashboards.
 
 ![MDB Cashless](1411051686640.png)
+
+# 🤖 Manage It With Your AI Agent
+
+VMflow is built to be driven by AI agents. Paste this into your agent and it picks up the whole project — MQTT RPC control, the device commands, and the Supabase data API:
+
+```
+read https://raw.githubusercontent.com/nodestark/mdb-esp32-cashless/main/AGENTS.md
+```
 
 # Features
 - ESP32-based vending machine controller implementing MDB telemetry, cashless payments, and IoT connectivity;
