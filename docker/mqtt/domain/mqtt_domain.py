@@ -3,11 +3,42 @@
 
 import os
 import re
+import hmac
+import hashlib
 import paho.mqtt.client as mqtt
 from supabase import create_client, Client
 
 from datetime import datetime, timezone
 import time
+
+# Freshness window for signed device->server messages (must match firmware RPC_FRESHNESS_SEC).
+FRESHNESS_SEC = 10
+
+
+def verify_signed_line(passkey: str, line: str):
+    """Verify "<fields...>:<ts>:<hmac_hex>". Returns the list of leading fields
+    (everything before <ts>) if the HMAC is valid and <ts> is fresh, else None."""
+    idx = line.rfind(":")
+    if idx < 0:
+        return None
+    msg, sig = line[:idx], line[idx + 1:]
+
+    calc = hmac.new(passkey.encode(), msg.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(calc, sig):
+        return None
+
+    fields = msg.split(":")
+    if len(fields) < 2:
+        return None
+
+    try:
+        ts = int(fields[-1])
+    except ValueError:
+        return None
+    if abs(int(time.time()) - ts) > FRESHNESS_SEC:
+        return None
+
+    return fields[:-1]
 
 role_key = os.environ.get('SERVICE_ROLE_KEY')
 
@@ -38,63 +69,42 @@ def on_message(client, userdata, msg):
         match = re.match(r"^domain.vmflow.xyz/(\d+)/(sale|status|paxcounter)$", msg.topic)
         if match:
             domain_id = int(match.group(1))
-            event_type = match.group(2)  # "sale" or "status"
-            payload = bytearray(msg.payload)
-            # print(event_type)
+            event_type = match.group(2)  # "sale", "status" or "paxcounter"
 
             if event_type == "status":
-                supabase.table("embedded").update({"status_at": datetime.now(timezone.utc).isoformat(), "status": payload.decode('utf-8', errors='ignore')}).eq("subdomain", domain_id).execute()
+                supabase.table("embedded").update({"status_at": datetime.now(timezone.utc).isoformat(), "status": msg.payload.decode('utf-8', errors='ignore')}).eq("subdomain", domain_id).execute()
+
+            # Signed-text envelopes: "<count>:<ts>:<hmac>" (pax), "<price>:<item>:<ts>:<hmac>" (sale).
+            line = msg.payload.decode('utf-8', errors='ignore')
 
             if event_type == "paxcounter":
                 res = supabase.table("embedded").select("passkey, subdomain, id, machine_id").eq("subdomain", domain_id).execute()
-
                 embedded = res.data[0]
-                passkey = [ord(c) for c in embedded["passkey"]]
 
-                for k in range(len(passkey)):
-                    payload[k + 1] ^= passkey[k]
+                fields = verify_signed_line(embedded["passkey"], line)
+                if fields and len(fields) == 1:
+                    pax_counter = int(fields[0])
 
-                chk = sum(payload[:-1])
-                if payload[-1] == (chk & 0xFF):
-
-                    timestamp_sec = int.from_bytes(payload[7:11], byteorder="big")
-
-                    current_time = int(time.time())
-
-                    if abs(current_time - timestamp_sec) <= 8:
-                        pax_counter = int.from_bytes(payload[5:7], byteorder="big")
-
-                        supabase.table("metrics").insert([{"embedded_id": embedded["id"],
-                                                         "machine_id": embedded["machine_id"],
-                                                         "name": "paxcounter",
-                                                         "value": pax_counter}]).execute()
+                    supabase.table("metrics").insert([{"embedded_id": embedded["id"],
+                                                     "machine_id": embedded["machine_id"],
+                                                     "name": "paxcounter",
+                                                     "value": pax_counter}]).execute()
 
             if event_type == "sale":
                 res = supabase.table("embedded").select("passkey,subdomain,id,owner_id,machine_id").eq("subdomain", domain_id).execute()
-
                 embedded = res.data[0]
-                passkey = [ord(c) for c in embedded["passkey"]]
 
-                for k in range(len(passkey)):
-                    payload[k + 1] ^= passkey[k]
+                fields = verify_signed_line(embedded["passkey"], line)
+                if fields and len(fields) == 2:
+                    item_price = int(fields[0])
+                    item_number = int(fields[1])
 
-                chk = sum(payload[:-1])
-                if payload[-1] == (chk & 0xFF):
-
-                    timestamp_sec = int.from_bytes(payload[7:11], byteorder="big")
-
-                    current_time = int(time.time())
-
-                    if abs(current_time - timestamp_sec) <= 8:
-                        item_price = int.from_bytes(payload[1:5], byteorder="big")
-                        item_number = int.from_bytes(payload[5:7], byteorder="big")
-
-                        supabase.table("sales").insert([{"owner_id":   embedded["owner_id"],
-                                                         "embedded_id": embedded["id"],
-                                                         "machine_id":  embedded["machine_id"],
-                                                         "item_number": item_number,
-                                                         "item_price":  from_scale_factor(item_price, 1, 2),
-                                                         "channel":     "cash"}]).execute()
+                    supabase.table("sales").insert([{"owner_id":   embedded["owner_id"],
+                                                     "embedded_id": embedded["id"],
+                                                     "machine_id":  embedded["machine_id"],
+                                                     "item_number": item_number,
+                                                     "item_price":  from_scale_factor(item_price, 1, 2),
+                                                     "channel":     "cash"}]).execute()
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 

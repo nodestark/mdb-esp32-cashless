@@ -21,6 +21,9 @@ not a session — every message is self-contained and expires fast.
 - `ts`   — UTC epoch seconds (`date +%s`)
 - `hmac` — `HMAC-SHA256(passkey, "<cmd>:<ts>")`, lowercase hex
 
+Commands that take arguments (e.g. `credit`) extend the envelope to
+`<cmd>:<args>:<ts>:<hmac>`; the HMAC then covers everything before the last colon.
+
 **Freshness:** device accepts only if `|now - ts| <= 10s`. Sign at send time; do not cache signatures.
 
 **Topics**
@@ -35,6 +38,7 @@ Broker host: `mqtt.vmflow.xyz`. (`<subdomain>.vmflow.xyz` is the **topic prefix*
 | cmd | Effect | Reply topic |
 |-----|--------|-------------|
 | `info`    | Publish device snapshot JSON (see schema) | `.../rpc/info` |
+| `credit`  | Grant credit. Envelope `credit:<amount>:<ts>:<hmac>`, `<amount>` in 1/100 units (cents) | `.../rpc/credit` (`ok`) |
 | `dex`     | Trigger EVA-DTS DEX/DDCMP telemetry pull from the VMC | — |
 | `oos`     | Send MDB "command out of sequence" to the VMC | — |
 | `echo`    | Liveness / RTT probe — replies with the request `ts` | `.../rpc/echo` |
@@ -93,7 +97,7 @@ curl -X POST 'https://supabase.vmflow.xyz/auth/v1/token?grant_type=password' \
 **Endpoints**
 | Action | Method | Path |
 |--------|--------|------|
-| Send credit to a machine (over MQTT) | POST | `/functions/v1/send-credit` — body `{"subdomain":51,"amount":1.50}` |
+| Send credit to a machine (signs a `credit` RPC over MQTT) | POST | `/functions/v1/send-credit` — body `{"subdomain":51,"amount":1.50}` |
 | List sales      | GET | `/rest/v1/sales` |
 | List devices    | GET | `/rest/v1/embedded` |
 | PAX foot-traffic | GET | `/rest/v1/metrics?name=eq.paxcounter` |

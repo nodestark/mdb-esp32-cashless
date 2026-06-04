@@ -1,7 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.25.0?target=deno'
 import { Client } from 'https://deno.land/x/mqtt/deno/mod.ts'
-import { encodePayloadWithXOR } from '../_shared/vmflow-payload.ts'
+import { signCreditRpc } from '../_shared/vmflow-payload.ts'
 
 Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature')
@@ -66,29 +66,12 @@ Deno.serve(async (req) => {
         .single()
 
       if (embeddedData) {
-        const rawPayload = new Uint8Array(19)
-        crypto.getRandomValues(rawPayload)
-
-        const itemPrice    = Math.round(amount * 100)
-        const timestampSec = Math.floor(Date.now() / 1000)
-
-        rawPayload[0]  = 0x20
-        rawPayload[1]  = (itemPrice >> 24) & 0xff
-        rawPayload[2]  = (itemPrice >> 16) & 0xff
-        rawPayload[3]  = (itemPrice >> 8)  & 0xff
-        rawPayload[4]  = (itemPrice >> 0)  & 0xff
-        rawPayload[5]  = 0x00
-        rawPayload[6]  = 0x00
-        rawPayload[7]  = (timestampSec >> 24) & 0xff
-        rawPayload[8]  = (timestampSec >> 16) & 0xff
-        rawPayload[9]  = (timestampSec >> 8)  & 0xff
-        rawPayload[10] = (timestampSec >> 0)  & 0xff
-
-        const encodedPayload = encodePayloadWithXOR(embeddedData.passkey, rawPayload)
+        const itemPrice  = Math.round(amount * 100)
+        const creditLine = await signCreditRpc(embeddedData.passkey, itemPrice)
 
         const client = new Client({ url: 'mqtt://mqtt.vmflow.xyz' })
         await client.connect()
-        await client.publish(`${embeddedData.subdomain}.vmflow.xyz/credit`, encodedPayload)
+        await client.publish(`${embeddedData.subdomain}.vmflow.xyz/rpc`, creditLine)
         await client.disconnect()
 
         // 5. Record sale

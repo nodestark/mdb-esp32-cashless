@@ -165,6 +165,8 @@ static QueueHandle_t mdb_rx_queue;
 
 void xor_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload);
 esp_err_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload);
+void calcular_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac);
+static void rpc_sign_text(const char *msg, char *out, size_t out_sz);
 
 static void IRAM_ATTR mdb_rx_falling_isr(void *arg) {
     // Disable interrupt for this pin to prevent re-triggering on data bits (0)
@@ -472,13 +474,16 @@ void mdb_cashless_task(void *pvParameters) {
 
 						if (read_9(NULL) != checksum) continue;
 
-                        uint8_t payload[19];
-                        xor_encode_with_passkey(0x21, item_price, item_number, payload);
+                        // Signed wire line "<price>:<item>:<ts>:<hmac>" (price scaled to 1/100 units).
+                        uint32_t price_wire = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
-                        char topic[64];
+                        char msg[64], line[160], topic[64];
+                        snprintf(msg, sizeof(msg), "%lu:%u:%lld", (unsigned long) price_wire, item_number, (long long) time(NULL));
+                        rpc_sign_text(msg, line, sizeof(line));
+
                         snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/sale", my_subdomain);
 
-                        esp_mqtt_client_publish(mqtt_client, topic, (char*) payload, sizeof(payload), 1, 0);
+                        esp_mqtt_client_publish(mqtt_client, topic, line, 0, 1, 0);
 
                         ESP_LOGI( TAG, "CASH_SALE");
 						break;
@@ -565,7 +570,8 @@ void mdb_cashless_task(void *pvParameters) {
 }
 
 /*
- * VMflow wire payload — 19 bytes, XOR-obfuscated with the device passkey.
+ * VMflow BLE wire payload — 19 bytes, XOR-obfuscated with the device passkey.
+ * (BLE only; the MQTT channel uses signed-text envelopes, see below.)
  *
  *   0        CMD    — opcode (see below)
  *   1– 4     PRICE  — uint32, item price (scale factor applied)
@@ -574,14 +580,19 @@ void mdb_cashless_task(void *pvParameters) {
  *   11–17    —      — random filler (esp_fill_random)
  *   18       CHK    — sum of bytes 0–17
  *
- * Opcodes:
+ * BLE opcodes (XOR payload):
  *   BLE ← app   0x00 SUBDOMAIN     0x01 PASSKEY  0x02 START_SESSION
  *               0x03 APPROVE       0x04 CLOSE_SESSION
  *               0x06 WIFI_SSID     0x07 WIFI_PASSWORD
  *   BLE → app   0x0A VEND_REQUEST  0x0B VEND_SUCCESS
  *               0x0C VEND_FAILURE  0x0D SESSION_COMPLETE
- *   MQTT ← srv  0x20 CREDIT
- *   MQTT → srv  0x21 CASH_SALE     0x22 PAX_COUNTER (ITEM = device count)
+ *
+ * MQTT channel — signed-text envelopes "<fields>:<ts>:<hmac_hex>", HMAC-SHA256
+ * keyed with the device passkey over everything before the last colon, <ts>
+ * within RPC_FRESHNESS_SEC. (No XOR; replaces former opcodes 0x20/0x21/0x22.)
+ *   MQTT ← srv  rpc "credit:<amount>:<ts>:<hmac>"  on  <sub>.vmflow.xyz/rpc
+ *   MQTT → srv  sale "<price>:<item>:<ts>:<hmac>"  on  .../sale
+ *               pax  "<count>:<ts>:<hmac>"         on  .../paxcounter
  */
 
 // Decode payload from communication between BLE and MQTT
@@ -687,13 +698,14 @@ void led_status_task(void *pvParameters) {
 }
 
 void ble_pax_event_handler(uint16_t devices_count){
-    uint8_t payload[19];
-    xor_encode_with_passkey(0x22, 0, devices_count, payload);
+    // Signed wire line "<count>:<ts>:<hmac>".
+    char msg[48], line[128], topic[64];
+    snprintf(msg, sizeof(msg), "%u:%lld", devices_count, (long long) time(NULL));
+    rpc_sign_text(msg, line, sizeof(line));
 
-    char topic[64];
     snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/paxcounter", my_subdomain);
 
-    esp_mqtt_client_publish(mqtt_client, topic, (char*) payload, sizeof(payload), 1, 0);
+    esp_mqtt_client_publish(mqtt_client, topic, line, 0, 1, 0);
 }
 
 void ble_event_handler(char *ble_payload) {
@@ -813,6 +825,19 @@ static bool rpc_verify_hmac(const char *msg, size_t msg_len, const char *sig_hex
 	return strcmp(hex, sig_hex) == 0;
 }
 
+// Build the signed wire line "<msg>:<hmac_hex>" for an outbound MQTT message.
+// out must hold strlen(msg) + 1 (colon) + 64 (hex) + 1 (NUL).
+static void rpc_sign_text(const char *msg, char *out, size_t out_sz) {
+	unsigned char hmac[32];
+	calcular_hmac(msg, strlen(msg), hmac);
+
+	char hex[65];
+	for (int i = 0; i < 32; i++)
+		snprintf(hex + i * 2, 3, "%02x", hmac[i]);
+
+	snprintf(out, out_sz, "%s:%s", msg, hex);
+}
+
 static const char *machine_state_str(machine_state_t s) {
 	switch (s) {
 	case INACTIVE_STATE: return "INACTIVE";
@@ -891,20 +916,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 	    ESP_LOGI(TAG, "MQTT data topic=%.*s len=%d data=%.*s", event->topic_len, event->topic, event->data_len, event->data_len, event->data);
 
-		if (event->topic_len > 7 && strncmp(event->topic + event->topic_len - 7, "/credit", 7) == 0) {
-			uint16_t funds_available;
-			if(xor_decode_with_passkey(&funds_available, NULL, (uint8_t*) event->data) == ESP_OK){
-			    xQueueSend(mdb_session_queue, &funds_available, 0 /*if full, do not wait*/);
-
-                xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
-
-                ESP_LOGI( TAG, "Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
-			}
-		}
-
-		// RPC: payload "<cmd>:<ts>:<hmac_hex>". HMAC (device passkey) covers "<cmd>:<ts>".
-		// Accepted only if <ts> is within RPC_FRESHNESS_SEC of the current time.
-		else if (event->topic_len > 4 && strncmp(event->topic + event->topic_len - 4, "/rpc", 4) == 0) {
+		// RPC: payload "<cmd>[:<args>]:<ts>:<hmac_hex>". HMAC (device passkey) covers
+		// everything before the last colon. Accepted only if <ts> is within
+		// RPC_FRESHNESS_SEC of the current time.
+		if (event->topic_len > 4 && strncmp(event->topic + event->topic_len - 4, "/rpc", 4) == 0) {
 			char buf[128];
 			int len = event->data_len < (int) sizeof(buf) - 1 ? event->data_len : (int) sizeof(buf) - 1;
 			memcpy(buf, event->data, len);
@@ -912,12 +927,17 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 			char *sig = strrchr(buf, ':');
 			if (sig != NULL) {
-				*sig++ = '\0';   // buf now holds the signed part "<cmd>:<ts>"
+				*sig++ = '\0';   // buf now holds the signed part "<cmd>[:<args>]:<ts>"
 
 				if (rpc_verify_hmac(buf, strlen(buf), sig)) {
-					char *ts_str = strchr(buf, ':');
-					if (ts_str != NULL) {
-						*ts_str++ = '\0';
+					// cmd = first field, ts = last field, args = everything in between.
+					char *first = strchr(buf, ':');
+					char *last  = strrchr(buf, ':');
+					if (first != NULL) {
+						char *ts_str = last + 1;
+						char *args   = (first == last) ? NULL : first + 1;
+						*first = '\0';          // terminate cmd
+						if (args) *last = '\0'; // terminate args
 						const char *cmd = buf;
 
 						time_t ts  = (time_t) strtoll(ts_str, NULL, 10);
@@ -932,6 +952,19 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 							} else if (strcmp(cmd, "info") == 0) {
 								rpc_publish_info();
 								ESP_LOGI(TAG, "RPC info published");
+							} else if (strcmp(cmd, "credit") == 0 && args != NULL) {
+								// Grant credit. args = amount scaled to 1/100 units.
+								int32_t price_wire = (int32_t) strtol(args, NULL, 10);
+								uint16_t funds_available = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(price_wire, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES);
+
+								xQueueSend(mdb_session_queue, &funds_available, 0 /*if full, do not wait*/);
+								xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
+
+								char ctopic[64];
+								snprintf(ctopic, sizeof(ctopic), "domain.vmflow.xyz/%s/rpc/credit", my_subdomain);
+								esp_mqtt_client_publish(mqtt_client, ctopic, "ok", 0, 1, 0);
+
+								ESP_LOGI( TAG, "RPC credit: Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 							} else if (strcmp(cmd, "oos") == 0) {
 								// Send an MDB "command out of sequence" to the VMC.
 								out_of_sequence_todo = true;

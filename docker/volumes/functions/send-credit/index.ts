@@ -1,7 +1,7 @@
 // deno run --allow-net index.ts
 import { Client } from 'https://deno.land/x/mqtt/deno/mod.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { encodePayloadWithXOR } from '../_shared/vmflow-payload.ts';
+import { signCreditRpc } from '../_shared/vmflow-payload.ts';
 
 function toScaleFactor(p: number, x: number, y: number): number {
   return p / x / Math.pow(10, -y);
@@ -22,30 +22,14 @@ Deno.serve(async (req) => {
 
         const { data: embeddedData, error } = await supabase.from("embedded").select("passkey,subdomain,status,id,machine_id").eq("subdomain", body.subdomain);
 
-        const payload: Uint8Array = new Uint8Array(19)
-        crypto.getRandomValues(payload);
-
         const itemPrice = toScaleFactor(body.amount, 1, 2)
-        const timestampSec = Math.floor(new Date().getTime()/1000);
 
-        payload[0] = 0x20;                      // cmd
-        payload[1] = (itemPrice >> 24) & 0xff;  // itemPrice
-        payload[2] = (itemPrice >> 16) & 0xff;
-        payload[3] = (itemPrice >> 8) & 0xff;
-        payload[4] = (itemPrice >> 0) & 0xff;
-        payload[5] = 0x00; 			            // itemNumber
-        payload[6] = 0x00;
-        payload[7] = (timestampSec >> 24) & 0xff;
-        payload[8] = (timestampSec >> 16) & 0xff;
-        payload[9] = (timestampSec >> 8) & 0xff;
-        payload[10] = (timestampSec >> 0) & 0xff;
-
-        const encodedPayload = encodePayloadWithXOR(embeddedData[0].passkey, payload);
+        const creditLine = await signCreditRpc(embeddedData[0].passkey, itemPrice);
 
         const client = new Client({ url: `mqtt://mqtt.vmflow.xyz` });
         await client.connect();
 
-        await client.publish(`${embeddedData[0].subdomain}.vmflow.xyz/credit`, encodedPayload);
+        await client.publish(`${embeddedData[0].subdomain}.vmflow.xyz/rpc`, creditLine);
         await client.disconnect();
 
         let salesId: string | null = null;
