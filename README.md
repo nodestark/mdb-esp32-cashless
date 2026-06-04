@@ -9,6 +9,9 @@
 # VMflow — Open-Source Vending Machine IoT Platform
 
 **The first open-source vending platform designed for AI agents.**
+
+🤖 Paste into your agent and unlock the whole project:
+`read https://raw.githubusercontent.com/nodestark/mdb-esp32-cashless/main/AGENTS.md`
 </div>
 
 ---
