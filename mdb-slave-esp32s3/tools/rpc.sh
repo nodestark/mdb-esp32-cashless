@@ -46,7 +46,7 @@ EXTRA=("$@")
 
 [ -n "$SUB" ]     || { echo "error: set SUB or pass -s <subdomain>" >&2; exit 1; }
 [ -n "$PASSKEY" ] || { echo "error: set PASSKEY or pass -k <passkey>" >&2; exit 1; }
-HOST="${HOST:-$SUB.vmflow.xyz}"
+HOST="${HOST:-mqtt.vmflow.xyz}" # broker host; <sub>.vmflow.xyz is the device topic, not a host
 
 TS="$(date +%s)"                 # UTC epoch — fresh (device enforces a 10s window)
 MSG="$CMD:$TS"

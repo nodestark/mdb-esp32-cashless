@@ -87,7 +87,8 @@ EventGroupHandle_t xInternetEventGroup;
 static uint8_t wifi_retry_count = 0;
 
 char my_subdomain[32];
-char my_passkey[18];
+#define PASSKEY_LEN 18                  // wire length of the passkey (xor/HMAC use this many bytes)
+char my_passkey[PASSKEY_LEN + 1];       // +1 for NUL: strlen()/nvs_get_str() need a terminator
 
 // Defining MDB commands as an enum
 enum MDB_COMMAND_FLOW {
@@ -585,11 +586,11 @@ void mdb_cashless_task(void *pvParameters) {
 
 // Decode payload from communication between BLE and MQTT
 esp_err_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload) {
-	for(int x = 0; x < sizeof(my_passkey); x++){
+	for(int x = 0; x < PASSKEY_LEN; x++){
 		payload[x + 1] ^= my_passkey[x];
 	}
 
-	int p_len = sizeof(my_passkey) + 1;
+	int p_len = PASSKEY_LEN + 1;
 
 	uint8_t chk = 0x00;
 	for(int x= 0; x < p_len - 1; x++){
@@ -647,7 +648,7 @@ void xor_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_num
 	payload[10] = now;
 	// ...18
 
-	int p_len = sizeof(my_passkey) + 1;
+	int p_len = PASSKEY_LEN + 1;
 
 	uint8_t chk = 0x00;
 	for(int x= 0; x < p_len - 1; x++){
@@ -655,7 +656,7 @@ void xor_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_num
 	}
 	payload[p_len - 1] = chk;
 
-	for(int x = 0; x < sizeof(my_passkey); x++){
+	for(int x = 0; x < PASSKEY_LEN; x++){
 		payload[x + 1] ^= my_passkey[x];
 	}
 }

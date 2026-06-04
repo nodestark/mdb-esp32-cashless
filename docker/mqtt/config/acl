@@ -4,4 +4,5 @@ topic read domain.vmflow.xyz/+/#
 
 user vmflow
 topic read +/credit
+topic read +/rpc
 topic write domain.vmflow.xyz/+/#
