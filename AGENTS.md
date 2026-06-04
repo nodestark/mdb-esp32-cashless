@@ -78,6 +78,11 @@ mosquitto_pub -h mqtt.vmflow.xyz -t "$SUB.vmflow.xyz/rpc" -m "$CMD:$TS:$SIG" -q 
 Base: `https://supabase.vmflow.xyz`. All requests need `apikey` (anon) and a
 `Bearer` access token from the login step.
 
+**Anon key** (public, safe to embed — gates only at the API edge; row access is enforced by RLS after login):
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.VGEEIztVo-do9cy_Qw2-2sF8bSONckhX71Nvtwj15X4
+```
+
 **Get a token**
 ```bash
 curl -X POST 'https://supabase.vmflow.xyz/auth/v1/token?grant_type=password' \
