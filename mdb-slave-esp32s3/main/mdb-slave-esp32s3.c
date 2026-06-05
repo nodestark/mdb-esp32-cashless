@@ -87,7 +87,7 @@ EventGroupHandle_t xInternetEventGroup;
 static uint8_t wifi_retry_count = 0;
 
 char my_subdomain[32];
-#define PASSKEY_LEN 18                  // wire length of the passkey (xor/HMAC use this many bytes)
+#define PASSKEY_LEN 18                  // passkey length in bytes (HMAC key)
 char my_passkey[PASSKEY_LEN + 1];       // +1 for NUL: strlen()/nvs_get_str() need a terminator
 
 // Defining MDB commands as an enum
@@ -163,8 +163,8 @@ esp_mqtt_client_handle_t mqtt_client = NULL;
 static QueueHandle_t mdb_session_queue = NULL;
 static QueueHandle_t mdb_rx_queue;
 
-void xor_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload);
-esp_err_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload);
+void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload);
+esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload);
 void calcular_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac);
 static void rpc_sign_text(const char *msg, char *out, size_t out_sz);
 
@@ -407,7 +407,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 						/* PIPE_BLE */
 						uint8_t payload[19];
-						xor_encode_with_passkey(0x0a, item_price, item_number, payload);
+						ble_encode_with_passkey(0x0a, item_price, item_number, payload);
 
                         ble_notify_send((char*) payload, sizeof(payload));
 
@@ -433,7 +433,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 						/* PIPE_BLE */
 						uint8_t payload[19];
-						xor_encode_with_passkey(0x0b, item_price, item_number, payload);
+						ble_encode_with_passkey(0x0b, item_price, item_number, payload);
 
                         ble_notify_send((char*) payload, sizeof(payload));
 
@@ -449,7 +449,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 					    /* PIPE_BLE */
 						uint8_t payload[19];
-						xor_encode_with_passkey(0x0c, item_price, item_number, payload);
+						ble_encode_with_passkey(0x0c, item_price, item_number, payload);
 
                         ble_notify_send((char*) payload, sizeof(payload));
 						break;
@@ -461,7 +461,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 			            /* PIPE_BLE */
 						uint8_t payload[19];
-						xor_encode_with_passkey(0x0d, item_price, item_number, payload);
+						ble_encode_with_passkey(0x0d, item_price, item_number, payload);
 
                         ble_notify_send((char*) payload, sizeof(payload));
 
@@ -570,17 +570,18 @@ void mdb_cashless_task(void *pvParameters) {
 }
 
 /*
- * VMflow BLE wire payload — 19 bytes, XOR-obfuscated with the device passkey.
- * (BLE only; the MQTT channel uses signed-text envelopes, see below.)
+ * VMflow BLE wire payload — 19 bytes, plaintext fields authenticated by a
+ * 4-byte truncated HMAC tag. (BLE only; the MQTT channel uses signed-text
+ * envelopes, see below.)
  *
  *   0        CMD    — opcode (see below)
  *   1– 4     PRICE  — uint32, item price (scale factor applied)
  *   5– 6     ITEM   — uint16, item number
  *   7–10     TIME   — uint32, Unix timestamp (seconds)
- *   11–17    —      — random filler (esp_fill_random)
- *   18       CHK    — sum of bytes 0–17
+ *   11–14    —      — random filler (esp_fill_random)
+ *   15–18    TAG    — HMAC-SHA256(passkey, bytes 0–14)[:4]
  *
- * BLE opcodes (XOR payload):
+ * BLE opcodes (HMAC-tagged payload):
  *   BLE ← app   0x00 SUBDOMAIN     0x01 PASSKEY  0x02 START_SESSION
  *               0x03 APPROVE       0x04 CLOSE_SESSION
  *               0x06 WIFI_SSID     0x07 WIFI_PASSWORD
@@ -595,20 +596,18 @@ void mdb_cashless_task(void *pvParameters) {
  *               pax  "<count>:<ts>:<hmac>"         on  .../paxcounter
  */
 
-// Decode payload from communication between BLE and MQTT
-esp_err_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload) {
-	for(int x = 0; x < PASSKEY_LEN; x++){
-		payload[x + 1] ^= my_passkey[x];
+// Decode/verify a BLE payload: plaintext fields 0..14 authenticated by a 4-byte
+// truncated HMAC tag in bytes 15..18 (= HMAC-SHA256(passkey, payload[0..14])[:4]).
+esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload) {
+	unsigned char hmac[32];
+	calcular_hmac((const char*) payload, 15, hmac);
+
+	uint8_t diff = 0;
+	for(int x = 0; x < 4; x++){
+		diff |= hmac[x] ^ payload[15 + x];   // constant-time compare
 	}
 
-	int p_len = PASSKEY_LEN + 1;
-
-	uint8_t chk = 0x00;
-	for(int x= 0; x < p_len - 1; x++){
-		chk += payload[x];
-	}
-
-    if(chk != payload[p_len - 1]){
+    if(diff != 0){
         return ESP_ERR_INVALID_CRC;
     }
 
@@ -637,11 +636,12 @@ esp_err_t xor_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, u
     return ESP_OK;
 }
 
-// Encode payload to communication between BLE and MQTT
-void xor_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload) {
+// Encode a BLE payload: plaintext fields 0..14, then a 4-byte truncated HMAC
+// tag in bytes 15..18 (= HMAC-SHA256(passkey, payload[0..14])[:4]).
+void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload) {
     uint32_t item_price_32 = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
-	esp_fill_random(payload, 19);
+	esp_fill_random(payload, 19);   // bytes 11..14 stay as random filler
 
 	time_t now = time(NULL);
 
@@ -657,19 +657,11 @@ void xor_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_num
 	payload[8] = now >> 16;
 	payload[9] = now >> 8;
 	payload[10] = now;
-	// ...18
+	// 11..14 random filler (from esp_fill_random)
 
-	int p_len = PASSKEY_LEN + 1;
-
-	uint8_t chk = 0x00;
-	for(int x= 0; x < p_len - 1; x++){
-		chk += payload[x];
-	}
-	payload[p_len - 1] = chk;
-
-	for(int x = 0; x < PASSKEY_LEN; x++){
-		payload[x + 1] ^= my_passkey[x];
-	}
+	unsigned char hmac[32];
+	calcular_hmac((const char*) payload, 15, hmac);
+	memcpy(payload + 15, hmac, 4);        // truncated HMAC tag
 }
 
 void led_status_task(void *pvParameters) {
@@ -760,7 +752,7 @@ void ble_event_handler(char *ble_payload) {
 		break;
 	case 0x03: /*Approve the vending session*/
 
-        if(xor_decode_with_passkey(NULL, NULL, (uint8_t*) ble_payload) == ESP_OK){
+        if(ble_decode_with_passkey(NULL, NULL, (uint8_t*) ble_payload) == ESP_OK){
             vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
         }
         break;
