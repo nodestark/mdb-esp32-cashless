@@ -792,7 +792,7 @@ static void ota_task(void *arg) {
 
 	esp_err_t err = esp_https_ota(&ota_cfg);
 	if (err == ESP_OK) {
-		ESP_LOGW(TAG, "OTA success, rebooting");
+		ESP_LOGW(TAG, "OTA success, rebooting into new image");
 		esp_mqtt_client_publish(mqtt_client, topic, "ok-rebooting", 0, 1, 0);
 		vTaskDelay(pdMS_TO_TICKS(1000));
 		esp_restart();
