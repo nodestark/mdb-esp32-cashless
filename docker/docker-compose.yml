@@ -376,5 +376,31 @@ services:
         "log_min_messages=fatal" # prevents Realtime polling queries from appearing in logs
       ]
 
+  broker:
+    image: eclipse-mosquitto:2.1.2-alpine
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT (TCP)
+      - "9001:9001"   # WebSockets (opcional)
+    volumes:
+      - ./volumes/mqtt/config:/mosquitto/config
+      - ./volumes/mqtt/config/acl:/etc/mosquitto/acl:ro
+      - ./volumes/mqtt/data:/mosquitto/data
+
+  domain:
+    image: python:3.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - broker
+      - kong
+    volumes:
+      - ./volumes/mqtt/domain:/domain
+    environment:
+      # Reach Supabase through the internal Kong gateway, not the public HTTPS URL.
+      SUPABASE_PUBLIC_URL: http://kong:8000
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      MQTT_HOST: broker
+    command: sh -c "pip install --no-cache-dir supabase paho-mqtt && python -u /domain/mqtt_domain.py"
+
 volumes:
   db-config:

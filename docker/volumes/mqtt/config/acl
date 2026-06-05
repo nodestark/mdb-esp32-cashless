@@ -1,0 +1,23 @@
+# VMflow MQTT ACL
+#
+# All clients connect anonymously (no password). This ACL does NOT authenticate —
+# it only confines clients to VMflow's own topic namespace, so the broker can't be
+# abused as a generic pub/sub for unrelated topics. Message integrity is enforced
+# separately by the HMAC signatures carried in the payloads.
+
+# --- Anonymous clients: devices, edge functions, mqtt_domain bridge, ops tools ---
+topic readwrite +/rpc
+topic readwrite +/credit
+topic readwrite domain.vmflow.xyz/#
+
+# --- Transitional: older firmware still connects with username "vmflow" (and
+#     tools as "admin"). Same confinement. Remove once the whole fleet is anonymous.
+user vmflow
+topic readwrite +/rpc
+topic readwrite +/credit
+topic readwrite domain.vmflow.xyz/#
+
+user admin
+topic readwrite +/rpc
+topic readwrite +/credit
+topic readwrite domain.vmflow.xyz/#

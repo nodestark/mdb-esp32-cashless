@@ -999,6 +999,8 @@ void app_main(void) {
     gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);
 
+	//---------------- Strip LED configuration -----------------//
+	//----------------------------------------------------------//
     xLedEventGroup = xEventGroupCreate();
     xInternetEventGroup = xEventGroupCreate();
 
@@ -1021,8 +1023,12 @@ void app_main(void) {
 
     xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
+	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
+	//----------------------------------------------------------//
 	telemetry_init();
 
+	//-------------------- NETWORK STACK -----------------------//
+	//----------------------------------------------------------//
 	nvs_flash_init();
 
 	esp_netif_init();
@@ -1041,6 +1047,8 @@ void app_main(void) {
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_start();
 
+	//------------------------ BLUETOOTH -----------------------//
+	//----------------------------------------------------------//
 	char myhost[64];
 	strcpy(myhost, "0.vmflow.xyz");
 
@@ -1073,6 +1081,8 @@ void app_main(void) {
     esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
     esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
+    //------------------------ MAIN TASKS ----------------------//
+    //----------------------------------------------------------//
     gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
     gpio_set_level(PIN_MDB_TX, 1);
 
@@ -1093,6 +1103,8 @@ void app_main(void) {
     mdb_session_queue = xQueueCreate(1, sizeof(uint16_t));
     xTaskCreate(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL);
 
+    //------------------- SIM7080g STACK -----------------------//
+	//----------------------------------------------------------//
     gpio_set_direction(PIN_SIM7080G_PWR, GPIO_MODE_OUTPUT);
     gpio_set_level(PIN_SIM7080G_PWR, 0);
 
@@ -1148,15 +1160,13 @@ void app_main(void) {
 
     (void) xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP | BIT_AT_GOT_IP, pdTRUE, pdFALSE, portMAX_DELAY );
 
+    //-------------------------- MQTT --------------------------//
+	//----------------------------------------------------------//
 	char lwt_topic[64];
 	snprintf(lwt_topic, sizeof(lwt_topic), "domain.vmflow.xyz/%s/status", my_subdomain);
 
 	const esp_mqtt_client_config_t mqtt_cfg = {
 		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
-        .credentials = {
-             .username = "vmflow",
-            .authentication.password = "vmflow"
-        },
 		.session.last_will.topic = lwt_topic,
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,
