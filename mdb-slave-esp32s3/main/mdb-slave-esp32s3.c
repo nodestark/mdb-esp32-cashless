@@ -950,9 +950,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 									snprintf(ota_url, sizeof(ota_url),
 										"https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
 
-								char otopic[64];
+								const char *ota_target = (args != NULL && args[0] != '\0') ? args : "latest";
+								char otopic[64], ostarted[48];
 								snprintf(otopic, sizeof(otopic), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
-								esp_mqtt_client_publish(mqtt_client, otopic, "started", 0, 1, 0);
+								snprintf(ostarted, sizeof(ostarted), "started:%s", ota_target);
+								esp_mqtt_client_publish(mqtt_client, otopic, ostarted, 0, 1, 0);
 
 								xTaskCreate(ota_task, "ota_task", 8192, ota_url, 5, NULL);
 								ESP_LOGW(TAG, "RPC ota: %s", ota_url);
