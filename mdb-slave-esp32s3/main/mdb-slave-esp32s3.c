@@ -17,6 +17,10 @@
 #include <esp_log.h>
 #include <esp_system.h>
 #include <esp_app_desc.h>
+#include <esp_ota_ops.h>
+#include <esp_https_ota.h>
+#include <esp_http_client.h>
+#include <esp_crt_bundle.h>
 #include <esp_event.h>
 #include <esp_netif.h>
 #include <esp_timer.h>
@@ -528,6 +532,8 @@ void mdb_cashless_task(void *pvParameters) {
  *     echo             reply <ts> on .../rpc/echo (liveness + RTT probe)
  *     buzzer           1s beep
  *     restart          ack on .../rpc/restart, then reboot
+ *     ota[:<tag>]      pull app image from GitHub release (latest, or pinned tag)
+ *                      over HTTPS; progress on .../rpc/ota, then reboot
  *
  * Outbound — signed text "<fields>:<ts>:<hmac_hex>":
  *     sale  "<price>:<item>:<ts>:<hmac>"  on  .../sale
@@ -762,6 +768,39 @@ static void rpc_sign_text(const char *msg, char *out, size_t out_sz) {
 	snprintf(out, out_sz, "%s:%s", msg, hex);
 }
 
+// OTA worker: pulls the app image from a GitHub release asset over HTTPS,
+// writes the inactive slot, then reboots. Runs in its own task because the
+// download blocks for tens of seconds and must not stall the MQTT handler.
+static void ota_task(void *arg) {
+	const char *url = (const char *) arg;
+	char topic[64];
+	snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
+
+	esp_http_client_config_t http_cfg = {
+		.url = url,
+		.crt_bundle_attach = esp_crt_bundle_attach,  // GitHub redirects to objects.githubusercontent.com (S3)
+		.timeout_ms = 30000,
+		.keep_alive_enable = true,
+	};
+	esp_https_ota_config_t ota_cfg = {
+		.http_config = &http_cfg,
+	};
+
+	esp_err_t err = esp_https_ota(&ota_cfg);
+	if (err == ESP_OK) {
+		ESP_LOGW(TAG, "OTA success, rebooting");
+		esp_mqtt_client_publish(mqtt_client, topic, "ok-rebooting", 0, 1, 0);
+		vTaskDelay(pdMS_TO_TICKS(1000));
+		esp_restart();
+	} else {
+		char msg[64];
+		snprintf(msg, sizeof(msg), "fail:%s", esp_err_to_name(err));
+		ESP_LOGE(TAG, "OTA failed: %s", esp_err_to_name(err));
+		esp_mqtt_client_publish(mqtt_client, topic, msg, 0, 1, 0);
+		vTaskDelete(NULL);
+	}
+}
+
 // Device snapshot (JSON) on .../rpc/info for AI agents to consume.
 static void rpc_publish_info(void) {
 	const esp_app_desc_t *app = esp_app_get_description();
@@ -806,6 +845,17 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		esp_mqtt_client_publish(mqtt_client, topic_, "online", 0, 1, 1);
 
         xEventGroupSetBits(xLedEventGroup, BIT_STATUS_INTERNET | BIT_STATUS_TRIGGER);
+
+		// Reached broker on the new image -> confirm it so rollback won't revert.
+		{
+			const esp_partition_t *running = esp_ota_get_running_partition();
+			esp_ota_img_states_t ota_state;
+			if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK &&
+				ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+				esp_ota_mark_app_valid_cancel_rollback();
+				ESP_LOGI(TAG, "OTA image marked valid");
+			}
+		}
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
@@ -890,6 +940,22 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 								ESP_LOGW(TAG, "RPC restart requested");
 								vTaskDelay(pdMS_TO_TICKS(500));
 								esp_restart();
+							} else if (strcmp(cmd, "ota") == 0) {
+								// "ota" -> latest release; "ota:<tag>" -> pinned tag.
+								static char ota_url[160];
+								if (args != NULL && args[0] != '\0')
+									snprintf(ota_url, sizeof(ota_url),
+										"https://github.com/nodestark/mdb-esp32-cashless/releases/download/%s/mdb-slave-esp32s3.bin", args);
+								else
+									snprintf(ota_url, sizeof(ota_url),
+										"https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
+
+								char otopic[64];
+								snprintf(otopic, sizeof(otopic), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
+								esp_mqtt_client_publish(mqtt_client, otopic, "started", 0, 1, 0);
+
+								xTaskCreate(ota_task, "ota_task", 8192, ota_url, 5, NULL);
+								ESP_LOGW(TAG, "RPC ota: %s", ota_url);
 							} else {
 								ESP_LOGW(TAG, "RPC unknown command: %s", cmd);
 							}

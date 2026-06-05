@@ -421,7 +421,7 @@ CONFIG_BOOTLOADER_PROJECT_VER=1
 #
 # Application Rollback
 #
-# CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE is not set
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 # end of Application Rollback
 
 #

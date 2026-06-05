@@ -1,0 +1,34 @@
+name: firmware-release
+
+# Tag push (vX.Y.Z) -> build the ESP32-S3 app and attach the .bin to the GitHub
+# release. The device pulls this asset over HTTPS via the RPC "ota" command.
+# ESP-IDF derives the app version from `git describe`, so the tag becomes the
+# firmware version reported in rpc/info.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history so `git describe` sees the tag
+
+      - name: Build firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.3
+          target: esp32s3
+          path: mdb-slave-esp32s3
+
+      - name: Publish release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mdb-slave-esp32s3/build/mdb-slave-esp32s3.bin

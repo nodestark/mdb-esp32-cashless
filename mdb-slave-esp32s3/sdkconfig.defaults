@@ -1,0 +1,7 @@
+# OTA: two-slot layout + rollback so a bad image auto-reverts on next boot.
+CONFIG_PARTITION_TABLE_TWO_OTA_LARGE=y
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# TLS for HTTPS OTA from GitHub release assets (redirects to S3).
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
