@@ -43,8 +43,6 @@ def verify_signed_line(passkey: str, line: str):
 role_key = os.environ.get('SERVICE_ROLE_KEY')
 
 supabaseUrl = os.environ.get('SUPABASE_PUBLIC_URL')
-print(supabaseUrl)
-print(role_key)
 supabase: Client = create_client(supabaseUrl, role_key)
 
 

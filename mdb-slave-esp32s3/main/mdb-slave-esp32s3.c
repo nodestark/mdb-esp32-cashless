@@ -20,7 +20,6 @@
 #include <esp_event.h>
 #include <esp_netif.h>
 #include <esp_timer.h>
-#include <esp_random.h>
 #include <nvs_flash.h>
 #include <rom/ets_sys.h>
 #include <driver/gpio.h>
@@ -52,15 +51,13 @@
 #define PIN_SIM7080G_PWR    GPIO_NUM_14
 #define PIN_BUZZER_PWR      GPIO_NUM_12
 
-// Functions for scale factor conversion
-#define TO_SCALE_FACTOR(p, scale_to, dec_to) (p / scale_to / pow(10, -(dec_to) ))               // Converts to scale factor
-#define FROM_SCALE_FACTOR(p, scale_from, dec_from) (p * scale_from * pow(10, -(dec_from) ))     // Converts from scale factor
+#define TO_SCALE_FACTOR(p, scale_to, dec_to) (p / scale_to / pow(10, -(dec_to) ))
+#define FROM_SCALE_FACTOR(p, scale_from, dec_from) (p * scale_from * pow(10, -(dec_from) ))
 
-#define ACK 	0x00  // Acknowledgment / Checksum correct
-#define RET 	0xAA  // Retransmit previously sent data. Only VMC can send this
-#define NAK 	0xFF  // Negative acknowledgment
+#define ACK 	0x00
+#define RET 	0xAA
+#define NAK 	0xFF
 
-// Bit masks for MDB operations
 #define BIT_MODE_SET 	0b100000000
 #define BIT_ADD_SET   	0b011111000
 #define BIT_CMD_SET   	0b000000111
@@ -87,10 +84,9 @@ EventGroupHandle_t xInternetEventGroup;
 static uint8_t wifi_retry_count = 0;
 
 char my_subdomain[32];
-#define PASSKEY_LEN 18                  // passkey length in bytes (HMAC key)
-char my_passkey[PASSKEY_LEN + 1];       // +1 for NUL: strlen()/nvs_get_str() need a terminator
+#define PASSKEY_LEN 18
+char my_passkey[PASSKEY_LEN + 1];
 
-// Defining MDB commands as an enum
 enum MDB_COMMAND_FLOW {
 	RESET       = 0x00,
 	SETUP       = 0x01,
@@ -100,12 +96,10 @@ enum MDB_COMMAND_FLOW {
 	EXPANSION   = 0x07
 };
 
-// Defining MDB setup flow
 enum MDB_SETUP_FLOW {
 	CONFIG_DATA = 0x00, MAX_MIN_PRICES = 0x01
 };
 
-// Defining MDB vending flow
 enum MDB_VEND_FLOW {
 	VEND_REQUEST        = 0x00,
 	VEND_CANCEL         = 0x01,
@@ -115,28 +109,24 @@ enum MDB_VEND_FLOW {
 	CASH_SALE           = 0x05
 };
 
-// Defining MDB reader flow
 enum MDB_READER_FLOW {
 	READER_DISABLE  = 0x00,
 	READER_ENABLE   = 0x01,
 	READER_CANCEL   = 0x02
 };
 
-// Defining MDB expansion flow
 enum MDB_EXPANSION_FLOW {
 	REQUEST_ID = 0x00, DIAGNOSTICS = 0xFF
 };
 
-// Defining machine states
 typedef enum MACHINE_STATE {
 	INACTIVE_STATE, DISABLED_STATE, ENABLED_STATE, IDLE_STATE, VEND_STATE
 } machine_state_t;
 
-machine_state_t machine_state = INACTIVE_STATE; // Initial machine state
+machine_state_t machine_state = INACTIVE_STATE;
 
 led_strip_handle_t led_strip;
 
-// MDB Control flags
 bool session_begin_todo = false;
 bool session_cancel_todo = false;
 bool session_end_todo = false;
@@ -145,45 +135,37 @@ bool vend_denied_todo = false;
 bool cashless_reset_todo = false;
 bool out_of_sequence_todo = false;
 
-// Last completed sale (captured at VEND_SUCCESS), exposed over RPC.
 uint16_t last_sale_price = 0;
 uint16_t last_sale_item = 0;
 
-// Epoch of the last successful vend, and count of failed vends since boot.
 time_t   last_vend_success_time = 0;
 uint32_t vend_fail_count = 0;
 
-// RPC command accepted only if its timestamp is within this many seconds of now.
 #define RPC_FRESHNESS_SEC 10
 
-// MQTT client handle
 esp_mqtt_client_handle_t mqtt_client = NULL;
 
-// Message queues for communication
 static QueueHandle_t mdb_session_queue = NULL;
 static QueueHandle_t mdb_rx_queue;
 
 void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload);
 esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload);
-void calcular_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac);
+void calculate_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac);
 static void rpc_sign_text(const char *msg, char *out, size_t out_sz);
 
 static void IRAM_ATTR mdb_rx_falling_isr(void *arg) {
-    // Disable interrupt for this pin to prevent re-triggering on data bits (0)
     gpio_intr_disable(PIN_MDB_RX);
 
     uint16_t coming_read = 0x0000;
 
-    // Wait start bit
     ets_delay_us(156);
 
     for (int x = 0; x < 9; x++) {
         coming_read |= (gpio_get_level(PIN_MDB_RX) << x);
-        ets_delay_us(104); // 9600bps
+        ets_delay_us(104);
     }
     xQueueSendFromISR(mdb_rx_queue, &coming_read, NULL);
 
-    // Re-enable interrupt for the next byte
     gpio_intr_enable(PIN_MDB_RX);
 }
 
@@ -198,29 +180,26 @@ uint16_t read_9(uint8_t *checksum) {
 }
 
 void write_9(uint16_t nth9) {
-    gpio_set_level(PIN_MDB_TX, 0);  // Start bit
-    ets_delay_us(104);              // 9600bps
+    gpio_set_level(PIN_MDB_TX, 0);
+    ets_delay_us(104);
 
 	for (uint8_t x = 0; x < 9; x++) {
 		gpio_set_level(PIN_MDB_TX, (nth9 >> x) & 1);
-		ets_delay_us(104);          // 9600bps
+		ets_delay_us(104);
 	}
 
-    gpio_set_level(PIN_MDB_TX, 1);  // Stop bit
-    ets_delay_us(104);              // 9600bps
+    gpio_set_level(PIN_MDB_TX, 1);
+    ets_delay_us(104);
 }
 
-// Function to transmit the payload via bit-banging (using MDB protocol)
 void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 	uint8_t checksum = 0x00;
 
-	// Calculate checksum
 	for (int x = 0; x < length; x++) {
 		checksum += mdb_payload[x];
 		write_9(mdb_payload[x]);
 	}
 
-	// CHK* ACK*
 	write_9(BIT_MODE_SET | checksum);
 }
 void mdb_cashless_task(void *pvParameters) {
@@ -230,34 +209,24 @@ void mdb_cashless_task(void *pvParameters) {
 	uint16_t item_price = 0;
 	uint16_t item_number = 0;
 
-	// Payload buffer and available transmission flag
 	uint8_t mdb_payload[36];
 	uint8_t available_tx = 0;
 
 	for (;;) {
-		// In the MDB (Multi-Drop Bus) protocol, the last byte of a command or data packet is a checksum.
 		uint8_t checksum = 0x00;
 
-		// Read from MDB and check if the mode bit is set
 		uint16_t coming_read = read_9(&checksum);
 
 		if (coming_read & BIT_MODE_SET) {
 			if ((uint8_t) coming_read == ACK) {
-				// ACK
 			} else if ((uint8_t) coming_read == RET) {
-				// RET
 			} else if ((uint8_t) coming_read == NAK) {
-				// NAK
 			} else if ((coming_read & BIT_ADD_SET) == CONFIG_CASHLESS_DEVICE_ADDRESS) {
-				// Reset transmission availability
 				available_tx = 0;
 
-				// Command decoding based on incoming data
 				switch (coming_read & BIT_CMD_SET) {
 				case RESET: {
                     if (read_9(NULL) != checksum) continue;
-
-                    // Reset during VEND_STATE is interpreted as VEND_SUCCESS
 
 					cashless_reset_todo = true;
 					machine_state = INACTIVE_STATE;
@@ -285,17 +254,15 @@ void mdb_cashless_task(void *pvParameters) {
 
 						machine_state = DISABLED_STATE;
 
-                        mdb_payload[0] = 0x01;                                  // Reader Config Data
-                        mdb_payload[1] = 1;                                     // Reader Feature Level
-						mdb_payload[2] = CONFIG_MDB_CURRENCY_CODE >> 8;         // Country Code High
-						mdb_payload[3] = CONFIG_MDB_CURRENCY_CODE & 0xff;       // Country Code Low
-						mdb_payload[4] = CONFIG_MDB_SCALE_FACTOR;               // Scale Factor
-						mdb_payload[5] = CONFIG_MDB_DECIMAL_PLACES;             // Decimal Places
-						mdb_payload[6] = 3;                                     // Maximum Response Time (5s)
-						mdb_payload[7] = 0b00001001;                            // Miscellaneous Options
+                        mdb_payload[0] = 0x01;
+                        mdb_payload[1] = 1;
+						mdb_payload[2] = CONFIG_MDB_CURRENCY_CODE >> 8;
+						mdb_payload[3] = CONFIG_MDB_CURRENCY_CODE & 0xff;
+						mdb_payload[4] = CONFIG_MDB_SCALE_FACTOR;
+						mdb_payload[5] = CONFIG_MDB_DECIMAL_PLACES;
+						mdb_payload[6] = 3;
+						mdb_payload[7] = 0b00001001;
 						available_tx = 8;
-
-						// idf.py menuconfig -> "MDB Cashless Device"
 
 						ESP_LOGI( TAG, "CONFIG_DATA");
 						break;
@@ -320,13 +287,11 @@ void mdb_cashless_task(void *pvParameters) {
 				    if (read_9(NULL) != checksum) continue;
 
 					if (cashless_reset_todo) {
-						// Just reset
 						cashless_reset_todo = false;
 						mdb_payload[0] = 0x00;
 						available_tx = 1;
 
 					} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdb_session_queue, &funds_available, 0)) {
-						// Begin session
 						session_begin_todo = false;
 
 						machine_state = IDLE_STATE;
@@ -339,14 +304,12 @@ void mdb_cashless_task(void *pvParameters) {
 						time( &session_begin_time);
 
 					} else if (session_cancel_todo) {
-						// Cancel session
 						session_cancel_todo = false;
 
 						mdb_payload[0] = 0x04;
 						available_tx = 1;
 
 					} else if (vend_approved_todo) {
-						// Vend approved
 						vend_approved_todo = false;
 
 						mdb_payload[0] = 0x05;
@@ -355,7 +318,6 @@ void mdb_cashless_task(void *pvParameters) {
 						available_tx = 3;
 
 					} else if (vend_denied_todo) {
-						// Vend denied
 						vend_denied_todo = false;
 
 						mdb_payload[0] = 0x06;
@@ -363,7 +325,6 @@ void mdb_cashless_task(void *pvParameters) {
 						machine_state = IDLE_STATE;
 
 					} else if (session_end_todo) {
-						// End session
 						session_end_todo = false;
 
 						mdb_payload[0] = 0x07;
@@ -371,7 +332,6 @@ void mdb_cashless_task(void *pvParameters) {
 						machine_state = ENABLED_STATE;
 
 					} else if (out_of_sequence_todo) {
-						// Command out of sequence
 						out_of_sequence_todo = false;
 
 						mdb_payload[0] = 0x0b;
@@ -380,7 +340,7 @@ void mdb_cashless_task(void *pvParameters) {
 					} else {
 						time_t now = time(NULL);
 
-						if (machine_state >= IDLE_STATE && (now - session_begin_time /*elapsed*/) > 60 /*60 sec*/) {
+						if (machine_state >= IDLE_STATE && (now - session_begin_time) > 60) {
 							session_cancel_todo = true;
 						}
 					}
@@ -405,7 +365,6 @@ void mdb_cashless_task(void *pvParameters) {
                             }
                         }
 
-						/* PIPE_BLE */
 						uint8_t payload[19];
 						ble_encode_with_passkey(0x0a, item_price, item_number, payload);
 
@@ -431,7 +390,6 @@ void mdb_cashless_task(void *pvParameters) {
 						last_sale_item  = item_number;
 						last_vend_success_time = time(NULL);
 
-						/* PIPE_BLE */
 						uint8_t payload[19];
 						ble_encode_with_passkey(0x0b, item_price, item_number, payload);
 
@@ -447,7 +405,6 @@ void mdb_cashless_task(void *pvParameters) {
 
 						vend_fail_count++;
 
-					    /* PIPE_BLE */
 						uint8_t payload[19];
 						ble_encode_with_passkey(0x0c, item_price, item_number, payload);
 
@@ -459,7 +416,6 @@ void mdb_cashless_task(void *pvParameters) {
 
 						session_end_todo = true;
 
-			            /* PIPE_BLE */
 						uint8_t payload[19];
 						ble_encode_with_passkey(0x0d, item_price, item_number, payload);
 
@@ -474,7 +430,6 @@ void mdb_cashless_task(void *pvParameters) {
 
 						if (read_9(NULL) != checksum) continue;
 
-                        // Signed wire line "<price>:<item>:<ts>:<hmac>" (price scaled to 1/100 units).
                         uint32_t price_wire = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
                         char msg[64], line[160], topic[64];
@@ -502,7 +457,6 @@ void mdb_cashless_task(void *pvParameters) {
                         xEventGroupClearBits(xLedEventGroup, BIT_STATUS_MDB);
                         xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
-						// ESP_LOGI( TAG, "READER_DISABLE");
 						break;
 					}
 					case READER_ENABLE: {
@@ -512,13 +466,12 @@ void mdb_cashless_task(void *pvParameters) {
 
                         xEventGroupSetBits(xLedEventGroup, BIT_STATUS_MDB | BIT_STATUS_TRIGGER);
 
-						// ESP_LOGI( TAG, "READER_ENABLE");
 						break;
 					}
 					case READER_CANCEL: {
                         if (read_9(NULL) != checksum) continue;
 
-						mdb_payload[ 0 ] = 0x08; // Canceled
+						mdb_payload[ 0 ] = 0x08;
 						available_tx = 1;
 
 						ESP_LOGI( TAG, "READER_CANCEL");
@@ -531,21 +484,16 @@ void mdb_cashless_task(void *pvParameters) {
 				case EXPANSION: {
 					switch (read_9(&checksum)) {
 					case REQUEST_ID: {
-                        /*char manufacturer_code[3];
-                        char serial_number[12];
-                        char model_number[12];
-                        char software_version[2];*/
-
-					    for(uint8_t x= 0; x < 29; x++) read_9(&checksum); // ...drop
+					    for(uint8_t x= 0; x < 29; x++) read_9(&checksum);
 
 				        if (read_9(NULL) != checksum) continue;
 
-                        mdb_payload[ 0 ] = 0x09;                        // Peripheral ID
+                        mdb_payload[ 0 ] = 0x09;
 
-                        memcpy( &mdb_payload[1], "VMF", 3);             // Manufacture code
-                        memcpy( &mdb_payload[4], "            ", 12);   // Serial number
-                        memcpy( &mdb_payload[16], "            ", 12);  // Model number
-                        mdb_payload[28] = 0x00;                         // Software version v3
+                        memcpy( &mdb_payload[1], "VMF", 3);
+                        memcpy( &mdb_payload[4], "            ", 12);
+                        memcpy( &mdb_payload[16], "            ", 12);
+                        mdb_payload[28] = 0x00;
                         mdb_payload[29] = 0x03;
 
                         available_tx = 30;
@@ -559,52 +507,43 @@ void mdb_cashless_task(void *pvParameters) {
 				}
 				}
 
-				// Transmit the prepared payload via bit-banging
 				write_payload_9(mdb_payload, available_tx);
 
 			} else {
-				// Not the intended address...
 			}
 		}
 	}
 }
 
 /*
- * VMflow BLE wire payload — 19 bytes, plaintext fields authenticated by a
- * 4-byte truncated HMAC tag. (BLE only; the MQTT channel uses signed-text
- * envelopes, see below.)
+ * Agent-facing interfaces (MQTT, every message signed with the per-device passkey).
  *
- *   0        CMD    — opcode (see below)
- *   1– 4     PRICE  — uint32, item price (scale factor applied)
- *   5– 6     ITEM   — uint16, item number
- *   7–10     TIME   — uint32, Unix timestamp (seconds)
- *   11–14    —      — random filler (esp_fill_random)
- *   15–18    TAG    — HMAC-SHA256(passkey, bytes 0–14)[:4]
+ * Inbound RPC — topic <sub>.vmflow.xyz/rpc, payload "<cmd>[:<args>]:<ts>:<hmac_hex>".
+ *   hmac = HMAC-SHA256(passkey, everything-before-the-last-colon) in lowercase hex;
+ *   <ts> is Unix seconds, accepted only within RPC_FRESHNESS_SEC. Commands:
+ *     dex              trigger an on-demand DEX/telemetry read
+ *     info             publish device snapshot JSON on .../rpc/info
+ *     credit:<amount>  grant credit (amount scaled to 1/100 units)
+ *     oos              send MDB "command out of sequence" to the VMC
+ *     echo             reply <ts> on .../rpc/echo (liveness + RTT probe)
+ *     buzzer           1s beep
+ *     restart          ack on .../rpc/restart, then reboot
  *
- * BLE opcodes (HMAC-tagged payload):
- *   BLE ← app   0x00 SUBDOMAIN     0x01 PASSKEY  0x02 START_SESSION
- *               0x03 APPROVE       0x04 CLOSE_SESSION
- *               0x06 WIFI_SSID     0x07 WIFI_PASSWORD
- *   BLE → app   0x0A VEND_REQUEST  0x0B VEND_SUCCESS
- *               0x0C VEND_FAILURE  0x0D SESSION_COMPLETE
+ * Outbound — signed text "<fields>:<ts>:<hmac_hex>":
+ *     sale  "<price>:<item>:<ts>:<hmac>"  on  .../sale
+ *     pax   "<count>:<ts>:<hmac>"         on  .../paxcounter
  *
- * MQTT channel — signed-text envelopes "<fields>:<ts>:<hmac_hex>", HMAC-SHA256
- * keyed with the device passkey over everything before the last colon, <ts>
- * within RPC_FRESHNESS_SEC. (No XOR; replaces former opcodes 0x20/0x21/0x22.)
- *   MQTT ← srv  rpc "credit:<amount>:<ts>:<hmac>"  on  <sub>.vmflow.xyz/rpc
- *   MQTT → srv  sale "<price>:<item>:<ts>:<hmac>"  on  .../sale
- *               pax  "<count>:<ts>:<hmac>"         on  .../paxcounter
+ * BLE wire payload (phone app) — 19 bytes:
+ *   [0] CMD | [1-4] PRICE u32 | [5-6] ITEM u16 | [7-10] TIME u32 |
+ *   [11-14] reserved=0 | [15-18] HMAC-SHA256(passkey, bytes 0-14)[:4]
  */
-
-// Decode/verify a BLE payload: plaintext fields 0..14 authenticated by a 4-byte
-// truncated HMAC tag in bytes 15..18 (= HMAC-SHA256(passkey, payload[0..14])[:4]).
 esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload) {
 	unsigned char hmac[32];
-	calcular_hmac((const char*) payload, 15, hmac);
+	calculate_hmac((const char*) payload, 15, hmac);
 
 	uint8_t diff = 0;
 	for(int x = 0; x < 4; x++){
-		diff |= hmac[x] ^ payload[15 + x];   // constant-time compare
+		diff |= hmac[x] ^ payload[15 + x];
 	}
 
     if(diff != 0){
@@ -618,7 +557,7 @@ esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, u
 
     time_t now = time(NULL);
 
-    if( abs((int32_t) now - timestamp) > 8 /*sec*/){
+    if( abs((int32_t) now - timestamp) > 8 ){
         return ESP_ERR_TIMEOUT;
     }
 
@@ -636,32 +575,31 @@ esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, u
     return ESP_OK;
 }
 
-// Encode a BLE payload: plaintext fields 0..14, then a 4-byte truncated HMAC
-// tag in bytes 15..18 (= HMAC-SHA256(passkey, payload[0..14])[:4]).
 void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload) {
     uint32_t item_price_32 = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
-
-	esp_fill_random(payload, 19);   // bytes 11..14 stay as random filler
 
 	time_t now = time(NULL);
 
     payload[0] = cmd;
 
-	payload[1] = item_price_32 >> 24;     // item_price
+	payload[1] = item_price_32 >> 24;
     payload[2] = item_price_32 >> 16;
 	payload[3] = item_price_32 >> 8;
 	payload[4] = item_price_32;
-	payload[5] = item_number >> 8;	    // item_number
+	payload[5] = item_number >> 8;
 	payload[6] = item_number;
-	payload[7] = now >> 24;		        // time (sec)
+	payload[7] = now >> 24;
 	payload[8] = now >> 16;
 	payload[9] = now >> 8;
 	payload[10] = now;
-	// 11..14 random filler (from esp_fill_random)
+	payload[11] = 0;
+	payload[12] = 0;
+	payload[13] = 0;
+	payload[14] = 0;
 
 	unsigned char hmac[32];
-	calcular_hmac((const char*) payload, 15, hmac);
-	memcpy(payload + 15, hmac, 4);        // truncated HMAC tag
+	calculate_hmac((const char*) payload, 15, hmac);
+	memcpy(payload + 15, hmac, 4);
 }
 
 void led_status_task(void *pvParameters) {
@@ -669,13 +607,13 @@ void led_status_task(void *pvParameters) {
         EventBits_t uxBits = xEventGroupWaitBits(xLedEventGroup, BIT_STATUS_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY );
 
         if ((uxBits & MASK_STATUS_INSTALLED) != MASK_STATUS_INSTALLED) {
-            led_strip_set_pixel(led_strip, 0, 80, 60, 0);   // Not installed := YELLOW
+            led_strip_set_pixel(led_strip, 0, 80, 60, 0);
         } else if ((uxBits & BIT_STATUS_MDB) && (uxBits & BIT_STATUS_INTERNET)) {
-            led_strip_set_pixel(led_strip, 0, 10, 80, 10);  // MDB & Internet := GREEN
+            led_strip_set_pixel(led_strip, 0, 10, 80, 10);
         } else if (uxBits & BIT_STATUS_MDB) {
-            led_strip_set_pixel(led_strip, 0, 5, 15, 80);   // Only MDB := BLUE
+            led_strip_set_pixel(led_strip, 0, 5, 15, 80);
         } else {
-            led_strip_set_pixel(led_strip, 0, 80, 5, 5);    // Inactive/Disabled := RED
+            led_strip_set_pixel(led_strip, 0, 80, 5, 5);
         }
         led_strip_refresh(led_strip);
 
@@ -690,7 +628,6 @@ void led_status_task(void *pvParameters) {
 }
 
 void ble_pax_event_handler(uint16_t devices_count){
-    // Signed wire line "<count>:<ts>:<hmac>".
     char msg[48], line[128], topic[64];
     snprintf(msg, sizeof(msg), "%u:%lld", devices_count, (long long) time(NULL));
     rpc_sign_text(msg, line, sizeof(line));
@@ -746,21 +683,20 @@ void ble_event_handler(char *ble_payload) {
 
         break;
     }
-    case 0x02: /*Starting a vending session*/
+    case 0x02:
         uint16_t funds_available = 0xffff;
-		xQueueSend(mdb_session_queue, &funds_available, 0 /*if full, do not wait*/);
+		xQueueSend(mdb_session_queue, &funds_available, 0);
 		break;
-	case 0x03: /*Approve the vending session*/
+	case 0x03:
 
         if(ble_decode_with_passkey(NULL, NULL, (uint8_t*) ble_payload) == ESP_OK){
             vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
         }
         break;
-    case 0x04: /*Close the vending session*/
+    case 0x04:
     	session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
         break;
     case 0x05:
-        // Not implemented
         break;
     case 0x06: {
         esp_wifi_disconnect();
@@ -789,8 +725,7 @@ void ble_event_handler(char *ble_payload) {
 	}
 }
 
-// HMAC-SHA256 of payload, keyed with the per-device passkey. output_hmac = 32 bytes.
-void calcular_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac) {
+void calculate_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac) {
 	const char *key = my_passkey;
 	size_t key_len = strlen(my_passkey);
 
@@ -805,10 +740,9 @@ void calcular_hmac(const char *payload, size_t payload_len, unsigned char *outpu
 	mbedtls_md_free(&ctx);
 }
 
-// Recompute HMAC over msg and compare with the received lowercase-hex signature.
 static bool rpc_verify_hmac(const char *msg, size_t msg_len, const char *sig_hex) {
 	unsigned char hmac[32];
-	calcular_hmac(msg, msg_len, hmac);
+	calculate_hmac(msg, msg_len, hmac);
 
 	char hex[65];
 	for (int i = 0; i < 32; i++)
@@ -817,11 +751,9 @@ static bool rpc_verify_hmac(const char *msg, size_t msg_len, const char *sig_hex
 	return strcmp(hex, sig_hex) == 0;
 }
 
-// Build the signed wire line "<msg>:<hmac_hex>" for an outbound MQTT message.
-// out must hold strlen(msg) + 1 (colon) + 64 (hex) + 1 (NUL).
 static void rpc_sign_text(const char *msg, char *out, size_t out_sz) {
 	unsigned char hmac[32];
-	calcular_hmac(msg, strlen(msg), hmac);
+	calculate_hmac(msg, strlen(msg), hmac);
 
 	char hex[65];
 	for (int i = 0; i < 32; i++)
@@ -830,25 +762,14 @@ static void rpc_sign_text(const char *msg, char *out, size_t out_sz) {
 	snprintf(out, out_sz, "%s:%s", msg, hex);
 }
 
-static const char *machine_state_str(machine_state_t s) {
-	switch (s) {
-	case INACTIVE_STATE: return "INACTIVE";
-	case DISABLED_STATE: return "DISABLED";
-	case ENABLED_STATE:  return "ENABLED";
-	case IDLE_STATE:     return "IDLE";
-	case VEND_STATE:     return "VEND";
-	default:             return "OTHER";
-	}
-}
-
-// Publish a device snapshot (JSON) to .../rpc/info for AI agents to consume.
+// Device snapshot (JSON) on .../rpc/info for AI agents to consume.
 static void rpc_publish_info(void) {
 	const esp_app_desc_t *app = esp_app_get_description();
 
 	char json[256];
 	int n = snprintf(json, sizeof(json),
 		"{\"version\":\"%s\",\"uptime_s\":%lld,\"reset_reason\":%d,"
-		"\"free_heap\":%lu,\"min_free_heap\":%lu,\"machine_state\":\"%s\","
+		"\"free_heap\":%lu,\"min_free_heap\":%lu,\"machine_state\":%d,"
 		"\"last_sale_price\":%u,\"last_sale_item\":%u,"
 		"\"last_vend_success_time\":%lld,\"vend_fail_count\":%lu}",
 		app->version,
@@ -856,7 +777,7 @@ static void rpc_publish_info(void) {
 		(int) esp_reset_reason(),
 		(unsigned long) esp_get_free_heap_size(),
 		(unsigned long) esp_get_minimum_free_heap_size(),
-		machine_state_str(machine_state),
+		(int) machine_state,
 		last_sale_price, last_sale_item,
 		(long long) last_vend_success_time,
 		(unsigned long) vend_fail_count);
@@ -908,9 +829,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 	    ESP_LOGI(TAG, "MQTT data topic=%.*s len=%d data=%.*s", event->topic_len, event->topic, event->data_len, event->data_len, event->data);
 
-		// RPC: payload "<cmd>[:<args>]:<ts>:<hmac_hex>". HMAC (device passkey) covers
-		// everything before the last colon. Accepted only if <ts> is within
-		// RPC_FRESHNESS_SEC of the current time.
 		if (event->topic_len > 4 && strncmp(event->topic + event->topic_len - 4, "/rpc", 4) == 0) {
 			char buf[128];
 			int len = event->data_len < (int) sizeof(buf) - 1 ? event->data_len : (int) sizeof(buf) - 1;
@@ -919,17 +837,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 			char *sig = strrchr(buf, ':');
 			if (sig != NULL) {
-				*sig++ = '\0';   // buf now holds the signed part "<cmd>[:<args>]:<ts>"
+				*sig++ = '\0';
 
 				if (rpc_verify_hmac(buf, strlen(buf), sig)) {
-					// cmd = first field, ts = last field, args = everything in between.
-					char *first = strchr(buf, ':');
-					char *last  = strrchr(buf, ':');
-					if (first != NULL) {
+					char *last = strrchr(buf, ':');
+					if (last != NULL) {
 						char *ts_str = last + 1;
-						char *args   = (first == last) ? NULL : first + 1;
-						*first = '\0';          // terminate cmd
-						if (args) *last = '\0'; // terminate args
+						*last = '\0';
+						char *args = strchr(buf, ':');
+						if (args != NULL) *args++ = '\0';
 						const char *cmd = buf;
 
 						time_t ts  = (time_t) strtoll(ts_str, NULL, 10);
@@ -945,11 +861,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 								rpc_publish_info();
 								ESP_LOGI(TAG, "RPC info published");
 							} else if (strcmp(cmd, "credit") == 0 && args != NULL) {
-								// Grant credit. args = amount scaled to 1/100 units.
 								int32_t price_wire = (int32_t) strtol(args, NULL, 10);
 								uint16_t funds_available = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(price_wire, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES);
 
-								xQueueSend(mdb_session_queue, &funds_available, 0 /*if full, do not wait*/);
+								xQueueSend(mdb_session_queue, &funds_available, 0);
 								xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 
 								char ctopic[64];
@@ -958,21 +873,17 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 								ESP_LOGI( TAG, "RPC credit: Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 							} else if (strcmp(cmd, "oos") == 0) {
-								// Send an MDB "command out of sequence" to the VMC.
 								out_of_sequence_todo = true;
 								ESP_LOGI(TAG, "RPC out-of-sequence queued");
 							} else if (strcmp(cmd, "echo") == 0) {
-								// Reply with the request timestamp: liveness + RTT probe.
 								char etopic[64];
 								snprintf(etopic, sizeof(etopic), "domain.vmflow.xyz/%s/rpc/echo", my_subdomain);
 								esp_mqtt_client_publish(mqtt_client, etopic, ts_str, 0, 1, 0);
 								ESP_LOGI(TAG, "RPC echo");
 							} else if (strcmp(cmd, "buzzer") == 0) {
-								// Sound the buzzer (1s beep, handled by led_status_task).
 								xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 								ESP_LOGI(TAG, "RPC buzzer triggered");
 							} else if (strcmp(cmd, "restart") == 0) {
-								// Ack first, give MQTT a moment to flush, then reboot.
 								char rtopic[64];
 								snprintf(rtopic, sizeof(rtopic), "domain.vmflow.xyz/%s/rpc/restart", my_subdomain);
 								esp_mqtt_client_publish(mqtt_client, rtopic, "ok", 0, 1, 0);
@@ -1059,7 +970,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 }
 
 static void sim7080g_pulse_power(void) {
-    /* transistor inverts: GPIO high → PWRKEY low on SIM7080G (active pulse) */
     gpio_set_level(PIN_SIM7080G_PWR, 1);
     vTaskDelay(pdMS_TO_TICKS(1200));
     gpio_set_level(PIN_SIM7080G_PWR, 0);
@@ -1068,13 +978,11 @@ static void sim7080g_pulse_power(void) {
     vTaskDelay(pdMS_TO_TICKS(5000));
 }
 
-/* Wait for EPS network registration (AT+CEREG: stat=1 home, stat=5 roaming) */
 static esp_err_t sim7080g_wait_registered(esp_modem_dce_t *dce) {
     char resp[64];
     for (int i = 0; i < 30; i++) {
         memset(resp, 0, sizeof(resp));
         esp_modem_at(dce, "AT+CEREG?", resp, 3000);
-        /* response: +CEREG: <n>,<stat> — stat 1=home, 5=roaming */
         if (strstr(resp, ",1") || strstr(resp, ",5")) {
             ESP_LOGI(TAG, "registered: %s", resp);
             return ESP_OK;
@@ -1091,8 +999,6 @@ void app_main(void) {
     gpio_set_direction(PIN_BUZZER_PWR, GPIO_MODE_OUTPUT);
 	gpio_set_level(PIN_BUZZER_PWR, 0);
 
-	//---------------- Strip LED configuration -----------------//
-	//----------------------------------------------------------//
     xLedEventGroup = xEventGroupCreate();
     xInternetEventGroup = xEventGroupCreate();
 
@@ -1106,7 +1012,7 @@ void app_main(void) {
 
     led_strip_rmt_config_t rmt_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT,
-        .resolution_hz = 10000000, // 10 MHz (1 tick = 0.1 µs)
+        .resolution_hz = 10000000,
         .mem_block_symbols = 64,
     };
     led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip);
@@ -1115,15 +1021,10 @@ void app_main(void) {
 
     xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
-	//---------------- UART1 - EVA DTS DEX/DDCMP ---------------//
-	//----------------------------------------------------------//
-	// DEX read is triggered on-demand via MQTT RPC (no periodic schedule).
 	telemetry_init();
 
-	//-------------------- NETWORK STACK -----------------------//
-	//----------------------------------------------------------//
 	nvs_flash_init();
-	//
+
 	esp_netif_init();
 	esp_event_loop_create_default();
 
@@ -1140,10 +1041,8 @@ void app_main(void) {
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_start();
 
-	//------------------------ BLUETOOTH -----------------------//
-	//----------------------------------------------------------//
 	char myhost[64];
-	strcpy(myhost, "0.vmflow.xyz"); // Default value
+	strcpy(myhost, "0.vmflow.xyz");
 
     nvs_handle_t handle;
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
@@ -1174,10 +1073,8 @@ void app_main(void) {
     esp_timer_create(&periodic_pax_timer_args, &periodic_pax_timer);
     esp_timer_start_periodic(periodic_pax_timer, PAX_SCAN_INTERVAL_US);
 
-    //------------------------ MAIN TASKS ----------------------//
-    //----------------------------------------------------------//
     gpio_set_direction(PIN_MDB_TX, GPIO_MODE_OUTPUT);
-    gpio_set_level(PIN_MDB_TX, 1);  // MDB idle = HIGH
+    gpio_set_level(PIN_MDB_TX, 1);
 
     mdb_rx_queue = xQueueCreate(16, sizeof(uint16_t));
 
@@ -1193,11 +1090,9 @@ void app_main(void) {
     gpio_install_isr_service(0);
     gpio_isr_handler_add(PIN_MDB_RX, mdb_rx_falling_isr, NULL);
 
-    mdb_session_queue = xQueueCreate(1 /*queue-length*/, sizeof(uint16_t));
+    mdb_session_queue = xQueueCreate(1, sizeof(uint16_t));
     xTaskCreate(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL);
 
-    //------------------- SIM7080g STACK -----------------------//
-	//----------------------------------------------------------//
     gpio_set_direction(PIN_SIM7080G_PWR, GPIO_MODE_OUTPUT);
     gpio_set_level(PIN_SIM7080G_PWR, 0);
 
@@ -1218,7 +1113,6 @@ void app_main(void) {
     esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7070, &dte_config, &dce_config, ppp_netif);
     assert(dce);
 
-    /* try sync — modem may already be on (flash/soft-reset) */
     esp_modem_set_mode(dce, ESP_MODEM_MODE_COMMAND);
 
     esp_err_t ret = esp_modem_sync(dce);
@@ -1248,33 +1142,18 @@ void app_main(void) {
 
         esp_err_t err = sim7080g_wait_registered(dce);
         if (err == ESP_OK) {
-            err = esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);            
+            err = esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
         }
     }
 
     (void) xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP | BIT_AT_GOT_IP, pdTRUE, pdFALSE, portMAX_DELAY );
 
-    //-------------------------- MQTT --------------------------//
-	//----------------------------------------------------------//
 	char lwt_topic[64];
 	snprintf(lwt_topic, sizeof(lwt_topic), "domain.vmflow.xyz/%s/status", my_subdomain);
 
 	const esp_mqtt_client_config_t mqtt_cfg = {
 		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
         .credentials = {
-            /* MQTT connection uses username/password authentication ONLY for broker ACL control.
-             * Transport is intentionally non-TLS to reduce overhead on constrained devices.
-             *
-             * Security model:
-             * - MQTT credentials are considered public / non-secret.
-             * - Broker acts as a routing layer, not a security boundary.
-             * - Broker ACLs limit publish/subscribe scope, reducing traffic amplification
-             *   and preserving essential network operation in case of credential exposure.
-             * - All application payloads are protected using a per-device XOR-based cipher,
-             *   with a secret provisioned at installation time.
-             * - Payload signing/obfuscation ensures basic integrity validation and
-             *   prevents trivial message injection without knowledge of the device secret.
-             */
              .username = "vmflow",
             .authentication.password = "vmflow"
         },
@@ -1282,8 +1161,8 @@ void app_main(void) {
 		.session.last_will.msg = "offline",
 		.session.last_will.qos = 1,
 		.session.last_will.retain = 1,
-		.session.keepalive = 120,          /* PING interval (s), default 120 */
-		.network.timeout_ms = 20000,       /* TCP read timeout (ms) */
+		.session.keepalive = 120,
+		.network.timeout_ms = 20000,
 		.network.reconnect_timeout_ms = 10000,
 	};
 
@@ -1292,7 +1171,6 @@ void app_main(void) {
 
     esp_mqtt_client_start(mqtt_client);
 
-    // sntp
     esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");
     esp_sntp_init();
