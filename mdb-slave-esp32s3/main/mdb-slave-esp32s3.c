@@ -778,9 +778,13 @@ static void ota_task(void *arg) {
 
 	esp_http_client_config_t http_cfg = {
 		.url = url,
-		.crt_bundle_attach = esp_crt_bundle_attach,  // GitHub redirects to objects.githubusercontent.com (S3)
+		.crt_bundle_attach = esp_crt_bundle_attach,  // GitHub redirects to release-assets.githubusercontent.com (S3)
 		.timeout_ms = 30000,
 		.keep_alive_enable = true,
+		// The S3 redirect target is a ~900-char signed URL; the default 512 B tx
+		// buffer can't hold the request line, yielding "HTTP_CLIENT: Out of buffer".
+		.buffer_size = 2048,
+		.buffer_size_tx = 4096,
 	};
 	esp_https_ota_config_t ota_cfg = {
 		.http_config = &http_cfg,
