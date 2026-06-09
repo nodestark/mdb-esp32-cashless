@@ -77,8 +77,8 @@ enum BIT_STATUS {
 };
 
 enum BIT_INTERNET {
-    BIT_PPP_GOT_IP         = (1 << 0),
-    BIT_AT_GOT_IP          = (1 << 1)
+    BIT_PPP_GOT_IP      = (1 << 0),
+    BIT_STA_GOT_IP      = (1 << 1)
 };
 
 EventGroupHandle_t xLedEventGroup;
@@ -1010,11 +1010,11 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
         case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
             ESP_LOGI(TAG, "wifi got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-            xEventGroupSetBits(xInternetEventGroup, BIT_AT_GOT_IP);
+            xEventGroupSetBits(xInternetEventGroup, BIT_STA_GOT_IP);
             break;
         }
         case IP_EVENT_STA_LOST_IP:
-            xEventGroupClearBits(xInternetEventGroup, BIT_AT_GOT_IP);
+            xEventGroupClearBits(xInternetEventGroup, BIT_STA_GOT_IP);
             ESP_LOGW(TAG, "wifi lost IP");
             break;
     }
@@ -1227,10 +1227,11 @@ void app_main(void) {
         esp_err_t err = sim7080g_wait_registered(dce);
         if (err == ESP_OK) {
             err = esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
+
         }
     }
 
-    (void) xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP | BIT_AT_GOT_IP, pdTRUE, pdFALSE, portMAX_DELAY );
+    (void) xEventGroupWaitBits(xInternetEventGroup, (ret == ESP_OK) ? BIT_PPP_GOT_IP | BIT_STA_GOT_IP : BIT_STA_GOT_IP, pdTRUE, pdTRUE, pdMS_TO_TICKS(90000) );
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
