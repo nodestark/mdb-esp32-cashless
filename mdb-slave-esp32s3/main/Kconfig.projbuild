@@ -1,3 +1,5 @@
+menu "VMflow"
+
 menu "MDB Cashless Device"
 
     choice
@@ -97,3 +99,5 @@ menu "SIM7080G"
         default "lf.br"
 
 endmenu # SIM7080G
+
+endmenu # VMflow

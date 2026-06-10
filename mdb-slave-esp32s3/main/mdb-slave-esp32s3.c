@@ -58,6 +58,20 @@
 #define TO_SCALE_FACTOR(p, scale_to, dec_to) (p / scale_to / pow(10, -(dec_to) ))
 #define FROM_SCALE_FACTOR(p, scale_from, dec_from) (p * scale_from * pow(10, -(dec_from) ))
 
+// Big-endian (de)serialization helpers for the BLE wire payload.
+static inline uint32_t read_u32(const uint8_t *p) {
+	return ((uint32_t) p[0] << 24) | ((uint32_t) p[1] << 16) | ((uint32_t) p[2] << 8) | p[3];
+}
+static inline uint16_t read_u16(const uint8_t *p) {
+	return ((uint16_t) p[0] << 8) | p[1];
+}
+static inline void write_u32(uint8_t *p, uint32_t v) {
+	p[0] = v >> 24; p[1] = v >> 16; p[2] = v >> 8; p[3] = v;
+}
+static inline void write_u16(uint8_t *p, uint16_t v) {
+	p[0] = v >> 8; p[1] = v;
+}
+
 #define ACK 	0x00
 #define RET 	0xAA
 #define NAK 	0xFF
@@ -554,10 +568,7 @@ esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, u
         return ESP_ERR_INVALID_CRC;
     }
 
-    int32_t timestamp = ((uint32_t) payload[7] << 24) |
-						((uint32_t) payload[8] << 16) |
-						((uint32_t) payload[9] << 8)  |
-						((uint32_t) payload[10] << 0);
+    int32_t timestamp = read_u32(&payload[7]);
 
     time_t now = time(NULL);
 
@@ -565,16 +576,13 @@ esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, u
         return ESP_ERR_TIMEOUT;
     }
 
-    int32_t item_price_32 = ((uint32_t) payload[1] << 24) |
-                            ((uint32_t) payload[2] << 16) |
-                            ((uint32_t) payload[3] << 8)  |
-                            ((uint32_t) payload[4] << 0);
+    int32_t item_price_32 = read_u32(&payload[1]);
 
     if(item_price)
         *item_price = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price_32, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES);
 
     if(item_number)
-        *item_number = ((uint16_t) payload[5] << 8) | ((uint16_t) payload[6] << 0);
+        *item_number = read_u16(&payload[5]);
 
     return ESP_OK;
 }
@@ -586,20 +594,10 @@ void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_num
 
     payload[0] = cmd;
 
-	payload[1] = item_price_32 >> 24;
-    payload[2] = item_price_32 >> 16;
-	payload[3] = item_price_32 >> 8;
-	payload[4] = item_price_32;
-	payload[5] = item_number >> 8;
-	payload[6] = item_number;
-	payload[7] = now >> 24;
-	payload[8] = now >> 16;
-	payload[9] = now >> 8;
-	payload[10] = now;
-	payload[11] = 0;
-	payload[12] = 0;
-	payload[13] = 0;
-	payload[14] = 0;
+	write_u32(&payload[1], item_price_32);
+	write_u16(&payload[5], item_number);
+	write_u32(&payload[7], (uint32_t) now);
+	write_u32(&payload[11], 0);
 
 	unsigned char hmac[32];
 	calculate_hmac((const char*) payload, 15, hmac);
@@ -812,17 +810,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         xEventGroupSetBits(xLedEventGroup, BIT_STATUS_INTERNET | BIT_STATUS_TRIGGER);
 
-		// Reached broker on the new image -> confirm it so rollback won't revert.
-		{
-			const esp_partition_t *running = esp_ota_get_running_partition();
-			esp_ota_img_states_t ota_state;
-			if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK &&
-				ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
-				esp_ota_mark_app_valid_cancel_rollback();
-				ESP_LOGI(TAG, "OTA image marked valid");
-			}
-		}
-
 		break;
 	case MQTT_EVENT_DISCONNECTED:
 
@@ -910,11 +897,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 								// "ota" -> latest release; "ota:<tag>" -> pinned tag.
 								static char ota_url[160];
 								if (args != NULL && args[0] != '\0')
-									snprintf(ota_url, sizeof(ota_url),
-										"https://github.com/nodestark/mdb-esp32-cashless/releases/download/%s/mdb-slave-esp32s3.bin", args);
+									snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/download/%s/mdb-slave-esp32s3.bin", args);
 								else
-									snprintf(ota_url, sizeof(ota_url),
-										"https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
+									snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
 
 								const char *ota_target = (args != NULL && args[0] != '\0') ? args : "latest";
 								char otopic[64], ostarted[48];
@@ -949,10 +934,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	    ESP_LOGI( TAG, "Other event id: %d", event->event_id);
 		break;
 	}
-}
-
-static void ppp_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    ESP_LOGI(TAG, "PPP state changed event %d", event_id);
 }
 
 static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -1076,7 +1057,6 @@ void app_main(void) {
 
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
 	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, ip_event_handler, NULL, NULL);
-	esp_event_handler_instance_register(NETIF_PPP_STATUS, ESP_EVENT_ANY_ID, ppp_event_handler, NULL, NULL);
 
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_start();
@@ -1195,10 +1175,9 @@ void app_main(void) {
         if (err == ESP_OK) {
             err = esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
 
+            (void) xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP, pdTRUE, pdTRUE, pdMS_TO_TICKS(90000) );
         }
     }
-
-    (void) xEventGroupWaitBits(xInternetEventGroup, (ret == ESP_OK) ? BIT_PPP_GOT_IP | BIT_STA_GOT_IP : BIT_STA_GOT_IP, pdTRUE, pdTRUE, pdMS_TO_TICKS(90000) );
 
     //-------------------------- MQTT --------------------------//
 	//----------------------------------------------------------//
