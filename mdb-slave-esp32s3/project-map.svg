@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 890" font-family="ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace">
+  <!-- ====== dark blueprint / schematic style ====== -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0 H0 V40" fill="none" stroke="#16243c" stroke-width="1"/>
+    </pattern>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6f84a0"/>
+    </marker>
+    <style>
+      .t   { fill:#dce6f2; }            /* primary text */
+      .d   { fill:#8195ad; }            /* dim text */
+      .cy  { fill:#5bc8e0; }            /* accent cyan */
+      .blk { fill:#14233c; stroke:#34598a; stroke-width:1.2; }   /* peripheral block */
+      .trace { stroke:#3c5d8c; fill:none; stroke-width:1.3; }
+      .sec { fill:#5bc8e0; font-size:11px; letter-spacing:.22em; }
+      .name{ font-size:12px; }
+      .pin { font-size:9px; }
+      .vb  { font-size:9.5px; }
+      .hd  { font-size:13px; font-weight:bold; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="890" fill="#0d1726"/>
+  <rect width="1200" height="890" fill="url(#grid)"/>
+
+  <!-- ====== header ====== -->
+  <text x="48" y="48" class="cy" font-size="21" font-weight="bold">esp32s3 // mdb-slave</text>
+  <text x="48" y="68" class="d" font-size="11">VMflow · MDB cashless device — architecture &amp; data-flow map</text>
+  <!-- legend -->
+  <g font-size="10.5">
+    <rect x="900" y="36" width="11" height="11" fill="#6ee7b7"/><text x="918" y="46" class="d">sale</text>
+    <rect x="968" y="36" width="11" height="11" fill="#f5c66b"/><text x="986" y="46" class="d">rpc</text>
+    <rect x="1028" y="36" width="11" height="11" fill="#b9a7f9"/><text x="1046" y="46" class="d">ble</text>
+  </g>
+
+  <!-- ====== 01 HARDWARE ====== -->
+  <text x="48" y="104" class="sec">01 · HARDWARE / IO MAP</text>
+
+  <!-- traces (under blocks) -->
+  <g class="trace">
+    <!-- left -->
+    <path d="M220,193 H535"/><path d="M220,263 H535"/><path d="M220,333 H535"/>
+    <!-- right -->
+    <path d="M665,193 H980"/><path d="M665,263 H980"/><path d="M665,333 H980"/>
+    <!-- radios to chip top -->
+    <path d="M515,136 V155 H560 V170"/>
+    <path d="M685,136 V155 H640 V170"/>
+  </g>
+  <!-- chip pin stubs -->
+  <g stroke="#5bc8e0" stroke-width="2">
+    <path d="M527,193 H535"/><path d="M527,263 H535"/><path d="M527,333 H535"/>
+    <path d="M665,193 H673"/><path d="M665,263 H673"/><path d="M665,333 H673"/>
+    <path d="M560,162 V170"/><path d="M640,162 V170"/>
+  </g>
+
+  <!-- the IC -->
+  <rect x="535" y="170" width="130" height="180" rx="6" fill="#0a1322" stroke="#5bc8e0" stroke-width="1.8"/>
+  <circle cx="551" cy="186" r="4" fill="none" stroke="#5bc8e0" stroke-width="1.2"/>
+  <text x="600" y="252" text-anchor="middle" class="t" font-size="15" font-weight="bold">ESP32-S3</text>
+  <text x="600" y="272" text-anchor="middle" class="d" font-size="10">Xtensa LX7</text>
+  <text x="600" y="286" text-anchor="middle" class="d" font-size="10">dual · 240MHz</text>
+
+  <!-- radio blocks (top) -->
+  <g>
+    <rect x="440" y="92" width="150" height="44" rx="5" class="blk"/>
+    <text x="452" y="113" class="t name">BLE 2.4GHz</text><text x="452" y="128" class="d pin">NimBLE · GATT</text>
+    <rect x="610" y="92" width="150" height="44" rx="5" class="blk"/>
+    <text x="622" y="113" class="t name">Wi-Fi 2.4GHz</text><text x="622" y="128" class="d pin">station (STA)</text>
+  </g>
+  <!-- left peripheral blocks -->
+  <g>
+    <rect x="70" y="170" width="150" height="46" rx="5" class="blk"/>
+    <text x="82" y="192" class="t name">MDB transceiver</text><text x="82" y="207" class="d pin">UART · GPIO 4,5</text>
+    <rect x="70" y="240" width="150" height="46" rx="5" class="blk"/>
+    <text x="82" y="262" class="t name">EVA DTS (DEX)</text><text x="82" y="277" class="d pin">UART · GPIO 8,9</text>
+    <rect x="70" y="310" width="150" height="46" rx="5" class="blk"/>
+    <text x="82" y="332" class="t name">I²C bus</text><text x="82" y="347" class="d pin">GPIO 10,11</text>
+  </g>
+  <!-- right peripheral blocks -->
+  <g>
+    <rect x="980" y="170" width="150" height="46" rx="5" class="blk"/>
+    <text x="992" y="192" class="t name">SIM7080G LTE</text><text x="992" y="207" class="d pin">UART 17,18 · PWR 14</text>
+    <rect x="980" y="240" width="150" height="46" rx="5" class="blk"/>
+    <text x="992" y="262" class="t name">WS2812 status</text><text x="992" y="277" class="d pin">GPIO 21</text>
+    <rect x="980" y="310" width="150" height="46" rx="5" class="blk"/>
+    <text x="992" y="332" class="t name">buzzer</text><text x="992" y="347" class="d pin">GPIO 12</text>
+  </g>
+
+  <!-- divider -->
+  <line x1="48" y1="388" x2="1152" y2="388" stroke="#1c2c44" stroke-width="1"/>
+
+  <!-- ====== 02 DATA FLOWS ====== -->
+  <text x="48" y="416" class="sec">02 · DATA FLOWS</text>
+
+  <!-- ===== lane SALE (mint) ===== -->
+  <rect x="48" y="430" width="5" height="118" fill="#6ee7b7"/>
+  <text x="70" y="452" class="hd" fill="#6ee7b7">SALE — vend over MDB</text>
+  <g>
+    <!-- 5 chips: x 70,297.5,525,752.5,980 (w150,h46) cy=512 -->
+    <rect x="70"  y="489" width="150" height="46" rx="6" class="blk" stroke="#6ee7b7"/>
+    <text x="145" y="511" text-anchor="middle" class="t name">VMC</text><text x="145" y="526" text-anchor="middle" class="d pin">MDB master</text>
+    <rect x="297" y="489" width="150" height="46" rx="6" class="blk" stroke="#6ee7b7"/>
+    <text x="372" y="511" text-anchor="middle" class="t name">MDB FSM</text><text x="372" y="526" text-anchor="middle" class="d pin">poll · setup · vend</text>
+    <rect x="525" y="489" width="150" height="46" rx="6" class="blk" stroke="#6ee7b7"/>
+    <text x="600" y="511" text-anchor="middle" class="t name">funds?</text><text x="600" y="526" text-anchor="middle" class="d pin">funds_available</text>
+    <rect x="752" y="489" width="150" height="46" rx="6" class="blk" stroke="#6ee7b7"/>
+    <text x="827" y="511" text-anchor="middle" class="t name">vend OK</text><text x="827" y="526" text-anchor="middle" class="d pin">dispense</text>
+    <rect x="980" y="489" width="150" height="46" rx="6" class="blk" stroke="#6ee7b7"/>
+    <text x="1055" y="511" text-anchor="middle" class="t name">publish</text><text x="1055" y="526" text-anchor="middle" class="d pin">…/sale signed</text>
+    <g class="trace" stroke="#4f7d68"><path d="M222,512 H295" marker-end="url(#arr)"/><path d="M449,512 H523" marker-end="url(#arr)"/><path d="M677,512 H750" marker-end="url(#arr)"/><path d="M904,512 H978" marker-end="url(#arr)"/></g>
+    <g fill="#6ee7b7" class="vb" text-anchor="middle"><text x="258" y="505">poll</text><text x="486" y="505">request</text><text x="713" y="505">approve</text><text x="941" y="505">report</text></g>
+  </g>
+
+  <!-- ===== lane RPC (amber) ===== -->
+  <rect x="48" y="560" width="5" height="118" fill="#f5c66b"/>
+  <text x="70" y="582" class="hd" fill="#f5c66b">RPC — MQTT, HMAC-signed</text>
+  <g>
+    <!-- 4 chips: x 70,373,676,979 (w150) cy=642 -->
+    <rect x="70"  y="619" width="150" height="46" rx="6" class="blk" stroke="#f5c66b"/>
+    <text x="145" y="641" text-anchor="middle" class="t name">cloud / agent</text><text x="145" y="656" text-anchor="middle" class="d pin">dashboard · n8n</text>
+    <rect x="373" y="619" width="150" height="46" rx="6" class="blk" stroke="#f5c66b"/>
+    <text x="448" y="641" text-anchor="middle" class="t name">verify</text><text x="448" y="656" text-anchor="middle" class="d pin">HMAC + freshness</text>
+    <rect x="676" y="619" width="150" height="46" rx="6" class="blk" stroke="#f5c66b"/>
+    <text x="751" y="641" text-anchor="middle" class="t name">dispatch</text><text x="751" y="656" text-anchor="middle" class="d pin">credit·dex·info·ota</text>
+    <rect x="979" y="619" width="151" height="46" rx="6" class="blk" stroke="#f5c66b"/>
+    <text x="1054" y="641" text-anchor="middle" class="t name">reply</text><text x="1054" y="656" text-anchor="middle" class="d pin">…/rpc/&lt;cmd&gt;</text>
+    <g class="trace" stroke="#9a7e44"><path d="M222,642 H371" marker-end="url(#arr)"/><path d="M525,642 H674" marker-end="url(#arr)"/><path d="M828,642 H977" marker-end="url(#arr)"/></g>
+    <g fill="#f5c66b" class="vb" text-anchor="middle"><text x="296" y="635">publish · &lt;sub&gt;/rpc</text><text x="599" y="635">authenticate</text><text x="902" y="635">respond</text></g>
+  </g>
+
+  <!-- ===== lane BLE (violet) ===== -->
+  <rect x="48" y="690" width="5" height="118" fill="#b9a7f9"/>
+  <text x="70" y="712" class="hd" fill="#b9a7f9">BLE — provisioning &amp; credit</text>
+  <g>
+    <!-- 4 chips cy=772 -->
+    <rect x="70"  y="749" width="150" height="46" rx="6" class="blk" stroke="#b9a7f9"/>
+    <text x="145" y="771" text-anchor="middle" class="t name">phone app</text><text x="145" y="786" text-anchor="middle" class="d pin">VMflow</text>
+    <rect x="373" y="749" width="150" height="46" rx="6" class="blk" stroke="#b9a7f9"/>
+    <text x="448" y="771" text-anchor="middle" class="t name">provision / credit</text><text x="448" y="786" text-anchor="middle" class="d pin">wifi · 19-byte signed</text>
+    <rect x="676" y="749" width="150" height="46" rx="6" class="blk" stroke="#b9a7f9"/>
+    <text x="751" y="771" text-anchor="middle" class="t name">decode</text><text x="751" y="786" text-anchor="middle" class="d pin">HMAC + timestamp</text>
+    <rect x="979" y="749" width="151" height="46" rx="6" class="blk" stroke="#b9a7f9"/>
+    <text x="1054" y="771" text-anchor="middle" class="t name">MDB credit</text><text x="1054" y="786" text-anchor="middle" class="d pin">→ VMC vend</text>
+    <g class="trace" stroke="#6b5f93"><path d="M222,772 H371" marker-end="url(#arr)"/><path d="M525,772 H674" marker-end="url(#arr)"/><path d="M828,772 H977" marker-end="url(#arr)"/></g>
+    <g fill="#b9a7f9" class="vb" text-anchor="middle"><text x="296" y="765">GATT connect</text><text x="599" y="765">write</text><text x="902" y="765">verify → grant</text></g>
+  </g>
+
+  <!-- footer -->
+  <line x1="48" y1="838" x2="1152" y2="838" stroke="#1c2c44" stroke-width="1"/>
+  <text x="48" y="862" class="d" font-size="10.5">all remote messages HMAC-SHA256 signed with the per-device passkey · BLE &amp; MQTT share the key · ESP-IDF v5.5.1 · MIT</text>
+</svg>
