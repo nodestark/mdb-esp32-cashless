@@ -30,7 +30,6 @@
 #include <driver/uart.h>
 #include <esp_wifi.h>
 #include <mqtt_client.h>
-#include <mbedtls/md.h>
 #include <esp_sntp.h>
 #include <esp_netif_ppp.h>
 #include <esp_modem_api.h>
@@ -38,6 +37,7 @@
 
 #include "nimble.h"
 #include "eva-dts.h"
+#include "rpc_auth.h"
 
 #define TAG "mdb_cashless"
 
@@ -154,8 +154,6 @@ static QueueHandle_t mdb_rx_queue;
 
 void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload);
 esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload);
-void calculate_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac);
-static void rpc_sign_text(const char *msg, char *out, size_t out_sz);
 
 static void IRAM_ATTR mdb_rx_falling_isr(void *arg) {
     gpio_intr_disable(PIN_MDB_RX);
@@ -731,42 +729,6 @@ void ble_event_handler(char *ble_payload) {
 	}
 }
 
-void calculate_hmac(const char *payload, size_t payload_len, unsigned char *output_hmac) {
-	const char *key = my_passkey;
-	size_t key_len = strlen(my_passkey);
-
-	mbedtls_md_context_t ctx;
-	mbedtls_md_init(&ctx);
-
-	mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
-	mbedtls_md_hmac_starts(&ctx, (const unsigned char *) key, key_len);
-	mbedtls_md_hmac_update(&ctx, (const unsigned char *) payload, payload_len);
-	mbedtls_md_hmac_finish(&ctx, output_hmac);
-
-	mbedtls_md_free(&ctx);
-}
-
-static bool rpc_verify_hmac(const char *msg, size_t msg_len, const char *sig_hex) {
-	unsigned char hmac[32];
-	calculate_hmac(msg, msg_len, hmac);
-
-	char hex[65];
-	for (int i = 0; i < 32; i++)
-		snprintf(hex + i * 2, 3, "%02x", hmac[i]);
-
-	return strcmp(hex, sig_hex) == 0;
-}
-
-static void rpc_sign_text(const char *msg, char *out, size_t out_sz) {
-	unsigned char hmac[32];
-	calculate_hmac(msg, strlen(msg), hmac);
-
-	char hex[65];
-	for (int i = 0; i < 32; i++)
-		snprintf(hex + i * 2, 3, "%02x", hmac[i]);
-
-	snprintf(out, out_sz, "%s:%s", msg, hex);
-}
 
 // OTA worker: pulls the app image from a GitHub release asset over HTTPS,
 // writes the inactive slot, then reboots. Runs in its own task because the
@@ -1141,6 +1103,11 @@ void app_main(void) {
 
 		nvs_close(handle);
 	}
+
+	// HMAC key tracks the passkey buffer by reference; later BLE provisioning
+	// writes into the same buffer and takes effect without re-registering.
+	rpc_auth_set_key(my_passkey);
+
 	ble_init(myhost, ble_event_handler, ble_pax_event_handler);
 
     esp_timer_handle_t periodic_pax_timer;
