@@ -13,7 +13,8 @@ async function hmacRaw(passkey: string, data: BufferSource): Promise<Uint8Array>
 }
 
 // HMAC-SHA256(passkey, msg) as lowercase hex. Used to sign MQTT RPC envelopes
-// "<cmd>[:<args>]:<ts>:<hmac>" verified by the device firmware.
+// "<cmd>:<args>:<ts>:<hmac>" verified by the device firmware. <args> is never
+// empty: commands without an argument send "-" as a sentinel.
 export async function hmacHex(passkey: string, msg: string): Promise<string> {
   const sig = await hmacRaw(passkey, new TextEncoder().encode(msg));
   return [...sig].map((b) => b.toString(16).padStart(2, "0")).join("");

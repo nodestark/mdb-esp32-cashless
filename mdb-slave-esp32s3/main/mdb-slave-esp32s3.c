@@ -534,17 +534,18 @@ void mdb_cashless_task(void *pvParameters) {
 /*
  * Agent-facing interfaces (MQTT, every message signed with the per-device passkey).
  *
- * Inbound RPC — topic <sub>.vmflow.xyz/rpc, payload "<cmd>[:<args>]:<ts>:<hmac_hex>".
+ * Inbound RPC — topic <sub>.vmflow.xyz/rpc, payload "<cmd>:<params>:<ts>:<hmac_hex>".
  *   hmac = HMAC-SHA256(passkey, everything-before-the-last-colon) in lowercase hex;
- *   <ts> is Unix seconds, accepted only within RPC_FRESHNESS_SEC. Commands:
- *     dex              trigger an on-demand DEX/telemetry read
- *     info             publish device snapshot JSON on .../rpc/info
+ *   <ts> is Unix seconds, accepted only within RPC_FRESHNESS_SEC. <params> is fixed-width
+ *   (never empty): commands without an argument send "-" as a sentinel. Commands:
+ *     dex:-            trigger an on-demand DEX/telemetry read
+ *     info:-           publish device snapshot JSON on .../rpc/info
  *     credit:<amount>  grant credit (amount scaled to 1/100 units)
- *     oos              send MDB "command out of sequence" to the VMC
- *     echo             reply <ts> on .../rpc/echo (liveness + RTT probe)
- *     buzzer           1s beep
- *     restart          ack on .../rpc/restart, then reboot
- *     ota[:<tag>]      pull app image from GitHub release (latest, or pinned tag)
+ *     oos:-            send MDB "command out of sequence" to the VMC
+ *     echo:-           reply <ts> on .../rpc/echo (liveness + RTT probe)
+ *     buzzer:-         1s beep
+ *     restart:-        ack on .../rpc/restart, then reboot
+ *     ota:<tag>        pull app image from GitHub release (ota:- = latest, or pinned tag)
  *                      over HTTPS; progress on .../rpc/ota, then reboot
  *
  * Outbound — signed text "<fields>:<ts>:<hmac_hex>":
@@ -833,92 +834,92 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	    ESP_LOGI(TAG, "MQTT data topic=%.*s len=%d data=%.*s", event->topic_len, event->topic, event->data_len, event->data_len, event->data);
 
 		if (event->topic_len > 4 && strncmp(event->topic + event->topic_len - 4, "/rpc", 4) == 0) {
-			char buf[128];
-			int len = event->data_len < (int) sizeof(buf) - 1 ? event->data_len : (int) sizeof(buf) - 1;
-			memcpy(buf, event->data, len);
-			buf[len] = '\0';
+			// Wire format "<cmd>:<args>:<ts>:<hmac>".
+			int len = event->data_len < 127 ? event->data_len : 127;
 
-			char *sig = strrchr(buf, ':');
-			if (sig != NULL) {
-				*sig++ = '\0';
+			// HMAC = hex over everything before the last ':'.
+			char *last_colon = memrchr(event->data, ':', len);
+			if (last_colon == NULL) break;
 
-				if (rpc_verify_hmac(buf, strlen(buf), sig)) {
-					char *last = strrchr(buf, ':');
-					if (last != NULL) {
-						char *ts_str = last + 1;
-						*last = '\0';
-						char *args = strchr(buf, ':');
-						if (args != NULL) *args++ = '\0';
-						const char *cmd = buf;
+			int prefix_len = last_colon - event->data;
+			char hmac[65];  // 64 hex chars + NUL
+			snprintf(hmac, sizeof(hmac), "%.*s", len - prefix_len - 1, last_colon + 1);
 
-						time_t ts  = (time_t) strtoll(ts_str, NULL, 10);
-						time_t now = time(NULL);
-						long dt = (long) (now - ts);
-						if (dt < 0) dt = -dt;
+			if (!rpc_verify_hmac(event->data, prefix_len, hmac)) {
+				ESP_LOGW(TAG, "RPC rejected: bad HMAC");
+				break;
+			}
 
-						if (dt <= RPC_FRESHNESS_SEC) {
-							if (strcmp(cmd, "dex") == 0) {
-								request_telemetry_data(NULL);
-								ESP_LOGI(TAG, "RPC dex request started");
-							} else if (strcmp(cmd, "info") == 0) {
-								rpc_publish_info();
-								ESP_LOGI(TAG, "RPC info published");
-							} else if (strcmp(cmd, "credit") == 0 && args != NULL) {
-								int32_t price_wire = (int32_t) strtol(args, NULL, 10);
-								uint16_t funds_available = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(price_wire, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES);
+			char cmd[32], args[64];
+			unsigned int ts;
+			if (sscanf(event->data, "%31[^:]:%63[^:]:%u", cmd, args, &ts) != 3) {
+				ESP_LOGW(TAG, "RPC rejected: malformed");
+				break;
+			}
 
-								xQueueSend(mdb_session_queue, &funds_available, 0);
-								xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
+			long dt = (long) (time(NULL) - (time_t) ts);
+			if (labs(dt) > RPC_FRESHNESS_SEC) {
+				ESP_LOGW(TAG, "RPC rejected: stale ts (dt=%ld)", dt);
+				break;
+			}
 
-								char ctopic[64];
-								snprintf(ctopic, sizeof(ctopic), "domain.vmflow.xyz/%s/rpc/credit", my_subdomain);
-								esp_mqtt_client_publish(mqtt_client, ctopic, "ok", 0, 1, 0);
+			bool has_args = (args[0] != '\0' && strcmp(args, "-") != 0);
 
-								ESP_LOGI( TAG, "RPC credit: Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
-							} else if (strcmp(cmd, "oos") == 0) {
-								out_of_sequence_todo = true;
-								ESP_LOGI(TAG, "RPC out-of-sequence queued");
-							} else if (strcmp(cmd, "echo") == 0) {
-								char etopic[64];
-								snprintf(etopic, sizeof(etopic), "domain.vmflow.xyz/%s/rpc/echo", my_subdomain);
-								esp_mqtt_client_publish(mqtt_client, etopic, ts_str, 0, 1, 0);
-								ESP_LOGI(TAG, "RPC echo");
-							} else if (strcmp(cmd, "buzzer") == 0) {
-								xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
-								ESP_LOGI(TAG, "RPC buzzer triggered");
-							} else if (strcmp(cmd, "restart") == 0) {
-								char rtopic[64];
-								snprintf(rtopic, sizeof(rtopic), "domain.vmflow.xyz/%s/rpc/restart", my_subdomain);
-								esp_mqtt_client_publish(mqtt_client, rtopic, "ok", 0, 1, 0);
-								ESP_LOGW(TAG, "RPC restart requested");
-								vTaskDelay(pdMS_TO_TICKS(500));
-								esp_restart();
-							} else if (strcmp(cmd, "ota") == 0) {
-								// "ota" -> latest release; "ota:<tag>" -> pinned tag.
-								static char ota_url[160];
-								if (args != NULL && args[0] != '\0')
-									snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/download/%s/mdb-slave-esp32s3.bin", args);
-								else
-									snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
+			if (strcmp(cmd, "dex") == 0) {
+				request_telemetry_data(NULL);
+				ESP_LOGI(TAG, "RPC dex request started");
+			} else if (strcmp(cmd, "info") == 0) {
+				rpc_publish_info();
+				ESP_LOGI(TAG, "RPC info published");
+			} else if (strcmp(cmd, "credit") == 0 && has_args) {
+				int32_t price_wire = (int32_t) strtol(args, NULL, 10);
+				uint16_t funds_available = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(price_wire, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES);
 
-								const char *ota_target = (args != NULL && args[0] != '\0') ? args : "latest";
-								char otopic[64], ostarted[48];
-								snprintf(otopic, sizeof(otopic), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
-								snprintf(ostarted, sizeof(ostarted), "started:%s", ota_target);
-								esp_mqtt_client_publish(mqtt_client, otopic, ostarted, 0, 1, 0);
+				xQueueSend(mdb_session_queue, &funds_available, 0);
+				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 
-								xTaskCreate(ota_task, "ota_task", 8192, ota_url, 5, NULL);
-								ESP_LOGW(TAG, "RPC ota: %s", ota_url);
-							} else {
-								ESP_LOGW(TAG, "RPC unknown command: %s", cmd);
-							}
-						} else {
-							ESP_LOGW(TAG, "RPC rejected: stale ts (dt=%ld)", dt);
-						}
-					}
-				} else {
-					ESP_LOGW(TAG, "RPC rejected: bad HMAC");
-				}
+				char ctopic[64];
+				snprintf(ctopic, sizeof(ctopic), "domain.vmflow.xyz/%s/rpc/credit", my_subdomain);
+				esp_mqtt_client_publish(mqtt_client, ctopic, "ok", 0, 1, 0);
+
+				ESP_LOGI( TAG, "RPC credit: Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
+			} else if (strcmp(cmd, "oos") == 0) {
+				out_of_sequence_todo = true;
+				ESP_LOGI(TAG, "RPC out-of-sequence queued");
+			} else if (strcmp(cmd, "echo") == 0) {
+				char etopic[64], ts_str[24];
+				snprintf(etopic, sizeof(etopic), "domain.vmflow.xyz/%s/rpc/echo", my_subdomain);
+				snprintf(ts_str, sizeof(ts_str), "%u", ts);
+				esp_mqtt_client_publish(mqtt_client, etopic, ts_str, 0, 1, 0);
+				ESP_LOGI(TAG, "RPC echo");
+			} else if (strcmp(cmd, "buzzer") == 0) {
+				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
+				ESP_LOGI(TAG, "RPC buzzer triggered");
+			} else if (strcmp(cmd, "restart") == 0) {
+				char rtopic[64];
+				snprintf(rtopic, sizeof(rtopic), "domain.vmflow.xyz/%s/rpc/restart", my_subdomain);
+				esp_mqtt_client_publish(mqtt_client, rtopic, "ok", 0, 1, 0);
+				ESP_LOGW(TAG, "RPC restart requested");
+				vTaskDelay(pdMS_TO_TICKS(500));
+				esp_restart();
+			} else if (strcmp(cmd, "ota") == 0) {
+				// "ota:-" -> latest release; "ota:<tag>" -> pinned tag.
+				static char ota_url[160];
+				if (has_args)
+					snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/download/%s/mdb-slave-esp32s3.bin", args);
+				else
+					snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
+
+				const char *ota_target = has_args ? args : "latest";
+				char otopic[64], ostarted[80];
+				snprintf(otopic, sizeof(otopic), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
+				snprintf(ostarted, sizeof(ostarted), "started:%s", ota_target);
+				esp_mqtt_client_publish(mqtt_client, otopic, ostarted, 0, 1, 0);
+
+				xTaskCreate(ota_task, "ota_task", 8192, ota_url, 5, NULL);
+				ESP_LOGW(TAG, "RPC ota: %s", ota_url);
+			} else {
+				ESP_LOGW(TAG, "RPC unknown command: %s", cmd);
 			}
 		}
 
