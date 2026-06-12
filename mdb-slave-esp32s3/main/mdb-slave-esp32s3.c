@@ -37,7 +37,7 @@
 
 #include "nimble.h"
 #include "eva-dts.h"
-#include "rpc_auth.h"
+#include "rpc-auth.h"
 
 #define TAG "mdb_cashless"
 

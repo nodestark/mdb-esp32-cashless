@@ -1,4 +1,4 @@
-#include "rpc_auth.h"
+#include "rpc-auth.h"
 
 #include <string.h>
 #include <stdio.h>
