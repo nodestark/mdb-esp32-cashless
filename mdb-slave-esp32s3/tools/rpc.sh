@@ -2,15 +2,17 @@
 #
 # rpc.sh — send a signed RPC command to a VMflow mdb-slave device over MQTT.
 #
-# Envelope: "<cmd>:<ts>:<hmac>"  where hmac = HMAC-SHA256(passkey, "<cmd>:<ts>")
+# Envelope: "<cmd>:<args>:<ts>:<hmac>"  hmac = HMAC-SHA256(passkey, "<cmd>:<args>:<ts>")
 # Topic:    <sub>.vmflow.xyz/rpc        Reply: domain.vmflow.xyz/<sub>/rpc/<cmd>
+# Commands with no parameter use "-" as <args>.
 #
 # Usage:
 #   SUB=51 PASSKEY=af6c51a556fd71b345 ./rpc.sh info
 #   ./rpc.sh -s 51 -k af6c51a556fd71b345 dex
-#   ./rpc.sh -s 51 -k <key> -w info        # -w: also wait for the reply
+#   ./rpc.sh -s 51 -k <key> -a 100 credit     # -a: command parameter (<args>)
+#   ./rpc.sh -s 51 -k <key> -w info           # -w: also wait for the reply
 #
-# Commands: dex info oos buzzer echo restart
+# Commands: dex info oos buzzer echo restart credit
 #
 # Broker auth/TLS: pass through extra mosquitto flags after `--`, e.g.
 #   ./rpc.sh -s 51 -k <key> info -- -u user -P pass
@@ -21,15 +23,17 @@ set -euo pipefail
 SUB="${SUB:-}"
 PASSKEY="${PASSKEY:-}"
 HOST="${HOST:-}"
+ARGS="-"
 WAIT=0
 
 usage() { sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//; s/^#//'; exit "${1:-0}"; }
 
-while getopts ":s:k:H:wh" opt; do
+while getopts ":s:k:H:a:wh" opt; do
   case "$opt" in
     s) SUB="$OPTARG" ;;
     k) PASSKEY="$OPTARG" ;;
     H) HOST="$OPTARG" ;;
+    a) ARGS="$OPTARG" ;;
     w) WAIT=1 ;;
     h) usage 0 ;;
     *) usage 1 ;;
@@ -46,10 +50,11 @@ EXTRA=("$@")
 
 [ -n "$SUB" ]     || { echo "error: set SUB or pass -s <subdomain>" >&2; exit 1; }
 [ -n "$PASSKEY" ] || { echo "error: set PASSKEY or pass -k <passkey>" >&2; exit 1; }
+[ -n "$ARGS" ]    || { echo "error: -a <args> must be non-empty (use '-' for none)" >&2; exit 1; }
 HOST="${HOST:-mqtt.vmflow.xyz}" # broker host; <sub>.vmflow.xyz is the device topic, not a host
 
 TS="$(date +%s)"                 # UTC epoch — fresh (device enforces a 10s window)
-MSG="$CMD:$TS"
+MSG="$CMD:$ARGS:$TS"
 SIG="$(printf '%s' "$MSG" | openssl dgst -sha256 -hmac "$PASSKEY" -hex | awk '{print $NF}')"
 PAYLOAD="$MSG:$SIG"
 
