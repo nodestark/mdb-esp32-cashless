@@ -612,22 +612,24 @@ void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_num
 	memcpy(payload + 15, hmac, 4);
 }
 
+#define LED_LVL 30   // per-channel brightness; same level on every lit channel
+
 void led_status_task(void *pvParameters) {
     while(1){
-        EventBits_t uxBits = xEventGroupWaitBits(xLedEventGroup, BIT_STATUS_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY );
+        EventBits_t b = xEventGroupWaitBits(xLedEventGroup, BIT_STATUS_TRIGGER, pdTRUE, pdFALSE, portMAX_DELAY);
 
-        if ((uxBits & MASK_STATUS_INSTALLED) != MASK_STATUS_INSTALLED) {
-            led_strip_set_pixel(led_strip, 0, 80, 60, 0);
-        } else if ((uxBits & BIT_STATUS_MDB) && (uxBits & BIT_STATUS_MQTT)) {
-            led_strip_set_pixel(led_strip, 0, 10, 80, 10);
-        } else if (uxBits & BIT_STATUS_MDB) {
-            led_strip_set_pixel(led_strip, 0, 5, 15, 80);
-        } else {
-            led_strip_set_pixel(led_strip, 0, 80, 5, 5);
-        }
+        bool installed = (b & MASK_STATUS_INSTALLED) == MASK_STATUS_INSTALLED;
+        bool net = b & BIT_STATUS_MQTT;
+        bool mdb = b & BIT_STATUS_MDB;
+
+        if (!installed)      led_strip_set_pixel(led_strip, 0, LED_LVL, LED_LVL, LED_LVL);   // white   (not installed)
+        else if (net && mdb) led_strip_set_pixel(led_strip, 0,       0, LED_LVL,       0);   // green   (net + MDB)
+        else if (net)        led_strip_set_pixel(led_strip, 0, LED_LVL,       0, LED_LVL);   // magenta (net, no MDB)
+        else if (mdb)        led_strip_set_pixel(led_strip, 0,       0,       0, LED_LVL);   // blue    (MDB, no net)
+        else                 led_strip_set_pixel(led_strip, 0, LED_LVL,       0,       0);   // red     (nothing)
         led_strip_refresh(led_strip);
 
-        if(uxBits & BIT_STATUS_BUZZER){
+        if (b & BIT_STATUS_BUZZER) {
             gpio_set_level(PIN_BUZZER_PWR, 1);
             vTaskDelay(pdMS_TO_TICKS(1000));
             gpio_set_level(PIN_BUZZER_PWR, 0);
