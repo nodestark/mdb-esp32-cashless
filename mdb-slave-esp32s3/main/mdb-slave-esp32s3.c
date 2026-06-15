@@ -81,7 +81,7 @@ static inline void write_u16(uint8_t *p, uint16_t v) {
 #define BIT_CMD_SET   	0b000000111
 
 enum BIT_STATUS {
-    BIT_STATUS_INTERNET    = (1 << 0),
+    BIT_STATUS_MQTT    = (1 << 0),
     BIT_STATUS_MDB         = (1 << 1),
     BIT_STATUS_PSSKEY      = (1 << 2),
     BIT_STATUS_DOMAIN      = (1 << 3),
@@ -92,14 +92,21 @@ enum BIT_STATUS {
 
 enum BIT_INTERNET {
     BIT_PPP_GOT_IP      = (1 << 0),
-    BIT_STA_GOT_IP      = (1 << 1)
+    BIT_STA_GOT_IP      = (1 << 1),
+    BIT_PPP_LOST_IP     = (1 << 2)
 };
 
 EventGroupHandle_t xLedEventGroup;
 EventGroupHandle_t xInternetEventGroup;
 
-#define WIFI_MAX_RETRY 5
-static uint8_t wifi_retry_count = 0;
+#define WIFI_BACKOFF_MIN_MS  5000
+#define WIFI_BACKOFF_MAX_MS  300000
+static uint32_t wifi_backoff_ms = WIFI_BACKOFF_MIN_MS;
+static esp_timer_handle_t wifi_retry_timer;
+
+static void wifi_retry_cb(void *arg) {
+    esp_wifi_connect();
+}
 
 char my_subdomain[32];
 #define PASSKEY_LEN 18
@@ -611,7 +618,7 @@ void led_status_task(void *pvParameters) {
 
         if ((uxBits & MASK_STATUS_INSTALLED) != MASK_STATUS_INSTALLED) {
             led_strip_set_pixel(led_strip, 0, 80, 60, 0);
-        } else if ((uxBits & BIT_STATUS_MDB) && (uxBits & BIT_STATUS_INTERNET)) {
+        } else if ((uxBits & BIT_STATUS_MDB) && (uxBits & BIT_STATUS_MQTT)) {
             led_strip_set_pixel(led_strip, 0, 10, 80, 10);
         } else if (uxBits & BIT_STATUS_MDB) {
             led_strip_set_pixel(led_strip, 0, 5, 15, 80);
@@ -809,12 +816,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 		esp_mqtt_client_publish(mqtt_client, topic_, "online", 0, 1, 1);
 
-        xEventGroupSetBits(xLedEventGroup, BIT_STATUS_INTERNET | BIT_STATUS_TRIGGER);
+        xEventGroupSetBits(xLedEventGroup, BIT_STATUS_MQTT | BIT_STATUS_TRIGGER);
 
 		break;
 	case MQTT_EVENT_DISCONNECTED:
 
-        xEventGroupClearBits(xLedEventGroup, BIT_STATUS_INTERNET);
+        xEventGroupClearBits(xLedEventGroup, BIT_STATUS_MQTT);
         xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
 		break;
@@ -946,10 +953,8 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
             break;
         }
         case IP_EVENT_PPP_LOST_IP:
-            ESP_LOGW(TAG, "ppp lost IP, rebooting...");
-
-            vTaskDelay(pdMS_TO_TICKS(2000));
-            esp_restart();
+            ESP_LOGW(TAG, "ppp lost IP, restarting sim7080g_task");
+            xEventGroupSetBits(xInternetEventGroup, BIT_PPP_LOST_IP);
             break;
         case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
@@ -970,17 +975,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         esp_wifi_connect();
         break;
     case WIFI_EVENT_STA_CONNECTED:
-        wifi_retry_count = 0;
+        wifi_backoff_ms = WIFI_BACKOFF_MIN_MS;   // reset na conexão
         break;
     case WIFI_EVENT_STA_DISCONNECTED:
-
-        if (wifi_retry_count++ < WIFI_MAX_RETRY) {
-            ESP_LOGI(TAG, "WiFi reconnect attempt %d/%d", wifi_retry_count, WIFI_MAX_RETRY);
-            esp_wifi_connect();
-        } else {
-            ESP_LOGW(TAG, "WiFi max retries reached (%d), stopping reconnect", WIFI_MAX_RETRY);
-        }
-
+        ESP_LOGW(TAG, "WiFi disconnected, retry in %lu ms", wifi_backoff_ms);
+        esp_timer_start_once(wifi_retry_timer, (uint64_t) wifi_backoff_ms * 1000);
+        wifi_backoff_ms *= 2;
+        if (wifi_backoff_ms > WIFI_BACKOFF_MAX_MS) wifi_backoff_ms = WIFI_BACKOFF_MAX_MS;
         break;
     }
 }
@@ -1009,6 +1010,88 @@ static esp_err_t sim7080g_wait_registered(esp_modem_dce_t *dce) {
     ESP_LOGE(TAG, "registration timeout");
 
     return ESP_ERR_TIMEOUT;
+}
+
+// Owns SIM7080G + MQTT lifecycle. MQTT stays off while the modem (re)connects:
+// on IP_EVENT_PPP_LOST_IP the task stops MQTT and re-runs the modem bring-up.
+static void sim7080g_task(void *pvParameters) {
+    gpio_set_direction(PIN_SIM7080G_PWR, GPIO_MODE_OUTPUT);
+    gpio_set_level(PIN_SIM7080G_PWR, 0);
+
+    esp_modem_dte_config_t dte_config = ESP_MODEM_DTE_DEFAULT_CONFIG();
+    dte_config.uart_config.port_num   = UART_NUM_2;
+    dte_config.uart_config.baud_rate  = 115200;
+    dte_config.uart_config.tx_io_num  = PIN_SIM7080G_TX;
+    dte_config.uart_config.rx_io_num  = PIN_SIM7080G_RX;
+    dte_config.uart_config.rts_io_num = -1;
+    dte_config.uart_config.cts_io_num = -1;
+
+    esp_modem_dce_config_t dce_config = ESP_MODEM_DCE_DEFAULT_CONFIG(CONFIG_SIM7080G_APN);
+
+    esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_PPP();
+    esp_netif_t *ppp_netif = esp_netif_new(&netif_cfg);
+    esp_netif_set_route_prio(ppp_netif, 200);  // higher prio = preferred default route
+
+    esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7070, &dte_config, &dce_config, ppp_netif);
+    assert(dce);
+
+    //-------------------------- MQTT --------------------------//
+    char lwt_topic[64];
+    snprintf(lwt_topic, sizeof(lwt_topic), "domain.vmflow.xyz/%s/status", my_subdomain);
+
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        .broker.address.uri = "mqtt://mqtt.vmflow.xyz",
+        .session.last_will.topic = lwt_topic,
+        .session.last_will.msg = "offline",
+        .session.last_will.qos = 1,
+        .session.last_will.retain = 1,
+        .session.keepalive = 120,
+        .network.timeout_ms = 20000,
+        .network.reconnect_timeout_ms = 10000,
+    };
+
+    mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+
+    while (1) {
+        esp_modem_set_mode(dce, ESP_MODEM_MODE_COMMAND);
+
+        esp_err_t ret = esp_modem_sync(dce);
+        if (ret != ESP_OK) {
+            sim7080g_pulse_power();
+
+            ret = esp_modem_sync(dce);
+            if (ret != ESP_OK) {
+                vTaskDelay(pdMS_TO_TICKS(2000));
+                ret = esp_modem_sync(dce);
+            }
+        } else {
+            ESP_LOGI(TAG, "modem already on");
+            esp_modem_at(dce, "AT+CFUN=1,1", NULL, 3000);
+            vTaskDelay(pdMS_TO_TICKS(8000));
+        }
+
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "modem not found, skip PPP");
+        } else {
+            ESP_LOGI(TAG, "modem ok");
+
+            esp_modem_at(dce, "AT+CNMP=38", NULL, 3000);
+            esp_modem_at(dce, "AT+CMNB=" STRINGIFY(CONFIG_SIM7080G_CMNB), NULL, 3000);
+            esp_modem_at(dce, "AT+CEREG=1", NULL, 3000);
+
+            if (sim7080g_wait_registered(dce) == ESP_OK) {
+                esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
+                xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP, pdTRUE, pdTRUE, pdMS_TO_TICKS(90000));
+            }
+        }
+
+        esp_mqtt_client_start(mqtt_client);
+
+        xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_LOST_IP, pdTRUE, pdTRUE, portMAX_DELAY);
+
+        esp_mqtt_client_stop(mqtt_client);
+    }
 }
 
 void app_main(void) {
@@ -1051,7 +1134,7 @@ void app_main(void) {
 	esp_event_loop_create_default();
 
 	esp_netif_t *wifi_netif = esp_netif_create_default_wifi_sta();
-    esp_netif_set_route_prio(wifi_netif, 200);
+    esp_netif_set_route_prio(wifi_netif, 100);  // lower prio = fallback;
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	esp_wifi_init(&cfg);
@@ -1059,8 +1142,20 @@ void app_main(void) {
 	esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL);
 	esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, ip_event_handler, NULL, NULL);
 
+	const esp_timer_create_args_t wifi_timer_args = {
+		.callback = wifi_retry_cb,
+		.name = "wifi_retry",
+	};
+	esp_timer_create(&wifi_timer_args, &wifi_retry_timer);
+
 	esp_wifi_set_mode(WIFI_MODE_STA);
 	esp_wifi_start();
+
+    //-------------------------- SNTP --------------------------//
+    //----------------------------------------------------------//
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
 
 	//------------------------ BLUETOOTH -----------------------//
 	//----------------------------------------------------------//
@@ -1125,83 +1220,6 @@ void app_main(void) {
 
     //------------------- SIM7080g STACK -----------------------//
 	//----------------------------------------------------------//
-    gpio_set_direction(PIN_SIM7080G_PWR, GPIO_MODE_OUTPUT);
-    gpio_set_level(PIN_SIM7080G_PWR, 0);
-
-    esp_modem_dte_config_t dte_config = ESP_MODEM_DTE_DEFAULT_CONFIG();
-    dte_config.uart_config.port_num   = UART_NUM_2;
-    dte_config.uart_config.baud_rate  = 115200;
-    dte_config.uart_config.tx_io_num  = PIN_SIM7080G_TX;
-    dte_config.uart_config.rx_io_num  = PIN_SIM7080G_RX;
-    dte_config.uart_config.rts_io_num = -1;
-    dte_config.uart_config.cts_io_num = -1;
-
-    esp_modem_dce_config_t dce_config = ESP_MODEM_DCE_DEFAULT_CONFIG(CONFIG_SIM7080G_APN);
-
-    esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_PPP();
-    esp_netif_t *ppp_netif = esp_netif_new(&netif_cfg);
-    esp_netif_set_route_prio(ppp_netif, 100);
-
-    esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7070, &dte_config, &dce_config, ppp_netif);
-    assert(dce);
-
-    esp_modem_set_mode(dce, ESP_MODEM_MODE_COMMAND);
-
-    esp_err_t ret = esp_modem_sync(dce);
-    if (ret != ESP_OK) {
-        sim7080g_pulse_power();
-
-        ret = esp_modem_sync(dce);
-        if (ret != ESP_OK) {
-            vTaskDelay(pdMS_TO_TICKS(2000));
-            ret = esp_modem_sync(dce);
-        }
-    } else {
-        ESP_LOGI(TAG, "modem already on");
-
-        esp_modem_at(dce, "AT+CFUN=1,1", NULL, 3000);
-        vTaskDelay(pdMS_TO_TICKS(8000));
-    }
-
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "modem not found, skip PPP");
-    } else {
-        ESP_LOGI(TAG, "modem ok");
-
-        esp_modem_at(dce, "AT+CNMP=38", NULL, 3000);
-        esp_modem_at(dce, "AT+CMNB=" STRINGIFY(CONFIG_SIM7080G_CMNB), NULL, 3000);
-        esp_modem_at(dce, "AT+CEREG=1", NULL, 3000);
-
-        esp_err_t err = sim7080g_wait_registered(dce);
-        if (err == ESP_OK) {
-            err = esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
-
-            (void) xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP, pdTRUE, pdTRUE, pdMS_TO_TICKS(90000) );
-        }
-    }
-
-    //-------------------------- MQTT --------------------------//
-	//----------------------------------------------------------//
-	char lwt_topic[64];
-	snprintf(lwt_topic, sizeof(lwt_topic), "domain.vmflow.xyz/%s/status", my_subdomain);
-
-	const esp_mqtt_client_config_t mqtt_cfg = {
-		.broker.address.uri = "mqtt://mqtt.vmflow.xyz",
-		.session.last_will.topic = lwt_topic,
-		.session.last_will.msg = "offline",
-		.session.last_will.qos = 1,
-		.session.last_will.retain = 1,
-		.session.keepalive = 120,
-		.network.timeout_ms = 20000,
-		.network.reconnect_timeout_ms = 10000,
-	};
-
-	mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
-	esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-
-    esp_mqtt_client_start(mqtt_client);
-
-    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
-    esp_sntp_setservername(0, "pool.ntp.org");
-    esp_sntp_init();
+    // sim7080g_task owns modem + MQTT lifecycle (MQTT off while PPP reconnects).
+    xTaskCreate(sim7080g_task, "sim7080g_task", 4096, NULL, 5, NULL);
 }
