@@ -1032,7 +1032,7 @@ static void sim7080g_task(void *pvParameters) {
 
     esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_PPP();
     esp_netif_t *ppp_netif = esp_netif_new(&netif_cfg);
-    esp_netif_set_route_prio(ppp_netif, 200);  // higher prio = preferred default route
+    esp_netif_set_route_prio(ppp_netif, 100);
 
     esp_modem_dce_t *dce = esp_modem_new_dev(ESP_MODEM_DCE_SIM7070, &dte_config, &dce_config, ppp_netif);
     assert(dce);
@@ -1048,8 +1048,8 @@ static void sim7080g_task(void *pvParameters) {
         .session.last_will.qos = 1,
         .session.last_will.retain = 1,
         .session.keepalive = 120,
-        .network.timeout_ms = 20000,
-        .network.reconnect_timeout_ms = 10000,
+        .network.timeout_ms = 30000,
+        .network.reconnect_timeout_ms = 15000,
     };
 
     mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
@@ -1091,7 +1091,6 @@ static void sim7080g_task(void *pvParameters) {
         esp_mqtt_client_start(mqtt_client);
 
         xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_LOST_IP, pdTRUE, pdTRUE, portMAX_DELAY);
-
         esp_mqtt_client_stop(mqtt_client);
     }
 }
@@ -1136,7 +1135,7 @@ void app_main(void) {
 	esp_event_loop_create_default();
 
 	esp_netif_t *wifi_netif = esp_netif_create_default_wifi_sta();
-    esp_netif_set_route_prio(wifi_netif, 100);  // lower prio = fallback;
+    esp_netif_set_route_prio(wifi_netif, 200);
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	esp_wifi_init(&cfg);
@@ -1222,6 +1221,5 @@ void app_main(void) {
 
     //------------------- SIM7080g STACK -----------------------//
 	//----------------------------------------------------------//
-    // sim7080g_task owns modem + MQTT lifecycle (MQTT off while PPP reconnects).
     xTaskCreate(sim7080g_task, "sim7080g_task", 4096, NULL, 5, NULL);
 }
