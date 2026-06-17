@@ -345,18 +345,17 @@ public class EmbeddesFragment extends Fragment {
                     SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                     JSONObject jsonObject= new JSONObject();
-                    jsonObject.put("mac_address", rxBleDevice.getMacAddress());
+                    jsonObject.put("mac_address_", rxBleDevice.getMacAddress());
 
                     RequestBody requestBody = RequestBody.create( jsonObject.toString(), MediaType.parse("application/json") );
 
                     JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
-                    Request request = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded")
+                    Request request = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/rest/v1/rpc/register_embedded")
                             .post(requestBody)
                             .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                             .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                             .addHeader("Content-Type", "application/json")
-                            .addHeader("Prefer", "return=representation")
                             .build();
 
                     Response response = new OkHttpClient().newCall(request).execute();
