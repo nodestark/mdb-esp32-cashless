@@ -81,19 +81,20 @@ static inline void write_u16(uint8_t *p, uint16_t v) {
 #define BIT_CMD_SET   	0b000000111
 
 enum BIT_STATUS {
-    BIT_STATUS_MQTT    = (1 << 0),
-    BIT_STATUS_MDB         = (1 << 1),
-    BIT_STATUS_PSSKEY      = (1 << 2),
-    BIT_STATUS_DOMAIN      = (1 << 3),
-    BIT_STATUS_BUZZER      = (1 << 4),
-    BIT_STATUS_TRIGGER     = (1 << 5),
-    MASK_STATUS_INSTALLED  = (BIT_STATUS_PSSKEY | BIT_STATUS_DOMAIN)
+    BIT_STATUS_MQTT         = (1 << 0),
+    BIT_STATUS_MDB          = (1 << 1),
+    BIT_STATUS_PSSKEY       = (1 << 2),
+    BIT_STATUS_DOMAIN       = (1 << 3),
+    BIT_STATUS_BUZZER       = (1 << 4),
+    BIT_STATUS_TRIGGER      = (1 << 5),
+    MASK_STATUS_INSTALLED   = (BIT_STATUS_PSSKEY | BIT_STATUS_DOMAIN)
 };
 
 enum BIT_INTERNET {
     BIT_PPP_GOT_IP      = (1 << 0),
-    BIT_STA_GOT_IP      = (1 << 1),
-    BIT_PPP_LOST_IP     = (1 << 2)
+    BIT_PPP_LOST_IP     = (1 << 1),
+    BIT_STA_GOT_IP      = (1 << 2),
+    BIT_STA_LOST_IP     = (1 << 3),
 };
 
 EventGroupHandle_t xLedEventGroup;
@@ -956,6 +957,7 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
         }
         case IP_EVENT_PPP_LOST_IP:
             ESP_LOGW(TAG, "ppp lost IP, restarting sim7080g_task");
+            xEventGroupClearBits(xInternetEventGroup, BIT_PPP_GOT_IP);
             xEventGroupSetBits(xInternetEventGroup, BIT_PPP_LOST_IP);
             break;
         case IP_EVENT_STA_GOT_IP: {
@@ -966,6 +968,7 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
         }
         case IP_EVENT_STA_LOST_IP:
             xEventGroupClearBits(xInternetEventGroup, BIT_STA_GOT_IP);
+            xEventGroupSetBits(xInternetEventGroup, BIT_STA_LOST_IP);
             ESP_LOGW(TAG, "wifi lost IP");
             break;
     }
@@ -1084,10 +1087,10 @@ static void sim7080g_task(void *pvParameters) {
 
             if (sim7080g_wait_registered(dce) == ESP_OK) {
                 esp_modem_set_mode(dce, ESP_MODEM_MODE_DATA);
-                xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP, pdTRUE, pdTRUE, pdMS_TO_TICKS(90000));
             }
         }
 
+        xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_GOT_IP | BIT_STA_GOT_IP, pdFALSE, pdFALSE, portMAX_DELAY);
         esp_mqtt_client_start(mqtt_client);
 
         xEventGroupWaitBits(xInternetEventGroup, BIT_PPP_LOST_IP, pdTRUE, pdTRUE, portMAX_DELAY);
