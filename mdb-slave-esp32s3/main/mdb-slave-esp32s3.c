@@ -227,6 +227,12 @@ void write_payload_9(uint8_t *mdb_payload, uint8_t length) {
 	write_9(BIT_MODE_SET | checksum);
 }
 void mdb_cashless_task(void *pvParameters) {
+	// Install the RX edge ISR from this task so the GPIO interrupt is allocated
+	// on this task's core (APP_CPU/core 1), isolated from core-0 network ISRs
+	// that would otherwise skew the bit-sampling timing.
+	gpio_install_isr_service(0);
+	gpio_isr_handler_add(PIN_MDB_RX, mdb_rx_falling_isr, NULL);
+
 	time_t session_begin_time = 0;
 
 	uint16_t funds_available = 0;
@@ -271,12 +277,7 @@ void mdb_cashless_task(void *pvParameters) {
 				uint8_t vmc_columns_on_display = read_9(&checksum);
 				uint8_t vmc_rows_on_display = read_9(&checksum);
 				uint8_t vmc_display_info = read_9(&checksum);
-
-				(void) vmc_display_info;
-				(void) vmc_rows_on_display;
-				(void) vmc_columns_on_display;
-				(void) vmc_feature_level;
-
+				
 				if (read_9(NULL) != checksum) continue;
 
 				machine_state = DISABLED_STATE;
@@ -1119,7 +1120,7 @@ void app_main(void) {
     };
     led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip);
 
-    xTaskCreate(led_status_task, "led_status", 2048, NULL, 1, NULL);
+    xTaskCreate(led_status_task, "led_status_task", 2048, NULL, 1, NULL);
 
     xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
@@ -1213,13 +1214,12 @@ void app_main(void) {
     };
     gpio_config(&io_conf);
 
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(PIN_MDB_RX, mdb_rx_falling_isr, NULL);
-
     mdb_session_queue = xQueueCreate(1, sizeof(uint16_t));
-    xTaskCreate(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, 1, NULL);
+
+    // Bit-banged MDB pinned alone to core 1 at high prio so core-0 network never preempts a frame.
+    xTaskCreatePinnedToCore(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, configMAX_PRIORITIES - 2, NULL, 1);
 
     //------------------- SIM7080g STACK -----------------------//
 	//----------------------------------------------------------//
-    xTaskCreate(sim7080g_task, "sim7080g_task", 4096, NULL, 5, NULL);
+    xTaskCreatePinnedToCore(sim7080g_task, "sim7080g_task", 4096, NULL, 5, NULL, 0);
 }
