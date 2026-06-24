@@ -241,301 +241,300 @@ void mdb_cashless_task(void *pvParameters) {
 
 		uint16_t coming_read = read_9(&checksum);
 
-		if (coming_read & BIT_MODE_SET) {
-			if ((uint8_t) coming_read == ACK) {
-			} else if ((uint8_t) coming_read == RET) {
-			} else if ((uint8_t) coming_read == NAK) {
-			} else if ((coming_read & BIT_ADD_SET) == CONFIG_CASHLESS_DEVICE_ADDRESS) {
-				available_tx = 0;
-
-				switch (coming_read & BIT_CMD_SET) {
-				case RESET: {
-                    if (read_9(NULL) != checksum) continue;
-
-					cashless_reset_todo = true;
-					machine_state = INACTIVE_STATE;
-
-                    xEventGroupClearBits(xLedEventGroup, BIT_STATUS_MDB);
-                    xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
-
-                    ESP_LOGI( TAG, "RESET");
-					break;
-				}
-				case SETUP: {
-					switch (read_9(&checksum)) {
-					case CONFIG_DATA: {
-						uint8_t vmc_feature_level = read_9(&checksum);
-						uint8_t vmc_columns_on_display = read_9(&checksum);
-						uint8_t vmc_rows_on_display = read_9(&checksum);
-						uint8_t vmc_display_info = read_9(&checksum);
-
-						(void) vmc_display_info;
-						(void) vmc_rows_on_display;
-						(void) vmc_columns_on_display;
-						(void) vmc_feature_level;
-
-                        if (read_9(NULL) != checksum) continue;
-
-						machine_state = DISABLED_STATE;
-
-                        mdb_payload[0] = 0x01;
-                        mdb_payload[1] = 1;
-						mdb_payload[2] = CONFIG_MDB_CURRENCY_CODE >> 8;
-						mdb_payload[3] = CONFIG_MDB_CURRENCY_CODE & 0xff;
-						mdb_payload[4] = CONFIG_MDB_SCALE_FACTOR;
-						mdb_payload[5] = CONFIG_MDB_DECIMAL_PLACES;
-						mdb_payload[6] = 3;
-						mdb_payload[7] = 0b00001001;
-						available_tx = 8;
-
-						ESP_LOGI( TAG, "CONFIG_DATA");
-						break;
-					}
-					case MAX_MIN_PRICES: {
-						uint16_t max_price = (read_9(&checksum) << 8) | read_9(&checksum);
-						uint16_t min_price = (read_9(&checksum) << 8) | read_9(&checksum);
-
-						(void) max_price;
-						(void) min_price;
-
-                        if (read_9(NULL) != checksum) continue;
-
-						ESP_LOGI( TAG, "MAX_MIN_PRICES");
-						break;
-					}
-					}
-
-					break;
-				}
-				case POLL: {
-				    if (read_9(NULL) != checksum) continue;
-
-					if (cashless_reset_todo) {
-						cashless_reset_todo = false;
-						mdb_payload[0] = 0x00;
-						available_tx = 1;
-
-					} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdb_session_queue, &funds_available, 0)) {
-						session_begin_todo = false;
-
-						machine_state = IDLE_STATE;
-
-						mdb_payload[0] = 0x03;
-                        mdb_payload[1] = funds_available >> 8;
-                        mdb_payload[2] = funds_available;
-                        available_tx = 3;
-
-						time( &session_begin_time);
-
-					} else if (session_cancel_todo) {
-						session_cancel_todo = false;
+		if (!(coming_read & BIT_MODE_SET)) continue;
+
+		if ((uint8_t) coming_read == ACK) continue;
+		if ((uint8_t) coming_read == RET) continue;
+		if ((uint8_t) coming_read == NAK) continue;
+
+		if ((coming_read & BIT_ADD_SET) != CONFIG_CASHLESS_DEVICE_ADDRESS) continue;
 
-						mdb_payload[0] = 0x04;
-						available_tx = 1;
+		available_tx = 0;
+
+		switch (coming_read & BIT_CMD_SET) {
+		case RESET: {
+			if (read_9(NULL) != checksum) continue;
 
-					} else if (vend_approved_todo) {
-						vend_approved_todo = false;
-
-						mdb_payload[0] = 0x05;
-						mdb_payload[1] = item_price >> 8;
-						mdb_payload[2] = item_price;
-						available_tx = 3;
+			cashless_reset_todo = true;
+			machine_state = INACTIVE_STATE;
 
-					} else if (vend_denied_todo) {
-						vend_denied_todo = false;
+			xEventGroupClearBits(xLedEventGroup, BIT_STATUS_MDB);
+			xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
 
-						mdb_payload[0] = 0x06;
-						available_tx = 1;
-						machine_state = IDLE_STATE;
+			ESP_LOGI( TAG, "RESET");
+			break;
+		}
+		case SETUP: {
+			switch (read_9(&checksum)) {
+			case CONFIG_DATA: {
+				uint8_t vmc_feature_level = read_9(&checksum);
+				uint8_t vmc_columns_on_display = read_9(&checksum);
+				uint8_t vmc_rows_on_display = read_9(&checksum);
+				uint8_t vmc_display_info = read_9(&checksum);
 
-					} else if (session_end_todo) {
-						session_end_todo = false;
+				(void) vmc_display_info;
+				(void) vmc_rows_on_display;
+				(void) vmc_columns_on_display;
+				(void) vmc_feature_level;
 
-						mdb_payload[0] = 0x07;
-						available_tx = 1;
-						machine_state = ENABLED_STATE;
+				if (read_9(NULL) != checksum) continue;
 
-					} else if (out_of_sequence_todo) {
-						out_of_sequence_todo = false;
+				machine_state = DISABLED_STATE;
 
-						mdb_payload[0] = 0x0b;
-						available_tx = 1;
+				mdb_payload[0] = 0x01;
+				mdb_payload[1] = 1;
+				mdb_payload[2] = CONFIG_MDB_CURRENCY_CODE >> 8;
+				mdb_payload[3] = CONFIG_MDB_CURRENCY_CODE & 0xff;
+				mdb_payload[4] = CONFIG_MDB_SCALE_FACTOR;
+				mdb_payload[5] = CONFIG_MDB_DECIMAL_PLACES;
+				mdb_payload[6] = 3;
+				mdb_payload[7] = 0b00001001;
+				available_tx = 8;
 
-					} else {
-						time_t now = time(NULL);
+				ESP_LOGI( TAG, "CONFIG_DATA");
+				break;
+			}
+			case MAX_MIN_PRICES: {
+				uint16_t max_price = (read_9(&checksum) << 8) | read_9(&checksum);
+				uint16_t min_price = (read_9(&checksum) << 8) | read_9(&checksum);
 
-						if (machine_state >= IDLE_STATE && (now - session_begin_time) > 60) {
-							session_cancel_todo = true;
-						}
-					}
+				(void) max_price;
+				(void) min_price;
 
-					break;
-				}
-				case VEND: {
-					switch (read_9(&checksum)) {
-					case VEND_REQUEST: {
-						item_price = (read_9(&checksum) << 8) | read_9(&checksum);
-						item_number = (read_9(&checksum) << 8) | read_9(&checksum);
+				if (read_9(NULL) != checksum) continue;
 
-                        if (read_9(NULL) != checksum) continue;
+				ESP_LOGI( TAG, "MAX_MIN_PRICES");
+				break;
+			}
+			}
 
-						machine_state = VEND_STATE;
+			break;
+		}
+		case POLL: {
+			if (read_9(NULL) != checksum) continue;
 
-                        if(funds_available && (funds_available != 0xffff)){
-                            if (item_price <= funds_available) {
-                                vend_approved_todo = true;
-                            } else {
-                                vend_denied_todo = true;
-                            }
-                        }
+			if (cashless_reset_todo) {
+				cashless_reset_todo = false;
+				mdb_payload[0] = 0x00;
+				available_tx = 1;
 
-						uint8_t payload[19];
-						ble_encode_with_passkey(0x0a, item_price, item_number, payload);
+			} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdb_session_queue, &funds_available, 0)) {
+				session_begin_todo = false;
 
-                        ble_notify_send((char*) payload, sizeof(payload));
+				machine_state = IDLE_STATE;
 
-						ESP_LOGI( TAG, "VEND_REQUEST");
-						break;
-					}
-					case VEND_CANCEL: {
-                        if (read_9(NULL) != checksum) continue;
+				mdb_payload[0] = 0x03;
+				mdb_payload[1] = funds_available >> 8;
+				mdb_payload[2] = funds_available;
+				available_tx = 3;
 
-						vend_denied_todo = true;
-						break;
-					}
-					case VEND_SUCCESS: {
-						item_number = (read_9(&checksum) << 8) | read_9(&checksum);
+				time( &session_begin_time);
 
-                        if (read_9(NULL) != checksum) continue;
+			} else if (session_cancel_todo) {
+				session_cancel_todo = false;
 
-						machine_state = IDLE_STATE;
+				mdb_payload[0] = 0x04;
+				available_tx = 1;
 
-						last_sale_price = item_price;
-						last_sale_item  = item_number;
-						last_vend_success_time = time(NULL);
+			} else if (vend_approved_todo) {
+				vend_approved_todo = false;
 
-						uint8_t payload[19];
-						ble_encode_with_passkey(0x0b, item_price, item_number, payload);
+				mdb_payload[0] = 0x05;
+				mdb_payload[1] = item_price >> 8;
+				mdb_payload[2] = item_price;
+				available_tx = 3;
 
-                        ble_notify_send((char*) payload, sizeof(payload));
+			} else if (vend_denied_todo) {
+				vend_denied_todo = false;
 
-						ESP_LOGI( TAG, "VEND_SUCCESS");
-						break;
-					}
-					case VEND_FAILURE: {
-                        if (read_9(NULL) != checksum) continue;
+				mdb_payload[0] = 0x06;
+				available_tx = 1;
+				machine_state = IDLE_STATE;
 
-						machine_state = IDLE_STATE;
+			} else if (session_end_todo) {
+				session_end_todo = false;
 
-						vend_fail_count++;
+				mdb_payload[0] = 0x07;
+				available_tx = 1;
+				machine_state = ENABLED_STATE;
 
-						uint8_t payload[19];
-						ble_encode_with_passkey(0x0c, item_price, item_number, payload);
+			} else if (out_of_sequence_todo) {
+				out_of_sequence_todo = false;
 
-                        ble_notify_send((char*) payload, sizeof(payload));
-						break;
-					}
-					case SESSION_COMPLETE: {
-                        if (read_9(NULL) != checksum) continue;
-
-						session_end_todo = true;
-
-						uint8_t payload[19];
-						ble_encode_with_passkey(0x0d, item_price, item_number, payload);
-
-                        ble_notify_send((char*) payload, sizeof(payload));
-
-						ESP_LOGI( TAG, "SESSION_COMPLETE");
-						break;
-					}
-					case CASH_SALE: {
-						uint16_t item_price = (read_9(&checksum) << 8) | read_9(&checksum);
-						uint16_t item_number = (read_9(&checksum) << 8) | read_9(&checksum);
-
-						if (read_9(NULL) != checksum) continue;
-
-                        uint32_t price_wire = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
-
-                        char msg[64], line[160], topic[64];
-                        snprintf(msg, sizeof(msg), "%lu:%u:%lld", (unsigned long) price_wire, item_number, (long long) time(NULL));
-                        rpc_sign_text(msg, line, sizeof(line));
-
-                        snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/sale", my_subdomain);
-
-                        esp_mqtt_client_publish(mqtt_client, topic, line, 0, 1, 0);
-
-                        ESP_LOGI( TAG, "CASH_SALE");
-						break;
-					}
-					}
-
-					break;
-				}
-				case READER: {
-					switch (read_9(&checksum)) {
-					case READER_DISABLE: {
-                        if (read_9(NULL) != checksum) continue;
-
-						machine_state = DISABLED_STATE;
-
-                        xEventGroupClearBits(xLedEventGroup, BIT_STATUS_MDB);
-                        xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
-
-						break;
-					}
-					case READER_ENABLE: {
-                        if (read_9(NULL) != checksum) continue;
-
-						machine_state = ENABLED_STATE;
-
-                        xEventGroupSetBits(xLedEventGroup, BIT_STATUS_MDB | BIT_STATUS_TRIGGER);
-
-						break;
-					}
-					case READER_CANCEL: {
-                        if (read_9(NULL) != checksum) continue;
-
-						mdb_payload[ 0 ] = 0x08;
-						available_tx = 1;
-
-						ESP_LOGI( TAG, "READER_CANCEL");
-						break;
-					}
-					}
-
-					break;
-				}
-				case EXPANSION: {
-					switch (read_9(&checksum)) {
-					case REQUEST_ID: {
-					    for(uint8_t x= 0; x < 29; x++) read_9(&checksum);
-
-				        if (read_9(NULL) != checksum) continue;
-
-                        mdb_payload[ 0 ] = 0x09;
-
-                        memcpy( &mdb_payload[1], "VMF", 3);
-                        memcpy( &mdb_payload[4], "            ", 12);
-                        memcpy( &mdb_payload[16], "            ", 12);
-                        mdb_payload[28] = 0x00;
-                        mdb_payload[29] = 0x03;
-
-                        available_tx = 30;
-
-                        ESP_LOGI( TAG, "REQUEST_ID");
-						break;
-					}
-					}
-
-					break;
-				}
-				}
-
-				write_payload_9(mdb_payload, available_tx);
+				mdb_payload[0] = 0x0b;
+				available_tx = 1;
 
 			} else {
+				time_t now = time(NULL);
+
+				if (machine_state >= IDLE_STATE && (now - session_begin_time) > 60) {
+					session_cancel_todo = true;
+				}
 			}
+
+			break;
 		}
+		case VEND: {
+			switch (read_9(&checksum)) {
+			case VEND_REQUEST: {
+				item_price = (read_9(&checksum) << 8) | read_9(&checksum);
+				item_number = (read_9(&checksum) << 8) | read_9(&checksum);
+
+				if (read_9(NULL) != checksum) continue;
+
+				machine_state = VEND_STATE;
+
+				if(funds_available && (funds_available != 0xffff)){
+					if (item_price <= funds_available) {
+						vend_approved_todo = true;
+					} else {
+						vend_denied_todo = true;
+					}
+				}
+
+				uint8_t payload[19];
+				ble_encode_with_passkey(0x0a, item_price, item_number, payload);
+
+				ble_notify_send((char*) payload, sizeof(payload));
+
+				ESP_LOGI( TAG, "VEND_REQUEST");
+				break;
+			}
+			case VEND_CANCEL: {
+				if (read_9(NULL) != checksum) continue;
+
+				vend_denied_todo = true;
+				break;
+			}
+			case VEND_SUCCESS: {
+				item_number = (read_9(&checksum) << 8) | read_9(&checksum);
+
+				if (read_9(NULL) != checksum) continue;
+
+				machine_state = IDLE_STATE;
+
+				last_sale_price = item_price;
+				last_sale_item  = item_number;
+				last_vend_success_time = time(NULL);
+
+				uint8_t payload[19];
+				ble_encode_with_passkey(0x0b, item_price, item_number, payload);
+
+				ble_notify_send((char*) payload, sizeof(payload));
+
+				ESP_LOGI( TAG, "VEND_SUCCESS");
+				break;
+			}
+			case VEND_FAILURE: {
+				if (read_9(NULL) != checksum) continue;
+
+				machine_state = IDLE_STATE;
+
+				vend_fail_count++;
+
+				uint8_t payload[19];
+				ble_encode_with_passkey(0x0c, item_price, item_number, payload);
+
+				ble_notify_send((char*) payload, sizeof(payload));
+				break;
+			}
+			case SESSION_COMPLETE: {
+				if (read_9(NULL) != checksum) continue;
+
+				session_end_todo = true;
+
+				uint8_t payload[19];
+				ble_encode_with_passkey(0x0d, item_price, item_number, payload);
+
+				ble_notify_send((char*) payload, sizeof(payload));
+
+				ESP_LOGI( TAG, "SESSION_COMPLETE");
+				break;
+			}
+			case CASH_SALE: {
+				uint16_t item_price = (read_9(&checksum) << 8) | read_9(&checksum);
+				uint16_t item_number = (read_9(&checksum) << 8) | read_9(&checksum);
+
+				if (read_9(NULL) != checksum) continue;
+
+				uint32_t price_wire = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
+
+				char msg[64], line[160], topic[64];
+				snprintf(msg, sizeof(msg), "%lu:%u:%lld", (unsigned long) price_wire, item_number, (long long) time(NULL));
+				rpc_sign_text(msg, line, sizeof(line));
+
+				snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/sale", my_subdomain);
+
+				esp_mqtt_client_publish(mqtt_client, topic, line, 0, 1, 0);
+
+				ESP_LOGI( TAG, "CASH_SALE");
+				break;
+			}
+			}
+
+			break;
+		}
+		case READER: {
+			switch (read_9(&checksum)) {
+			case READER_DISABLE: {
+				if (read_9(NULL) != checksum) continue;
+
+				machine_state = DISABLED_STATE;
+
+				xEventGroupClearBits(xLedEventGroup, BIT_STATUS_MDB);
+				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_TRIGGER);
+
+				break;
+			}
+			case READER_ENABLE: {
+				if (read_9(NULL) != checksum) continue;
+
+				machine_state = ENABLED_STATE;
+
+				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_MDB | BIT_STATUS_TRIGGER);
+
+				break;
+			}
+			case READER_CANCEL: {
+				if (read_9(NULL) != checksum) continue;
+
+				mdb_payload[ 0 ] = 0x08;
+				available_tx = 1;
+
+				ESP_LOGI( TAG, "READER_CANCEL");
+				break;
+			}
+			}
+
+			break;
+		}
+		case EXPANSION: {
+			switch (read_9(&checksum)) {
+			case REQUEST_ID: {
+				for(uint8_t x= 0; x < 29; x++) read_9(&checksum);
+
+				if (read_9(NULL) != checksum) continue;
+
+				mdb_payload[ 0 ] = 0x09;
+
+				memcpy( &mdb_payload[1], "VMF", 3);
+				memcpy( &mdb_payload[4], "            ", 12);
+				memcpy( &mdb_payload[16], "            ", 12);
+				mdb_payload[28] = 0x00;
+				mdb_payload[29] = 0x03;
+
+				available_tx = 30;
+
+				ESP_LOGI( TAG, "REQUEST_ID");
+				break;
+			}
+			}
+
+			break;
+		}
+		}
+
+		write_payload_9(mdb_payload, available_tx);
 	}
 }
 
@@ -738,10 +737,8 @@ void ble_event_handler(char *ble_payload) {
 	}
 }
 
-
-// OTA worker: pulls the app image from a GitHub release asset over HTTPS,
-// writes the inactive slot, then reboots. Runs in its own task because the
-// download blocks for tens of seconds and must not stall the MQTT handler.
+// OTA worker: pulls the app image from a GitHub release asset over HTTPS, writes the inactive slot, then reboots.
+// Runs in its own task because the download blocks for tens of seconds and must not stall the MQTT handler.
 static void ota_task(void *arg) {
 	const char *url = (const char *) arg;
 	char topic[64];
