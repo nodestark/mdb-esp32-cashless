@@ -17,6 +17,13 @@ The project aims to provide a modern, open, and extensible platform for vending 
 
 ![MDB Cashless](1411051686640.jpg)
 
+# Features
+- ESP32-based vending machine controller implementing MDB telemetry, cashless payments, and IoT connectivity;
+- PCB design done in **KiCad**, facilitating production and customization of the hardware;
+- Support for **EVA DTS DEX/DDCMP** (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines;
+- **Web Dashboard**: [📊 Open Dashboard](https://vmflow.xyz/dashboard) – Centralized interface to monitor the vending machine network in real time, including device status, telemetry, sales data, inventory control, product catalog management, and real-time stock alerts. Features AI-powered diagnostics (via OpenAI) for operation-wide analysis, per-machine insights, and product catalog recommendations;
+- **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights;
+
 # 🤖 Manage It With Your AI Agent
 
 VMflow is built to be driven by AI agents — send credits, check device health, query sales, and trigger OTA updates, all from natural language.
@@ -30,13 +37,6 @@ $ openclaw skills install @nodestark/vmflow
 ```
 read https://raw.githubusercontent.com/nodestark/mdb-esp32-cashless/main/AGENTS.md
 ```
-
-# Features
-- ESP32-based vending machine controller implementing MDB telemetry, cashless payments, and IoT connectivity;
-- PCB design done in **KiCad**, facilitating production and customization of the hardware;
-- Support for **EVA DTS DEX/DDCMP** (European Vending Association Data Transfer Standard), allowing remote monitoring and control of machines;
-- **Web Dashboard**: [📊 Open Dashboard](https://vmflow.xyz/dashboard) – Centralized interface to monitor the vending machine network in real time, including device status, telemetry, sales data, inventory control, product catalog management, and real-time stock alerts. Features AI-powered diagnostics (via OpenAI) for operation-wide analysis, per-machine insights, and product catalog recommendations;
-- **PAX Counter**: detects nearby mobile devices and periodically reports anonymized presence metrics to estimate foot traffic around the vending machine. This enables heatmaps, peak-hour analysis, and location performance insights;
 
 # Getting Started
 
