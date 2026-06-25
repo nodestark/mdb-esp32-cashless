@@ -19,8 +19,14 @@ The project aims to provide a modern, open, and extensible platform for vending 
 
 # 🤖 Manage It With Your AI Agent
 
-VMflow is built to be driven by AI agents. Paste this into your agent and it picks up the whole project — MQTT RPC control, the device commands, and the Supabase data API:
+VMflow is built to be driven by AI agents — send credits, check device health, query sales, and trigger OTA updates, all from natural language.
 
+**OpenClaw** — install the official VMflow skill:
+```
+$ openclaw skills install @nodestark/vmflow
+```
+
+**Other agents** (Claude, ChatGPT, etc.) — paste this and your agent picks up the whole API:
 ```
 read https://raw.githubusercontent.com/nodestark/mdb-esp32-cashless/main/AGENTS.md
 ```
