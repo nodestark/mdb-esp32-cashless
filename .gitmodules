@@ -1,3 +1,4 @@
 [submodule "mdb-master-esp32s3"]
 	path = mdb-master-esp32s3
 	url = https://github.com/nodestark/mdb-esp32-master
+	branch = main
