@@ -452,7 +452,7 @@ static void eva_dts_task(void *arg) {
         char topic[64];
         snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/dex", my_subdomain);
 
-        esp_mqtt_client_publish(mqtt_client, topic, (char*) dex, dex_size, 0, 0);
+        esp_mqtt_client_enqueue(mqtt_client, topic, (char*) dex, dex_size, 0, 0, 0);
         printf("%.*s", dex_size, (char*) dex);
 
         vRingbufferReturnItem(dex_ringbuf, (void*) dex);

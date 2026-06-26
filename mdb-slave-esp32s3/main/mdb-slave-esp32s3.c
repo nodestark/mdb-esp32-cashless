@@ -165,7 +165,9 @@ uint16_t last_sale_price = 0;
 uint16_t last_sale_item = 0;
 
 time_t   last_vend_success_time = 0;
-uint32_t vend_fail_count = 0;
+
+static char s_ip_wifi[16] = "";
+static char s_ip_ppp[16]  = "";
 
 #define RPC_FRESHNESS_SEC 10
 
@@ -395,7 +397,6 @@ void mdb_cashless_task(void *pvParameters) {
 
 				uint8_t payload[19];
 				ble_encode_with_passkey(0x0a, item_price, item_number, payload);
-
 				ble_notify_send((char*) payload, sizeof(payload));
 
 				ESP_LOGI( TAG, "VEND_REQUEST");
@@ -420,7 +421,6 @@ void mdb_cashless_task(void *pvParameters) {
 
 				uint8_t payload[19];
 				ble_encode_with_passkey(0x0b, item_price, item_number, payload);
-
 				ble_notify_send((char*) payload, sizeof(payload));
 
 				ESP_LOGI( TAG, "VEND_SUCCESS");
@@ -431,12 +431,15 @@ void mdb_cashless_task(void *pvParameters) {
 
 				machine_state = IDLE_STATE;
 
-				vend_fail_count++;
-
 				uint8_t payload[19];
 				ble_encode_with_passkey(0x0c, item_price, item_number, payload);
-
 				ble_notify_send((char*) payload, sizeof(payload));
+
+                char topic[64], buf[32];
+                snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/vend_fail", my_subdomain);
+                snprintf(buf, sizeof(buf), "%u,%u", item_price, item_number);
+                esp_mqtt_client_enqueue(mqtt_client, topic, buf, 0, 1, 0, 1);
+
 				break;
 			}
 			case SESSION_COMPLETE: {
@@ -446,7 +449,6 @@ void mdb_cashless_task(void *pvParameters) {
 
 				uint8_t payload[19];
 				ble_encode_with_passkey(0x0d, item_price, item_number, payload);
-
 				ble_notify_send((char*) payload, sizeof(payload));
 
 				ESP_LOGI( TAG, "SESSION_COMPLETE");
@@ -460,13 +462,12 @@ void mdb_cashless_task(void *pvParameters) {
 
 				uint32_t price_wire = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
-				char msg[64], line[160], topic[64];
+				char topic[64], msg[64], line[160];
 				snprintf(msg, sizeof(msg), "%lu:%u:%lld", (unsigned long) price_wire, item_number, (long long) time(NULL));
 				rpc_sign_text(msg, line, sizeof(line));
 
 				snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/sale", my_subdomain);
-
-				esp_mqtt_client_publish(mqtt_client, topic, line, 0, 1, 0);
+				esp_mqtt_client_enqueue(mqtt_client, topic, line, 0, 1, 0, 1);
 
 				ESP_LOGI( TAG, "CASH_SALE");
 				break;
@@ -641,13 +642,12 @@ void led_status_task(void *pvParameters) {
 }
 
 void ble_pax_event_handler(uint16_t devices_count){
-    char msg[48], line[128], topic[64];
+    char topic[64], msg[48], line[128];
     snprintf(msg, sizeof(msg), "%u:%lld", devices_count, (long long) time(NULL));
     rpc_sign_text(msg, line, sizeof(line));
 
     snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/paxcounter", my_subdomain);
-
-    esp_mqtt_client_publish(mqtt_client, topic, line, 0, 1, 0);
+    esp_mqtt_client_enqueue(mqtt_client, topic, line, 0, 1, 0, 1);
 }
 
 void ble_event_handler(char *ble_payload) {
@@ -762,14 +762,13 @@ static void ota_task(void *arg) {
 	esp_err_t err = esp_https_ota(&ota_cfg);
 	if (err == ESP_OK) {
 		ESP_LOGW(TAG, "OTA success, rebooting into new image");
-		esp_mqtt_client_publish(mqtt_client, topic, "ok-rebooting", 0, 1, 0);
 		vTaskDelay(pdMS_TO_TICKS(1000));
 		esp_restart();
 	} else {
 		char msg[64];
 		snprintf(msg, sizeof(msg), "fail:%s", esp_err_to_name(err));
+		esp_mqtt_client_enqueue(mqtt_client, topic, msg, 0, 1, 0, 1);
 		ESP_LOGE(TAG, "OTA failed: %s", esp_err_to_name(err));
-		esp_mqtt_client_publish(mqtt_client, topic, msg, 0, 1, 0);
 		vTaskDelete(NULL);
 	}
 }
@@ -778,26 +777,24 @@ static void ota_task(void *arg) {
 static void rpc_publish_info(void) {
 	const esp_app_desc_t *app = esp_app_get_description();
 
-	char json[256];
+	char topic[64], json[384];
 	int n = snprintf(json, sizeof(json),
-		"{\"version\":\"%s\",\"uptime_s\":%lld,\"reset_reason\":%d,"
+		"{\"version\":\"%s\",\"uptime_s\":%lld,"
 		"\"free_heap\":%lu,\"min_free_heap\":%lu,\"machine_state\":%d,"
 		"\"last_sale_price\":%u,\"last_sale_item\":%u,"
-		"\"last_vend_success_time\":%lld,\"vend_fail_count\":%lu}",
+		"\"last_vend_success_time\":%lld,"
+		"\"ip_wifi\":\"%s\",\"ip_ppp\":\"%s\"}",
 		app->version,
 		(long long) (esp_timer_get_time() / 1000000),
-		(int) esp_reset_reason(),
 		(unsigned long) esp_get_free_heap_size(),
 		(unsigned long) esp_get_minimum_free_heap_size(),
 		(int) machine_state,
 		last_sale_price, last_sale_item,
 		(long long) last_vend_success_time,
-		(unsigned long) vend_fail_count);
+		s_ip_wifi, s_ip_ppp);
 
-	char topic[64];
 	snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/info", my_subdomain);
-
-	esp_mqtt_client_publish(mqtt_client, topic, json, n, 1, 0);
+	esp_mqtt_client_enqueue(mqtt_client, topic, json, n, 1, 0, 1);
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
@@ -807,15 +804,14 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	switch ((esp_mqtt_event_id_t) event_id) {
 	case MQTT_EVENT_CONNECTED:
 
-    	char topic[64];
+    	char topic[64], buf[32];
     	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", my_subdomain);
 
     	esp_mqtt_client_subscribe(mqtt_client, topic, 0);
 
-    	char topic_[64];
-    	snprintf(topic_, sizeof(topic_), "domain.vmflow.xyz/%s/status", my_subdomain);
-
-		esp_mqtt_client_publish(mqtt_client, topic_, "online", 0, 1, 1);
+    	snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/status", my_subdomain);
+    	snprintf(buf, sizeof(buf), "online,%d", (int)esp_reset_reason());
+    	esp_mqtt_client_enqueue(mqtt_client, topic, buf, 0, 1, 1, 1);
 
         xEventGroupSetBits(xLedEventGroup, BIT_STATUS_MQTT | BIT_STATUS_TRIGGER);
 
@@ -886,27 +882,24 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				xQueueSend(mdb_session_queue, &funds_available, 0);
 				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 
-				char ctopic[64];
-				snprintf(ctopic, sizeof(ctopic), "domain.vmflow.xyz/%s/rpc/credit", my_subdomain);
-				esp_mqtt_client_publish(mqtt_client, ctopic, "ok", 0, 1, 0);
+				char topic[64];
+				snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/credit", my_subdomain);
+				esp_mqtt_client_enqueue(mqtt_client, topic, "ok", 0, 1, 0, 1);
 
 				ESP_LOGI( TAG, "RPC credit: Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 			} else if (strcmp(cmd, "oos") == 0) {
 				out_of_sequence_todo = true;
 				ESP_LOGI(TAG, "RPC out-of-sequence queued");
 			} else if (strcmp(cmd, "echo") == 0) {
-				char etopic[64], ts_str[24];
-				snprintf(etopic, sizeof(etopic), "domain.vmflow.xyz/%s/rpc/echo", my_subdomain);
-				snprintf(ts_str, sizeof(ts_str), "%u", ts);
-				esp_mqtt_client_publish(mqtt_client, etopic, ts_str, 0, 1, 0);
+				char topic[64], buf[24];
+				snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/echo", my_subdomain);
+				snprintf(buf, sizeof(buf), "%u", ts);
+				esp_mqtt_client_enqueue(mqtt_client, topic, buf, 0, 0, 0, 1);
 				ESP_LOGI(TAG, "RPC echo");
 			} else if (strcmp(cmd, "buzzer") == 0) {
 				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 				ESP_LOGI(TAG, "RPC buzzer triggered");
 			} else if (strcmp(cmd, "restart") == 0) {
-				char rtopic[64];
-				snprintf(rtopic, sizeof(rtopic), "domain.vmflow.xyz/%s/rpc/restart", my_subdomain);
-				esp_mqtt_client_publish(mqtt_client, rtopic, "ok", 0, 1, 0);
 				ESP_LOGW(TAG, "RPC restart requested");
 				vTaskDelay(pdMS_TO_TICKS(500));
 				esp_restart();
@@ -919,11 +912,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 					snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
 
 				const char *ota_target = has_args ? args : "latest";
-				char otopic[64], ostarted[80];
-				snprintf(otopic, sizeof(otopic), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
-				snprintf(ostarted, sizeof(ostarted), "started:%s", ota_target);
-				esp_mqtt_client_publish(mqtt_client, otopic, ostarted, 0, 1, 0);
-
 				xTaskCreate(ota_task, "ota_task", 8192, ota_url, 5, NULL);
 				ESP_LOGW(TAG, "RPC ota: %s", ota_url);
 			} else {
@@ -949,22 +937,26 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
     switch (event_id) {
         case IP_EVENT_PPP_GOT_IP: {
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
-            ESP_LOGI(TAG, "ppp got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+            snprintf(s_ip_ppp, sizeof(s_ip_ppp), IPSTR, IP2STR(&event->ip_info.ip));
+            ESP_LOGI(TAG, "ppp got IP: %s", s_ip_ppp);
             xEventGroupSetBits(xInternetEventGroup, BIT_PPP_GOT_IP);
             break;
         }
         case IP_EVENT_PPP_LOST_IP:
+            s_ip_ppp[0] = '\0';
             ESP_LOGW(TAG, "ppp lost IP, restarting sim7080g_task");
             xEventGroupClearBits(xInternetEventGroup, BIT_PPP_GOT_IP);
             xEventGroupSetBits(xInternetEventGroup, BIT_PPP_LOST_IP);
             break;
         case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
-            ESP_LOGI(TAG, "wifi got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+            snprintf(s_ip_wifi, sizeof(s_ip_wifi), IPSTR, IP2STR(&event->ip_info.ip));
+            ESP_LOGI(TAG, "wifi got IP: %s", s_ip_wifi);
             xEventGroupSetBits(xInternetEventGroup, BIT_STA_GOT_IP);
             break;
         }
         case IP_EVENT_STA_LOST_IP:
+            s_ip_wifi[0] = '\0';
             xEventGroupClearBits(xInternetEventGroup, BIT_STA_GOT_IP);
             xEventGroupSetBits(xInternetEventGroup, BIT_STA_LOST_IP);
             ESP_LOGW(TAG, "wifi lost IP");

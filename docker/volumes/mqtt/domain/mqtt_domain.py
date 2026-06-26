@@ -64,13 +64,35 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     try:
-        match = re.match(r"^domain.vmflow.xyz/(\d+)/(sale|status|paxcounter)$", msg.topic)
+        match = re.match(r"^domain.vmflow.xyz/(\d+)/(sale|status|paxcounter|vend_fail)$", msg.topic)
         if match:
             domain_id = int(match.group(1))
             event_type = match.group(2)  # "sale", "status" or "paxcounter"
 
             if event_type == "status":
-                supabase.table("embedded").update({"status_at": datetime.now(timezone.utc).isoformat(), "status": msg.payload.decode('utf-8', errors='ignore')}).eq("subdomain", domain_id).execute()
+                raw = msg.payload.decode('utf-8', errors='ignore')
+                parts = raw.split(',', 1)
+                new_status = parts[0]
+                reset_reason = float(parts[1]) if len(parts) > 1 else None
+
+                res = supabase.table("embedded").select("id, machine_id, status").eq("subdomain", domain_id).execute()
+                if not res.data:
+                    return
+                embedded_s = res.data[0]
+                current_status = embedded_s["status"]
+
+                supabase.table("embedded").update({
+                    "status_at": datetime.now(timezone.utc).isoformat(),
+                    "status": new_status
+                }).eq("subdomain", domain_id).execute()
+
+                if new_status != current_status:
+                    supabase.table("metrics").insert([{
+                        "embedded_id": embedded_s["id"],
+                        "machine_id":  embedded_s["machine_id"],
+                        "name":        new_status,
+                        "value":       reset_reason
+                    }]).execute()
 
             # Signed-text envelopes: "<count>:<ts>:<hmac>" (pax), "<price>:<item>:<ts>:<hmac>" (sale).
             line = msg.payload.decode('utf-8', errors='ignore')
@@ -103,6 +125,23 @@ def on_message(client, userdata, msg):
                                                      "item_number": item_number,
                                                      "item_price":  from_scale_factor(item_price, 1, 2),
                                                      "channel":     "cash"}]).execute()
+
+            if event_type == "vend_fail":
+                res = supabase.table("embedded").select("id, machine_id").eq("subdomain", domain_id).execute()
+                if not res.data:
+                    return
+                embedded = res.data[0]
+
+                parts = msg.payload.decode('utf-8', errors='ignore').split(',', 1)
+                vf_price  = int(parts[0]) if len(parts) > 0 and parts[0] else None
+                vf_item   = int(parts[1]) if len(parts) > 1 and parts[1] else None
+
+                supabase.table("metrics").insert([{
+                    "embedded_id": embedded["id"],
+                    "machine_id":  embedded["machine_id"],
+                    "name":        "vend_fail",
+                    "payload":     {"item_price": vf_price, "item_number": vf_item}
+                }]).execute()
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 

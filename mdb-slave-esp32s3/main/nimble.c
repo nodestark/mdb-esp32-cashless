@@ -10,6 +10,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "nimble.h"
 #include <time.h>
+#include <esp_timer.h>
 
 #define TAG "mdb_cashless"
 
@@ -325,7 +326,7 @@ static int ble_scan_event_cb(struct ble_gap_event *event, void *arg) {
 }
 
 void ble_scan_start(void *arg) {
-    if (scanning) {
+    if (scanning || esp_timer_get_time() < PAX_SCAN_INTERVAL_US) {
         return;
     }
 
