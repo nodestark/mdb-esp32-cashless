@@ -436,7 +436,7 @@ void mdb_cashless_task(void *pvParameters) {
 				ble_notify_send((char*) payload, sizeof(payload));
 
                 char topic[64], msg[64], line[160];
-                snprintf(msg, sizeof(msg), "%u:%u:%lld", item_price, item_number, (long long) time(NULL));
+                snprintf(msg, sizeof(msg), "%u,%u:%lld", item_price, item_number, (long long) time(NULL));
                 rpc_sign_text(msg, line, sizeof(line));
                 snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/vend_fail", my_subdomain);
                 esp_mqtt_client_enqueue(mqtt_client, topic, line, 0, 1, 0, 1);

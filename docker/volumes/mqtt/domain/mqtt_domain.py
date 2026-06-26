@@ -133,16 +133,18 @@ def on_message(client, userdata, msg):
                 embedded = res.data[0]
 
                 fields = verify_signed_line(embedded["passkey"], line)
-                if fields and len(fields) == 2:
-                    vf_price = int(fields[0])
-                    vf_item  = int(fields[1])
+                if fields and len(fields) == 1:
+                    parts = fields[0].split(",")
+                    if len(parts) == 2:
+                        vf_price = int(parts[0])
+                        vf_item  = int(parts[1])
 
-                    supabase.table("metrics").insert([{
-                        "embedded_id": embedded["id"],
-                        "machine_id":  embedded["machine_id"],
-                        "name":        "vend_fail",
-                        "payload":     {"item_price": vf_price, "item_number": vf_item}
-                    }]).execute()
+                        supabase.table("metrics").insert([{
+                            "embedded_id": embedded["id"],
+                            "machine_id":  embedded["machine_id"],
+                            "name":        "vend_fail",
+                            "payload":     {"item_price": vf_price, "item_number": vf_item}
+                        }]).execute()
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
