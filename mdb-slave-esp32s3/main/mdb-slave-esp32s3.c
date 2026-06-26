@@ -435,10 +435,11 @@ void mdb_cashless_task(void *pvParameters) {
 				ble_encode_with_passkey(0x0c, item_price, item_number, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
 
-                char topic[64], buf[32];
+                char topic[64], msg[64], line[160];
+                snprintf(msg, sizeof(msg), "%u:%u:%lld", item_price, item_number, (long long) time(NULL));
+                rpc_sign_text(msg, line, sizeof(line));
                 snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/vend_fail", my_subdomain);
-                snprintf(buf, sizeof(buf), "%u,%u", item_price, item_number);
-                esp_mqtt_client_enqueue(mqtt_client, topic, buf, 0, 1, 0, 1);
+                esp_mqtt_client_enqueue(mqtt_client, topic, line, 0, 1, 0, 1);
 
 				break;
 			}

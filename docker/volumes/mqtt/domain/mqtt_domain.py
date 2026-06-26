@@ -127,21 +127,22 @@ def on_message(client, userdata, msg):
                                                      "channel":     "cash"}]).execute()
 
             if event_type == "vend_fail":
-                res = supabase.table("embedded").select("id, machine_id").eq("subdomain", domain_id).execute()
+                res = supabase.table("embedded").select("passkey, id, machine_id").eq("subdomain", domain_id).execute()
                 if not res.data:
                     return
                 embedded = res.data[0]
 
-                parts = msg.payload.decode('utf-8', errors='ignore').split(',', 1)
-                vf_price  = int(parts[0]) if len(parts) > 0 and parts[0] else None
-                vf_item   = int(parts[1]) if len(parts) > 1 and parts[1] else None
+                fields = verify_signed_line(embedded["passkey"], line)
+                if fields and len(fields) == 2:
+                    vf_price = int(fields[0])
+                    vf_item  = int(fields[1])
 
-                supabase.table("metrics").insert([{
-                    "embedded_id": embedded["id"],
-                    "machine_id":  embedded["machine_id"],
-                    "name":        "vend_fail",
-                    "payload":     {"item_price": vf_price, "item_number": vf_item}
-                }]).execute()
+                    supabase.table("metrics").insert([{
+                        "embedded_id": embedded["id"],
+                        "machine_id":  embedded["machine_id"],
+                        "name":        "vend_fail",
+                        "payload":     {"item_price": vf_price, "item_number": vf_item}
+                    }]).execute()
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
