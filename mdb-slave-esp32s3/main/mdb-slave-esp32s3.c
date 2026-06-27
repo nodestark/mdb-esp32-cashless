@@ -169,7 +169,8 @@ time_t   last_vend_success_time = 0;
 static char s_ip_wifi[16] = "";
 static char s_ip_ppp[16]  = "";
 
-#define RPC_FRESHNESS_SEC 10
+#define RPC_FRESHNESS_SEC   10
+#define BLE_FRESHNESS_SEC   60
 
 esp_mqtt_client_handle_t mqtt_client = NULL;
 
@@ -583,7 +584,7 @@ esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, u
 
     time_t now = time(NULL);
 
-    if( abs((int32_t) now - timestamp) > 8 ){
+    if( abs((int32_t) now - timestamp) > BLE_FRESHNESS_SEC ){
         return ESP_ERR_TIMEOUT;
     }
 
