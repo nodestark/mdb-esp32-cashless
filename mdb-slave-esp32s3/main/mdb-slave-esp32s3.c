@@ -871,11 +871,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 			bool has_args = (args[0] != '\0' && strcmp(args, "-") != 0);
 
+			char topic_confirm[64];
+			snprintf(topic_confirm, sizeof(topic_confirm), "domain.vmflow.xyz/%s/rpc/confirm", my_subdomain);
+			esp_mqtt_client_enqueue(mqtt_client, topic_confirm, "ok", 0, 1, 0, 1);
+
 			if (strcmp(cmd, "dex") == 0) {
 				request_telemetry_data(NULL);
-				char topic_dex[64];
-				snprintf(topic_dex, sizeof(topic_dex), "domain.vmflow.xyz/%s/rpc/dex", my_subdomain);
-				esp_mqtt_client_enqueue(mqtt_client, topic_dex, "ok", 0, 1, 0, 1);
 				ESP_LOGI(TAG, "RPC dex request started");
 			} else if (strcmp(cmd, "info") == 0) {
 				rpc_publish_info();
@@ -894,9 +895,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				ESP_LOGI( TAG, "RPC credit: Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 			} else if (strcmp(cmd, "oos") == 0) {
 				out_of_sequence_todo = true;
-				char topic_oos[64];
-				snprintf(topic_oos, sizeof(topic_oos), "domain.vmflow.xyz/%s/rpc/oos", my_subdomain);
-				esp_mqtt_client_enqueue(mqtt_client, topic_oos, "ok", 0, 1, 0, 1);
 				ESP_LOGI(TAG, "RPC out-of-sequence queued");
 			} else if (strcmp(cmd, "echo") == 0) {
 				char topic[64], buf[24];
@@ -909,9 +907,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				ESP_LOGI(TAG, "RPC buzzer triggered");
 			} else if (strcmp(cmd, "restart") == 0) {
 				ESP_LOGW(TAG, "RPC restart requested");
-				char topic_restart[64];
-				snprintf(topic_restart, sizeof(topic_restart), "domain.vmflow.xyz/%s/rpc/restart", my_subdomain);
-				esp_mqtt_client_publish(mqtt_client, topic_restart, "ok", 0, 1, 0);
 				vTaskDelay(pdMS_TO_TICKS(3000));
 				esp_restart();
 			} else if (strcmp(cmd, "ota") == 0) {
