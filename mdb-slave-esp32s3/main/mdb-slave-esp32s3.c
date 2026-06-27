@@ -744,8 +744,6 @@ void ble_event_handler(char *ble_payload) {
 // Runs in its own task because the download blocks for tens of seconds and must not stall the MQTT handler.
 static void ota_task(void *arg) {
 	const char *url = (const char *) arg;
-	char topic[64];
-	snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
 
 	esp_http_client_config_t http_cfg = {
 		.url = url,
@@ -763,13 +761,9 @@ static void ota_task(void *arg) {
 	esp_err_t err = esp_https_ota(&ota_cfg);
 	if (err == ESP_OK) {
 		ESP_LOGW(TAG, "OTA success, rebooting into new image");
-		esp_mqtt_client_enqueue(mqtt_client, topic, "ok", 0, 1, 0, 1);
 		vTaskDelay(pdMS_TO_TICKS(1000));
 		esp_restart();
 	} else {
-		char msg[64];
-		snprintf(msg, sizeof(msg), "fail:%s", esp_err_to_name(err));
-		esp_mqtt_client_enqueue(mqtt_client, topic, msg, 0, 1, 0, 1);
 		ESP_LOGE(TAG, "OTA failed: %s", esp_err_to_name(err));
 		vTaskDelete(NULL);
 	}

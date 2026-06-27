@@ -30,7 +30,8 @@ Commands that take arguments (e.g. `credit`) extend the envelope to
 | Direction | Topic |
 |-----------|-------|
 | Publish (command) | `<subdomain>.vmflow.xyz/rpc` |
-| Reply / result    | `domain.vmflow.xyz/<subdomain>/rpc/<cmd>` |
+| Generic ack       | `domain.vmflow.xyz/<subdomain>/rpc/confirm` (`ok`) — fired for every command |
+| Command reply     | `domain.vmflow.xyz/<subdomain>/rpc/<cmd>` — only for commands with a payload |
 
 Broker host: `mqtt.vmflow.xyz`. (`<subdomain>.vmflow.xyz` is the **topic prefix**, not a hostname.)
 
@@ -39,11 +40,12 @@ Broker host: `mqtt.vmflow.xyz`. (`<subdomain>.vmflow.xyz` is the **topic prefix*
 |-----|--------|-------------|
 | `info`    | Publish device snapshot JSON (see schema) | `.../rpc/info` |
 | `credit`  | Grant credit. Envelope `credit:<amount>:<ts>:<hmac>`, `<amount>` in 1/100 units (cents) | `.../rpc/credit` (`ok`) |
-| `dex`     | Trigger EVA-DTS DEX/DDCMP telemetry pull from the VMC | — |
-| `oos`     | Send MDB "command out of sequence" to the VMC | — |
 | `echo`    | Liveness / RTT probe — replies with the request `ts` | `.../rpc/echo` |
-| `buzzer`  | 1s beep (physical locate) | — |
-| `restart` | Ack then reboot the device | `.../rpc/restart` (`ok`) |
+| `ota`     | OTA update. Envelope `ota:<tag>:<ts>:<hmac>`, omit `<tag>` for latest | `.../rpc/confirm` |
+| `dex`     | Trigger EVA-DTS DEX/DDCMP telemetry pull from the VMC | `.../rpc/confirm` |
+| `oos`     | Send MDB "command out of sequence" to the VMC | `.../rpc/confirm` |
+| `buzzer`  | 1s beep (physical locate) | `.../rpc/confirm` |
+| `restart` | Reboot the device after 3s | `.../rpc/confirm` |
 
 **`info` snapshot schema** (what an agent reads for diagnostics)
 ```json
