@@ -763,6 +763,7 @@ static void ota_task(void *arg) {
 	esp_err_t err = esp_https_ota(&ota_cfg);
 	if (err == ESP_OK) {
 		ESP_LOGW(TAG, "OTA success, rebooting into new image");
+		esp_mqtt_client_enqueue(mqtt_client, topic, "ok", 0, 1, 0, 1);
 		vTaskDelay(pdMS_TO_TICKS(1000));
 		esp_restart();
 	} else {
@@ -872,6 +873,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 			if (strcmp(cmd, "dex") == 0) {
 				request_telemetry_data(NULL);
+				char topic_dex[64];
+				snprintf(topic_dex, sizeof(topic_dex), "domain.vmflow.xyz/%s/rpc/dex", my_subdomain);
+				esp_mqtt_client_enqueue(mqtt_client, topic_dex, "ok", 0, 1, 0, 1);
 				ESP_LOGI(TAG, "RPC dex request started");
 			} else if (strcmp(cmd, "info") == 0) {
 				rpc_publish_info();
@@ -890,6 +894,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				ESP_LOGI( TAG, "RPC credit: Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 			} else if (strcmp(cmd, "oos") == 0) {
 				out_of_sequence_todo = true;
+				char topic_oos[64];
+				snprintf(topic_oos, sizeof(topic_oos), "domain.vmflow.xyz/%s/rpc/oos", my_subdomain);
+				esp_mqtt_client_enqueue(mqtt_client, topic_oos, "ok", 0, 1, 0, 1);
 				ESP_LOGI(TAG, "RPC out-of-sequence queued");
 			} else if (strcmp(cmd, "echo") == 0) {
 				char topic[64], buf[24];
@@ -902,6 +909,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				ESP_LOGI(TAG, "RPC buzzer triggered");
 			} else if (strcmp(cmd, "restart") == 0) {
 				ESP_LOGW(TAG, "RPC restart requested");
+				char topic_restart[64];
+				snprintf(topic_restart, sizeof(topic_restart), "domain.vmflow.xyz/%s/rpc/restart", my_subdomain);
+				esp_mqtt_client_enqueue(mqtt_client, topic_restart, "ok", 0, 1, 0, 1);
 				vTaskDelay(pdMS_TO_TICKS(500));
 				esp_restart();
 			} else if (strcmp(cmd, "ota") == 0) {
@@ -913,6 +923,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 					snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
 
 				const char *ota_target = has_args ? args : "latest";
+				char topic_ota[64], msg_ota[96];
+				snprintf(topic_ota, sizeof(topic_ota), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
+				snprintf(msg_ota, sizeof(msg_ota), "started:%s", ota_target);
+				esp_mqtt_client_enqueue(mqtt_client, topic_ota, msg_ota, 0, 1, 0, 1);
 				xTaskCreate(ota_task, "ota_task", 8192, ota_url, 5, NULL);
 				ESP_LOGW(TAG, "RPC ota: %s", ota_url);
 			} else {
