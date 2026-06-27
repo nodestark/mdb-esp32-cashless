@@ -751,8 +751,7 @@ static void ota_task(void *arg) {
 		.crt_bundle_attach = esp_crt_bundle_attach,  // GitHub redirects to release-assets.githubusercontent.com (S3)
 		.timeout_ms = 30000,
 		.keep_alive_enable = true,
-		// The S3 redirect target is a ~900-char signed URL; the default 512 B tx
-		// buffer can't hold the request line, yielding "HTTP_CLIENT: Out of buffer".
+		// The S3 redirect target is a ~900-char signed URL; the default 512 B tx buffer can't hold the request line, yielding "HTTP_CLIENT: Out of buffer".
 		.buffer_size = 2048,
 		.buffer_size_tx = 4096,
 	};
@@ -1044,6 +1043,9 @@ static void sim7080g_task(void *pvParameters) {
         .session.keepalive = 120,
         .network.timeout_ms = 30000,
         .network.reconnect_timeout_ms = 15000,
+        // DEX audit dumps reach ~4 KB; default 1 KB TX buffer truncates the PUBLISH and the broker resets the connection.
+        .buffer.size = 2048,
+        .buffer.out_size = 6144,
     };
 
     mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
@@ -1175,8 +1177,7 @@ void app_main(void) {
 		nvs_close(handle);
 	}
 
-	// HMAC key tracks the passkey buffer by reference; later BLE provisioning
-	// writes into the same buffer and takes effect without re-registering.
+	// HMAC key tracks the passkey buffer by reference; later BLE provisioning writes into the same buffer and takes effect without re-registering.
 	rpc_auth_set_key(my_passkey);
 
 	ble_init(myhost, ble_event_handler, ble_pax_event_handler);

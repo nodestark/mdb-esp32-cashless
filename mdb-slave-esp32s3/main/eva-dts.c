@@ -39,7 +39,7 @@ static char* calc_crc_16(uint16_t *p_crc, char *u_data) {
 
 static void read_telemetry_dex() {
 	uart_set_baudrate(UART_NUM_1, 9600);
-    // uart_set_line_inverse(UART_NUM_1, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
+	uart_flush_input(UART_NUM_1); // drop stale RX bytes left by DDCMP attempt
 
 	// -------------------------------------- First Handshake --------------------------------------
 	uint8_t data[32];
@@ -94,7 +94,7 @@ static void read_telemetry_dex() {
 	// -------------------------------------- Second Handshake --------------------------------------
 
 	// ENQ <-
-	uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(100));
+	uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(1000));
 	if( data[0] != 0x05 ) return;
 
 	// DLE 0 ->
@@ -127,8 +127,8 @@ static void read_telemetry_dex() {
 
 	// -------------------------------------- Data transfer --------------------------------------
 
-	// ENQ <-
-	uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(100));
+	// ENQ <- (machine may take a while to assemble the audit dump)
+	uart_read_bytes(UART_NUM_1, data, 1, pdMS_TO_TICKS(3000));
 	if (data[0] != 0x05) return;
 
 	uint8_t block = 0x00;
@@ -138,7 +138,7 @@ static void read_telemetry_dex() {
 		uart_write_bytes(UART_NUM_1, data, 2);
 
 		// DLE STX <-
-		uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(200));
+		uart_read_bytes(UART_NUM_1, data, 2, pdMS_TO_TICKS(1000));
 		if (data[0] != 0x10 || data[1] != 0x02) return;
 
 		for (;;) {
@@ -177,7 +177,7 @@ static void read_telemetry_dex() {
 
 static void read_telemetry_ddcmp() {
 	uart_set_baudrate(UART_NUM_1, 2400);
-    // uart_set_line_inverse(UART_NUM_1, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
+	uart_flush_input(UART_NUM_1);
 
 	//-------------------------------------------------------
 	uint8_t buffer_rx[1024];
@@ -452,7 +452,7 @@ static void eva_dts_task(void *arg) {
         char topic[64];
         snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/dex", my_subdomain);
 
-        esp_mqtt_client_enqueue(mqtt_client, topic, (char*) dex, dex_size, 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, topic, (char*) dex, dex_size, 0, 0);
         printf("%.*s", dex_size, (char*) dex);
 
         vRingbufferReturnItem(dex_ringbuf, (void*) dex);
