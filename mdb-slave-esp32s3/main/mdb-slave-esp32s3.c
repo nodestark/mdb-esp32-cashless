@@ -911,8 +911,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				ESP_LOGW(TAG, "RPC restart requested");
 				char topic_restart[64];
 				snprintf(topic_restart, sizeof(topic_restart), "domain.vmflow.xyz/%s/rpc/restart", my_subdomain);
-				esp_mqtt_client_enqueue(mqtt_client, topic_restart, "ok", 0, 1, 0, 1);
-				vTaskDelay(pdMS_TO_TICKS(500));
+				esp_mqtt_client_publish(mqtt_client, topic_restart, "ok", 0, 1, 0);
+				vTaskDelay(pdMS_TO_TICKS(3000));
 				esp_restart();
 			} else if (strcmp(cmd, "ota") == 0) {
 				// "ota:-" -> latest release; "ota:<tag>" -> pinned tag.
