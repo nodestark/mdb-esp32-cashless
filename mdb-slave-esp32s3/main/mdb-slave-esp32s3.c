@@ -865,9 +865,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 			bool has_args = (args[0] != '\0' && strcmp(args, "-") != 0);
 
-			char topic_confirm[64];
-			snprintf(topic_confirm, sizeof(topic_confirm), "domain.vmflow.xyz/%s/rpc/confirm", my_subdomain);
-			esp_mqtt_client_enqueue(mqtt_client, topic_confirm, "ok", 0, 1, 0, 1);
+            char topic_confirm[64];
+            snprintf(topic_confirm, sizeof(topic_confirm), "domain.vmflow.xyz/%s/rpc/confirm", my_subdomain);
 
 			if (strcmp(cmd, "dex") == 0) {
 				request_telemetry_data(NULL);
@@ -882,13 +881,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				xQueueSend(mdb_session_queue, &funds_available, 0);
 				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 
-				char topic[64];
-				snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/rpc/credit", my_subdomain);
-				esp_mqtt_client_enqueue(mqtt_client, topic, "ok", 0, 1, 0, 1);
-
+                esp_mqtt_client_enqueue(mqtt_client, topic_confirm, "ok", 0, 1, 0, 1);
 				ESP_LOGI( TAG, "RPC credit: Amount= %f", FROM_SCALE_FACTOR(funds_available, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES) );
 			} else if (strcmp(cmd, "oos") == 0) {
 				out_of_sequence_todo = true;
+
+                esp_mqtt_client_enqueue(mqtt_client, topic_confirm, "ok", 0, 1, 0, 1);
 				ESP_LOGI(TAG, "RPC out-of-sequence queued");
 			} else if (strcmp(cmd, "echo") == 0) {
 				char topic[64], buf[24];
@@ -898,10 +896,14 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				ESP_LOGI(TAG, "RPC echo");
 			} else if (strcmp(cmd, "buzzer") == 0) {
 				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
+
+                esp_mqtt_client_enqueue(mqtt_client, topic_confirm, "ok", 0, 1, 0, 1);
 				ESP_LOGI(TAG, "RPC buzzer triggered");
 			} else if (strcmp(cmd, "restart") == 0) {
+                esp_mqtt_client_publish(mqtt_client, topic_confirm, "ok", 0, 1, 0);
 				ESP_LOGW(TAG, "RPC restart requested");
-				vTaskDelay(pdMS_TO_TICKS(3000));
+
+				vTaskDelay(pdMS_TO_TICKS(500));
 				esp_restart();
 			} else if (strcmp(cmd, "ota") == 0) {
 				// "ota:-" -> latest release; "ota:<tag>" -> pinned tag.
@@ -911,13 +913,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				else
 					snprintf(ota_url, sizeof(ota_url), "https://github.com/nodestark/mdb-esp32-cashless/releases/latest/download/mdb-slave-esp32s3.bin");
 
-				const char *ota_target = has_args ? args : "latest";
-				char topic_ota[64], msg_ota[96];
-				snprintf(topic_ota, sizeof(topic_ota), "domain.vmflow.xyz/%s/rpc/ota", my_subdomain);
-				snprintf(msg_ota, sizeof(msg_ota), "started:%s", ota_target);
-				esp_mqtt_client_enqueue(mqtt_client, topic_ota, msg_ota, 0, 1, 0, 1);
-				xTaskCreate(ota_task, "ota_task", 8192, ota_url, 5, NULL);
+                esp_mqtt_client_enqueue(mqtt_client, topic_confirm, "ok", 0, 1, 0, 1);
 				ESP_LOGW(TAG, "RPC ota: %s", ota_url);
+				xTaskCreate(ota_task, "ota_task", 8192, ota_url, 5, NULL);
 			} else {
 				ESP_LOGW(TAG, "RPC unknown command: %s", cmd);
 			}

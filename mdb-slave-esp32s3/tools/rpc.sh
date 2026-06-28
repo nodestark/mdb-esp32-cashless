@@ -6,12 +6,8 @@
 # Topic:    <sub>.vmflow.xyz/rpc        Reply: domain.vmflow.xyz/<sub>/rpc/<cmd>
 # Commands with no parameter use "-" as <args>.
 #
-# Every command publishes "ok" to domain.vmflow.xyz/<sub>/rpc/confirm immediately.
-# Commands with a specific payload also reply on their own rpc/<cmd> topic:
-#   info    -> rpc/info    (JSON snapshot)
-#   credit  -> rpc/credit  ("ok")
-#   echo    -> rpc/echo    (ts)
-# All other commands (dex, oos, buzzer, restart, ota) reply only on rpc/confirm.
+# Every command publishes to domain.vmflow.xyz/<sub>/rpc/* on completion.
+# -w subscribes to rpc/# and captures the first reply regardless of subtopic.
 #
 # Usage:
 #   SUB=51 PASSKEY=af6c51a556fd71b345 ./rpc.sh info
@@ -66,11 +62,7 @@ MSG="$CMD:$ARGS:$TS"
 SIG="$(printf '%s' "$MSG" | openssl dgst -sha256 -hmac "$PASSKEY" -hex | awk '{print $NF}')"
 PAYLOAD="$MSG:$SIG"
 
-# Commands without a dedicated reply topic fall back to rpc/confirm.
-case "$CMD" in
-  info|credit|echo) REPLY_TOPIC="domain.vmflow.xyz/$SUB/rpc/$CMD" ;;
-  *)                REPLY_TOPIC="domain.vmflow.xyz/$SUB/rpc/confirm" ;;
-esac
+REPLY_TOPIC="domain.vmflow.xyz/$SUB/rpc/#"
 
 if [ "$WAIT" -eq 1 ]; then
   # Subscribe to the reply first so we don't miss it, then publish.
