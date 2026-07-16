@@ -103,7 +103,7 @@
             <td class="p-4 text-center">
               <span
                 class="text-sm font-semibold"
-                :class="row.warehouse_stock === 0 ? 'text-red-600' : row.warehouse_stock <= 10 ? 'text-orange-500' : 'text-gray-700'"
+                :class="warehouseStockClass(row.warehouse_stock)"
               >
                 {{ row.warehouse_stock }}
               </span>
@@ -182,7 +182,7 @@
 
 <script>
 import { supabase } from '@/lib/supabase'
-import { lowStockThreshold } from '@/lib/settings'
+import { lowStockThreshold, warehouseLowStockThreshold } from '@/lib/settings'
 
 export default {
   name: 'Inventory',
@@ -247,8 +247,10 @@ export default {
 
       const { data, error } = await supabase
         .from('machine_coils')
-        .select('id, alias, item_number, capacity, current_stock, product_id, machine_id, products(id, name, image_url, current_stock), machines(id, name)')
+        .select('id, alias, item_number, capacity, current_stock, product_id, machine_id, products!inner(id, name, image_url, current_stock), machines!inner(id, name)')
         .not('product_id', 'is', null)
+        .is('products.deleted_at', null)
+        .is('machines.deleted_at', null)
         .order('alias')
 
       if (!error) {
@@ -274,6 +276,12 @@ export default {
     coilPct(coil) {
       if (!coil.capacity) return 0
       return Math.round(((coil.current_stock ?? 0) / coil.capacity) * 100)
+    },
+
+    warehouseStockClass(stock) {
+      if (stock === 0) return 'text-red-600'
+      if (stock <= warehouseLowStockThreshold.value) return 'text-orange-500'
+      return 'text-gray-700'
     },
 
     barClass(pct) {

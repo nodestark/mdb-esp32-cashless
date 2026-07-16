@@ -160,6 +160,7 @@ export default {
       const { data, error } = await supabase
         .from("machines")
         .select("id, name")
+        .is("deleted_at", null)
         .order("name")
 
       if (error) { console.error(error); return }
@@ -203,6 +204,7 @@ export default {
             .select("value, created_at")
             .eq("name", "paxcounter")
             .eq("machine_id", id)
+            .is("deleted_at", null)
             .gte("created_at", start)
             .order("created_at")
         )

@@ -186,7 +186,8 @@ async function load() {
   const [{ data: mData }, { data: sData }] = await Promise.all([
     supabase
       .from('machines')
-      .select('id, name, lat, lng, embedded(status), machine_coils(capacity, current_stock)'),
+      .select('id, name, lat, lng, embedded(status), machine_coils(capacity, current_stock)')
+      .is('deleted_at', null),
     supabase
       .from('sales')
       .select('lat, lng')

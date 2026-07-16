@@ -43,7 +43,7 @@
               @click="confirmDelete(model)"
               class="px-3 py-1 text-sm border border-red-300 hover:bg-red-50 text-red-600 rounded transition"
             >
-              Disable
+              Delete
             </button>
           </td>
         </tr>
@@ -209,26 +209,17 @@
 </div>
 
 
-<!-- DISABLE CONFIRM MODAL -->
-<div v-if="showDeleteModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-  <div class="bg-white p-6 rounded-xl w-96">
-    <h2 class="text-lg font-semibold mb-2">Disable Model</h2>
-    <p class="text-gray-600 mb-6">
-      Are you sure you want to disable
-      <span class="font-medium text-gray-900">{{ modelToDelete?.name }}</span>?
-    </p>
-    <div class="flex justify-end gap-2">
-      <button @click="showDeleteModal = false" class="px-3 py-1 border rounded text-sm">Cancel</button>
-      <button
-        @click="deleteModel"
-        :disabled="deleting"
-        class="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-sm rounded transition disabled:opacity-50"
-      >
-        {{ deleting ? 'Disabling...' : 'Disable' }}
-      </button>
-    </div>
-  </div>
-</div>
+<!-- DELETE CONFIRM MODAL -->
+<ConfirmModal
+  :open="showDeleteModal"
+  title="Delete Model"
+  :loading="deleting"
+  @confirm="deleteModel"
+  @cancel="showDeleteModal = false"
+>
+  Are you sure you want to delete
+  <span class="font-medium text-gray-900">{{ modelToDelete?.name }}</span>?
+</ConfirmModal>
 
 </template>
 
@@ -236,6 +227,7 @@
 <script setup>
 import { ref, onMounted } from "vue"
 import { supabase } from "@/lib/supabase"
+import ConfirmModal from "@/components/ConfirmModal.vue"
 
 const models  = ref([])
 const loading = ref(false)
@@ -255,7 +247,7 @@ const savingCoils    = ref(false)
 const editingModel   = ref(null)
 const editCoils      = ref([])
 
-// disable modal
+// delete modal
 const showDeleteModal = ref(false)
 const modelToDelete   = ref(null)
 const deleting        = ref(false)
@@ -391,7 +383,7 @@ async function deleteModel() {
   try {
     const { error } = await supabase
       .from("machine_models")
-      .update({ enabled: false })
+      .update({ deleted_at: new Date().toISOString() })
       .eq("id", modelToDelete.value.id)
 
     if (error) throw error
@@ -401,7 +393,7 @@ async function deleteModel() {
     await loadModels()
 
   } catch (err) {
-    console.error("Failed to disable model:", err)
+    console.error("Failed to delete model:", err)
   } finally {
     deleting.value = false
   }
@@ -413,7 +405,7 @@ async function loadModels() {
   const { data, error } = await supabase
     .from("machine_models")
     .select("id, name, manufacturer, model_coils(id)")
-    .eq("enabled", true)
+    .is("deleted_at", null)
     .order("name")
 
   if (error) {

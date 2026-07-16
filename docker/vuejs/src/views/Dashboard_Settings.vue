@@ -34,6 +34,24 @@
       </p>
     </div>
 
+    <div>
+      <label class="block text-sm text-gray-600 mb-1">
+        Warehouse low stock threshold (units)
+      </label>
+      <div class="flex items-center gap-3">
+        <input
+          v-model.number="warehouseThreshold"
+          type="number"
+          min="0"
+          step="1"
+          class="w-24 border rounded p-2 text-sm"
+        />
+      </div>
+      <p class="text-xs text-gray-400 mt-1">
+        Products in the warehouse (not in a machine) below this quantity are flagged as "Low" in Inventory.
+      </p>
+    </div>
+
     <div class="flex justify-end">
       <button
         @click="saveThreshold"
@@ -192,12 +210,14 @@
 <script setup>
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
-import { lowStockThreshold } from '@/lib/settings'
+import { lowStockThreshold, warehouseLowStockThreshold } from '@/lib/settings'
 
 const threshold = ref(lowStockThreshold.value)
+const warehouseThreshold = ref(warehouseLowStockThreshold.value)
 
 function saveThreshold() {
   lowStockThreshold.value = threshold.value
+  warehouseLowStockThreshold.value = warehouseThreshold.value
 }
 
 const claudeApiKey = ref('')

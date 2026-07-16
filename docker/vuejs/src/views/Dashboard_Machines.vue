@@ -169,6 +169,10 @@
           >Send Credit</button>
           <button @click="openQrModal(selectedBubble, 'stripe')" class="px-3 py-1.5 text-xs border rounded-full hover:bg-gray-50 transition">QR Stripe</button>
           <button @click="openQrModal(selectedBubble, 'ml')" class="px-3 py-1.5 text-xs border rounded-full hover:bg-gray-50 transition">QR Mercado Pago</button>
+          <button
+            @click="confirmDeleteMachine(selectedBubble)"
+            class="px-3 py-1.5 text-xs border border-red-300 rounded-full text-red-600 hover:bg-red-50 transition"
+          >Delete</button>
         </div>
 
       </div>
@@ -575,7 +579,7 @@
                   :key="product.id"
                   :value="product.id"
                 >
-                  {{ product.name }}
+                  {{ product.name }}{{ product.deleted_at ? ' (discontinued)' : '' }}
                 </option>
               </select>
             </td>
@@ -913,9 +917,26 @@
         @click.stop="openQrModal(machine, 'ml'); openMenuId = null"
         class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
       >QR Code Mercado Pago</button>
+      <div class="border-t border-gray-100 my-1"/>
+      <button
+        @click.stop="confirmDeleteMachine(machine); openMenuId = null"
+        class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+      >Delete</button>
     </template>
   </template>
 </div>
+
+<!-- DELETE CONFIRM MODAL -->
+<ConfirmModal
+  :open="showDeleteModal"
+  title="Delete Machine"
+  :loading="deletingMachine"
+  @confirm="deleteMachine"
+  @cancel="showDeleteModal = false"
+>
+  Are you sure you want to delete
+  <span class="font-medium text-gray-900">{{ machineToDelete?.name }}</span>?
+</ConfirmModal>
 
 </template>
 
@@ -923,8 +944,11 @@
 
 import { supabase } from "@/lib/supabase"
 import { lowStockThreshold } from "@/lib/settings"
+import ConfirmModal from "@/components/ConfirmModal.vue"
 
 export default {
+
+  components: { ConfirmModal },
 
   data() {
     return {
@@ -938,6 +962,10 @@ export default {
       showAddModal: false,
       showLinkModal: false,
       showCreditModal: false,
+
+      showDeleteModal: false,
+      machineToDelete: null,
+      deletingMachine: false,
 
       newMachineName: "",
       newMachineCategory: null,
@@ -1067,6 +1095,7 @@ export default {
       const { data, error } = await supabase
         .from("machines")
         .select(`*, machine_models(name), embedded(id, subdomain, status), machine_coils(capacity, current_stock)`)
+        .is("deleted_at", null)
 
       if (error) {
         console.error("Failed to load machines:", error)
@@ -1075,6 +1104,34 @@ export default {
       }
 
       this.loadingMachines = false
+    },
+
+    confirmDeleteMachine(machine) {
+      this.machineToDelete = machine
+      this.showDeleteModal = true
+    },
+
+    async deleteMachine() {
+      this.deletingMachine = true
+      const deletedId = this.machineToDelete.id
+
+      const { error } = await supabase
+        .from("machines")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", deletedId)
+
+      this.deletingMachine = false
+      this.showDeleteModal = false
+      this.machineToDelete = null
+
+      if (error) {
+        console.error("Failed to delete machine:", error)
+        return
+      }
+
+      if (this.selectedBubble?.id === deletedId) this.selectedBubble = null
+
+      await this.loadMachines()
     },
 
     async createMachine() {
@@ -1218,7 +1275,7 @@ export default {
       const { data, error } = await supabase
         .from("machine_models")
         .select("*")
-        .eq("enabled", true)
+        .is("deleted_at", null)
         .order("name", { ascending: true })
 
       if (error) {
@@ -1287,8 +1344,8 @@ export default {
     async fetchAllProducts() {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price, current_stock")
-        .eq("enabled", true)
+        .select("id, name, price, current_stock, deleted_at")
+        .order("deleted_at", { ascending: true, nullsFirst: true })
         .order("name")
 
       if (!error) this.allProducts = data ?? []
@@ -1409,6 +1466,7 @@ export default {
             .select('value, created_at')
             .eq('machine_id', machine.id)
             .eq('name', 'paxcounter')
+            .is('deleted_at', null)
             .gte('created_at', since.toISOString())
             .order('created_at')
         ])
@@ -1586,7 +1644,7 @@ Provide 3 to 5 concise and actionable insights about this machine's performance,
         since.setDate(since.getDate() - 7)
 
         const [machinesRes, salesRes] = await Promise.all([
-          supabase.from('machines').select('id, name, location_name, address, category, refilled_at, machine_coils(product_id, alias, capacity, current_stock, products(name))'),
+          supabase.from('machines').select('id, name, location_name, address, category, refilled_at, machine_coils(product_id, alias, capacity, current_stock, products(name))').is('deleted_at', null),
           supabase.from('sales').select('machine_id, product_id').gte('created_at', since.toISOString())
         ])
 

@@ -117,10 +117,10 @@
               Edit
             </button>
             <button
-              @click="confirmDisable(product)"
+              @click="confirmDelete(product)"
               class="px-2 py-1 text-sm border border-red-300 hover:bg-red-50 text-red-600 rounded transition"
             >
-              Disable
+              Delete
             </button>
           </td>
 
@@ -307,42 +307,16 @@
   </div>
 </div>
 
-<!-- CONFIRM DISABLE MODAL -->
+<!-- DELETE CONFIRM MODAL -->
 
-<div
-  v-if="showConfirmModal"
-  class="fixed inset-0 bg-black/40 flex items-center justify-center"
+<ConfirmModal
+  :open="showDeleteModal"
+  title="Delete Product"
+  @confirm="deleteProduct"
+  @cancel="showDeleteModal = false"
 >
-
-  <div class="bg-white p-6 rounded-xl w-80">
-
-    <h2 class="text-lg font-semibold mb-2">Disable Product</h2>
-
-    <p class="text-gray-600 mb-6">
-      Are you sure you want to disable <span class="font-medium text-gray-900">{{ productToDisable?.name }}</span>?
-    </p>
-
-    <div class="flex justify-end gap-2">
-
-      <button
-        @click="showConfirmModal = false"
-        class="px-3 py-1 border rounded"
-      >
-        Cancel
-      </button>
-
-      <button
-        @click="disableProduct"
-        class="px-3 py-1 bg-red-600 text-white rounded"
-      >
-        Disable
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
+  Are you sure you want to delete <span class="font-medium text-gray-900">{{ productToDelete?.name }}</span>?
+</ConfirmModal>
 
 </template>
 
@@ -350,6 +324,7 @@
 
 import { ref, computed, onMounted } from "vue"
 import { supabase } from "@/lib/supabase"
+import ConfirmModal from "@/components/ConfirmModal.vue"
 
 const products = ref([])
 const loading = ref(false)
@@ -357,8 +332,8 @@ const search = ref("")
 
 const showAddModal = ref(false)
 const showEditModal = ref(false)
-const showConfirmModal = ref(false)
-const productToDisable = ref(null)
+const showDeleteModal = ref(false)
+const productToDelete = ref(null)
 
 const showStockModal = ref(false)
 const stockProduct = ref(null)
@@ -412,7 +387,7 @@ async function loadProducts() {
   const { data } = await supabase
     .from("products")
     .select("*")
-    .eq("enabled", true)
+    .is("deleted_at", null)
     .order("name")
 
   products.value = data ?? []
@@ -499,9 +474,9 @@ async function updateProduct() {
   }
 }
 
-function confirmDisable(product) {
-  productToDisable.value = product
-  showConfirmModal.value = true
+function confirmDelete(product) {
+  productToDelete.value = product
+  showDeleteModal.value = true
 }
 
 function openStockModal(product) {
@@ -524,8 +499,8 @@ async function addStock() {
   loadProducts()
 }
 
-async function disableProduct() {
-  const product = productToDisable.value
+async function deleteProduct() {
+  const product = productToDelete.value
 
   if (product.image_url) {
     const parts = product.image_url.split("/product-images/")
@@ -536,11 +511,11 @@ async function disableProduct() {
 
   await supabase
     .from("products")
-    .update({ enabled: false, image_url: null })
+    .update({ deleted_at: new Date().toISOString(), image_url: null })
     .eq("id", product.id)
 
-  showConfirmModal.value = false
-  productToDisable.value = null
+  showDeleteModal.value = false
+  productToDelete.value = null
 
   loadProducts()
 }

@@ -389,7 +389,8 @@ export default {
         const [machinesRes, salesRes] = await Promise.all([
           supabase
             .from('machines')
-            .select('id, name, category, monthly_rent, machine_coils(capacity, current_stock), embedded(status)'),
+            .select('id, name, category, monthly_rent, machine_coils(capacity, current_stock), embedded(status)')
+            .is('deleted_at', null),
           supabase
             .from('sales')
             .select('machine_id, item_price')
