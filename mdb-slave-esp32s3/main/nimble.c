@@ -76,7 +76,8 @@ static int ble_gatt_char_access_cb(uint16_t conn_handle, uint16_t attr_handle, s
 
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
 
-        rc = ble_gatt_char_write(ctxt->om, 1, sizeof(characteristic_received_value), characteristic_received_value, NULL);
+        memset(&characteristic_received_value, 0, sizeof(characteristic_received_value));
+        rc = ble_gatt_char_write(ctxt->om, 1, sizeof(characteristic_received_value) - 1, characteristic_received_value, NULL);
 
         ble_event_report_handler( (char*) &characteristic_received_value );
 

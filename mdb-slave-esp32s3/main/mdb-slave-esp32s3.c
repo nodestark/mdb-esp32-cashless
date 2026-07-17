@@ -109,9 +109,9 @@ static void wifi_retry_cb(void *arg) {
     esp_wifi_connect();
 }
 
-char my_subdomain[32];
 #define PASSKEY_LEN 18
 char my_passkey[PASSKEY_LEN + 1];
+char my_subdomain[32];
 
 enum MDB_COMMAND_FLOW {
 	RESET       = 0x00,
@@ -186,7 +186,6 @@ static void IRAM_ATTR mdb_rx_falling_isr(void *arg) {
     uint16_t coming_read = 0x0000;
 
     ets_delay_us(156);
-
     for (int x = 0; x < 9; x++) {
         coming_read |= (gpio_get_level(PIN_MDB_RX) << x);
         ets_delay_us(104);
@@ -390,7 +389,8 @@ void mdb_cashless_task(void *pvParameters) {
 
 				if(funds_available && (funds_available != 0xffff)){
 					if (item_price <= funds_available) {
-						vend_approved_todo = true;
+                        funds_available -= item_price;
+                        vend_approved_todo = true;
 					} else {
 						vend_denied_todo = true;
 					}
