@@ -8217,7 +8217,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 256.54 52.0699 0)
 			(effects
 				(font
@@ -8471,7 +8471,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 256.54 96.52 90)
 			(effects
 				(font
@@ -8793,7 +8793,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 269.24 49.5299 0)
 			(effects
 				(font
@@ -8899,7 +8899,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "470ohm"
+		(property "Value" "470R"
 			(at 373.38 111.7599 0)
 			(effects
 				(font
@@ -10183,7 +10183,7 @@
 				)
 			)
 		)
-		(property "Value" "FerriteBead_Small"
+		(property "Value" "FerriteBead"
 			(at 137.1219 26.67 90)
 			(effects
 				(font
@@ -12454,7 +12454,7 @@
 				)
 			)
 		)
-		(property "Value" "Crystal_GND24"
+		(property "Value" "40MHz"
 			(at 86.36 132.2068 90)
 			(effects
 				(font
@@ -13587,7 +13587,7 @@
 				)
 			)
 		)
-		(property "Value" "470ohm"
+		(property "Value" "470R"
 			(at 345.44 82.55 90)
 			(effects
 				(font
@@ -13806,7 +13806,7 @@
 				)
 			)
 		)
-		(property "Value" "1.8pf"
+		(property "Value" "1.8pF"
 			(at 35.56 106.68 90)
 			(effects
 				(font
@@ -13988,7 +13988,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "2.4nh"
+		(property "Value" "2.4nH"
 			(at 30.48 119.38 0)
 			(effects
 				(font
