@@ -28,12 +28,15 @@ The project aims to provide a modern, open, and extensible platform for vending 
 
 VMflow is built to be driven by AI agents — send credits, check device health, query sales, and trigger OTA updates, all from natural language.
 
-**OpenClaw** — install the official VMflow skill:
+**[vmflow-cli](https://github.com/nodestark/vmflow-cli)** — the official CLI. Browser login, no tokens to copy/paste:
+```bash
+npm install -g vmflow-cli
+vmflow-cli auth login
+vmflow-cli device credit 51 1.50   # everything else: vmflow-cli --help
 ```
-$ openclaw skills install @nodestark/vmflow
-```
+Point any coding agent (Claude Code, Codex, etc.) at a repo with `vmflow-cli` on `PATH` and it drives your fleet the same way.
 
-**Other agents** (Claude, ChatGPT, etc.) — paste this and your agent picks up the whole API:
+**Agents without shell access** (ChatGPT, browser-based assistants) — paste this and it picks up the whole API surface:
 ```
 read https://raw.githubusercontent.com/nodestark/mdb-esp32-cashless/main/AGENTS.md
 ```
