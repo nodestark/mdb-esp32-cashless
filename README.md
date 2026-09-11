@@ -119,6 +119,8 @@ curl -X POST 'https://supabase.vmflow.xyz/functions/v1/x402-vend' \
 -d '{ "subdomain":51,"amount":1.50 }'
 ```
 
+**Operator payouts:** [vmflow-spraay](https://github.com/plagtech/vmflow-spraay) — automated multi-party revenue splits for VMflow sales, settled as one batch transaction on Base (non-custodial, MIT).
+
 ### 3️⃣ View Sales
 
 ```bash
