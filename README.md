@@ -100,7 +100,7 @@ curl -X POST 'https://supabase.vmflow.xyz/functions/v1/send-credit' \
 -d '{ "subdomain":51,"amount":1.50 }'
 ```
 
-### Pay with x402 (crypto / AI agents)
+### 💸 Pay with x402 (crypto / AI agents)
 
 [x402](https://x402.org) lets a person or an AI agent pay a machine directly over HTTP — no checkout page, no webhook. Call without payment to get a 402 quote, retry with a signed `X-PAYMENT` header to vend. Operator setup: add a `credentials` row with key `x402_pay_to` and your receiving wallet address.
 
