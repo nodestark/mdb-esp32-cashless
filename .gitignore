@@ -1,7 +1,11 @@
 kicad/**/*-backups
 kicad/**/fp-info-cache
 kicad/**/*.lck
-kicad/**/*_prl
+kicad/**/*.kicad_prl
+kicad/*/*.pdf
+kicad/*/*.png
+kicad/*/*.jpg
+kicad/**/*.round-tracks-config
 
 docker/vuejs/package-lock.json
 docker/vuejs/node_modules/

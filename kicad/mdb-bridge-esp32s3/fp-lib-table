@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "XL-2121RGBC-2812B")(type "KiCad")(uri "${KIPRJMOD}/kicad-libs/XL-2121RGBC-2812B.pretty")(options "")(descr ""))
+)
