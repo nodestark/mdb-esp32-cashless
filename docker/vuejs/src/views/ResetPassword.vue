@@ -72,6 +72,12 @@
             {{ error }}
           </p>
 
+          <p class="text-sm text-center">
+            <RouterLink to="/forgot-password" class="text-slate-600 hover:underline">
+              Request a new reset link
+            </RouterLink>
+          </p>
+
         </form>
 
       </div>
@@ -82,8 +88,8 @@
 </template>
 
 <script>
-import { ref } from 'vue'
-import { supabase } from '@/lib/supabase'
+import { ref, onMounted } from 'vue'
+import { supabase, authRedirectError } from '@/lib/supabase'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -96,6 +102,13 @@ export default {
     const loading = ref(false)
     const error = ref(null)
     const message = ref(null)
+
+    onMounted(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        error.value = authRedirectError || 'Reset link is invalid or has expired. Please request a new one.'
+      }
+    })
 
     const updatePassword = async () => {
 

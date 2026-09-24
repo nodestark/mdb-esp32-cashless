@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, isRecoveryRedirect } from '@/lib/supabase'
 
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
@@ -55,15 +55,20 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach(async (to, from, next) => {
-  // Check if this is a recovery redirect from Supabase (hash fragment contains type=recovery)
-  const hash = window.location.hash
-  if (hash && hash.includes('type=recovery')) {
-    next('/reset-password')
-    return
-  }
+let pendingRecovery = isRecoveryRedirect
 
+router.beforeEach(async (to, from, next) => {
+  // getSession waits for the client to exchange the recovery tokens in the URL hash
   const { data: { session } } = await supabase.auth.getSession()
+
+  // Recovery links land on SITE_URL (e.g. when sent from Studio), so send them to the reset page once
+  if (pendingRecovery) {
+    pendingRecovery = false
+    if (to.path !== '/reset-password') {
+      next('/reset-password')
+      return
+    }
+  }
 
   if (to.meta.requiresAuth && !session) {
     next('/login')
