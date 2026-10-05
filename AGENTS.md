@@ -63,10 +63,10 @@ Broker host: `mqtt.vmflow.xyz`. (`<subdomain>.vmflow.xyz` is the **topic prefix*
 }
 ```
 
-**Send a command** (helper: `mdb-slave-esp32s3/tools/rpc.sh`)
+**Send a command** (helper: `examples/tools/rpc.sh`)
 ```bash
-SUB=51 PASSKEY=<passkey> ./mdb-slave-esp32s3/tools/rpc.sh info
-./mdb-slave-esp32s3/tools/rpc.sh -s 51 -k <passkey> -w echo   # -w waits for reply
+SUB=51 PASSKEY=<passkey> ./examples/tools/rpc.sh info
+./examples/tools/rpc.sh -s 51 -k <passkey> -w echo   # -w waits for reply
 ```
 
 **Raw equivalent** (no helper)
