@@ -1,0 +1,5 @@
+## IDF Component Manager Manifest File
+dependencies:
+  idf:
+    version: '>=5.1'
+  espressif/led_strip: ^3.0.3

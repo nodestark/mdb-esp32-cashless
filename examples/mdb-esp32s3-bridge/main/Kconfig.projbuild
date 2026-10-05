@@ -1,0 +1,57 @@
+menu "VMflow"
+
+menu "MDB Cashless Device"
+
+    choice
+        prompt "Country / Currency Code"
+        default CURRENCY_UNKNOWN
+
+        config CURRENCY_EUR
+            bool "EUR - 0x0978"
+
+        config CURRENCY_USD
+            bool "USD - 0x0840"
+
+        config CURRENCY_BRL
+            bool "BRL - 0x0986"
+
+        config CURRENCY_UNKNOWN
+            bool "UNKNOWN - 0xffff"
+    endchoice
+
+    config MDB_CURRENCY_CODE
+        int
+        default 6520 if CURRENCY_EUR
+        default 6208 if CURRENCY_USD
+        default 6534 if CURRENCY_BRL
+        default 65535 if CURRENCY_UNKNOWN
+
+    choice
+        prompt "Scale Factor (MDB)"
+        default SCALE_FACTOR_1
+
+        config SCALE_FACTOR_1
+            bool "1"
+
+        config SCALE_FACTOR_10
+            bool "10"
+
+        config SCALE_FACTOR_100
+            bool "100"
+
+    endchoice
+
+    config MDB_SCALE_FACTOR
+        int
+        default 1 if SCALE_FACTOR_1
+        default 10 if SCALE_FACTOR_10
+        default 100 if SCALE_FACTOR_100
+
+    config MDB_DECIMAL_PLACES
+        int "Decimal Places (MDB)"
+        default 2
+        range 0 3
+
+endmenu # MDB Cashless Device
+
+endmenu # VMflow

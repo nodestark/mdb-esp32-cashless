@@ -1,0 +1,40 @@
+{
+  "name": "Mercado Libre",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "36925de6-bff8-43c5-ba32-b7a446c29230",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7f09cb6e-baa0-4fc9-b193-e53bfee15d8f",
+      "name": "Webhook",
+      "webhookId": "36925de6-bff8-43c5-ba32-b7a446c29230"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f991564f-2085-493b-a430-83bc0a3f10bf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "29afb1740e26d015a554cb80a4a0133b97482a4e3f9dfa34af9c25e60da56d41"
+  },
+  "id": "3LpVW6t6U3WifElI",
+  "tags": []
+}
