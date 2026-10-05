@@ -66,15 +66,15 @@ idf.py flash monitor
 
 ---
 
-### `n8n-workflows-store/`
+### `n8n-workflows/`
 
 [n8n](https://n8n.io) workflow JSON files for integrating VMflow with payment providers.
 
 | File | Description |
 |---|---|
-| `send-credit-mqtt-example.json` | Generic: authenticate → send credit via MQTT |
-| `send-credit-mqtt-mercado-libre.json` | Mercado Libre webhook trigger → send credit |
-| `send-credit-mqtt-picpay.json` | PicPay webhook trigger → send credit |
+| `send-credit-example.json` | Generic: authenticate → send credit via Supabase Edge Function |
+| `send-credit-mercado-libre.json` | Mercado Libre webhook trigger → send credit |
+| `send-credit-picpay.json` | PicPay webhook trigger → send credit |
 
 Import any file directly into n8n: **Workflows → Import from file**.
 
