@@ -5907,7 +5907,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C5349957"
+		(property "LCSC#" "C5349957"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
