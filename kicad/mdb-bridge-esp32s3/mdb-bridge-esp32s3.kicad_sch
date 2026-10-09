@@ -9541,7 +9541,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C45445"
+		(property "LCSC#" "C128776"
 			(at 358.14 82.55 0)
 			(effects
 				(font
@@ -12695,7 +12695,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C45445"
+		(property "LCSC#" "C128776"
 			(at 358.14 97.79 0)
 			(effects
 				(font
