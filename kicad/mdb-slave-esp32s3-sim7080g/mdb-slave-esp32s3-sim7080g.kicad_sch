@@ -13520,7 +13520,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "470R"
+		(property "Value" "100R"
 			(at 533.4 130.8099 0)
 			(effects
 				(font
@@ -13556,7 +13556,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C114669"
+		(property "LCSC#" "C22775"
 			(at 530.86 129.54 0)
 			(effects
 				(font

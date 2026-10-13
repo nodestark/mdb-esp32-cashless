@@ -3209,7 +3209,7 @@
 				)
 			)
 		)
-		(property "Value" "470R"
+		(property "Value" "100R"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -3247,7 +3247,7 @@
 				)
 			)
 		)
-		(property "LCSC#" "C114669"
+		(property "LCSC#" "C22775"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")

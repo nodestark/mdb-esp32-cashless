@@ -10715,7 +10715,7 @@
 				)
 			)
 		)
-		(property "Value" "470R"
+		(property "Value" "100R"
 			(at 0 1.17 0)
 			(layer "F.Fab")
 			(uuid "df8b4512-86d7-4b73-8277-4a3fc812a4f4")
@@ -10750,7 +10750,7 @@
 				)
 			)
 		)
-		(property "LCSC#" "C25117"
+		(property "LCSC#" "C25076"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
