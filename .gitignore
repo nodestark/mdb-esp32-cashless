@@ -21,3 +21,6 @@ docker/vuejs/dist/
 .project
 
 .temp
+
+# Fabrication Toolkit output (generated, not versioned)
+pcbway_production/
