@@ -1620,15 +1620,15 @@
 			(uuid "79ee1026-fb9e-4f33-bf6b-eb8b7332d3e8")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/USB-C_Receptacle_G-Switch-GT-USB-7010ASV.stp"
+		(model "${KIPRJMOD}/kicad-libs/GT-USB-7010ASV.3dshapes/USB-C-SMD_G-SWITCH_GT-USB-7010ASV.step"
 			(offset
-				(xyz 0 -3.5 1.5)
+				(xyz 0 1.33 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -0)
+				(xyz 0 0 0)
 			)
 		)
 	)
@@ -3731,7 +3731,7 @@
 			(uuid "0bea1f29-e42e-41a2-9e49-571e37e2b0ec")
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/Inductor_SMD.3dshapes/L_7.3x7.3_H3.5.step"
+		(model "${KIPRJMOD}/kicad-libs/SLH0704S101MTT.3dshapes/IND-SMD_L7.3-W7.3-H4.2.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5116,15 +5116,15 @@
 			(uuid "e84c08e7-9472-4615-bc09-5fb36122c594")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/Connector_Molex-MiniJr-39-28-1063_2x03.stp"
+		(model "${KIPRJMOD}/kicad-libs/DLL-5566-6A.3dshapes/CONN-TH_6P-P4.20_DLL-5566-6A.step"
 			(offset
-				(xyz 4 -2.5 0)
+				(xyz 4.2 -2.75 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -180)
+				(xyz 0 0 180)
 			)
 		)
 	)
@@ -14268,15 +14268,15 @@
 			(uuid "38e3fe8a-6835-497b-a8cc-bf394204455a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/Connector_Molex-MiniJr-39-28-1063_2x03.stp"
+		(model "${KIPRJMOD}/kicad-libs/DLL-5566-6A.3dshapes/CONN-TH_6P-P4.20_DLL-5566-6A.step"
 			(offset
-				(xyz 4 -2.5 0)
+				(xyz 4.2 -2.75 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -180)
+				(xyz 0 0 180)
 			)
 		)
 	)

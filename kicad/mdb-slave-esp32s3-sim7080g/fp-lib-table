@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "SIM7080G")(type "KiCad")(uri "${KIPRJMOD}/kicad-libs/SIM7080G.pretty")(options "")(descr ""))
+)

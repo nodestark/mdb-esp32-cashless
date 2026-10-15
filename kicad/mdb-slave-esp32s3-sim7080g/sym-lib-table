@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "SIM7080g")(type "KiCad")(uri "${KIPRJMOD}/kicad-libs/SIM7080G.kicad_sym")(options "")(descr ""))
+)

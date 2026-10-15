@@ -838,7 +838,7 @@
 			(uuid "3f22402a-949b-4351-b9d0-c5b0d0aaeb6c")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/Inductor_WE-7447789156_100uH.stp"
+		(model "${KIPRJMOD}/kicad-libs/SLH0704S101MTT.3dshapes/IND-SMD_L7.3-W7.3-H4.2.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -846,7 +846,7 @@
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -0 -0 -90)
+				(xyz 0 0 0)
 			)
 		)
 	)
@@ -1913,15 +1913,15 @@
 			(uuid "e979a909-77f4-43d9-9264-de1fa3eab062")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/SIM-Card-Holder_JAE-SF72S006.step"
+		(model "${KIPRJMOD}/kicad-libs/SF72S006VBDR2500.3dshapes/NANO-SIM-SMD_SMN-315-ARP7.wrl"
 			(offset
-				(xyz -1 5 1.5)
+				(xyz -0.991 -2.241 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -180)
+				(xyz 0 0 180)
 			)
 		)
 	)
@@ -2667,15 +2667,15 @@
 			(uuid "79ee1026-fb9e-4f33-bf6b-eb8b7332d3e8")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/USB-C_Receptacle_G-Switch-GT-USB-7010ASV.stp"
+		(model "${KIPRJMOD}/kicad-libs/GT-USB-7010ASV.3dshapes/USB-C-SMD_G-SWITCH_GT-USB-7010ASV.step"
 			(offset
-				(xyz 0 -3.5 1.5)
+				(xyz 0 1.33 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -0)
+				(xyz 0 0 0)
 			)
 		)
 	)
@@ -9821,7 +9821,7 @@
 			)
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/SIM7080G_Module.step"
+		(model "${KIPRJMOD}/kicad-libs/SIM7080G.3dshapes/LCC-SMD_SIM7080G.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9829,7 +9829,7 @@
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz 90 -180 -0)
+				(xyz 0 0 0)
 			)
 		)
 	)
@@ -9850,7 +9850,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -10994,7 +10994,7 @@
 				)
 			)
 		)
-		(property "Value" "100ohm"
+		(property "Value" "100R"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -12260,7 +12260,7 @@
 				)
 			)
 		)
-		(property "Value" "22ohm"
+		(property "Value" "22R"
 			(at 0 1.43 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -12512,7 +12512,7 @@
 				)
 			)
 		)
-		(property "Value" "2.4nh"
+		(property "Value" "2.4nH"
 			(at 0 1.43 180)
 			(layer "F.Fab")
 			(hide yes)
@@ -13144,7 +13144,7 @@
 				)
 			)
 		)
-		(property "Value" "22ohm"
+		(property "Value" "22R"
 			(at 0 1.43 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -13755,7 +13755,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -14259,7 +14259,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -15367,7 +15367,7 @@
 				)
 			)
 		)
-		(property "Value" "1.8pf"
+		(property "Value" "1.8pF"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -15619,7 +15619,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -17843,7 +17843,7 @@
 				)
 			)
 		)
-		(property "Value" "470ohm"
+		(property "Value" "470R"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -18402,7 +18402,7 @@
 			(uuid "f92582f0-fb9e-4e50-964b-c0542f1f3feb")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/LED_WS2812B-2020_XL-2121RGBC.stp"
+		(model "${KIPRJMOD}/kicad-libs/XL-2121RGBC-2812B.3dshapes/LED_WS2812B-2020_XL-2121RGBC.stp"
 			(offset
 				(xyz 0 0 0.5)
 			)
@@ -20306,7 +20306,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -20944,7 +20944,7 @@
 				)
 			)
 		)
-		(property "Value" "FerriteBead_Small"
+		(property "Value" "FerriteBead"
 			(at 0 1.43 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -21196,7 +21196,7 @@
 				)
 			)
 		)
-		(property "Value" "22ohm"
+		(property "Value" "22R"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -22178,7 +22178,7 @@
 				)
 			)
 		)
-		(property "Value" "1.8pf"
+		(property "Value" "1.8pF"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -22430,7 +22430,7 @@
 				)
 			)
 		)
-		(property "Value" "3.9nh"
+		(property "Value" "3.9nH"
 			(at 0 1.43 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -22684,7 +22684,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -23191,7 +23191,7 @@
 				)
 			)
 		)
-		(property "Value" "5.6nh"
+		(property "Value" "5.6nH"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -25507,7 +25507,7 @@
 				)
 			)
 		)
-		(property "Value" "Crystal_GND24"
+		(property "Value" "40MHz"
 			(at 0 2.45 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -27149,15 +27149,15 @@
 			(uuid "38e3fe8a-6835-497b-a8cc-bf394204455a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/Connector_Molex-MiniJr-39-28-1063_2x03.stp"
+		(model "${KIPRJMOD}/kicad-libs/DLL-5566-6A.3dshapes/CONN-TH_6P-P4.20_DLL-5566-6A.step"
 			(offset
-				(xyz 4 -2.5 0)
+				(xyz 4.2 -2.75 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -180)
+				(xyz 0 0 180)
 			)
 		)
 	)
@@ -27178,7 +27178,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -27825,7 +27825,7 @@
 				)
 			)
 		)
-		(property "Value" "1.8pf"
+		(property "Value" "1.8pF"
 			(at 0 1.43 180)
 			(layer "F.Fab")
 			(hide yes)
@@ -28838,7 +28838,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -29690,7 +29690,7 @@
 			(uuid "2401536e-e61f-42b2-a487-50a773fc9dc1")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/Buzzer_CUI-CMT-0502-03-SMT-TR.stp"
+		(model "${KIPRJMOD}/kicad-libs/GSD9605YB-3V2800.3dshapes/Buzzer_CUI-CMT-0502-03-SMT-TR.stp"
 			(offset
 				(xyz 0 1.5 1)
 			)
@@ -30245,7 +30245,7 @@
 				)
 			)
 		)
-		(property "Value" "4K7"
+		(property "Value" "4.7k"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(hide yes)

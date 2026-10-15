@@ -1419,7 +1419,7 @@
 			(uuid "3f22402a-949b-4351-b9d0-c5b0d0aaeb6c")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/Inductor_WE-7447789156_100uH.stp"
+		(model "${KIPRJMOD}/kicad-libs/SLH0704S101MTT.3dshapes/IND-SMD_L7.3-W7.3-H4.2.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1427,7 +1427,7 @@
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -0 -0 -90)
+				(xyz 0 0 0)
 			)
 		)
 	)
@@ -1893,15 +1893,15 @@
 			(uuid "79ee1026-fb9e-4f33-bf6b-eb8b7332d3e8")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/USB-C_Receptacle_G-Switch-GT-USB-7010ASV.stp"
+		(model "${KIPRJMOD}/kicad-libs/GT-USB-7010ASV.3dshapes/USB-C-SMD_G-SWITCH_GT-USB-7010ASV.step"
 			(offset
-				(xyz 0 -3.5 1.5)
+				(xyz 0 1.33 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -0)
+				(xyz 0 0 0)
 			)
 		)
 	)
@@ -5236,6 +5236,19 @@
 				)
 			)
 		)
+		(property "LCSC#" "C152351"
+			(at 0 0 -90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "73c790ba-a923-4eca-805e-479b3bd50085")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(path "/b02b8fea-f0e7-4bb2-a20a-0f220b005636")
 		(sheetname "/")
 		(sheetfile "mdb-slave-esp32s3-mini.kicad_sch")
@@ -5501,7 +5514,7 @@
 			)
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/RF_Antenna.3dshapes/Molex_47948-0001_2.4Ghz.step"
+		(model "${KIPRJMOD}/kicad-libs/479480001.3dshapes/ANT-SMD_L3.2-W3.2-H4.0.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5509,7 +5522,7 @@
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz 0 0 0)
+				(xyz 0 0 270)
 			)
 		)
 	)
@@ -11657,15 +11670,15 @@
 			(uuid "38e3fe8a-6835-497b-a8cc-bf394204455a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/3d-models/Connector_Molex-MiniJr-39-28-1063_2x03.stp"
+		(model "${KIPRJMOD}/kicad-libs/DLL-5566-6A.3dshapes/CONN-TH_6P-P4.20_DLL-5566-6A.step"
 			(offset
-				(xyz 4 -2.5 0)
+				(xyz 4.2 -2.75 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -180)
+				(xyz 0 0 180)
 			)
 		)
 	)
