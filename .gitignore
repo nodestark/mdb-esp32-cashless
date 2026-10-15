@@ -6,6 +6,7 @@ kicad/*/*.pdf
 kicad/*/*.png
 kicad/*/*.jpg
 kicad/**/*.round-tracks-config
+kicad/**/analysis/
 
 docker/vuejs/package-lock.json
 docker/vuejs/node_modules/

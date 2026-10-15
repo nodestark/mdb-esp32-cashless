@@ -28,3 +28,10 @@ You can view and order the PCBs directly from PCBWay using the link below:
 ![MDB Bridge](mdb-bridge-esp32s3/mdb-bridge-esp32s3.png)
 
 [Schematic (PDF)](schematic-mdb-bridge-esp32s3.pdf)
+
+### MDB ESP32 AI Bridge (VMflow + VMC + Bill/Coin Reader simulator)
+Three ESP32-S3 on one board, each simulating one role of the vending stack — VMflow cashless device, VMC and bill/coin reader — linked by logic-level MDB and reachable through a single USB-C via a USB2514B hub. Bench/CI target for firmware and AI agents without a vending machine.
+
+![MDB AI Bridge](mdb-ai-bridge-esp32s3/mdb-ai-bridge-esp32s3.png)
+
+[Schematic (PDF)](schematic-mdb-ai-bridge-esp32s3.pdf)
