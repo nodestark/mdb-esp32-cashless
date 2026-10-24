@@ -129,7 +129,16 @@ CREATE FUNCTION public.debit_product_stock_on_coil_refill() RETURNS trigger
 
 CREATE FUNCTION public.fill_sale_coil_data() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$BEGIN
+    AS $$
+BEGIN
+
+    IF NEW.item_number IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'UPDATE' AND OLD.item_number IS NOT NULL THEN
+        RETURN NEW;
+    END IF;
 
     SELECT product_id, alias
     INTO NEW.product_id, NEW.coil_alias
@@ -141,7 +150,8 @@ CREATE FUNCTION public.fill_sale_coil_data() RETURNS trigger
     where machine_id = NEW.machine_id and item_number = NEW.item_number;
 
     RETURN NEW;
-END;$$;
+END;
+$$;
 
 
 --
@@ -198,10 +208,11 @@ BEGIN
         WHERE machine_id = NEW.id;
 
         -- Replica coils do novo modelo
-        INSERT INTO machine_coils (machine_id, alias, capacity)
+        INSERT INTO machine_coils (machine_id, alias, item_number, capacity)
         SELECT
             NEW.id,
             mc.alias,
+            mc.item_number,
             mc.capacity
         FROM model_coils mc
         WHERE mc.model_id = NEW.model_id;
@@ -383,7 +394,7 @@ CREATE TABLE public.sales (
     machine_id uuid,
     product_id uuid,
     item_price double precision DEFAULT '0'::double precision NOT NULL,
-    item_number bigint DEFAULT '0'::bigint NOT NULL,
+    item_number bigint,
     channel public.sale_channel NOT NULL,
     owner_id uuid DEFAULT auth.uid(),
     lat double precision,
@@ -504,7 +515,7 @@ CREATE TRIGGER trg_debit_product_stock_on_coil_refill AFTER UPDATE OF current_st
 -- Name: sales trg_fill_sale_coil_data; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_fill_sale_coil_data BEFORE INSERT ON public.sales FOR EACH ROW EXECUTE FUNCTION public.fill_sale_coil_data();
+CREATE TRIGGER trg_fill_sale_coil_data BEFORE INSERT OR UPDATE OF item_number ON public.sales FOR EACH ROW EXECUTE FUNCTION public.fill_sale_coil_data();
 
 
 --
