@@ -161,6 +161,10 @@ bool vend_denied_todo = false;
 bool cashless_reset_todo = false;
 bool out_of_sequence_todo = false;
 
+// Session funded by a remote (MQTT) credit; BLE sessions use 0xffff funds and are
+// reported by the app, so only remote ones publish vend_success.
+bool remote_credit_session = false;
+
 uint16_t last_sale_price = 0;
 uint16_t last_sale_item = 0;
 
@@ -323,6 +327,7 @@ void mdb_cashless_task(void *pvParameters) {
 
 			} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdb_session_queue, &funds_available, 0)) {
 				session_begin_todo = false;
+				remote_credit_session = (funds_available != 0xffff);
 
 				machine_state = IDLE_STATE;
 
@@ -423,6 +428,17 @@ void mdb_cashless_task(void *pvParameters) {
 				uint8_t payload[19];
 				ble_encode_with_passkey(0x0b, item_price, item_number, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
+
+				if (remote_credit_session) {
+					uint32_t price_wire = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
+
+					char topic[64], msg[64], line[160];
+					snprintf(msg, sizeof(msg), "%lu:%u:%lld", (unsigned long) price_wire, item_number, (long long) time(NULL));
+					rpc_sign_text(msg, line, sizeof(line));
+
+					snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/vend_success", my_subdomain);
+					esp_mqtt_client_enqueue(mqtt_client, topic, line, 0, 1, 0, 1);
+				}
 
 				ESP_LOGI( TAG, "VEND_SUCCESS");
 				break;

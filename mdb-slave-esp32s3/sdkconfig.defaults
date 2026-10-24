@@ -8,3 +8,7 @@ CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
 # Dedicate APP_CPU (core 1) to the bit-banged MDB task: move WiFi to core 0
 # so it cannot preempt an MDB frame mid-transfer.
 CONFIG_ESP_WIFI_TASK_PINNED_TO_CORE_0=y
+
+# Keep QoS1 sale/vend reports queued across flaky-link outages (default 30s drops them)
+CONFIG_MQTT_USE_CUSTOM_CONFIG=y
+CONFIG_MQTT_OUTBOX_EXPIRED_TIMEOUT_MS=3600000

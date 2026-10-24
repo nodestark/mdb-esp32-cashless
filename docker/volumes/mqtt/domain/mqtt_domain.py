@@ -11,31 +11,62 @@ from supabase import create_client, Client
 from datetime import datetime, timezone
 import time
 
-# Freshness window for signed device->server messages (must match firmware RPC_FRESHNESS_SEC).
-FRESHNESS_SEC = 10
+# Freshness window for signed device->server messages. Devices on flaky links keep
+# QoS1 publishes in the outbox and deliver them after reconnecting, so this is far
+# wider than the firmware's server->device RPC_FRESHNESS_SEC (10s). Replays inside
+# the window are rejected by signature dedupe below.
+FRESHNESS_SEC = 3600
+
+# How long after a remote credit the device's vend_success may still claim that sale.
+VEND_MATCH_SEC = 900
+
+_seen_sigs = {}
 
 
-def verify_signed_line(passkey: str, line: str):
+def _seen_before(sig: str) -> bool:
+    now = time.time()
+    for k in [k for k, exp in _seen_sigs.items() if exp < now]:
+        del _seen_sigs[k]
+    if sig in _seen_sigs:
+        return True
+    _seen_sigs[sig] = now + FRESHNESS_SEC
+    return False
+
+
+def verify_signed_line(passkey: str, line: str, tag: str = ""):
     """Verify "<fields...>:<ts>:<hmac_hex>". Returns the list of leading fields
-    (everything before <ts>) if the HMAC is valid and <ts> is fresh, else None."""
+    (everything before <ts>) if the HMAC is valid, <ts> is fresh and the message
+    was not seen before, else None (reason is logged)."""
     idx = line.rfind(":")
     if idx < 0:
+        print(f" [{tag}] rejected: malformed {line!r}")
         return None
     msg, sig = line[:idx], line[idx + 1:]
 
     calc = hmac.new(passkey.encode(), msg.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(calc, sig):
+        print(f" [{tag}] rejected: bad HMAC {line!r}")
         return None
 
     fields = msg.split(":")
     if len(fields) < 2:
+        print(f" [{tag}] rejected: malformed {line!r}")
         return None
 
     try:
         ts = int(fields[-1])
     except ValueError:
+        print(f" [{tag}] rejected: bad ts {line!r}")
         return None
-    if abs(int(time.time()) - ts) > FRESHNESS_SEC:
+    dt = int(time.time()) - ts
+    if abs(dt) > FRESHNESS_SEC:
+        print(f" [{tag}] rejected: stale ts (dt={dt}s) {line!r}")
+        return None
+    if dt > 10:
+        print(f" [{tag}] late delivery accepted (dt={dt}s)")
+
+    if _seen_before(sig):
+        print(f" [{tag}] rejected: duplicate {line!r}")
         return None
 
     return fields[:-1]
@@ -64,10 +95,10 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     try:
-        match = re.match(r"^domain.vmflow.xyz/(\d+)/(sale|status|paxcounter|vend_fail)$", msg.topic)
+        match = re.match(r"^domain.vmflow.xyz/(\d+)/(sale|status|paxcounter|vend_fail|vend_success)$", msg.topic)
         if match:
             domain_id = int(match.group(1))
-            event_type = match.group(2)  # "sale", "status" or "paxcounter"
+            event_type = match.group(2)
 
             if event_type == "status":
                 raw = msg.payload.decode('utf-8', errors='ignore')
@@ -101,7 +132,7 @@ def on_message(client, userdata, msg):
                 res = supabase.table("embedded").select("passkey, subdomain, id, machine_id").eq("subdomain", domain_id).execute()
                 embedded = res.data[0]
 
-                fields = verify_signed_line(embedded["passkey"], line)
+                fields = verify_signed_line(embedded["passkey"], line, f"{domain_id}/paxcounter")
                 if fields and len(fields) == 1:
                     pax_counter = int(fields[0])
 
@@ -114,7 +145,7 @@ def on_message(client, userdata, msg):
                 res = supabase.table("embedded").select("passkey,subdomain,id,owner_id,machine_id").eq("subdomain", domain_id).execute()
                 embedded = res.data[0]
 
-                fields = verify_signed_line(embedded["passkey"], line)
+                fields = verify_signed_line(embedded["passkey"], line, f"{domain_id}/sale")
                 if fields and len(fields) == 2:
                     item_price = int(fields[0])
                     item_number = int(fields[1])
@@ -126,13 +157,38 @@ def on_message(client, userdata, msg):
                                                      "item_price":  from_scale_factor(item_price, 1, 2),
                                                      "channel":     "cash"}]).execute()
 
+            # Remote-credit vend: "<price>:<item>:<ts>:<hmac>". The sale row was
+            # inserted (item_number NULL) when the credit was sent; attach the item
+            # so trg_fill_sale_coil_data maps product/coil and debits stock.
+            if event_type == "vend_success":
+                res = supabase.table("embedded").select("passkey, id").eq("subdomain", domain_id).execute()
+                if not res.data:
+                    return
+                embedded = res.data[0]
+
+                fields = verify_signed_line(embedded["passkey"], line, f"{domain_id}/vend_success")
+                if fields and len(fields) == 2:
+                    item_number = int(fields[1])
+                    since = datetime.fromtimestamp(int(line.split(":")[2]) - VEND_MATCH_SEC, timezone.utc).isoformat()
+
+                    sale = supabase.table("sales").select("id") \
+                        .eq("embedded_id", embedded["id"]).eq("channel", "mqtt") \
+                        .is_("item_number", "null").gte("created_at", since) \
+                        .order("created_at", desc=True).limit(1).execute()
+                    if not sale.data:
+                        print(f" [{domain_id}/vend_success] no pending remote-credit sale for item {item_number}")
+                        return
+
+                    supabase.table("sales").update({"item_number": item_number}) \
+                        .eq("id", sale.data[0]["id"]).is_("item_number", "null").execute()
+
             if event_type == "vend_fail":
                 res = supabase.table("embedded").select("passkey, id, machine_id").eq("subdomain", domain_id).execute()
                 if not res.data:
                     return
                 embedded = res.data[0]
 
-                fields = verify_signed_line(embedded["passkey"], line)
+                fields = verify_signed_line(embedded["passkey"], line, f"{domain_id}/vend_fail")
                 if fields and len(fields) == 1:
                     parts = fields[0].split(",")
                     if len(parts) == 2:
