@@ -456,7 +456,7 @@ public class EmbeddesFragment extends Fragment {
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
-                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/machines?select=id,name&deleted_at=is.null&order=name")
+                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/machines?select=id,name&order=name")
                         .addHeader("apikey", BuildConfig.SUPABASE_KEY)
                         .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
                         .build();
