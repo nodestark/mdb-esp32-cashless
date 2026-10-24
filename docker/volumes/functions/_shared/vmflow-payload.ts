@@ -22,9 +22,13 @@ export async function hmacHex(passkey: string, msg: string): Promise<string> {
 
 // Build the signed RPC credit line for publishing to "<sub>.vmflow.xyz/rpc".
 // amountCents = credit amount scaled to 1/100 units (integer).
-export async function signCreditRpc(passkey: string, amountCents: number): Promise<string> {
+// seq = sales.seq of the pending sale; sent as "<amount>,<seq>" so the device
+// echoes it in vend_success/vend_fail (older firmware parses <amount> and stops
+// at the comma).
+export async function signCreditRpc(passkey: string, amountCents: number, seq?: number): Promise<string> {
   const ts = Math.floor(Date.now() / 1000);
-  const msg = `credit:${amountCents}:${ts}`;
+  const args = seq ? `${amountCents},${seq}` : `${amountCents}`;
+  const msg = `credit:${args}:${ts}`;
   return `${msg}:${await hmacHex(passkey, msg)}`;
 }
 

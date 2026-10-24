@@ -24,18 +24,18 @@ Deno.serve(async (req) => {
 
         const itemPrice = toScaleFactor(body.amount, 1, 2)
 
-        const creditLine = await signCreditRpc(embeddedData[0].passkey, itemPrice);
+        const { data: saleData, error: saleError } = await supabase.from("sales").insert([{ embedded_id: embeddedData[0].id, machine_id: embeddedData[0].machine_id ?? null, item_price: fromScaleFactor(itemPrice, 1, 2), channel: "mqtt", status: "pending" }]).select("id, seq").single()
+        if (saleError) throw saleError
+
+        const salesId: string = saleData.id
+
+        const creditLine = await signCreditRpc(embeddedData[0].passkey, itemPrice, saleData.seq);
 
         const client = new Client({ url: `mqtt://mqtt.vmflow.xyz` });
         await client.connect();
 
         await client.publish(`${embeddedData[0].subdomain}.vmflow.xyz/rpc`, creditLine);
         await client.disconnect();
-
-        const { data: saleData, error: saleError } = await supabase.from("sales").insert([{ embedded_id: embeddedData[0].id, machine_id: embeddedData[0].machine_id ?? null, item_price: fromScaleFactor(itemPrice, 1, 2), channel: "mqtt" }]).select("id").single()
-        if (saleError) throw saleError
-
-        const salesId: string = saleData.id
 
         return new Response(JSON.stringify({status: embeddedData[0].status, sales_id: salesId}), { headers: { 'Content-Type': 'application/json' } })
 

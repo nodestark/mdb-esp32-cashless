@@ -157,9 +157,12 @@ def on_message(client, userdata, msg):
                                                      "item_price":  from_scale_factor(item_price, 1, 2),
                                                      "channel":     "cash"}]).execute()
 
-            # Remote-credit vend: "<price>:<item>:<ts>:<hmac>". The sale row was
-            # inserted (item_number NULL) when the credit was sent; attach the item
-            # so trg_fill_sale_coil_data maps product/coil and debits stock.
+            # Remote-credit vend: "<price>:<item>[:<seq>]:<ts>:<hmac>". The sale row
+            # was inserted 'pending' (item_number NULL) when the credit was sent;
+            # attach the item so trg_fill_sale_coil_data maps product/coil and
+            # debits stock. <seq> (sales.seq echoed from the credit) pins the exact
+            # row; without it (v1.3.7, legacy credits) fall back to the latest
+            # pending remote-credit sale of the device.
             if event_type == "vend_success":
                 res = supabase.table("embedded").select("passkey, id").eq("subdomain", domain_id).execute()
                 if not res.data:
@@ -167,20 +170,31 @@ def on_message(client, userdata, msg):
                 embedded = res.data[0]
 
                 fields = verify_signed_line(embedded["passkey"], line, f"{domain_id}/vend_success")
-                if fields and len(fields) == 2:
+                if fields and len(fields) in (2, 3):
                     item_number = int(fields[1])
-                    since = datetime.fromtimestamp(int(line.split(":")[2]) - VEND_MATCH_SEC, timezone.utc).isoformat()
+
+                    if len(fields) == 3:
+                        # 'failed' too: a retry in the same session can still vend.
+                        updated = supabase.table("sales").update({"item_number": item_number, "status": "success"}) \
+                            .eq("seq", int(fields[2])).eq("embedded_id", embedded["id"]) \
+                            .in_("status", ["pending", "failed"]).execute()
+                        if not updated.data:
+                            print(f" [{domain_id}/vend_success] no pending sale seq={fields[2]}")
+                        return
+
+                    ts = int(line.split(":")[2])
+                    since = datetime.fromtimestamp(ts - VEND_MATCH_SEC, timezone.utc).isoformat()
 
                     sale = supabase.table("sales").select("id") \
                         .eq("embedded_id", embedded["id"]).eq("channel", "mqtt") \
-                        .is_("item_number", "null").gte("created_at", since) \
+                        .eq("status", "pending").gte("created_at", since) \
                         .order("created_at", desc=True).limit(1).execute()
                     if not sale.data:
                         print(f" [{domain_id}/vend_success] no pending remote-credit sale for item {item_number}")
                         return
 
-                    supabase.table("sales").update({"item_number": item_number}) \
-                        .eq("id", sale.data[0]["id"]).is_("item_number", "null").execute()
+                    supabase.table("sales").update({"item_number": item_number, "status": "success"}) \
+                        .eq("id", sale.data[0]["id"]).eq("status", "pending").execute()
 
             if event_type == "vend_fail":
                 res = supabase.table("embedded").select("passkey, id, machine_id").eq("subdomain", domain_id).execute()
@@ -190,16 +204,24 @@ def on_message(client, userdata, msg):
 
                 fields = verify_signed_line(embedded["passkey"], line, f"{domain_id}/vend_fail")
                 if fields and len(fields) == 1:
+                    # "<price>,<item>[,<seq>]"
                     parts = fields[0].split(",")
-                    if len(parts) == 2:
+                    if len(parts) in (2, 3):
                         vf_price = int(parts[0])
                         vf_item  = int(parts[1])
+
+                        payload = {"item_price": vf_price, "item_number": vf_item}
+                        if len(parts) == 3:
+                            payload["seq"] = int(parts[2])
+                            supabase.table("sales").update({"status": "failed"}) \
+                                .eq("seq", payload["seq"]).eq("embedded_id", embedded["id"]) \
+                                .eq("status", "pending").execute()
 
                         supabase.table("metrics").insert([{
                             "embedded_id": embedded["id"],
                             "machine_id":  embedded["machine_id"],
                             "name":        "vend_fail",
-                            "payload":     {"item_price": vf_price, "item_number": vf_item}
+                            "payload":     payload
                         }]).execute()
     except Exception as e:
         print(f"An unexpected error occurred: {e}")

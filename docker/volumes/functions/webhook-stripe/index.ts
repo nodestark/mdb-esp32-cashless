@@ -66,22 +66,23 @@ Deno.serve(async (req) => {
         .single()
 
       if (embeddedData) {
+        // 5. Record sale (pending until the device reports the vend)
+        const { data: saleData } = await supabase.from('sales').insert([{
+          embedded_id: embeddedData.id,
+          machine_id:  machineId,
+          item_price:  amount,
+          channel:     'mqtt',
+          status:      'pending',
+          owner_id:    operatorId,
+        }]).select('seq').single()
+
         const itemPrice  = Math.round(amount * 100)
-        const creditLine = await signCreditRpc(embeddedData.passkey, itemPrice)
+        const creditLine = await signCreditRpc(embeddedData.passkey, itemPrice, saleData?.seq)
 
         const client = new Client({ url: 'mqtt://mqtt.vmflow.xyz' })
         await client.connect()
         await client.publish(`${embeddedData.subdomain}.vmflow.xyz/rpc`, creditLine)
         await client.disconnect()
-
-        // 5. Record sale
-        await supabase.from('sales').insert([{
-          embedded_id: embeddedData.id,
-          machine_id:  machineId,
-          item_price:  amount,
-          channel:     'mqtt',
-          owner_id:    operatorId,
-        }])
       }
     }
 

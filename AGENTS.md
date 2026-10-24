@@ -23,6 +23,7 @@ not a session — every message is self-contained and expires fast.
 
 Commands that take arguments (e.g. `credit`) extend the envelope to
 `<cmd>:<args>:<ts>:<hmac>`; the HMAC then covers everything before the last colon.
+Multiple arguments are comma-separated inside `<args>` (`:` delimits only the envelope).
 
 **Freshness:** device accepts only if `|now - ts| <= 10s`. Sign at send time; do not cache signatures.
 
@@ -39,7 +40,7 @@ Broker host: `mqtt.vmflow.xyz`. (`<subdomain>.vmflow.xyz` is the **topic prefix*
 | cmd | Effect | Reply topic |
 |-----|--------|-------------|
 | `info`    | Publish device snapshot JSON (see schema) | `.../rpc/info` |
-| `credit`  | Grant credit. Envelope `credit:<amount>:<ts>:<hmac>`, `<amount>` in 1/100 units (cents) | `.../rpc/credit` (`ok`) |
+| `credit`  | Grant credit. Envelope `credit:<amount>[,<seq>]:<ts>:<hmac>`, `<amount>` in 1/100 units (cents); optional `<seq>` = `sales.seq` of the pending sale, echoed back in `vend_success`/`vend_fail` (a seq not above the last accepted one is rejected) | `.../rpc/credit` (`ok`) |
 | `echo`    | Liveness / RTT probe — replies with the request `ts` | `.../rpc/echo` |
 | `ota`     | OTA update. Envelope `ota:<tag>:<ts>:<hmac>`, omit `<tag>` for latest | `.../rpc/confirm` |
 | `dex`     | Trigger EVA-DTS DEX/DDCMP telemetry pull from the VMC | `.../rpc/confirm` |

@@ -157,24 +157,25 @@ Deno.serve(async (req) => {
             }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 402 });
         }
 
-        // 5. Grant credit — identical to send-credit / webhook-stripe
-        const itemPrice = Math.round(body.amount * 100);
-        const creditLine = await signCreditRpc(embeddedData.passkey, itemPrice);
-
-        const client = new Client({ url: `mqtt://mqtt.vmflow.xyz` });
-        await client.connect();
-        await client.publish(`${embeddedData.subdomain}.vmflow.xyz/rpc`, creditLine);
-        await client.disconnect();
-
-        // 6. Record sale
+        // 5. Record sale (pending until the device reports the vend)
         const { data: saleData } = await supabase.from('sales').insert([{
             embedded_id: embeddedData.id,
             machine_id: embeddedData.machine_id ?? null,
             item_price: body.amount,
             channel: 'mqtt',
+            status: 'pending',
             owner_id: machine.owner_id,
-        }]).select('id').single();
+        }]).select('id, seq').single();
         const salesId: string | null = saleData?.id ?? null;
+
+        // 6. Grant credit — identical to send-credit / webhook-stripe
+        const itemPrice = Math.round(body.amount * 100);
+        const creditLine = await signCreditRpc(embeddedData.passkey, itemPrice, saleData?.seq);
+
+        const client = new Client({ url: `mqtt://mqtt.vmflow.xyz` });
+        await client.connect();
+        await client.publish(`${embeddedData.subdomain}.vmflow.xyz/rpc`, creditLine);
+        await client.disconnect();
 
         return new Response(JSON.stringify({ status: embeddedData.status, sales_id: salesId }), {
             headers: {

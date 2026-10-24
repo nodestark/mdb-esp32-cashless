@@ -161,9 +161,22 @@ bool vend_denied_todo = false;
 bool cashless_reset_todo = false;
 bool out_of_sequence_todo = false;
 
+// Credit handed from the RPC/BLE handlers to the MDB task. seq is the server's
+// sales.seq for a remote credit ("credit:<amount>,<seq>"), 0 when absent (BLE
+// sessions, legacy senders without seq).
+typedef struct {
+	uint16_t funds;
+	uint32_t seq;
+} mdb_credit_t;
+
 // Session funded by a remote (MQTT) credit; BLE sessions use 0xffff funds and are
 // reported by the app, so only remote ones publish vend_success.
 bool remote_credit_session = false;
+uint32_t session_seq = 0;
+
+// Highest remote-credit seq accepted (persisted in NVS): a replayed credit line
+// carries a seq <= this and is rejected even across reboots.
+uint32_t last_credit_seq = 0;
 
 uint16_t last_sale_price = 0;
 uint16_t last_sale_item = 0;
@@ -242,6 +255,7 @@ void mdb_cashless_task(void *pvParameters) {
 	time_t session_begin_time = 0;
 
 	uint16_t funds_available = 0;
+	mdb_credit_t credit;
 	uint16_t item_price = 0;
 	uint16_t item_number = 0;
 
@@ -325,9 +339,11 @@ void mdb_cashless_task(void *pvParameters) {
 				mdb_payload[0] = 0x00;
 				available_tx = 1;
 
-			} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdb_session_queue, &funds_available, 0)) {
+			} else if (machine_state <= ENABLED_STATE && xQueueReceive(mdb_session_queue, &credit, 0)) {
 				session_begin_todo = false;
+				funds_available = credit.funds;
 				remote_credit_session = (funds_available != 0xffff);
+				session_seq = credit.seq;
 
 				machine_state = IDLE_STATE;
 
@@ -429,16 +445,24 @@ void mdb_cashless_task(void *pvParameters) {
 				ble_encode_with_passkey(0x0b, item_price, item_number, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
 
+				// One report per remote credit: further vends in the same session
+				// (leftover funds) have no sale row of their own to attach to.
 				if (remote_credit_session) {
+					remote_credit_session = false;
+
 					uint32_t price_wire = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
-					char topic[64], msg[64], line[160];
-					snprintf(msg, sizeof(msg), "%lu:%u:%lld", (unsigned long) price_wire, item_number, (long long) time(NULL));
+					char topic[64], msg[80], line[176];
+					if (session_seq)
+						snprintf(msg, sizeof(msg), "%lu:%u:%lu:%lld", (unsigned long) price_wire, item_number, (unsigned long) session_seq, (long long) time(NULL));
+					else
+						snprintf(msg, sizeof(msg), "%lu:%u:%lld", (unsigned long) price_wire, item_number, (long long) time(NULL));
 					rpc_sign_text(msg, line, sizeof(line));
 
 					snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/vend_success", my_subdomain);
 					esp_mqtt_client_enqueue(mqtt_client, topic, line, 0, 1, 0, 1);
 				}
+				session_seq = 0;
 
 				ESP_LOGI( TAG, "VEND_SUCCESS");
 				break;
@@ -452,8 +476,11 @@ void mdb_cashless_task(void *pvParameters) {
 				ble_encode_with_passkey(0x0c, item_price, item_number, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
 
-                char topic[64], msg[64], line[160];
-                snprintf(msg, sizeof(msg), "%u,%u:%lld", item_price, item_number, (long long) time(NULL));
+                char topic[64], msg[80], line[176];
+                if (session_seq)
+                    snprintf(msg, sizeof(msg), "%u,%u,%lu:%lld", item_price, item_number, (unsigned long) session_seq, (long long) time(NULL));
+                else
+                    snprintf(msg, sizeof(msg), "%u,%u:%lld", item_price, item_number, (long long) time(NULL));
                 rpc_sign_text(msg, line, sizeof(line));
                 snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/vend_fail", my_subdomain);
                 esp_mqtt_client_enqueue(mqtt_client, topic, line, 0, 1, 0, 1);
@@ -464,6 +491,8 @@ void mdb_cashless_task(void *pvParameters) {
 				if (read_9(NULL) != checksum) continue;
 
 				session_end_todo = true;
+				remote_credit_session = false;
+				session_seq = 0;
 
 				uint8_t payload[19];
 				ble_encode_with_passkey(0x0d, item_price, item_number, payload);
@@ -715,8 +744,8 @@ void ble_event_handler(char *ble_payload) {
         break;
     }
     case 0x02:
-        uint16_t funds_available = 0xffff;
-		xQueueSend(mdb_session_queue, &funds_available, 0);
+        mdb_credit_t credit = { .funds = 0xffff, .seq = 0 };
+		xQueueSend(mdb_session_queue, &credit, 0);
 		break;
 	case 0x03:
 
@@ -891,10 +920,33 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				rpc_publish_info();
 				ESP_LOGI(TAG, "RPC info published");
 			} else if (strcmp(cmd, "credit") == 0 && has_args) {
-				int32_t price_wire = (int32_t) strtol(args, NULL, 10);
-				uint16_t funds_available = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(price_wire, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES);
+				// args = "<amount>[,<seq>]"
+				char *rest = NULL;
+				int32_t price_wire = (int32_t) strtol(args, &rest, 10);
+				uint32_t seq = (rest && *rest == ',') ? (uint32_t) strtoul(rest + 1, NULL, 10) : 0;
 
-				xQueueSend(mdb_session_queue, &funds_available, 0);
+				if (seq && seq <= last_credit_seq) {
+					ESP_LOGW(TAG, "RPC credit rejected: replayed seq %lu (last %lu)", (unsigned long) seq, (unsigned long) last_credit_seq);
+					break;
+				}
+				if (seq) {
+					last_credit_seq = seq;
+
+					nvs_handle_t handle;
+					if (nvs_open("vmflow", NVS_READWRITE, &handle) == ESP_OK) {
+						nvs_set_u32(handle, "last_seq", last_credit_seq);
+						nvs_commit(handle);
+						nvs_close(handle);
+					}
+				}
+
+				mdb_credit_t credit = {
+					.funds = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(price_wire, 1, 2), CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES),
+					.seq   = seq,
+				};
+				uint16_t funds_available = credit.funds;
+
+				xQueueSend(mdb_session_queue, &credit, 0);
 				xEventGroupSetBits(xLedEventGroup, BIT_STATUS_BUZZER | BIT_STATUS_TRIGGER);
 
                 esp_mqtt_client_enqueue(mqtt_client, topic_confirm, "ok", 0, 1, 0, 1);
@@ -1179,6 +1231,8 @@ void app_main(void) {
 
     nvs_handle_t handle;
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
+	    nvs_get_u32(handle, "last_seq", &last_credit_seq);
+
 	    size_t s_len = 0;
 	    if (nvs_get_str(handle, "passkey", NULL, &s_len) == ESP_OK) {
             nvs_get_str(handle, "passkey", my_passkey, &s_len);
@@ -1226,7 +1280,7 @@ void app_main(void) {
     };
     gpio_config(&io_conf);
 
-    mdb_session_queue = xQueueCreate(1, sizeof(uint16_t));
+    mdb_session_queue = xQueueCreate(1, sizeof(mdb_credit_t));
 
     // Bit-banged MDB pinned alone to core 1 at high prio so core-0 network never preempts a frame.
     xTaskCreatePinnedToCore(mdb_cashless_task, "mdb_cashless_task", 8192, NULL, configMAX_PRIORITIES - 2, NULL, 1);
