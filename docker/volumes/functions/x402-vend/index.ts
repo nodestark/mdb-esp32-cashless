@@ -167,17 +167,14 @@ Deno.serve(async (req) => {
         await client.disconnect();
 
         // 6. Record sale
-        let salesId: string | null = null;
-        if ('online' === embeddedData.status) {
-            const { data: saleData } = await supabase.from('sales').insert([{
-                embedded_id: embeddedData.id,
-                machine_id: embeddedData.machine_id ?? null,
-                item_price: body.amount,
-                channel: 'mqtt',
-                owner_id: machine.owner_id,
-            }]).select('id').single();
-            salesId = saleData?.id ?? null;
-        }
+        const { data: saleData } = await supabase.from('sales').insert([{
+            embedded_id: embeddedData.id,
+            machine_id: embeddedData.machine_id ?? null,
+            item_price: body.amount,
+            channel: 'mqtt',
+            owner_id: machine.owner_id,
+        }]).select('id').single();
+        const salesId: string | null = saleData?.id ?? null;
 
         return new Response(JSON.stringify({ status: embeddedData.status, sales_id: salesId }), {
             headers: {

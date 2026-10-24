@@ -32,13 +32,10 @@ Deno.serve(async (req) => {
         await client.publish(`${embeddedData[0].subdomain}.vmflow.xyz/rpc`, creditLine);
         await client.disconnect();
 
-        let salesId: string | null = null;
-        if ("online" === embeddedData[0].status){
+        const { data: saleData, error: saleError } = await supabase.from("sales").insert([{ embedded_id: embeddedData[0].id, machine_id: embeddedData[0].machine_id ?? null, item_price: fromScaleFactor(itemPrice, 1, 2), channel: "mqtt" }]).select("id").single()
+        if (saleError) throw saleError
 
-            const { data: saleData, error } = await supabase.from("sales").insert([{ embedded_id: embeddedData[0].id, machine_id: embeddedData[0].machine_id ?? null, item_price: fromScaleFactor(itemPrice, 1, 2), channel: "mqtt" }]).select("id").single()
-
-            salesId = saleData.id
-        }
+        const salesId: string = saleData.id
 
         return new Response(JSON.stringify({status: embeddedData[0].status, sales_id: salesId}), { headers: { 'Content-Type': 'application/json' } })
 
