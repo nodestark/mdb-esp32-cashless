@@ -178,6 +178,20 @@ $$;
 
 
 --
+-- Name: get_machine_currency(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.get_machine_currency(machine_id uuid) RETURNS text
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT c.value FROM public.machines m
+  JOIN public.credentials c ON c.owner_id = m.owner_id AND c.key = 'currency'
+  WHERE m.id = machine_id;
+$$;
+
+
+--
 -- Name: register_embedded(text); Type: FUNCTION; Schema: public; Owner: -
 --
 

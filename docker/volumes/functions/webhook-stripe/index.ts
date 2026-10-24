@@ -2,6 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.25.0?target=deno'
 import { Client } from 'https://deno.land/x/mqtt/deno/mod.ts'
 import { signCreditRpc } from '../_shared/vmflow-payload.ts'
+import { fromStripeAmount } from '../_shared/currency.ts'
 
 Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature')
@@ -55,7 +56,7 @@ Deno.serve(async (req) => {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object
       const machineId = session.metadata.machineId
-      const amount = session.amount_total / 100
+      const amount = fromStripeAmount(session.amount_total, session.currency)
 
       // 4. Grant Credit
       // Get machine embedded data

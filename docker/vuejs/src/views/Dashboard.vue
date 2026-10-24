@@ -175,6 +175,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'vue-router'
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { startAlerts, stopAlerts } from '@/lib/useAlerts'
+import { loadCurrency } from '@/lib/currency'
 
 export default {
   name: 'Dashboard',
@@ -225,6 +226,7 @@ export default {
 
     onMounted(() => {
       loadUser()
+      loadCurrency()
       initNotifications()
       window.addEventListener('keydown', onKey)
     })

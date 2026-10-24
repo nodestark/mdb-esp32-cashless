@@ -324,6 +324,7 @@
 
 import { ref, computed, onMounted } from "vue"
 import { supabase } from "@/lib/supabase"
+import { currency, formatMoney } from "@/lib/currency"
 import ConfirmModal from "@/components/ConfirmModal.vue"
 
 const products = ref([])
@@ -360,7 +361,7 @@ const filteredProducts = computed(() => {
 })
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value ?? 0)
+  return formatMoney(value)
 }
 
 function handleImage(e) {
@@ -575,7 +576,7 @@ async function generateProductsDiagnosis() {
       const s = statsMap[p.id] ?? { count: 0, revenue: 0 }
       const deployedIn = coils.filter(c => c.product_id === p.id).length
       const totalCoilStock = coils.filter(c => c.product_id === p.id).reduce((a, c) => a + (c.current_stock ?? 0), 0)
-      return `  - ${p.name} | price: R$ ${p.price?.toFixed(2)} | warehouse: ${p.current_stock ?? 0} | machines: ${deployedIn} | sales: ${s.count} | revenue: R$ ${s.revenue.toFixed(2)} | coil stock: ${totalCoilStock}`
+      return `  - ${p.name} | price: ${currency.value} ${p.price?.toFixed(2)} | warehouse: ${p.current_stock ?? 0} | machines: ${deployedIn} | sales: ${s.count} | revenue: ${currency.value} ${s.revenue.toFixed(2)} | coil stock: ${totalCoilStock}`
     }).join('\n')
 
     const totalRevenue = sales.reduce((s, r) => s + (r.item_price ?? 0), 0)
@@ -587,7 +588,7 @@ async function generateProductsDiagnosis() {
 OVERVIEW (last 30 days):
 - Total products: ${products.value.length}
 - Total transactions: ${totalCount}
-- Total revenue: R$ ${totalRevenue.toFixed(2)}
+- Total revenue: ${currency.value} ${totalRevenue.toFixed(2)}
 
 PRODUCTS (name | price | warehouse stock | machines deployed | sales | revenue | coil stock):
 ${productLines}

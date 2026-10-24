@@ -101,6 +101,7 @@
 <script>
 
 import { supabase } from "@/lib/supabase"
+import { formatMoney } from "@/lib/currency"
 import VueApexCharts from "vue3-apexcharts"
 
 const PAX_COLORS = ["#6366f1","#f59e0b","#ef4444","#10b981","#3b82f6","#ec4899","#8b5cf6","#14b8a6"]
@@ -134,9 +135,9 @@ export default {
       salesOptions: {
         chart: { id: "sales", toolbar: { show: true } },
         xaxis: { type: "datetime" },
-        yaxis: { labels: { formatter: v => "R$ " + (v ?? 0).toFixed(2) } },
+        yaxis: { labels: { formatter: v => formatMoney(v) } },
         legend: { show: false },
-        tooltip: { x: { format: "dd/MM HH:mm" }, y: { formatter: v => "R$ " + (v ?? 0).toFixed(2) } },
+        tooltip: { x: { format: "dd/MM HH:mm" }, y: { formatter: v => formatMoney(v) } },
         colors: ["#10b981"],
         noData: { text: "No data available" }
       }

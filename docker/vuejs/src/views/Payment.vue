@@ -39,17 +39,17 @@
               Enter amount to pay
             </label>
             <div class="relative">
-              <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">$</span>
+              <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">{{ currencySymbolOf(machineCurrency) }}</span>
               <input
                 v-model="amount"
                 type="number"
                 step="0.01"
                 min="0.50"
-                class="w-full pl-10 pr-4 py-4 border-2 border-gray-200 rounded-xl text-2xl font-bold focus:border-slate-800 focus:ring-0 transition-colors"
+                class="w-full pl-14 pr-4 py-4 border-2 border-gray-200 rounded-xl text-2xl font-bold focus:border-slate-800 focus:ring-0 transition-colors"
                 placeholder="0.00"
               />
             </div>
-            <p class="text-xs text-gray-400 mt-2">Minimum amount: $0.50</p>
+            <p class="text-xs text-gray-400 mt-2">Minimum amount: {{ formatMoney(0.5, machineCurrency) }}</p>
           </div>
 
           <button
@@ -86,6 +86,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
+import { formatMoney, currencySymbolOf } from '@/lib/currency'
 
 const route = useRoute()
 const router = useRouter()
@@ -93,6 +94,7 @@ const machineId = route.params.machineId
 
 const amount = ref('')
 const machineName = ref('')
+const machineCurrency = ref('USD')
 const loadingMachine = ref(true)
 const machineError = ref('')
 const paying = ref(false)
@@ -121,6 +123,10 @@ async function fetchMachine() {
     if (error) throw error
     if (data) machineName.value = data
     else machineError.value = 'Machine not found or unavailable.'
+
+    const { data: code } = await supabase
+      .rpc('get_machine_currency', { machine_id: machineId })
+    if (code) machineCurrency.value = code
   } catch (err) {
     console.error('Error fetching machine:', err)
     machineError.value = 'Machine not found or unavailable.'

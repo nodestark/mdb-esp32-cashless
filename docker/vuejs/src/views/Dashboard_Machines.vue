@@ -312,7 +312,7 @@
       <option value="other">Other</option>
     </select>
 
-    <label class="block text-sm text-gray-600 mb-1">Monthly Rent (R$)</label>
+    <label class="block text-sm text-gray-600 mb-1">Monthly Rent ({{ currencySymbol }})</label>
     <input
       v-model.number="newMachineRent"
       type="number"
@@ -787,7 +787,7 @@
       <option value="other">Other</option>
     </select>
 
-    <label class="block text-sm text-gray-600 mb-1">Monthly Rent (R$)</label>
+    <label class="block text-sm text-gray-600 mb-1">Monthly Rent ({{ currencySymbol }})</label>
     <input
       v-model.number="editMachineRent"
       type="number"
@@ -944,6 +944,7 @@
 
 import { supabase } from "@/lib/supabase"
 import { lowStockThreshold } from "@/lib/settings"
+import { currency, currencySymbol } from "@/lib/currency"
 import ConfirmModal from "@/components/ConfirmModal.vue"
 
 export default {
@@ -1029,6 +1030,10 @@ export default {
   },
 
   computed: {
+
+    currencySymbol() {
+      return currencySymbol.value
+    },
     canShare() {
       return !!navigator.share
     },
@@ -1504,13 +1509,13 @@ export default {
 
 Machine: ${machine.name}
 Category: ${machine.category ?? 'not defined'}
-Monthly Rent: R$ ${machine.monthly_rent?.toFixed(2) ?? 'not defined'}
+Monthly Rent: ${currency.value} ${machine.monthly_rent?.toFixed(2) ?? 'not defined'}
 Status: ${machine.embedded?.status ?? 'unknown'}
 
 Last 30 days:
 - Total sales: ${totalSales}
-- Total revenue: R$ ${totalRevenue.toFixed(2)}
-- Average ticket: R$ ${ticketMedio.toFixed(2)}
+- Total revenue: ${currency.value} ${totalRevenue.toFixed(2)}
+- Average ticket: ${currency.value} ${ticketMedio.toFixed(2)}
 - Stock occupancy: ${stockPct}%
 - Top selling products: ${topProducts.length ? topProducts.join(', ') : 'no data'}
 - PAX Counter (people detected): ${totalPax > 0 ? totalPax : 'no data'}

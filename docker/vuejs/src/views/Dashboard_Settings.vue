@@ -63,6 +63,37 @@
 
   </div>
 
+  <!-- CURRENCY -->
+  <div class="bg-white rounded-xl shadow p-6 space-y-4">
+
+    <h2 class="font-semibold text-gray-700">Currency</h2>
+
+    <div>
+      <label class="block text-sm text-gray-600 mb-1">Operating currency</label>
+      <select v-model="selectedCurrency" class="w-full border rounded p-2 text-sm">
+        <option v-for="code in CURRENCIES" :key="code" :value="code">
+          {{ code }} ({{ currencySymbolOf(code) }})
+        </option>
+      </select>
+      <p class="text-xs text-gray-400 mt-1">
+        Used for all amounts in the dashboard and for Stripe payments. Number format follows your browser language.
+      </p>
+    </div>
+
+    <p v-if="currencyError" class="text-sm text-red-600">{{ currencyError }}</p>
+    <p v-if="currencySuccess" class="text-sm text-green-600">{{ currencySuccess }}</p>
+
+    <div class="flex justify-end">
+      <button
+        @click="saveCurrencySetting"
+        class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded transition"
+      >
+        Save
+      </button>
+    </div>
+
+  </div>
+
   <!-- API KEYS -->
   <div class="bg-white rounded-xl shadow p-6 space-y-4">
 
@@ -211,6 +242,7 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { lowStockThreshold, warehouseLowStockThreshold } from '@/lib/settings'
+import { CURRENCIES, currency, currencySymbolOf, loadCurrency, saveCurrency } from '@/lib/currency'
 
 const threshold = ref(lowStockThreshold.value)
 const warehouseThreshold = ref(warehouseLowStockThreshold.value)
@@ -218,6 +250,21 @@ const warehouseThreshold = ref(warehouseLowStockThreshold.value)
 function saveThreshold() {
   lowStockThreshold.value = threshold.value
   warehouseLowStockThreshold.value = warehouseThreshold.value
+}
+
+const selectedCurrency = ref(currency.value)
+const currencyError = ref('')
+const currencySuccess = ref('')
+
+loadCurrency().then(() => { selectedCurrency.value = currency.value })
+
+async function saveCurrencySetting() {
+  currencyError.value = ''
+  currencySuccess.value = ''
+
+  const error = await saveCurrency(selectedCurrency.value)
+  if (error) currencyError.value = error.message
+  else currencySuccess.value = 'Currency saved.'
 }
 
 const claudeApiKey = ref('')

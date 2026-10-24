@@ -193,6 +193,7 @@
 
 <script>
 import { supabase } from '@/lib/supabase'
+import { currency, formatMoney } from '@/lib/currency'
 
 const PAGE_SIZE = 20
 
@@ -354,10 +355,7 @@ export default {
     },
 
     formatCurrency(value) {
-      return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL"
-      }).format(value)
+      return formatMoney(value)
     },
 
     formatDate(date) {
@@ -434,21 +432,21 @@ export default {
 
 GENERAL OVERVIEW (last 30 days):
 - Total machines: ${machines.length} (${onlineCount} online)
-- Total revenue: R$ ${totalRevenue.toFixed(2)}
+- Total revenue: ${currency.value} ${totalRevenue.toFixed(2)}
 - Total transactions: ${totalSalesCount}
-- Global average ticket: R$ ${globalTicket.toFixed(2)}
+- Global average ticket: ${currency.value} ${globalTicket.toFixed(2)}
 
 PERFORMANCE PER MACHINE:
 ${machineStats.map(m => `
   Machine: ${m.name}
   - Category: ${m.category}
   - Status: ${m.status}
-  - Revenue: R$ ${m.revenue}
+  - Revenue: ${currency.value} ${m.revenue}
   - Transactions: ${m.sales_count}
-  - Average ticket: R$ ${m.avg_ticket}
+  - Average ticket: ${currency.value} ${m.avg_ticket}
   - Stock level: ${m.stock_pct}
-  - Monthly rent: ${m.monthly_rent ? 'R$ ' + m.monthly_rent : 'not defined'}
-  - Net profit (revenue - rent): ${m.net_profit !== 'N/A' ? 'R$ ' + m.net_profit : 'N/A'}
+  - Monthly rent: ${m.monthly_rent ? currency.value + ' ' + m.monthly_rent : 'not defined'}
+  - Net profit (revenue - rent): ${m.net_profit !== 'N/A' ? currency.value + ' ' + m.net_profit : 'N/A'}
 `).join('')}
 
 Provide:

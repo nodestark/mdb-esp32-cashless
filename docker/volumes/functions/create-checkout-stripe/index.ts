@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.25.0?target=deno'
+import { DEFAULT_CURRENCY, toStripeAmount } from '../_shared/currency.ts'
 
 Deno.serve(async (req) => {
   const corsHeaders = {
@@ -49,17 +50,26 @@ Deno.serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
+    const { data: currencyCred } = await supabase
+      .from('credentials')
+      .select('value')
+      .eq('owner_id', machine.owner_id)
+      .eq('key', 'currency')
+      .maybeSingle()
+
+    const currency = (currencyCred?.value ?? DEFAULT_CURRENCY).toLowerCase()
+
     // 3. Create Checkout Session
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency,
             product_data: {
               name: `Credit for ${machine.name}`,
               metadata: { machineId },
             },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: toStripeAmount(amount, currency),
           },
           quantity: 1,
         },
