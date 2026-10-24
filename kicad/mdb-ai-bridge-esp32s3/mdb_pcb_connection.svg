@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="900" height="620" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620">
+
+  <!-- Background -->
+  <rect x="0" y="0" width="900" height="620" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="450" y="34" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="#333">
+    MDB AI Bridge Connection Diagram
+  </text>
+
+  <!-- ============================================================ -->
+  <!-- Board outline                                                -->
+  <!-- ============================================================ -->
+  <rect x="30" y="60" width="840" height="530" rx="10" fill="#f0f0f0" stroke="#333" stroke-width="3"/>
+
+  <!-- ============================================================ -->
+  <!-- USB: one USB-C, USB2514B hub, one port per ESP32-S3         -->
+  <!-- ============================================================ -->
+  <rect x="390" y="78" width="120" height="36" rx="4" fill="#757575"/>
+  <text x="450" y="101" text-anchor="middle" font-family="Arial" font-size="13" fill="white" font-weight="bold">USB-C (J1)</text>
+
+  <line x1="450" y1="114" x2="450" y2="146" stroke="#757575" stroke-width="3"/>
+
+  <rect x="365" y="146" width="170" height="44" rx="5" fill="#e0e0e0" stroke="#757575" stroke-width="2"/>
+  <text x="450" y="166" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold" fill="#333">USB Hub</text>
+  <text x="450" y="182" text-anchor="middle" font-family="Arial" font-size="11" fill="#555">USB2514B (U3)</text>
+
+  <path d="M 450 190 V 260" stroke="#757575" stroke-width="3" fill="none"/>
+  <path d="M 170 260 V 225 H 730 V 260" stroke="#757575" stroke-width="3" fill="none"/>
+  <text x="300" y="218" text-anchor="middle" font-family="Arial" font-size="10" fill="#757575">port 1</text>
+  <text x="462" y="245" text-anchor="start" font-family="Arial" font-size="10" fill="#757575">port 2</text>
+  <text x="600" y="218" text-anchor="middle" font-family="Arial" font-size="10" fill="#757575">port 3</text>
+
+  <!-- ============================================================ -->
+  <!-- MCUs                                                         -->
+  <!-- ============================================================ -->
+
+  <!-- Left: bill/coin reader simulator (MDB slave of the bridge) -->
+  <rect x="80" y="260" width="180" height="110" rx="5" fill="#FFE082" stroke="#F57F17" stroke-width="2"/>
+  <text x="170" y="283" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="#333">Bill/Coin Reader</text>
+  <text x="170" y="299" text-anchor="middle" font-family="Arial" font-size="12" fill="#555">simulator</text>
+  <text x="170" y="314" text-anchor="middle" font-family="Arial" font-size="10" fill="#888">U2 · ESP32-S3</text>
+  <rect x="120" y="328" width="100" height="30" rx="4" fill="#4CAF50"/>
+  <text x="170" y="348" text-anchor="middle" font-family="Arial" font-size="11" fill="white" font-weight="bold">MDB SLAVE</text>
+
+  <!-- Center: VMflow bridge (same role as mdb-bridge-esp32s3) -->
+  <rect x="360" y="260" width="180" height="110" rx="5" fill="#FFE082" stroke="#F57F17" stroke-width="2"/>
+  <text x="450" y="283" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="#333">VMflow Bridge</text>
+  <text x="450" y="299" text-anchor="middle" font-family="Arial" font-size="12" fill="#555">cashless device</text>
+  <text x="450" y="314" text-anchor="middle" font-family="Arial" font-size="10" fill="#888">U5 · ESP32-S3</text>
+  <rect x="366" y="328" width="82" height="30" rx="4" fill="#4CAF50"/>
+  <text x="407" y="348" text-anchor="middle" font-family="Arial" font-size="11" fill="white" font-weight="bold">CONTROLLER</text>
+  <rect x="452" y="328" width="82" height="30" rx="4" fill="#2196F3"/>
+  <text x="493" y="348" text-anchor="middle" font-family="Arial" font-size="11" fill="white" font-weight="bold">TARGET</text>
+
+  <!-- Right: VMC simulator (MDB master of the bridge) -->
+  <rect x="640" y="260" width="180" height="110" rx="5" fill="#FFE082" stroke="#F57F17" stroke-width="2"/>
+  <text x="730" y="283" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="#333">VMC</text>
+  <text x="730" y="299" text-anchor="middle" font-family="Arial" font-size="12" fill="#555">simulator</text>
+  <text x="730" y="314" text-anchor="middle" font-family="Arial" font-size="10" fill="#888">U1 · ESP32-S3</text>
+  <rect x="680" y="328" width="100" height="30" rx="4" fill="#2196F3"/>
+  <text x="730" y="348" text-anchor="middle" font-family="Arial" font-size="11" fill="white" font-weight="bold">MDB MASTER</text>
+
+  <!-- ============================================================ -->
+  <!-- MDB links (logic level, no opto)                             -->
+  <!-- ============================================================ -->
+
+  <!-- Bridge CONTROLLER <-> reader -->
+  <path d="M 407 358 V 410 H 170 V 358" stroke="#4CAF50" stroke-width="3" fill="none"/>
+  <text x="288" y="402" text-anchor="middle" font-family="Arial" font-size="12" fill="#4CAF50" font-weight="bold">MDB (Master Mode)</text>
+  <text x="288" y="428" text-anchor="middle" font-family="Arial" font-size="11" fill="#2E7D32">bridge TX IO2 → RX IO4</text>
+  <text x="288" y="443" text-anchor="middle" font-family="Arial" font-size="11" fill="#2E7D32">bridge RX IO1 ← TX IO5</text>
+
+  <!-- Bridge TARGET <-> VMC -->
+  <path d="M 493 358 V 410 H 730 V 358" stroke="#2196F3" stroke-width="3" fill="none"/>
+  <text x="612" y="402" text-anchor="middle" font-family="Arial" font-size="12" fill="#2196F3" font-weight="bold">MDB (Slave Mode)</text>
+  <text x="612" y="428" text-anchor="middle" font-family="Arial" font-size="11" fill="#1976D2">bridge RX IO4 ← TX IO2</text>
+  <text x="612" y="443" text-anchor="middle" font-family="Arial" font-size="11" fill="#1976D2">bridge TX IO5 → RX IO1</text>
+
+  <!-- ============================================================ -->
+  <!-- Bridge <-> VMC UART0 console                                 -->
+  <!-- ============================================================ -->
+  <line x1="540" y1="290" x2="640" y2="290" stroke="#FB8C00" stroke-width="3" stroke-dasharray="7,4"/>
+  <text x="590" y="281" text-anchor="middle" font-family="Arial" font-size="11" fill="#E65100" font-weight="bold">UART0</text>
+  <text x="590" y="306" text-anchor="middle" font-family="Arial" font-size="10" fill="#E65100">IO8 ← U0TXD</text>
+  <text x="590" y="319" text-anchor="middle" font-family="Arial" font-size="10" fill="#E65100">IO9 → U0RXD</text>
+
+  <!-- ============================================================ -->
+  <!-- Shared I2C                                                   -->
+  <!-- ============================================================ -->
+  <path d="M 110 370 V 480 H 790 V 370" stroke="#8E24AA" stroke-width="3" fill="none"/>
+  <line x1="450" y1="370" x2="450" y2="480" stroke="#8E24AA" stroke-width="3"/>
+  <text x="450" y="500" text-anchor="middle" font-family="Arial" font-size="12" fill="#6A1B9A" font-weight="bold">I²C SDA IO10 · SCL IO11 — shared by all three, 4.7k pull-ups</text>
+
+  <!-- ============================================================ -->
+  <!-- Expansion header                                             -->
+  <!-- ============================================================ -->
+  <rect x="235" y="525" width="430" height="44" rx="5" fill="#e0e0e0" stroke="#757575" stroke-width="2"/>
+  <text x="450" y="543" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold" fill="#333">J3 · 2×8 header</text>
+  <text x="450" y="560" text-anchor="middle" font-family="Arial" font-size="11" fill="#555">both MDB links, I²C, bridge IO12–IO14 / IO17 / IO18</text>
+
+  <!-- ============================================================ -->
+  <!-- Legend                                                       -->
+  <!-- ============================================================ -->
+  <rect x="45" y="72" width="235" height="112" rx="6" fill="#ffffff" stroke="#999" stroke-width="1"/>
+  <rect x="57" y="84" width="12" height="12" fill="#2196F3" rx="2"/>
+  <text x="77" y="95" text-anchor="start" font-family="Arial" font-size="12" fill="#666">TARGET = Slave (to VMC)</text>
+  <rect x="57" y="104" width="12" height="12" fill="#4CAF50" rx="2"/>
+  <text x="77" y="115" text-anchor="start" font-family="Arial" font-size="12" fill="#666">CONTROLLER = Master (devices)</text>
+  <rect x="57" y="124" width="12" height="12" fill="#FB8C00" rx="2"/>
+  <text x="77" y="135" text-anchor="start" font-family="Arial" font-size="12" fill="#666">UART0 console of the VMC</text>
+  <rect x="57" y="144" width="12" height="12" fill="#8E24AA" rx="2"/>
+  <text x="77" y="155" text-anchor="start" font-family="Arial" font-size="12" fill="#666">I²C bus</text>
+  <rect x="57" y="164" width="12" height="12" fill="#757575" rx="2"/>
+  <text x="77" y="175" text-anchor="start" font-family="Arial" font-size="12" fill="#666">USB (one port per MCU)</text>
+
+</svg>
