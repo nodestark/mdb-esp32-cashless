@@ -229,6 +229,24 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: unlink_embedded_on_machine_delete(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.unlink_embedded_on_machine_delete() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Máquina excluída (soft delete) libera o device para ser vinculado de novo
+    IF NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL THEN
+        UPDATE public.embedded SET machine_id = NULL WHERE machine_id = NEW.id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: credentials; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -523,6 +541,13 @@ CREATE TRIGGER trg_fill_sale_coil_data BEFORE INSERT OR UPDATE OF item_number ON
 --
 
 CREATE TRIGGER trg_sync_machine_coils AFTER UPDATE OF model_id ON public.machines FOR EACH ROW EXECUTE FUNCTION public.sync_machine_coils_on_model_change();
+
+
+--
+-- Name: machines trg_unlink_embedded_on_machine_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_unlink_embedded_on_machine_delete AFTER UPDATE OF deleted_at ON public.machines FOR EACH ROW EXECUTE FUNCTION public.unlink_embedded_on_machine_delete();
 
 
 --
