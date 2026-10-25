@@ -84,26 +84,34 @@ public class SalesFragment extends Fragment {
         public void onBindViewHolder(@NonNull ViewHolder_ holder, int position) {
 
             JSONObject jsonEmbedded = mListSales.get(position);
-            try {
-                holder.saleChannelText.setText(jsonEmbedded.getString("channel"));
-                holder.saleItemNumberText.setText(String.format("Item #%03x", jsonEmbedded.getInt("item_number")));
-                holder.saleEmbeddedSubdomainText.setText(String.format("Embedded: %06d", jsonEmbedded.getJSONObject("embedded").getInt("subdomain")));
 
-                String rawDate = jsonEmbedded.getString("created_at");
-                try {
-                    // Supabase returns microseconds (e.g. 2026-04-20T14:30:45.123456+00:00); strip fractional part before parsing
-                    String normalizedDate = rawDate.replaceFirst("\\.\\d+", "");
-                    holder.saleCreatedAtText.setText(displayFormat.format(isoParser.parse(normalizedDate)));
-                } catch (java.text.ParseException e) {
-                    holder.saleCreatedAtText.setText(rawDate);
-                }
+            holder.saleChannelText.setText(jsonEmbedded.optString("channel", "-"));
 
-                String formattedPrice = currencyFormat.format(jsonEmbedded.getDouble("item_price"));
-                holder.saleItemPriceText.setText(formattedPrice);
-
-            } catch (JSONException e) {
-                e.printStackTrace();
+            // item_number is NULL on a pending MQTT sale until the device reports the vend;
+            // show "-" instead of letting getInt() throw and leave the layout placeholder showing.
+            if (jsonEmbedded.isNull("item_number")) {
+                holder.saleItemNumberText.setText("Item #-");
+            } else {
+                holder.saleItemNumberText.setText(String.format("Item #%03x", jsonEmbedded.optInt("item_number")));
             }
+
+            JSONObject embedded = jsonEmbedded.optJSONObject("embedded");
+            if (embedded != null && !embedded.isNull("subdomain")) {
+                holder.saleEmbeddedSubdomainText.setText(String.format("Embedded: %06d", embedded.optInt("subdomain")));
+            } else {
+                holder.saleEmbeddedSubdomainText.setText("Embedded: -");
+            }
+
+            String rawDate = jsonEmbedded.optString("created_at", "");
+            try {
+                // Supabase returns microseconds (e.g. 2026-04-20T14:30:45.123456+00:00); strip fractional part before parsing
+                String normalizedDate = rawDate.replaceFirst("\\.\\d+", "");
+                holder.saleCreatedAtText.setText(displayFormat.format(isoParser.parse(normalizedDate)));
+            } catch (java.text.ParseException e) {
+                holder.saleCreatedAtText.setText(rawDate);
+            }
+
+            holder.saleItemPriceText.setText(currencyFormat.format(jsonEmbedded.optDouble("item_price", 0)));
         }
 
         @Override
