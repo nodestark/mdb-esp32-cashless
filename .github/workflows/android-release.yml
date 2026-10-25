@@ -28,7 +28,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      # The ubuntu runner ships the Android SDK; just make sure the API 36 platform
+      # (compileSdk 36) is present. Avoids android-actions/setup-android@v3, which
+      # fails trying to install the obsolete 'tools' package.
+      - name: Install Android platform 36
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Decode signing keystore
         run: echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
