@@ -31,14 +31,14 @@ jobs:
       - uses: android-actions/setup-android@v3
 
       - name: Decode signing keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
+        run: echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
 
       - name: Build signed AAB + APK
         env:
           KEYSTORE_FILE: ${{ runner.temp }}/upload.jks
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease assembleRelease --no-daemon
