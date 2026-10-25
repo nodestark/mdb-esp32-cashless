@@ -1,14 +1,14 @@
 name: firmware-release
 
-# Tag push (vX.Y.Z) -> build the ESP32-S3 app and attach the .bin to the GitHub
-# release. The device pulls this asset over HTTPS via the RPC "ota" command.
+# Tag push (firmware-vX.Y.Z) -> build the ESP32-S3 app and attach the .bin to the
+# GitHub release. The device pulls this asset over HTTPS via the RPC "ota" command.
 # ESP-IDF derives the app version from `git describe`, so the tag becomes the
 # firmware version reported in rpc/info.
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'firmware-v*'
 
 permissions:
   contents: write
