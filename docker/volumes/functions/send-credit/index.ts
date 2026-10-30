@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
         const creditLine = await signCreditRpc(embeddedData[0].passkey, itemPrice, saleData.seq);
 
-        const client = new Client({ url: `mqtt://mqtt.vmflow.xyz` });
+        const client = new Client({ url: `mqtt://broker:1883` });
         await client.connect();
 
         await client.publish(`${embeddedData[0].subdomain}.vmflow.xyz/rpc`, creditLine);
