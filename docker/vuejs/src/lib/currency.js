@@ -6,11 +6,11 @@ import { supabase } from '@/lib/supabase'
 // same one. The browser language only picks the number format and, until the
 // operator saves a choice, a first guess from its region.
 
-export const CURRENCIES = ['USD', 'BRL', 'EUR', 'GBP', 'MXN', 'CAD', 'AUD', 'CLP', 'ARS', 'COP', 'PEN', 'CHF', 'JPY']
+export const CURRENCIES = ['USD', 'BRL', 'EUR', 'GBP', 'MXN', 'CAD', 'AUD', 'CLP', 'ARS', 'COP', 'PEN', 'CHF', 'JPY', 'AWG']
 
 const REGION_CURRENCY = {
   US: 'USD', BR: 'BRL', GB: 'GBP', MX: 'MXN', CA: 'CAD', AU: 'AUD', CL: 'CLP',
-  AR: 'ARS', CO: 'COP', PE: 'PEN', CH: 'CHF', JP: 'JPY',
+  AW: 'AWG', AR: 'ARS', CO: 'COP', PE: 'PEN', CH: 'CHF', JP: 'JPY',
   DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR', PT: 'EUR', NL: 'EUR', BE: 'EUR',
   AT: 'EUR', IE: 'EUR', FI: 'EUR', GR: 'EUR', BG: 'EUR', HR: 'EUR', SK: 'EUR',
   SI: 'EUR', LT: 'EUR', LV: 'EUR', EE: 'EUR', LU: 'EUR', MT: 'EUR', CY: 'EUR',
