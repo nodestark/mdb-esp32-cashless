@@ -32,6 +32,9 @@ menu "MDB Cashless Device"
         config CURRENCY_BRL
             bool "BRL - 0x0986"
 
+        config CURRENCY_AWG
+            bool "AWG - 0x1533"
+
         config CURRENCY_UNKNOWN
             bool "UNKNOWN - 0xffff"
     endchoice
@@ -41,6 +44,7 @@ menu "MDB Cashless Device"
         default 6520 if CURRENCY_EUR
         default 6208 if CURRENCY_USD
         default 6534 if CURRENCY_BRL
+        default 5427 if CURRENCY_AWG
         default 65535 if CURRENCY_UNKNOWN
 
     choice
