@@ -8276,7 +8276,7 @@
 		)
 		(uuid "411d4b04-b864-4fee-8d88-c3ad7254b52d")
 	)
-	(label "mdb_in_master_transmit"
+	(label "mdb_controller_transmit"
 		(at 240.03 59.69 180)
 		(effects
 			(font
