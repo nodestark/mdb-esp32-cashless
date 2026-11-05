@@ -9,12 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@stripe/stripe-js": "^9.3.1",
     "@supabase/supabase-js": "^2.97.0",
     "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-vue": "^6.0.2",
     "apexcharts": "^5.10.3",
-    "chart.js": "^4.5.1",
     "leaflet": "^1.9.4",
     "tailwindcss": "^4.0.0",
     "vite": "^7.3.1",
