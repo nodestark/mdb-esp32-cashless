@@ -1,1 +1,103 @@
 @import "tailwindcss";
+
+/* `dark:` utilities follow the theme toggle (html.dark), not only the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Dark theme.
+ *
+ * The views are written with light-theme classes (bg-white, bg-gray-50,
+ * text-gray-700...). Instead of adding a dark: variant to every class, the
+ * dark theme inverts the gray scale (50 <-> 950, 100 <-> 900, ...) and maps
+ * the few white and light-slate surfaces onto it. Dark slate (sidebar, primary
+ * buttons, tooltips) stays dark, only a step lighter so it stands out from the
+ * dark background. New code can still use dark: for anything that needs a
+ * specific look.
+ */
+html.dark {
+  color-scheme: dark;
+
+  --color-gray-50:  oklch(13% 0.028 261.692);
+  --color-gray-100: oklch(21% 0.034 264.665);
+  --color-gray-200: oklch(27.8% 0.033 256.848);
+  --color-gray-300: oklch(37.3% 0.034 259.733);
+  --color-gray-400: oklch(55.1% 0.027 264.364);
+  --color-gray-500: oklch(65% 0.025 262);
+  --color-gray-600: oklch(70.7% 0.022 261.325);
+  --color-gray-700: oklch(87.2% 0.01 258.338);
+  --color-gray-800: oklch(92.8% 0.006 264.531);
+  --color-gray-900: oklch(96.7% 0.003 264.542);
+  --color-gray-950: oklch(98.5% 0.002 247.839);
+
+  --color-slate-700: oklch(44.6% 0.043 257.281);
+  --color-slate-800: oklch(37.2% 0.044 257.287);
+
+  background-color: var(--color-gray-50);
+  color: var(--color-gray-800);
+}
+
+@layer base {
+  html.dark body {
+    background-color: var(--color-gray-50);
+    color: var(--color-gray-800);
+  }
+
+  /* Borders without a color class default to currentColor: too bright. */
+  html.dark *,
+  html.dark ::before,
+  html.dark ::after {
+    border-color: var(--color-gray-200);
+  }
+
+  html.dark input::placeholder,
+  html.dark textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+}
+
+/* Surfaces and text that are not on the gray scale. */
+html.dark .bg-white            { background-color: oklch(17% 0.031 263); }
+html.dark .hover\:bg-white:hover { background-color: oklch(17% 0.031 263); }
+html.dark .bg-slate-50         { background-color: var(--color-gray-100); }
+html.dark .bg-slate-100        { background-color: var(--color-gray-200); }
+html.dark .bg-slate-200        { background-color: var(--color-gray-300); }
+html.dark .text-slate-900      { color: var(--color-gray-900); }
+html.dark .text-slate-700      { color: var(--color-gray-700); }
+html.dark .text-slate-600      { color: var(--color-gray-600); }
+html.dark .border-slate-900,
+html.dark .border-slate-800    { border-color: var(--color-gray-300); }
+
+/* Pastel status chips (bg-*-50/100) become tinted dark chips. */
+html.dark .bg-red-50,    html.dark .bg-red-100    { background-color: oklch(30% 0.09 25); }
+html.dark .bg-green-50,  html.dark .bg-green-100  { background-color: oklch(30% 0.07 150); }
+html.dark .bg-yellow-50, html.dark .bg-yellow-100 { background-color: oklch(32% 0.07 90); }
+html.dark .bg-blue-50,   html.dark .bg-blue-100   { background-color: oklch(30% 0.08 260); }
+html.dark .bg-purple-50, html.dark .bg-purple-100, html.dark .bg-purple-200 { background-color: oklch(30% 0.09 300); }
+html.dark .bg-orange-50, html.dark .bg-orange-100 { background-color: oklch(32% 0.08 50); }
+html.dark .bg-emerald-50,html.dark .bg-emerald-100{ background-color: oklch(30% 0.07 165); }
+html.dark .bg-pink-100   { background-color: oklch(30% 0.09 350); }
+html.dark .bg-cyan-100   { background-color: oklch(30% 0.06 215); }
+html.dark .text-red-700,    html.dark .text-red-800    { color: oklch(80% 0.11 25); }
+html.dark .text-green-700,  html.dark .text-green-800  { color: oklch(82% 0.13 150); }
+html.dark .text-yellow-700, html.dark .text-yellow-800 { color: oklch(86% 0.13 90); }
+html.dark .text-blue-700,   html.dark .text-blue-800   { color: oklch(80% 0.1 260); }
+html.dark .text-purple-700, html.dark .text-purple-800 { color: oklch(80% 0.12 300); }
+html.dark .text-orange-700, html.dark .text-orange-800 { color: oklch(82% 0.12 50); }
+html.dark .text-emerald-700,html.dark .text-emerald-800{ color: oklch(82% 0.12 165); }
+
+/* Leaflet controls and popups. */
+html.dark .leaflet-popup-content-wrapper,
+html.dark .leaflet-popup-tip,
+html.dark .leaflet-bar a {
+  background-color: oklch(21% 0.034 264.665);
+  color: var(--color-gray-800);
+}
+
+/* ApexCharts toolbar menu and tooltip. */
+html.dark .apexcharts-menu,
+html.dark .apexcharts-tooltip.apexcharts-theme-light {
+  background: oklch(21% 0.034 264.665) !important;
+  color: var(--color-gray-800);
+  border-color: var(--color-gray-300) !important;
+}
+html.dark .apexcharts-menu-item:hover { background: var(--color-gray-200) !important; }

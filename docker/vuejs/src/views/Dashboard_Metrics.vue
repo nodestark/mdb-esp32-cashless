@@ -103,6 +103,7 @@
 import { supabase } from "@/lib/supabase"
 import { formatMoney } from "@/lib/currency"
 import VueApexCharts from "vue3-apexcharts"
+import { isDark } from "@/lib/theme"
 
 const PAX_COLORS = ["#6366f1","#f59e0b","#ef4444","#10b981","#3b82f6","#ec4899","#8b5cf6","#14b8a6"]
 
@@ -119,7 +120,7 @@ export default {
 
       paxSelectedMachines: [],
       paxSeries: [],
-      paxOptions: {
+      paxBaseOptions: {
         chart: { id: "pax", toolbar: { show: true } },
         xaxis: { type: "datetime" },
         stroke: { curve: "smooth", width: 2 },
@@ -132,7 +133,7 @@ export default {
 
       salesMachine: null,
       salesSeries: [],
-      salesOptions: {
+      salesBaseOptions: {
         chart: { id: "sales", toolbar: { show: true } },
         xaxis: { type: "datetime" },
         yaxis: { labels: { formatter: v => formatMoney(v) } },
@@ -145,6 +146,21 @@ export default {
   },
 
   computed: {
+    // Charts follow the light/dark theme (src/lib/theme.js).
+    chartTheme() {
+      const dark = isDark.value
+      return {
+        theme: { mode: dark ? "dark" : "light" },
+        chart: { background: "transparent", foreColor: dark ? "#cbd5e1" : "#374151" },
+        grid: { borderColor: dark ? "#334155" : "#e5e7eb" }
+      }
+    },
+    paxOptions() {
+      return { ...this.paxBaseOptions, ...this.chartTheme, chart: { ...this.paxBaseOptions.chart, ...this.chartTheme.chart } }
+    },
+    salesOptions() {
+      return { ...this.salesBaseOptions, ...this.chartTheme, chart: { ...this.salesBaseOptions.chart, ...this.chartTheme.chart } }
+    },
     paxAllSelected() {
       return this.paxSelectedMachines.length === 0
     }

@@ -126,6 +126,16 @@
 
         <div class="flex items-center gap-4">
 
+          <button
+            type="button"
+            @click="toggleTheme"
+            class="w-9 h-9 rounded-full flex items-center justify-center text-lg hover:bg-gray-100 transition"
+            :title="isDark ? 'Light mode' : 'Dark mode'"
+            :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+          >
+            {{ isDark ? '☀️' : '🌙' }}
+          </button>
+
           <div class="text-sm text-gray-600">
             {{ userEmail }}
           </div>
@@ -176,6 +186,7 @@ import { useRouter } from 'vue-router'
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { startAlerts, stopAlerts } from '@/lib/useAlerts'
 import { loadCurrency } from '@/lib/currency'
+import { isDark, toggleTheme } from '@/lib/theme'
 
 export default {
   name: 'Dashboard',
@@ -233,7 +244,9 @@ export default {
       userEmail,
       userInitial,
       showArcade,
-      arcadeFrame
+      arcadeFrame,
+      isDark,
+      toggleTheme
     }
   }
 }
