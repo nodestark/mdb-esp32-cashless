@@ -40,6 +40,7 @@
             <th class="p-4">MAC</th>
             <th class="p-4">Machine</th>
             <th class="p-4">Subdomain</th>
+            <th class="p-4">Firmware</th>
             <th class="p-4">Status</th>
             <th class="p-4">Last Seen</th>
           </tr>
@@ -65,6 +66,10 @@
               {{ device.subdomain }}
             </td>
 
+            <td class="p-4 font-mono text-gray-500">
+              {{ device.firmware_version || '—' }}
+            </td>
+
             <td class="p-4">
               <span :class="statusClass(device.status)">
                 {{ device.status }}
@@ -78,7 +83,7 @@
           </tr>
 
           <tr v-if="!loading && devices.length === 0">
-            <td colspan="5" class="p-8 text-center text-gray-400">
+            <td colspan="6" class="p-8 text-center text-gray-400">
               No devices registered yet.
             </td>
           </tr>
@@ -147,6 +152,7 @@ export default {
           subdomain,
           status,
           status_at,
+          firmware_version,
           machines (
             name
           )

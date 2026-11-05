@@ -102,9 +102,12 @@ def on_message(client, userdata, msg):
 
             if event_type == "status":
                 raw = msg.payload.decode('utf-8', errors='ignore')
-                parts = raw.split(',', 1)
+                # "online,<reset_reason>[,<firmware version>]" or "offline" (LWT).
+                # Older firmware sends no version.
+                parts = raw.split(',')
                 new_status = parts[0]
-                reset_reason = float(parts[1]) if len(parts) > 1 else None
+                reset_reason = float(parts[1]) if len(parts) > 1 and parts[1] else None
+                firmware_version = parts[2].strip() if len(parts) > 2 and parts[2].strip() else None
 
                 res = supabase.table("embedded").select("id, machine_id, status").eq("subdomain", domain_id).execute()
                 if not res.data:
@@ -112,10 +115,14 @@ def on_message(client, userdata, msg):
                 embedded_s = res.data[0]
                 current_status = embedded_s["status"]
 
-                supabase.table("embedded").update({
+                update = {
                     "status_at": datetime.now(timezone.utc).isoformat(),
                     "status": new_status
-                }).eq("subdomain", domain_id).execute()
+                }
+                if firmware_version:
+                    update["firmware_version"] = firmware_version
+
+                supabase.table("embedded").update(update).eq("subdomain", domain_id).execute()
 
                 if new_status != current_status:
                     supabase.table("metrics").insert([{

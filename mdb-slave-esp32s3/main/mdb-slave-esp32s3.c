@@ -845,13 +845,14 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	switch ((esp_mqtt_event_id_t) event_id) {
 	case MQTT_EVENT_CONNECTED:
 
-    	char topic[64], buf[32];
+    	char topic[64], buf[64];
     	snprintf(topic, sizeof(topic), "%s.vmflow.xyz/#", my_subdomain);
 
     	esp_mqtt_client_subscribe(mqtt_client, topic, 0);
 
+    	// "online,<reset_reason>,<firmware version>" so the backend tracks the installed version
     	snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/status", my_subdomain);
-    	snprintf(buf, sizeof(buf), "online,%d", (int)esp_reset_reason());
+    	snprintf(buf, sizeof(buf), "online,%d,%s", (int)esp_reset_reason(), esp_app_get_description()->version);
     	esp_mqtt_client_enqueue(mqtt_client, topic, buf, 0, 1, 1, 1);
 
         xEventGroupSetBits(xLedEventGroup, BIT_STATUS_MQTT | BIT_STATUS_TRIGGER);

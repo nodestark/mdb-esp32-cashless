@@ -297,7 +297,8 @@ CREATE TABLE public.embedded (
     mac_address text,
     status public.embedded_status DEFAULT 'offline'::public.embedded_status NOT NULL,
     status_at timestamp with time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL,
-    passkey text DEFAULT SUBSTRING(md5((random())::text) FROM 1 FOR 18) NOT NULL
+    passkey text DEFAULT SUBSTRING(md5((random())::text) FROM 1 FOR 18) NOT NULL,
+    firmware_version text
 );
 
 
