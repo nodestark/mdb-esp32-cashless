@@ -310,7 +310,7 @@ async function createModel() {
     const { data: model, error } = await supabase
       .from("machine_models")
       .insert({ name: modelName.value.trim(), manufacturer: manufacturer.value.trim() })
-      .select()
+      .select("id")
       .single()
 
     if (error) { formError.value = "Error creating model."; return }

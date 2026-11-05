@@ -387,7 +387,7 @@ async function loadProducts() {
 
   const { data } = await supabase
     .from("products")
-    .select("*")
+    .select("id, name, price, current_stock, image_url")
     .is("deleted_at", null)
     .order("name")
 

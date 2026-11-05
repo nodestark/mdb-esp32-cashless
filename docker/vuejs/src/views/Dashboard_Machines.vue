@@ -1182,7 +1182,7 @@ export default {
 
       const { data, error } = await supabase
         .from("embedded")
-        .select("*")
+        .select("id, subdomain")
         .is("machine_id", null)
 
       if (error) {
@@ -1279,7 +1279,7 @@ export default {
     async fetchModels() {
       const { data, error } = await supabase
         .from("machine_models")
-        .select("*")
+        .select("id, name")
         .is("deleted_at", null)
         .order("name", { ascending: true })
 
