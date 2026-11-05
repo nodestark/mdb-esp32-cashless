@@ -8397,7 +8397,7 @@
 		(uuid "7ec3796d-7af2-43e6-a41b-3345953b71d9")
 	)
 	(label "io2"
-		(at 265.43 96.52 270)
+		(at 295.91 109.22 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8407,7 +8407,7 @@
 		(uuid "880294a1-7104-46bb-851f-0d86db56dca2")
 	)
 	(label "io1"
-		(at 295.91 109.22 270)
+		(at 265.43 96.52 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -14805,7 +14805,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 245.11 74.422 90)
 			(effects
 				(font
@@ -15283,7 +15283,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 263.652 90.17 90)
 			(effects
 				(font
@@ -15602,7 +15602,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 255.27 77.978 90)
 			(effects
 				(font
