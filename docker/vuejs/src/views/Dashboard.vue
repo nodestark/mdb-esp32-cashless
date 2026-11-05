@@ -216,18 +216,10 @@ export default {
       }
     }
 
-    const initNotifications = async () => {
-      if (!('Notification' in window)) return
-      if (Notification.permission === 'default') {
-        await Notification.requestPermission()
-      }
-      startAlerts()
-    }
-
     onMounted(() => {
       loadUser()
       loadCurrency()
-      initNotifications()
+      startAlerts()
       window.addEventListener('keydown', onKey)
     })
 

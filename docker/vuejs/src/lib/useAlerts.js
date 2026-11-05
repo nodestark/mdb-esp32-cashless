@@ -1,14 +1,32 @@
+import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { lowStockThreshold } from '@/lib/settings'
 
 let channel = null
 
+// 'granted' | 'denied' | 'default' (not asked yet) | 'unsupported'
+export const notificationPermission = ref(
+  'Notification' in window ? Notification.permission : 'unsupported'
+)
+
 function notify(title, body) {
   if (Notification.permission !== 'granted') return
-  new Notification(title, { body, icon: '/favicon.ico' })
+  new Notification(title, { body, icon: '/favicon.svg' })
 }
 
+/**
+ * Asks for permission from a user click (Settings). Browsers ignore or
+ * penalise prompts that appear on page load, and a "deny" is final.
+ */
+export async function enableNotifications() {
+  if (notificationPermission.value === 'unsupported') return
+  notificationPermission.value = await Notification.requestPermission()
+  if (notificationPermission.value === 'granted') await startAlerts()
+}
+
+/** Listens for low stock and offline devices. Does nothing without permission. */
 export async function startAlerts() {
+  if (channel || notificationPermission.value !== 'granted') return
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 

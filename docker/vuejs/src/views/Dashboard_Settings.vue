@@ -63,6 +63,44 @@
 
   </div>
 
+  <!-- NOTIFICATIONS -->
+  <div class="bg-white rounded-xl shadow p-6 space-y-3">
+
+    <h2 class="font-semibold text-gray-700">Notifications</h2>
+
+    <p class="text-sm text-gray-600">
+      Desktop alerts when a coil runs low or a device goes offline, while the dashboard is open.
+    </p>
+
+    <div class="flex items-center justify-between gap-4">
+      <span class="text-sm" :class="{
+        'text-green-600': notificationPermission === 'granted',
+        'text-red-600': notificationPermission === 'denied',
+        'text-gray-500': notificationPermission === 'default' || notificationPermission === 'unsupported'
+      }">
+        {{ {
+          granted: 'Enabled',
+          denied: 'Blocked by the browser',
+          default: 'Not enabled',
+          unsupported: 'Not supported by this browser'
+        }[notificationPermission] }}
+      </span>
+
+      <button
+        v-if="notificationPermission === 'default'"
+        @click="enableNotifications"
+        class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded transition"
+      >
+        Enable alerts
+      </button>
+    </div>
+
+    <p v-if="notificationPermission === 'denied'" class="text-xs text-gray-400">
+      To turn them on, allow notifications for this site in the browser's site settings, then reload the page.
+    </p>
+
+  </div>
+
   <!-- CURRENCY -->
   <div class="bg-white rounded-xl shadow p-6 space-y-4">
 
@@ -243,6 +281,7 @@ import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { lowStockThreshold, warehouseLowStockThreshold } from '@/lib/settings'
 import { CURRENCIES, currency, currencySymbolOf, loadCurrency, saveCurrency } from '@/lib/currency'
+import { notificationPermission, enableNotifications } from '@/lib/useAlerts'
 
 const threshold = ref(lowStockThreshold.value)
 const warehouseThreshold = ref(warehouseLowStockThreshold.value)
