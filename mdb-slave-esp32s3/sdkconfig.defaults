@@ -9,6 +9,16 @@ CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
 # so it cannot preempt an MDB frame mid-transfer.
 CONFIG_ESP_WIFI_TASK_PINNED_TO_CORE_0=y
 
-# Keep QoS1 sale/vend reports queued across flaky-link outages (default 30s drops them)
+# Keep QoS1 sale/vend reports queued across flaky-link outages (default 30s drops them).
+# 24h expiry so sales survive a long WiFi outage while the device stays powered.
 CONFIG_MQTT_USE_CUSTOM_CONFIG=y
-CONFIG_MQTT_OUTBOX_EXPIRED_TIMEOUT_MS=3600000
+CONFIG_MQTT_OUTBOX_EXPIRED_TIMEOUT_MS=86400000
+
+# Embedded 2MB quad PSRAM (ESP32-S3FH4R2): back the MQTT outbox in external RAM so
+# the queued sale/vend reports grow without eating internal heap. Volatile still:
+# survives WiFi drops, NOT reboots/power loss (needs a flash-backed custom outbox).
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_QUAD=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
+CONFIG_MQTT_OUTBOX_DATA_ON_EXTERNAL_MEMORY=y
