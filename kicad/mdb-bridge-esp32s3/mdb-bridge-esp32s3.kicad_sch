@@ -14658,7 +14658,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C25804"
+		(property "LCSC#" "C98220"
 			(at 245.11 76.2 90)
 			(effects
 				(font
@@ -15136,7 +15136,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C21190"
+		(property "LCSC#" "C2907113"
 			(at 265.43 90.17 90)
 			(effects
 				(font
@@ -15455,7 +15455,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC#" "C21190"
+		(property "LCSC#" "C2907113"
 			(at 255.27 76.2 90)
 			(effects
 				(font

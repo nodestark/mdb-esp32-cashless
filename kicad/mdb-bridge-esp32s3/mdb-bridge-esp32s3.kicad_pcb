@@ -2083,7 +2083,7 @@
 				)
 			)
 		)
-		(property "LCSC#" "C21190"
+		(property "LCSC#" "C2907113"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -10029,7 +10029,7 @@
 				)
 			)
 		)
-		(property "LCSC#" "C21190"
+		(property "LCSC#" "C2907113"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -14893,7 +14893,7 @@
 				)
 			)
 		)
-		(property "LCSC#" "C25804"
+		(property "LCSC#" "C98220"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
