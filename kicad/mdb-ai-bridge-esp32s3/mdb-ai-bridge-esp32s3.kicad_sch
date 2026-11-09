@@ -5848,10 +5848,6 @@
 		(uuid "1fbf9162-ddb2-49e8-b6b0-ac18988cb1dc")
 	)
 	(no_connect
-		(at 378.46 85.09)
-		(uuid "21c13a05-3951-44c4-abd2-838392320647")
-	)
-	(no_connect
 		(at 172.72 95.25)
 		(uuid "223f3d11-d80f-4e25-b64b-25b29ac6482a")
 	)
@@ -6146,10 +6142,6 @@
 	(no_connect
 		(at 436.88 224.79)
 		(uuid "d920f25c-619b-4a51-a4b4-e25939a91e1d")
-	)
-	(no_connect
-		(at 378.46 82.55)
-		(uuid "dae60d61-cd5e-49ef-96ec-972d3a20bf42")
 	)
 	(no_connect
 		(at 99.06 353.06)
@@ -7317,6 +7309,16 @@
 	)
 	(wire
 		(pts
+			(xy 411.48 82.55) (xy 408.94 82.55)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4bfe0f27-add8-45c5-96a0-ea292f934c46")
+	)
+	(wire
+		(pts
 			(xy 92.71 148.59) (xy 107.95 148.59)
 		)
 		(stroke
@@ -7404,6 +7406,16 @@
 			(type default)
 		)
 		(uuid "511a43d4-c172-4bcb-8002-66ae9005aacd")
+	)
+	(wire
+		(pts
+			(xy 401.32 82.55) (xy 378.46 82.55)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "511e6d21-b224-4144-841a-857b26efc6e1")
 	)
 	(wire
 		(pts
@@ -8004,6 +8016,16 @@
 			(type default)
 		)
 		(uuid "777a6a18-9114-40f0-a062-71d3827f0096")
+	)
+	(wire
+		(pts
+			(xy 411.48 85.09) (xy 401.32 85.09)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "78429226-c046-4805-996e-51b5c7c106e9")
 	)
 	(wire
 		(pts
@@ -9964,6 +9986,16 @@
 			(type default)
 		)
 		(uuid "f0013e03-d669-4581-8d8b-48669c9026ec")
+	)
+	(wire
+		(pts
+			(xy 393.7 85.09) (xy 378.46 85.09)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f00cf2e2-dd43-4679-974b-6161433a67b1")
 	)
 	(wire
 		(pts
@@ -12184,6 +12216,73 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 411.48 82.55 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "16f03c93-7d55-4138-b291-333e28592723")
+		(property "Reference" "#PWR063"
+			(at 407.67 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 415.29 82.5499 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 411.48 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 411.48 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 411.48 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "de518e82-700a-4572-a225-48b2d355959f")
+		)
+		(instances
+			(project "mdb-ai-bridge-esp32s3"
+				(path "/51cbea2e-46d2-4ff4-a8d6-333c056656c8"
+					(reference "#PWR063")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 186.69 363.22 0)
 		(unit 1)
@@ -12562,6 +12661,83 @@
 			(project "mdb-ai-bridge-esp32s3"
 				(path "/51cbea2e-46d2-4ff4-a8d6-333c056656c8"
 					(reference "R28")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 405.13 82.55 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "23016362-64c1-4bdf-862e-6c14b3806e2b")
+		(property "Reference" "R31"
+			(at 405.13 76.2 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 405.13 78.74 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 405.13 84.328 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 405.13 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 405.13 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C25744"
+			(at 405.13 82.55 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "cc70abd0-fab3-4db5-b124-a4bcf3a80fab")
+		)
+		(pin "2"
+			(uuid "5a85371f-29e7-4966-92cd-2d280e293d7c")
+		)
+		(instances
+			(project "mdb-ai-bridge-esp32s3"
+				(path "/51cbea2e-46d2-4ff4-a8d6-333c056656c8"
+					(reference "R31")
 					(unit 1)
 				)
 			)
@@ -20233,6 +20409,73 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 411.48 85.09 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a0a15450-4093-4858-853d-e6578eccc610")
+		(property "Reference" "#PWR067"
+			(at 407.67 85.09 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 415.29 85.0899 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 411.48 85.09 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 411.48 85.09 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 411.48 85.09 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "8411af59-f74c-45f2-8abf-9372e2343a66")
+		)
+		(instances
+			(project "mdb-ai-bridge-esp32s3"
+				(path "/51cbea2e-46d2-4ff4-a8d6-333c056656c8"
+					(reference "#PWR067")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 86.36 165.1 0)
 		(unit 1)
@@ -24066,6 +24309,83 @@
 			(project "mdb-ai-bridge-esp32s3"
 				(path "/51cbea2e-46d2-4ff4-a8d6-333c056656c8"
 					(reference "C24")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 397.51 85.09 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "dd34fef4-14ae-4a56-9675-234caa210198")
+		(property "Reference" "R32"
+			(at 397.51 78.74 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 397.51 81.28 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 397.51 86.868 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 397.51 85.09 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 397.51 85.09 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC#" "C25744"
+			(at 397.51 85.09 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d77db13f-afcc-46f4-a1f3-d54b42cf188c")
+		)
+		(pin "2"
+			(uuid "879a81b6-d99b-4e3e-83ce-c76cedd5053e")
+		)
+		(instances
+			(project "mdb-ai-bridge-esp32s3"
+				(path "/51cbea2e-46d2-4ff4-a8d6-333c056656c8"
+					(reference "R32")
 					(unit 1)
 				)
 			)
