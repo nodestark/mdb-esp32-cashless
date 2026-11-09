@@ -8493,7 +8493,7 @@
 				)
 			)
 		)
-		(property "Value" "TLP785"
+		(property "Value" "TLP185"
 			(at 0 3 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -8505,7 +8505,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=10569&prodName=TLP785"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ce64f5390de8f0a4131e5b2ed1466606.pdf?productCode=C128776"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -11456,7 +11456,7 @@
 				)
 			)
 		)
-		(property "Value" "TLP785"
+		(property "Value" "TLP185"
 			(at 0 3 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -11468,7 +11468,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=10569&prodName=TLP785"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ce64f5390de8f0a4131e5b2ed1466606.pdf?productCode=C128776"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
