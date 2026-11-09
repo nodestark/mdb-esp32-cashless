@@ -196,14 +196,15 @@
 		(descr "Inductor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: http://www.tortai-tech.com/upload/download/2011102023233369053.pdf), generated with kicad-footprint-generator")
 		(tags "inductor")
 		(property "Reference" "FB2"
-			(at -0.1004 1.4285 0)
-			(layer "F.SilkS")
+			(at 0 0 0)
+			(layer "B.SilkS")
 			(uuid "0e255286-1b03-4a60-b16c-aae5fc68619b")
 			(effects
 				(font
 					(size 1 1)
 					(thickness 0.15)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "FerriteBead"
@@ -915,14 +916,15 @@
 		(descr "Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "resistor")
 		(property "Reference" "R25"
-			(at -0.042 -1.615 90)
-			(layer "F.SilkS")
+			(at -0.75 -3.165372 0)
+			(layer "B.SilkS")
 			(uuid "777a653f-3f31-4ca1-8130-9bcb3a95191a")
 			(effects
 				(font
 					(size 1 1)
 					(thickness 0.15)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "4.7k"
@@ -2038,14 +2040,15 @@
 		(descr "Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "resistor")
 		(property "Reference" "R53"
-			(at 0 -1.43 0)
-			(layer "F.SilkS")
+			(at 0 -1.43 180)
+			(layer "B.SilkS")
 			(uuid "3965a194-087c-460b-83c6-b58ac33f455c")
 			(effects
 				(font
 					(size 1 1)
 					(thickness 0.15)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "1k"
@@ -5155,7 +5158,7 @@
 		(descr "SOT, 3 Pin (JEDEC TO-236 Var AB https://www.jedec.org/document_search?search_api_views_fulltext=TO-236), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 		(tags "SOT TO_SOT_SMD")
 		(property "Reference" "Q14"
-			(at 0 -2.4 90)
+			(at 1.4244 -2.4321 90)
 			(layer "F.SilkS")
 			(uuid "5426fe7e-c11f-40ef-8398-9cb6eaad1ba0")
 			(effects
@@ -7393,7 +7396,7 @@
 		(descr "Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "resistor")
 		(property "Reference" "R32"
-			(at 0.0694 -1.58075 0)
+			(at -0.4814 -1.599 0)
 			(layer "F.SilkS")
 			(uuid "2c09ed7b-502a-442a-81b1-f7c2ab5d12ef")
 			(effects
@@ -7839,7 +7842,7 @@
 		(descr "SOT, 3 Pin (JEDEC TO-236 Var AB https://www.jedec.org/document_search?search_api_views_fulltext=TO-236), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 		(tags "SOT TO_SOT_SMD")
 		(property "Reference" "Q15"
-			(at 0 -2.4 0)
+			(at -0.0679 2.5798 0)
 			(layer "F.SilkS")
 			(uuid "cc5a3aa8-0714-48ef-8cb7-4bc330ea6182")
 			(effects
@@ -9554,7 +9557,7 @@
 		(descr "Capacitor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "capacitor")
 		(property "Reference" "C1"
-			(at 2.3888 0.1416 180)
+			(at 2.407 0.33296 270)
 			(layer "F.SilkS")
 			(uuid "bbb3032e-f72a-4a7c-bf56-fc6484008711")
 			(effects
@@ -9984,7 +9987,7 @@
 		(descr "Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "resistor")
 		(property "Reference" "R52"
-			(at 0 -1.43 0)
+			(at -0.6806 -1.5976 0)
 			(layer "F.SilkS")
 			(uuid "a1e4de6d-dd6e-4a51-9cde-f219a60c8e70")
 			(effects
@@ -15314,7 +15317,7 @@
 		(descr "Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC_7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "resistor")
 		(property "Reference" "R4"
-			(at -1.0192 -1.6024 180)
+			(at -2.6442 -0.1274 180)
 			(layer "F.SilkS")
 			(uuid "c93c58f4-e5ee-49a8-a19b-e38bc214e7f5")
 			(effects
@@ -19823,7 +19826,7 @@
 		(uuid "53f69e46-8135-0071-1132-ccb7847311c4")
 		(name "$teardrop_padvia$")
 		(hatch none 0.1)
-		(priority 30014)
+		(priority 30000)
 		(attr
 			(teardrop
 				(type padvia)
@@ -19849,10 +19852,8 @@
 		(filled_polygon
 			(layer "F.Cu")
 			(pts
-				(xy 180.779554 115.0422) (xy 180.783333 115.048096) (xy 181.042992 116.000747) (xy 181.041862 116.00963)
-				(xy 181.036163 116.014641) (xy 180.555653 116.212714) (xy 180.546698 116.212699) (xy 180.540446 116.206521)
-				(xy 180.456206 116.010707) (xy 180.122738 115.235573) (xy 180.122618 115.226622) (xy 180.125212 115.222681)
-				(xy 180.260284 115.087609) (xy 180.26752 115.084229) (xy 180.771011 115.039519)
+				(xy 180.263289 115.084605) (xy 180.119605 115.228289) (xy 180.545 116.217106) (xy 181.045707 116.010707)
+				(xy 180.78076 115.038654)
 			)
 		)
 	)
@@ -19984,7 +19985,7 @@
 		(uuid "790c5374-677b-0bd6-1b3e-c90fe14bc9ae")
 		(name "$teardrop_padvia$")
 		(hatch none 0.1)
-		(priority 30017)
+		(priority 30003)
 		(attr
 			(teardrop
 				(type padvia)
@@ -20010,10 +20011,8 @@
 		(filled_polygon
 			(layer "F.Cu")
 			(pts
-				(xy 189.230639 115.300771) (xy 189.231977 115.302484) (xy 189.679559 116.001111) (xy 189.681136 116.009926)
-				(xy 189.676275 116.017105) (xy 189.194481 116.34395) (xy 189.185711 116.345759) (xy 189.17837 116.341037)
-				(xy 188.759462 115.750487) (xy 188.757471 115.741757) (xy 188.76073 115.735447) (xy 188.897339 115.598838)
-				(xy 188.897519 115.598663) (xy 189.214101 115.300281) (xy 189.222471 115.297101)
+				(xy 188.897431 115.598747) (xy 188.753747 115.742431) (xy 189.185 116.350383) (xy 189.685707 116.010707)
+				(xy 189.224367 115.290606)
 			)
 		)
 	)
@@ -20065,7 +20064,7 @@
 		(uuid "b93822a2-26e1-05a9-308e-5e6e1ab39359")
 		(name "$teardrop_padvia$")
 		(hatch none 0.1)
-		(priority 30015)
+		(priority 30001)
 		(attr
 			(teardrop
 				(type padvia)
@@ -20091,11 +20090,8 @@
 		(filled_polygon
 			(layer "F.Cu")
 			(pts
-				(xy 180.556142 120.001055) (xy 180.57153 120.007619) (xy 181.037196 120.206245) (xy 181.043462 120.212643)
-				(xy 181.044065 120.219372) (xy 180.870717 121.059334) (xy 180.865688 121.066744) (xy 180.860263 121.068626)
-				(xy 180.200862 121.125504) (xy 180.192325 121.122801) (xy 180.1882 121.114852) (xy 180.188157 121.113847)
-				(xy 180.188157 120.925573) (xy 180.188938 120.92137) (xy 180.462747 120.21) (xy 180.540644 120.007618)
-				(xy 180.546814 120.001129) (xy 180.555766 120.000903)
+				(xy 180.188157 120.9234) (xy 180.188157 121.1266) (xy 180.868955 121.067877) (xy 181.046 120.21)
+				(xy 180.545 119.996303)
 			)
 		)
 	)
@@ -20307,7 +20303,7 @@
 		(uuid "e2c31e6a-3951-0f19-1890-acd82345d41e")
 		(name "$teardrop_padvia$")
 		(hatch none 0.1)
-		(priority 30016)
+		(priority 30002)
 		(attr
 			(teardrop
 				(type padvia)
@@ -20332,10 +20328,7 @@
 		(filled_polygon
 			(layer "F.Cu")
 			(pts
-				(xy 181.994735 115.306175) (xy 182.00192 115.311516) (xy 182.003579 115.317521) (xy 182.003579 115.508396)
-				(xy 182.001948 115.514355) (xy 181.550781 116.276664) (xy 181.543618 116.282038) (xy 181.53506 116.280949)
-				(xy 181.053669 116.015335) (xy 181.048081 116.008338) (xy 181.048767 116.00004) (xy 181.44277 115.177007)
-				(xy 181.449432 115.171026) (xy 181.456175 115.170713)
+				(xy 182.003579 115.5116) (xy 182.003579 115.3084) (xy 181.4469 115.16838) (xy 181.044 116.01) (xy 181.545 116.286434)
 			)
 		)
 	)
