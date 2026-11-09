@@ -2654,7 +2654,10 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Isolator:TLP185"
+		(symbol "Isolator:TLP785"
+			(pin_names
+				(offset 1.016)
+			)
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -2667,8 +2670,8 @@
 					(justify left)
 				)
 			)
-			(property "Value" "TLP185"
-				(at -5.08 -5.08 0)
+			(property "Value" "TLP785"
+				(at 0 5.08 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -2676,17 +2679,18 @@
 					(justify left)
 				)
 			)
-			(property "Footprint" "Package_SO:SOIC-4_4.55x3.7mm_P2.54mm"
-				(at 0 -7.62 0)
+			(property "Footprint" "Package_DIP:DIP-4_W7.62mm"
+				(at -5.08 -5.08 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 						(italic yes)
 					)
+					(justify left)
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=11791&prodName=TLP185"
+			(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=10569&prodName=TLP785"
 				(at 0 0 0)
 				(effects
 					(font
@@ -2696,7 +2700,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "DC Optocoupler, Vce 80V, CTR 50-100%, SOIC-4-6 (MFSOP-4-6)"
+			(property "Description" "DC Optocoupler, Vce 80V, CTR 50-200%, DIP4"
 				(at 0 0 0)
 				(effects
 					(font
@@ -2714,7 +2718,7 @@
 					(hide yes)
 				)
 			)
-			(property "ki_fp_filters" "SOIC*4.55x3.7mm*P2.54mm*"
+			(property "ki_fp_filters" "DIP*W7.62mm*"
 				(at 0 0 0)
 				(effects
 					(font
@@ -2723,7 +2727,7 @@
 					(hide yes)
 				)
 			)
-			(symbol "TLP185_0_1"
+			(symbol "TLP785_0_1"
 				(rectangle
 					(start -5.08 3.81)
 					(end 5.08 -3.81)
@@ -2737,10 +2741,10 @@
 				)
 				(polyline
 					(pts
-						(xy -5.08 -2.54) (xy -2.54 -2.54) (xy -2.54 2.54) (xy -5.08 2.54)
+						(xy -5.08 2.54) (xy -2.54 2.54) (xy -2.54 -1.27) (xy -2.54 0.635)
 					)
 					(stroke
-						(width 0.254)
+						(width 0)
 						(type default)
 					)
 					(fill
@@ -2753,6 +2757,18 @@
 					)
 					(stroke
 						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 -0.635) (xy -2.54 -2.54) (xy -5.08 -2.54)
+					)
+					(stroke
+						(width 0)
 						(type default)
 					)
 					(fill
@@ -2776,7 +2792,7 @@
 						(xy -0.508 0.508) (xy 0.762 0.508) (xy 0.381 0.381) (xy 0.381 0.635) (xy 0.762 0.508)
 					)
 					(stroke
-						(width 0.254)
+						(width 0)
 						(type default)
 					)
 					(fill
@@ -2788,7 +2804,7 @@
 						(xy -0.508 -0.508) (xy 0.762 -0.508) (xy 0.381 -0.635) (xy 0.381 -0.381) (xy 0.762 -0.508)
 					)
 					(stroke
-						(width 0.254)
+						(width 0)
 						(type default)
 					)
 					(fill
@@ -2809,10 +2825,22 @@
 				)
 				(polyline
 					(pts
+						(xy 2.54 0.635) (xy 4.445 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
 						(xy 3.048 -1.651) (xy 3.556 -1.143) (xy 4.064 -2.159) (xy 3.048 -1.651)
 					)
 					(stroke
-						(width 0.254)
+						(width 0)
 						(type default)
 					)
 					(fill
@@ -2821,10 +2849,10 @@
 				)
 				(polyline
 					(pts
-						(xy 5.08 2.54) (xy 4.445 2.54) (xy 2.54 0.635)
+						(xy 4.445 2.54) (xy 5.08 2.54)
 					)
 					(stroke
-						(width 0.254)
+						(width 0)
 						(type default)
 					)
 					(fill
@@ -2833,10 +2861,22 @@
 				)
 				(polyline
 					(pts
-						(xy 5.08 -2.54) (xy 4.445 -2.54) (xy 2.54 -0.635)
+						(xy 4.445 -2.54) (xy 2.54 -0.635)
 					)
 					(stroke
-						(width 0.254)
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 4.445 -2.54) (xy 5.08 -2.54)
+					)
+					(stroke
+						(width 0)
 						(type default)
 					)
 					(fill
@@ -2844,7 +2884,7 @@
 					)
 				)
 			)
-			(symbol "TLP185_1_1"
+			(symbol "TLP785_1_1"
 				(pin passive line
 					(at -7.62 2.54 0)
 					(length 2.54)
@@ -2873,7 +2913,7 @@
 							)
 						)
 					)
-					(number "3"
+					(number "2"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -2891,7 +2931,7 @@
 							)
 						)
 					)
-					(number "6"
+					(number "4"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -2909,7 +2949,7 @@
 							)
 						)
 					)
-					(number "4"
+					(number "3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -9675,7 +9715,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Isolator:TLP185")
+		(lib_id "Isolator:TLP785")
 		(at 363.22 80.01 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -9692,7 +9732,7 @@
 				)
 			)
 		)
-		(property "Value" "TLP185"
+		(property "Value" "TLP785"
 			(at 363.22 73.66 0)
 			(effects
 				(font
@@ -9700,7 +9740,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-4_4.55x3.7mm_P2.54mm"
+		(property "Footprint" "Package_SO:SOP-4_3.8x4.1mm_P2.54mm"
 			(at 358.14 85.09 0)
 			(effects
 				(font
@@ -9711,7 +9751,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=11791&prodName=TLP185"
+		(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=10569&prodName=TLP785"
 			(at 363.22 80.01 0)
 			(effects
 				(font
@@ -9739,16 +9779,16 @@
 				(hide yes)
 			)
 		)
-		(pin "3"
+		(pin "2"
 			(uuid "08ddb61e-ed39-4050-ae73-d8f875e9fe7f")
 		)
 		(pin "1"
 			(uuid "aab87dba-6f23-4365-8376-0adb9e8790d5")
 		)
-		(pin "4"
+		(pin "3"
 			(uuid "78fc13ef-18f2-4a81-a4ee-245e640453ec")
 		)
-		(pin "6"
+		(pin "4"
 			(uuid "40c7593d-a57b-4591-95ad-f6009a73aafd")
 		)
 		(instances
@@ -12863,7 +12903,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Isolator:TLP185")
+		(lib_id "Isolator:TLP785")
 		(at 363.22 95.25 180)
 		(unit 1)
 		(exclude_from_sim no)
@@ -12880,7 +12920,7 @@
 				)
 			)
 		)
-		(property "Value" "TLP185"
+		(property "Value" "TLP785"
 			(at 363.22 88.9 0)
 			(effects
 				(font
@@ -12888,7 +12928,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-4_4.55x3.7mm_P2.54mm"
+		(property "Footprint" "Package_SO:SOP-4_3.8x4.1mm_P2.54mm"
 			(at 368.3 90.17 0)
 			(effects
 				(font
@@ -12899,7 +12939,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=11791&prodName=TLP185"
+		(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=10569&prodName=TLP785"
 			(at 363.22 95.25 0)
 			(effects
 				(font
@@ -12927,16 +12967,16 @@
 				(hide yes)
 			)
 		)
-		(pin "3"
+		(pin "2"
 			(uuid "082fda67-5c5c-4857-9169-f0c2aa5419e8")
 		)
 		(pin "1"
 			(uuid "853d27d4-463b-468d-96bc-7848b9e85999")
 		)
-		(pin "4"
+		(pin "3"
 			(uuid "2c978a08-c70b-438e-96ab-5546bb1708ed")
 		)
-		(pin "6"
+		(pin "4"
 			(uuid "cc3c4fd3-e2d1-4a6a-846a-75f413ec2cd7")
 		)
 		(instances
