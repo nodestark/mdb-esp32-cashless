@@ -1440,7 +1440,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "0.1uF"
 			(at 0 1.16 0)
 			(layer "F.Fab")
 			(uuid "a5aaef3e-a401-4da2-8598-686e192d7bb6")
@@ -1475,7 +1475,7 @@
 				)
 			)
 		)
-		(property "LCSC#" "C52923"
+		(property "LCSC#" "C1525"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -10636,7 +10636,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "0.1uF"
 			(at 0 1.16 90)
 			(layer "F.Fab")
 			(uuid "a4d6202a-a1cf-4625-aae8-caa030e679fc")
@@ -10671,7 +10671,7 @@
 				)
 			)
 		)
-		(property "LCSC#" "C52923"
+		(property "LCSC#" "C1525"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
