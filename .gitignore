@@ -8,7 +8,6 @@ kicad/*/*.jpg
 kicad/**/*.round-tracks-config
 kicad/**/analysis/
 
-docker/vuejs/package-lock.json
 docker/vuejs/node_modules/
 docker/vuejs/dist/
 
@@ -25,3 +24,8 @@ docker/vuejs/dist/
 
 # Fabrication Toolkit output (generated, not versioned)
 pcbway_production/
+docker/.env
+docker/volumes/db/data/
+docker/volumes/storage/
+docker/volumes/mqtt/data/
+__pycache__/

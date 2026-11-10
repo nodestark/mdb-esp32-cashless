@@ -323,8 +323,9 @@ services:
     #container_name: supabase-db
     image: supabase/postgres:15.8.1.060
     ports:
-      - "[::1]:5432:5432"
-      - "127.0.0.1:5432:5432"
+      # Host access for psql/backups only (loopback). Change if 5432 is taken.
+      - "[::1]:${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     restart: unless-stopped
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
@@ -343,7 +344,7 @@ services:
       # Changes required for Pooler support
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
       # Application schema (tables: embedded, machines, sales, credentials, etc.)
-      - ./supabase/migrations/20260718000000_schema_dump.sql:/docker-entrypoint-initdb.d/migrations/10-schema.sql:Z
+      - ./supabase/migrations/20260718000000_schema_dump.sql:/docker-entrypoint-initdb.d/migrations/zz-10-vmflow-schema.sql:Z
       # Use named volume to persist pgsodium decryption key between restarts
       - db-config:/etc/postgresql-custom
     healthcheck:
@@ -359,6 +360,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      # First boot runs every init script and can take minutes on slow disks.
+      start_period: 180s
     environment:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: ${POSTGRES_PORT}
@@ -378,12 +381,37 @@ services:
         "log_min_messages=fatal" # prevents Realtime polling queries from appearing in logs
       ]
 
+  # One-shot, idempotent: realtime publication, storage bucket and policies.
+  # Needs storage-api migrations, so it cannot live in the db init scripts.
+  bootstrap:
+    image: supabase/postgres:15.8.1.060
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    volumes:
+      - ./supabase/seed/vmflow-bootstrap.sql:/bootstrap.sql:ro,Z
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: ["psql", "-h", "${POSTGRES_HOST}", "-p", "${POSTGRES_PORT}", "-U", "supabase_admin", "-d", "${POSTGRES_DB}", "-f", "/bootstrap.sql"]
+
+  # Local SMTP catcher for sign-up/recovery emails (UI on :8025).
+  # Dev only: `docker compose --profile dev up`. In production point SMTP_* at a real server.
+  mail:
+    image: axllent/mailpit:v1.27
+    profiles: ["dev"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+
   broker:
     image: eclipse-mosquitto:2.1.2-alpine
     restart: unless-stopped
     ports:
-      - "1883:1883"   # MQTT (TCP)
-      - "9001:9001"   # WebSockets (opcional)
+      - "${MQTT_PORT:-1883}:1883"     # MQTT (TCP) — devices connect here
+      - "${MQTT_WS_PORT:-9001}:9001"  # WebSockets (optional)
     volumes:
       - ./volumes/mqtt/config:/mosquitto/config
       - ./volumes/mqtt/config/acl:/etc/mosquitto/acl:ro

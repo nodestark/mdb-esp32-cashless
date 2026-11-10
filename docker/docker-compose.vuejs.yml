@@ -1,33 +1,36 @@
-name: vmflow-vuejs
+# Vue.js dashboard overlay. Always combine with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.vuejs.yml up -d
+# No top-level `name:` here on purpose: it would override the base project
+# name and spin up a second copy of the whole stack.
 
 services:
-  vue-dev:
-    image: node:lts-alpine
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./vuejs:/app
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host"
-
-  vue-prod:
-    image: node:lts-alpine
-    volumes:
-      - ./vuejs:/app
-      - vue_dist:/app/dist
-    working_dir: /app
-    command: sh -c "npm run build"
-
-  vue-nginx:
-    image: nginx:stable-alpine
-    ports:
-      - "5173:5173"
-    volumes:
-      - vue_dist:/usr/share/nginx/html
-      - ./vuejs/nginx.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - vue-prod
+  # Production build served by nginx on DASHBOARD_PORT (default 5173).
+  dashboard:
+    build:
+      context: ./vuejs
+      args:
+        VITE_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+        VITE_SUPABASE_ANON_KEY: ${ANON_KEY}
     restart: unless-stopped
+    ports:
+      - "${DASHBOARD_PORT:-5173}:5173"
+    depends_on:
+      - kong
+
+  # Hot-reload dev server: `--profile dev`, on port 5174.
+  dashboard-dev:
+    image: node:22-alpine
+    profiles: ["dev"]
+    working_dir: /app
+    volumes:
+      - ./vuejs:/app
+      - dashboard_node_modules:/app/node_modules
+    environment:
+      VITE_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+      VITE_SUPABASE_ANON_KEY: ${ANON_KEY}
+    ports:
+      - "5174:5173"
+    command: sh -c "npm ci --no-audit --no-fund && npm run dev -- --host"
 
 volumes:
-  vue_dist:
+  dashboard_node_modules:
