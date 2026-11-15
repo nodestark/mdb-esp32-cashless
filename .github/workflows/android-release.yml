@@ -39,7 +39,20 @@ jobs:
       - name: Decode signing keystore
         run: echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
 
-      - name: Build signed AAB + APK
+      # Play service-account key (JSON) for Gradle Play Publisher. Optional: without
+      # the secret the workflow only builds, exactly as before.
+      - name: Write Play service-account key
+        env:
+          PLAY_KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_KEY" ]; then
+            printf '%s' "$PLAY_KEY" > "$RUNNER_TEMP/play.json"
+            echo "PLAY_SERVICE_ACCOUNT_JSON=$RUNNER_TEMP/play.json" >> "$GITHUB_ENV"
+          fi
+
+      # With the Play key: build + upload the AAB straight to production, 100% rollout (versionCode
+      # auto-resolved from Play). Tags are cut only after testing is done.
+      - name: Build signed AAB + APK (and publish to Play production)
         env:
           KEYSTORE_FILE: ${{ runner.temp }}/upload.jks
           KEYSTORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -47,7 +60,11 @@ jobs:
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease assembleRelease --no-daemon
+          if [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            ./gradlew publishReleaseBundle assembleRelease --no-daemon
+          else
+            ./gradlew bundleRelease assembleRelease --no-daemon
+          fi
 
       - uses: actions/upload-artifact@v4
         with:

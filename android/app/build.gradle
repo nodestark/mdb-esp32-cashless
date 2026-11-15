@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.play.publisher)
 }
 
 android {
@@ -56,6 +57,20 @@ android {
         compose true
         buildConfig true
     }
+}
+
+// Google Play publishing (Gradle Play Publisher).
+// Credentials: PLAY_SERVICE_ACCOUNT_JSON env var (CI) or the local service-account key.
+// versionCode is resolved automatically from Play (highest uploaded + 1), so no manual bump.
+play {
+    def playKey = System.getenv("PLAY_SERVICE_ACCOUNT_JSON") ?: "${System.getProperty('user.home')}/.config/play-mcp/service-account.json"
+    // No key (e.g. CI without the secret) -> plugin off, plain builds still work.
+    enabled.set(file(playKey).exists())
+    serviceAccountCredentials.set(file(playKey))
+    track.set("production")
+    releaseStatus.set(com.github.triplet.gradle.androidpublisher.ReleaseStatus.COMPLETED)
+    defaultToAppBundles.set(true)
+    resolutionStrategy.set(com.github.triplet.gradle.androidpublisher.ResolutionStrategy.AUTO)
 }
 
 dependencies {

@@ -1,4 +1,5 @@
 [versions]
+playPublisher = "3.12.1"
 agp = "8.10.0"
 kotlin = "2.0.21"
 coreKtx = "1.17.0"
@@ -37,4 +38,4 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-
+play-publisher = { id = "com.github.triplet.play", version.ref = "playPublisher" }
