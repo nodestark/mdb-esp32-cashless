@@ -1,1 +1,1 @@
-Bug fixes and improvements.
+Stability fixes: no more crashes when switching tabs during loading, invalid credit amounts, or long Wi-Fi names/passwords. Cancelling a BLE credit while connecting now stops the session. Bluetooth and location permissions are requested correctly on Android 12+.

@@ -22,9 +22,14 @@ import androidx.fragment.app.Fragment;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import io.reactivex.rxjava3.exceptions.UndeliverableException;
+import io.reactivex.rxjava3.plugins.RxJavaPlugins;
 import xyz.vmflow.R;
 
 public class MainActivity extends AppCompatActivity {
+
+    // Ask to turn Bluetooth on at most once per screen instance, so a "No" doesn't re-prompt in a loop.
+    private boolean mAskedToEnableBluetooth = false;
 
     public boolean onOptionsItemSelected(MenuItem item) {
 
@@ -92,6 +97,17 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // BLE errors raised after a connection was disposed (e.g. device disconnects after a
+        // session ends) reach RxJava with no subscriber left; by default that crashes the app.
+        RxJavaPlugins.setErrorHandler(e -> {
+            if (e instanceof UndeliverableException) {
+                android.util.Log.w("MainActivity", "Undeliverable Rx error", e.getCause());
+                return;
+            }
+            Thread.currentThread().getUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), e);
+        });
+
         setContentView(R.layout.activity_main);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -130,14 +146,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
-        if (hasBluetoothPermissions()) {
+        // One combined request: Android drops a second requestPermissions() issued while the
+        // first is still showing, so location was never asked on Android 12+.
+        if (hasBluetoothPermissions()
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             checkAndEnableBluetooth();
         } else {
             requestBluetoothPermissions();
-        }
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions( new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 102 );
         }
     }
 
@@ -154,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT}, 101);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION}, 101);
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN, Manifest.permission.ACCESS_FINE_LOCATION}, 101);
         }
@@ -162,8 +177,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkAndEnableBluetooth() {
         BluetoothAdapter adapter = getSystemService(BluetoothManager.class).getAdapter();
-        if (adapter != null && !adapter.isEnabled()) {
-            adapter.enable();
+        if (adapter != null && !adapter.isEnabled() && !mAskedToEnableBluetooth) {
+            mAskedToEnableBluetooth = true;
+            // BluetoothAdapter.enable() is a no-op for apps targeting Android 13+; ask the user instead.
+            try {
+                startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
+            } catch (SecurityException | android.content.ActivityNotFoundException e) {
+                android.util.Log.w("MainActivity", "Cannot request Bluetooth enable", e);
+            }
         }
     }
 

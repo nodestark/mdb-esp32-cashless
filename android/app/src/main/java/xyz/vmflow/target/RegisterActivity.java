@@ -82,12 +82,15 @@ public class RegisterActivity extends AppCompatActivity {
                 @Override
                 public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
 
+                    // Read the body here (network thread); reading it inside runOnUiThread is network-on-main.
+                    String body = response.body().string();
+
                     if (response.isSuccessful()) {
 
                         SharedPreferences prefs = getSharedPreferences("target_prefs", MODE_PRIVATE);
 
                         SharedPreferences.Editor editor = prefs.edit();
-                        editor.putString("auth_json", response.body().string());
+                        editor.putString("auth_json", body);
                         editor.apply();
 
                         Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
@@ -96,9 +99,9 @@ public class RegisterActivity extends AppCompatActivity {
                     } else {
                         runOnUiThread(() -> {
                             try {
-                                JSONObject jsonObject = new JSONObject(response.body().string());
+                                JSONObject jsonObject = new JSONObject(body);
                                 Toast.makeText(RegisterActivity.this, jsonObject.getString("msg"), Toast.LENGTH_SHORT).show();
-                            } catch (JSONException | IOException e) {
+                            } catch (JSONException e) {
                                 Toast.makeText(RegisterActivity.this, "Registration failed. Please try again.", Toast.LENGTH_SHORT).show();
                             }
                         });

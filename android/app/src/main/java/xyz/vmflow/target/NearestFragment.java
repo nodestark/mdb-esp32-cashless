@@ -77,6 +77,23 @@ public class NearestFragment extends Fragment {
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private View mProgressBar;
 
+    // Application context: safe to use from background threads even after the fragment is detached
+    // (requireContext()/getContext() there throw or return null when the user switches tabs).
+    private Context mAppContext;
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        mAppContext = context.getApplicationContext();
+    }
+
+    // Run on the UI thread only while the fragment is still attached; avoids NPEs from getActivity()
+    // / getContext() returning null when a background request finishes after leaving the tab.
+    private void ui(Runnable r) {
+        android.app.Activity activity = getActivity();
+        if (activity != null) activity.runOnUiThread(() -> { if (isAdded()) r.run(); });
+    }
+
     private Disposable bleConnectionDisposable;
     private Disposable bleWifiDisposable;
 
@@ -109,15 +126,23 @@ public class NearestFragment extends Fragment {
                     RxBleDevice device = mListRxBleDevices.get(pos);
 
                     AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                    // Forget any connection from a previous session; Cancel must not write to a stale one.
+                    mRxBleConnection = null;
+
                     builder.setNegativeButton("Cancel", (cancelDialog, which) -> {
 
-                        if (mRxBleConnection != null) {
+                        if (mRxBleConnection == null) {
+                            // Still connecting: stop the attempt, otherwise the session would start
+                            // on the machine after the user already cancelled.
+                            if (bleConnectionDisposable != null) bleConnectionDisposable.dispose();
+                        } else {
                             Disposable dis = mRxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_CANCEL_SESSION}).toObservable().subscribe(ignored -> {
                             }, throwable -> {
                             }, () -> {
                                 bleConnectionDisposable.dispose();
+                                mRxBleConnection = null;
 
-                                if (getActivity() != null) getActivity().runOnUiThread(() -> {
+                                ui(() -> {
                                     mProgressBar.setVisibility(View.VISIBLE);
                                     mListRxBleDevices.clear();
                                     bleDeviceAdapter.notifyDataSetChanged();
@@ -144,7 +169,7 @@ public class NearestFragment extends Fragment {
                                     .flatMap(initResult -> {
                                         Log.d(TAG, "Session started");
 
-                                        if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Please select a product on the machine."));
+                                        ui(() -> dialog.setMessage("Please select a product on the machine."));
 
                                         mRxBleConnection = rxBleConnection;
 
@@ -156,8 +181,9 @@ public class NearestFragment extends Fragment {
 
                                                             if (notification[0] == EVT_SESSION_COMPLETE) {
                                                                 bleConnectionDisposable.dispose();
+                                                                mRxBleConnection = null;
 
-                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> {
+                                                                ui(() -> {
                                                                     dialog.setMessage("Session finished.");
                                                                     mProgressBar.setVisibility(View.VISIBLE);
                                                                     mListRxBleDevices.clear();
@@ -170,26 +196,27 @@ public class NearestFragment extends Fragment {
                                                             }
 
                                                             if (notification[0] == EVT_VEND_FAILURE) {
-                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Purchase failed. Please try again."));
+                                                                ui(() -> dialog.setMessage("Purchase failed. Please try again."));
                                                             }
 
                                                             if (notification[0] == EVT_VEND_SUCCESS) {
-                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Product dispensed successfully!"));
+                                                                ui(() -> dialog.setMessage("Product dispensed successfully!"));
                                                             }
 
                                                             if (notification[0] == EVT_VEND_REQUEST) {
-                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Processing payment..."));
+                                                                ui(() -> dialog.setMessage("Processing payment..."));
 
                                                                 boolean retry;
+                                                                int attempts = 0;
                                                                 do {
                                                                     retry = false;
 
                                                                     try {
 
-                                                                        LocationManager locationManager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+                                                                        LocationManager locationManager = (LocationManager) mAppContext.getSystemService(Context.LOCATION_SERVICE);
                                                                         Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
-                                                                        SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                                                                        SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                                                                         JSONObject body = new JSONObject();
                                                                         body.put("payload", Base64.encodeToString(notification, Base64.NO_WRAP));
@@ -236,19 +263,19 @@ public class NearestFragment extends Fragment {
                                                                                 editor.putString("auth_json", refreshResponse.body().string());
                                                                                 editor.apply();
 
-                                                                                retry = true;
+                                                                                retry = ++attempts < 2; // refresh once, never loop
                                                                             } else {
                                                                                 redirectToLogin();
                                                                             }
                                                                         }
 
-                                                                    } catch (JSONException | IOException e) {
+                                                                    } catch (JSONException | IOException | SecurityException e) {
                                                                         Log.e(TAG, "Payment request error", e);
                                                                     }
 
                                                                 } while (retry);
 
-                                                                if (getActivity() != null) getActivity().runOnUiThread(() -> dialog.setMessage("Payment failed."));
+                                                                ui(() -> dialog.setMessage("Payment failed."));
 
                                                                 return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_CANCEL_SESSION}).toObservable();
                                                             }
@@ -301,12 +328,26 @@ public class NearestFragment extends Fragment {
                 builder.setPositiveButton("Send", (dialog, which) -> {
 
                     String ssid = editTextSsid.getText().toString().trim();
-                    String password = editTextPassword.getText().toString().trim();
+                    // Not trimmed: spaces at the ends are valid in a Wi-Fi password.
+                    String password = editTextPassword.getText().toString();
 
                     if (ssid.isEmpty()) {
                         Toast.makeText(getContext(), "Select SSID", Toast.LENGTH_SHORT).show();
                         return;
                     }
+
+                    // Fixed-size BLE frames: [cmd][text][\0]. Longer input overflowed the array and crashed.
+                    if (ssid.getBytes(StandardCharsets.UTF_8).length > 20) {
+                        Toast.makeText(getContext(), "SSID too long (max 20 characters)", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    if (password.getBytes(StandardCharsets.UTF_8).length > 61) {
+                        Toast.makeText(getContext(), "Password too long (max 61 characters)", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    int pos = holder.getAdapterPosition();
+                    if (pos == RecyclerView.NO_POSITION) return;
 
                     byte[] payloadSsid = new byte[22];
                     {
@@ -328,7 +369,7 @@ public class NearestFragment extends Fragment {
                         payloadPswd[1 + arrPswd.length] = 0x00;
                     }
 
-                    RxBleDevice rxBleDevice = mListRxBleDevices.get(holder.getAdapterPosition());
+                    RxBleDevice rxBleDevice = mListRxBleDevices.get(pos);
                     bleWifiDisposable = rxBleDevice.establishConnection(false)
                             .flatMap(rxBleConnection -> {
                                 return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSsid)
@@ -387,9 +428,10 @@ public class NearestFragment extends Fragment {
 
     private void fetchNearestData() {
 
-        RxBleClient rxBleClient = RxBleClient.create(getContext());
+        RxBleClient rxBleClient = RxBleClient.create(mAppContext);
 
-        mListRxBleDevices.clear();
+        // Collect off-thread, swap on the UI thread (background list mutation crashes RecyclerView).
+        List<RxBleDevice> found = new ArrayList<>();
         Disposable scanDisposable = rxBleClient.scanBleDevices(new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build())
                 .take(3, TimeUnit.SECONDS)
                 .filter(scanResult -> scanResult.getBleDevice().getName() != null
@@ -399,14 +441,21 @@ public class NearestFragment extends Fragment {
                 .distinct(scanResult -> scanResult.getBleDevice().getMacAddress())
                 .subscribe(scanResult -> {
                     Log.d(TAG, scanResult.getBleDevice().getName());
-                    mListRxBleDevices.add(scanResult.getBleDevice());
+                    synchronized (found) { found.add(scanResult.getBleDevice()); }
                 }, error -> {
                     Log.e(TAG, "BLE scan error", error);
+                    // e.g. Bluetooth off / permission missing: don't leave the spinner running forever.
+                    ui(() -> {
+                        mSwipeRefreshLayout.setRefreshing(false);
+                        mProgressBar.setVisibility(View.GONE);
+                        Toast.makeText(getContext(), "Bluetooth scan failed. Check that Bluetooth is on.", Toast.LENGTH_LONG).show();
+                    });
                 }, () -> {
 
-                    if (getActivity() != null)
-                        getActivity().runOnUiThread(() -> {
+                    ui(() -> {
 
+                            mListRxBleDevices.clear();
+                            synchronized (found) { mListRxBleDevices.addAll(found); }
                             bleDeviceAdapter.notifyDataSetChanged();
                             mSwipeRefreshLayout.setRefreshing(false);
                             mProgressBar.setVisibility(View.GONE);
@@ -442,10 +491,9 @@ public class NearestFragment extends Fragment {
     }
 
     private void redirectToLogin() {
-        if (getActivity() == null) return;
-        getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
+        mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
                 .edit().remove("auth_json").apply();
-        getActivity().runOnUiThread(() -> {
+        ui(() -> {
             Intent intent = new Intent(getActivity(), LoginActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);

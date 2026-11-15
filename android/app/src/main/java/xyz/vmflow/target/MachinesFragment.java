@@ -53,6 +53,23 @@ public class MachinesFragment extends Fragment {
 
     private View mProgressBar;
 
+    // Application context: safe to use from background threads even after the fragment is detached
+    // (requireContext()/getContext() there throw or return null when the user switches tabs).
+    private Context mAppContext;
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        mAppContext = context.getApplicationContext();
+    }
+
+    // Run on the UI thread only while the fragment is still attached; avoids NPEs from getActivity()
+    // / getContext() returning null when a background request finishes after leaving the tab.
+    private void ui(Runnable r) {
+        android.app.Activity activity = getActivity();
+        if (activity != null) activity.runOnUiThread(() -> { if (isAdded()) r.run(); });
+    }
+
     class ViewHolder_ extends RecyclerView.ViewHolder {
         TextView tvName, tvCategory, tvLocation;
         ImageButton btnEdit;
@@ -74,7 +91,7 @@ public class MachinesFragment extends Fragment {
 
             holder.btnEdit.setOnClickListener(v -> {
                 int pos = holder.getAdapterPosition();
-                if (pos != RecyclerView.NO_ID)
+                if (pos != RecyclerView.NO_POSITION)
                     showMachineFormDialog(mListMachines.get(pos));
             });
 
@@ -112,8 +129,7 @@ public class MachinesFragment extends Fragment {
             ExecutorService executor = Executors.newSingleThreadExecutor();
             executor.execute(() -> {
                 fetchMachinesData();
-                if (getActivity() != null)
-                    getActivity().runOnUiThread(() -> swipeRefreshLayout.setRefreshing(false));
+                ui(() -> swipeRefreshLayout.setRefreshing(false));
             });
         });
     }
@@ -174,10 +190,11 @@ public class MachinesFragment extends Fragment {
 
     private void createMachine(String name, String category, String location) {
         boolean retry;
+        int attempts = 0;
         do {
             retry = false;
             try {
-                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 JSONObject body = new JSONObject();
@@ -198,17 +215,15 @@ public class MachinesFragment extends Fragment {
                 if (response.isSuccessful()) {
                     JSONArray arr = new JSONArray(response.body().string());
                     JSONObject created = arr.getJSONObject(0);
-                    mListMachines.add(created);
-                    if (getActivity() != null)
-                        getActivity().runOnUiThread(() -> {
+                    ui(() -> {
+                            mListMachines.add(created);
                             itemAdapter_.notifyItemInserted(mListMachines.size() - 1);
                             Toast.makeText(getContext(), "Machine created", Toast.LENGTH_SHORT).show();
                         });
                 } else if (response.code() == 401) {
-                    retry = refreshToken(prefs, jsonAuth);
+                    retry = refreshToken(prefs, jsonAuth) && ++attempts < 2; // refresh once, never loop
                 } else {
-                    if (getActivity() != null)
-                        getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
                 }
 
             } catch (JSONException | IOException e) {
@@ -219,10 +234,11 @@ public class MachinesFragment extends Fragment {
 
     private void updateMachine(String id, String name, String category, String location, JSONObject original) {
         boolean retry;
+        int attempts = 0;
         do {
             retry = false;
             try {
-                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 JSONObject body = new JSONObject();
@@ -243,19 +259,15 @@ public class MachinesFragment extends Fragment {
                     original.put("name", name);
                     original.put("category", category);
                     original.put("location_name", location);
-                    int pos = mListMachines.indexOf(original);
-                    if (getActivity() != null) {
-                        int finalPos = pos;
-                        getActivity().runOnUiThread(() -> {
-                            if (finalPos >= 0) itemAdapter_.notifyItemChanged(finalPos);
-                            Toast.makeText(getContext(), "Saved", Toast.LENGTH_SHORT).show();
-                        });
-                    }
+                    ui(() -> {
+                        int pos = mListMachines.indexOf(original);
+                        if (pos >= 0) itemAdapter_.notifyItemChanged(pos);
+                        Toast.makeText(getContext(), "Saved", Toast.LENGTH_SHORT).show();
+                    });
                 } else if (response.code() == 401) {
-                    retry = refreshToken(prefs, jsonAuth);
+                    retry = refreshToken(prefs, jsonAuth) && ++attempts < 2; // refresh once, never loop
                 } else {
-                    if (getActivity() != null)
-                        getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
                 }
 
             } catch (JSONException | IOException e) {
@@ -266,10 +278,11 @@ public class MachinesFragment extends Fragment {
 
     private void fetchMachinesData() {
         boolean retry;
+        int attempts = 0;
         do {
             retry = false;
             try {
-                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
@@ -281,16 +294,19 @@ public class MachinesFragment extends Fragment {
                 Response response = HTTP_CLIENT.newCall(request).execute();
                 if (response.isSuccessful()) {
                     JSONArray arr = new JSONArray(response.body().string());
-                    mListMachines.clear();
+                    // Build off-thread, swap on the UI thread (background list mutation crashes RecyclerView).
+                    List<JSONObject> fresh = new ArrayList<>();
                     for (int i = 0; i < arr.length(); i++)
-                        mListMachines.add(arr.getJSONObject(i));
-                    if (getActivity() != null)
-                        getActivity().runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
+                        fresh.add(arr.getJSONObject(i));
+                    ui(() -> {
+                        mListMachines.clear();
+                        mListMachines.addAll(fresh);
+                        itemAdapter_.notifyDataSetChanged();
+                    });
                 } else if (response.code() == 401) {
-                    retry = refreshToken(prefs, jsonAuth);
+                    retry = refreshToken(prefs, jsonAuth) && ++attempts < 2; // refresh once, never loop
                 } else {
-                    if (getActivity() != null)
-                        getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
                 }
 
             } catch (JSONException | IOException e) {
@@ -298,8 +314,7 @@ public class MachinesFragment extends Fragment {
             }
         } while (retry);
 
-        if (getActivity() != null)
-            getActivity().runOnUiThread(() -> mProgressBar.setVisibility(View.GONE));
+        ui(() -> mProgressBar.setVisibility(View.GONE));
     }
 
     private static String opt(JSONObject obj, String key) {
@@ -335,10 +350,9 @@ public class MachinesFragment extends Fragment {
     }
 
     private void redirectToLogin() {
-        if (getActivity() == null) return;
-        requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
+        mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
                 .edit().remove("auth_json").apply();
-        getActivity().runOnUiThread(() -> {
+        ui(() -> {
             Intent intent = new Intent(getActivity(), LoginActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);

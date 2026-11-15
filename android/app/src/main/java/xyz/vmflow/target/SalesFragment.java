@@ -51,6 +51,23 @@ public class SalesFragment extends Fragment {
     private TextView tvSalesToday;
     private TextView tvMachinesOnline;
 
+    // Application context: safe to use from background threads even after the fragment is detached
+    // (requireContext()/getContext() there throw or return null when the user switches tabs).
+    private Context mAppContext;
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        mAppContext = context.getApplicationContext();
+    }
+
+    // Run on the UI thread only while the fragment is still attached; avoids NPEs from getActivity()
+    // / getContext() returning null when a background request finishes after leaving the tab.
+    private void ui(Runnable r) {
+        android.app.Activity activity = getActivity();
+        if (activity != null) activity.runOnUiThread(() -> { if (isAdded()) r.run(); });
+    }
+
     class ViewHolder_ extends RecyclerView.ViewHolder {
 
         TextView saleChannelText;
@@ -138,8 +155,7 @@ public class SalesFragment extends Fragment {
             executor.execute(() -> {
                 fetchSalesData();
                 fetchMetrics();
-                if (getActivity() != null)
-                    getActivity().runOnUiThread(() -> swipeRefreshLayout.setRefreshing(false));
+                ui(() -> swipeRefreshLayout.setRefreshing(false));
             });
         });
     }
@@ -152,7 +168,7 @@ public class SalesFragment extends Fragment {
     private void fetchMetrics() {
         if (!isAdded()) return;
         try {
-            SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+            SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
             JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
             String bearer = "Bearer " + jsonAuth.getString("access_token");
 
@@ -190,12 +206,10 @@ public class SalesFragment extends Fragment {
             String todayStr = currencyFormat.format(salesToday);
             String onlineStr = machinesCounts[0] + " / " + machinesCounts[1];
 
-            if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> {
-                    tvSalesToday.setText(todayStr);
-                    tvMachinesOnline.setText(onlineStr);
-                });
-            }
+            ui(() -> {
+                tvSalesToday.setText(todayStr);
+                tvMachinesOnline.setText(onlineStr);
+            });
 
         } catch (JSONException | InterruptedException | java.util.concurrent.ExecutionException e) {
             e.printStackTrace();
@@ -228,11 +242,12 @@ public class SalesFragment extends Fragment {
         if (!isAdded()) return;
 
         boolean retry;
+        int attempts = 0;
         do {
             retry = false;
 
             try {
-                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
@@ -250,13 +265,18 @@ public class SalesFragment extends Fragment {
                     try {
                         JSONArray jsonArray = new JSONArray(body);
 
-                        mListSales.clear();
+                        // Build off-thread, swap on the UI thread: mutating the adapter's list from a
+                        // background thread crashes RecyclerView ("Inconsistency detected").
+                        List<JSONObject> fresh = new ArrayList<>();
                         for (int i = 0; i < jsonArray.length(); i++) {
-                            mListSales.add(jsonArray.getJSONObject(i));
+                            fresh.add(jsonArray.getJSONObject(i));
                         }
 
-                        if (getActivity() != null)
-                            getActivity().runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
+                        ui(() -> {
+                            mListSales.clear();
+                            mListSales.addAll(fresh);
+                            itemAdapter_.notifyDataSetChanged();
+                        });
 
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -278,13 +298,12 @@ public class SalesFragment extends Fragment {
                         SharedPreferences.Editor editor = prefs.edit();
                         editor.putString("auth_json", response_.body().string());
                         editor.apply();
-                        retry = true;
+                        retry = ++attempts < 2; // one refresh only; a still-401 token must not loop forever
                     } else {
                         redirectToLogin();
                     }
                 } else {
-                    if (getActivity() != null)
-                        getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
                 }
 
             } catch (JSONException | IOException e) {
@@ -293,8 +312,7 @@ public class SalesFragment extends Fragment {
 
         } while (retry);
 
-        if (getActivity() != null)
-            getActivity().runOnUiThread(() -> mProgressBar.setVisibility(View.GONE));
+        ui(() -> mProgressBar.setVisibility(View.GONE));
     }
 
     @Override
@@ -311,10 +329,9 @@ public class SalesFragment extends Fragment {
     }
 
     private void redirectToLogin() {
-        if (getActivity() == null) return;
-        getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
+        mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
                 .edit().remove("auth_json").apply();
-        getActivity().runOnUiThread(() -> {
+        ui(() -> {
             Intent intent = new Intent(getActivity(), LoginActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);

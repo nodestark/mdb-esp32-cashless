@@ -63,6 +63,23 @@ public class EmbeddesFragment extends Fragment {
     private RxBleClient mRxBleClient;
     private View mProgressBar;
 
+    // Application context: safe to use from background threads even after the fragment is detached
+    // (requireContext()/getContext() there throw or return null when the user switches tabs).
+    private Context mAppContext;
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        mAppContext = context.getApplicationContext();
+    }
+
+    // Run on the UI thread only while the fragment is still attached; avoids NPEs from getActivity()
+    // / getContext() returning null when a background request finishes after leaving the tab.
+    private void ui(Runnable r) {
+        android.app.Activity activity = getActivity();
+        if (activity != null) activity.runOnUiThread(() -> { if (isAdded()) r.run(); });
+    }
+
     class ViewHolder_ extends RecyclerView.ViewHolder {
         View viewDeviceOffline;
         TextView deviceNameText;
@@ -89,7 +106,7 @@ public class EmbeddesFragment extends Fragment {
 
             holder.btnLinkMachine.setOnClickListener(v -> {
                 int pos = holder.getAdapterPosition();
-                if (pos != RecyclerView.NO_ID)
+                if (pos != RecyclerView.NO_POSITION)
                     showLinkMachineDialog(mListEmbeddeds.get(pos), pos);
             });
 
@@ -104,6 +121,25 @@ public class EmbeddesFragment extends Fragment {
                 builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
                 builder.setPositiveButton("Send", (dialog, which) -> {
 
+                    // Validate on the UI thread: an empty or "1,50" amount used to throw
+                    // NumberFormatException on the worker thread, which crashed the app.
+                    AutoCompleteTextView editTextAmount = dialogView.findViewById(R.id.editTextAmount);
+                    float amount;
+                    try {
+                        amount = Float.parseFloat(editTextAmount.getText().toString().trim().replace(',', '.'));
+                    } catch (NumberFormatException e) {
+                        amount = -1;
+                    }
+                    if (amount <= 0) {
+                        Toast.makeText(getContext(), "Invalid amount", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    final float creditAmount = amount;
+
+                    int pos = holder.getAdapterPosition();
+                    if (pos == RecyclerView.NO_POSITION) return;
+                    JSONObject jsonEmbedded = mListEmbeddeds.get(pos);
+
                     ProgressDialog progressDialog = new ProgressDialog(getContext());
                     progressDialog.setMessage("Loading...");
                     progressDialog.setCancelable(false);
@@ -112,21 +148,16 @@ public class EmbeddesFragment extends Fragment {
                     ExecutorService executor = Executors.newSingleThreadExecutor();
                     executor.execute(() -> {
 
-                        AutoCompleteTextView editTextAmount = dialogView.findViewById(R.id.editTextAmount);
-
-                        Float amount = Float.valueOf( editTextAmount.getText().toString() );
-
                         boolean retry;
+                        int attempts = 0;
                         do {
                             retry = false;
 
                             try {
-                                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-
-                                JSONObject jsonEmbedded = mListEmbeddeds.get(holder.getAdapterPosition());
+                                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                                 JSONObject jsonObjectSend= new JSONObject();
-                                jsonObjectSend.put("amount", amount.floatValue() );
+                                jsonObjectSend.put("amount", creditAmount );
                                 jsonObjectSend.put("subdomain", jsonEmbedded.getInt("subdomain") );
 
                                 RequestBody requestBody = RequestBody.create( jsonObjectSend.toString(), MediaType.parse("application/json") );
@@ -144,7 +175,7 @@ public class EmbeddesFragment extends Fragment {
                                 if(response.isSuccessful()){
 
                                     Log.d(TAG, response.body().string());
-                                    getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Success", Toast.LENGTH_SHORT).show());
+                                    ui(() -> Toast.makeText(getContext(), "Success", Toast.LENGTH_SHORT).show());
 
                                 } else if (response.code() == 401) {
 
@@ -163,12 +194,12 @@ public class EmbeddesFragment extends Fragment {
                                         editor.putString("auth_json", response_.body().string());
                                         editor.apply();
 
-                                        retry = true;
+                                        retry = ++attempts < 2; // refresh once, never loop
                                     } else {
                                         redirectToLogin();
                                     }
                                 } else {
-                                    getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
                                 }
 
                             } catch (JSONException | IOException e) {
@@ -192,17 +223,14 @@ public class EmbeddesFragment extends Fragment {
 
             JSONObject jsonEmbedded = mListEmbeddeds.get(position);
 
-            try {
-                holder.deviceNameText.setText(String.format("Device: %06d", jsonEmbedded.getInt("subdomain")));
+            // opt* instead of get*: a row missing status/subdomain (e.g. just registered) used to throw and crash.
+            holder.deviceNameText.setText(String.format("Device: %06d", jsonEmbedded.optInt("subdomain")));
 
-                int color = ContextCompat.getColor(getContext(), "online".equals(jsonEmbedded.getString("status")) ? R.color.green : R.color.red);
-                holder.viewDeviceOffline.setBackgroundColor(color);
+            int color = ContextCompat.getColor(holder.itemView.getContext(), "online".equals(jsonEmbedded.optString("status")) ? R.color.green : R.color.red);
+            holder.viewDeviceOffline.setBackgroundColor(color);
 
-                JSONObject machine = jsonEmbedded.optJSONObject("machine");
-                holder.tvMachineName.setText(machine != null ? machine.optString("name", "—") : "No machine");
-            } catch (JSONException e) {
-                throw new RuntimeException(e);
-            }
+            JSONObject machine = jsonEmbedded.optJSONObject("machine");
+            holder.tvMachineName.setText(machine != null ? machine.optString("name", "—") : "No machine");
         }
 
         @Override
@@ -241,7 +269,7 @@ public class EmbeddesFragment extends Fragment {
                     .subscribe( EmbeddesFragment.this::rxBleInstall, th -> {
 
                         if (th instanceof TimeoutException) {
-                            getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Embedded not found", Toast.LENGTH_SHORT).show());
+                            ui(() -> Toast.makeText(getContext(), "Embedded not found", Toast.LENGTH_SHORT).show());
                         }
                     });
         });
@@ -254,7 +282,7 @@ public class EmbeddesFragment extends Fragment {
 
                 fetchEmbeddedsData();
 
-                getActivity().runOnUiThread(() -> swipeRefreshLayout.setRefreshing(false));
+                ui(() -> swipeRefreshLayout.setRefreshing(false));
             });
         });
     }
@@ -262,11 +290,12 @@ public class EmbeddesFragment extends Fragment {
     private void fetchEmbeddedsData() {
 
         boolean retry;
+        int attempts = 0;
         do {
             retry = false; // controls whether the request needs to be retried
 
             try {
-                SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
@@ -283,13 +312,17 @@ public class EmbeddesFragment extends Fragment {
                     try {
                         JSONArray jsonArray = new JSONArray(response.body().string());
 
-                        mListEmbeddeds.clear();
+                        // Build off-thread, swap on the UI thread (background list mutation crashes RecyclerView).
+                        List<JSONObject> fresh = new ArrayList<>();
                         for (int i = 0; i < jsonArray.length(); i++) {
-                            mListEmbeddeds.add(jsonArray.getJSONObject(i));
+                            fresh.add(jsonArray.getJSONObject(i));
                         }
 
-                        if(getActivity() != null)
-                            getActivity().runOnUiThread(() -> itemAdapter_.notifyDataSetChanged());
+                        ui(() -> {
+                            mListEmbeddeds.clear();
+                            mListEmbeddeds.addAll(fresh);
+                            itemAdapter_.notifyDataSetChanged();
+                        });
 
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -312,12 +345,11 @@ public class EmbeddesFragment extends Fragment {
                         editor.putString("auth_json", response_.body().string());
                         editor.apply();
 
-                        retry = true;
+                        retry = ++attempts < 2; // refresh once, never loop
                     } else {
                         redirectToLogin();
                     }
-                } else if(getActivity() != null)
-                    getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                } else ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
 
             } catch (JSONException | IOException e) {
                 e.printStackTrace();
@@ -325,8 +357,7 @@ public class EmbeddesFragment extends Fragment {
 
         } while(retry);
 
-        if(getActivity() != null)
-            getActivity().runOnUiThread(() -> mProgressBar.setVisibility(View.GONE) );
+        ui(() -> mProgressBar.setVisibility(View.GONE) );
     }
 
     private void rxBleInstall(ScanResult scanResult) {
@@ -338,11 +369,12 @@ public class EmbeddesFragment extends Fragment {
         executor.execute(() -> {
 
             boolean retry;
+            int attempts = 0;
             do {
                 retry = false;
 
                 try {
-                    SharedPreferences prefs = getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                    SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
 
                     JSONObject jsonObject= new JSONObject();
                     jsonObject.put("mac_address_", rxBleDevice.getMacAddress());
@@ -398,23 +430,22 @@ public class EmbeddesFragment extends Fragment {
                                         err -> {
                                             Log.e(TAG, "BLE connection or write error", err);
 
-                                            getActivity().runOnUiThread(() ->
+                                            ui(() ->
                                                     Toast.makeText(getContext(), "BLE error", Toast.LENGTH_SHORT).show()
                                             );
                                         }, () -> {}
                                 );
 
-                        mListEmbeddeds.add(jsonNewEmbedded);
-
-                        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-                        builder.setTitle("Registered!");
-                        builder.setMessage(jsonNewEmbedded.getString("subdomain"));
-                        builder.setPositiveButton("Ok", null );
-
-                        getActivity().runOnUiThread(() -> {
-                            itemAdapter_.notifyDataSetChanged();
-                            builder.create().show();
-                        } );
+                        String newSubdomain = jsonNewEmbedded.optString("subdomain");
+                        ui(() -> {
+                            mListEmbeddeds.add(jsonNewEmbedded);
+                            itemAdapter_.notifyItemInserted(mListEmbeddeds.size() - 1);
+                            new AlertDialog.Builder(getContext())
+                                    .setTitle("Registered!")
+                                    .setMessage(newSubdomain)
+                                    .setPositiveButton("Ok", null)
+                                    .show();
+                        });
 
                     } else if (response.code() == 401) {
 
@@ -433,12 +464,12 @@ public class EmbeddesFragment extends Fragment {
                             editor.putString("auth_json", response_.body().string());
                             editor.apply();
 
-                            retry = true;
+                            retry = ++attempts < 2; // refresh once, never loop
                         } else {
                             redirectToLogin();
                         }
                     } else {
-                        getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                        ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
                     }
 
                 } catch (JSONException | IOException e) {
@@ -452,7 +483,7 @@ public class EmbeddesFragment extends Fragment {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             try {
-                SharedPreferences prefs = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
                 JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
 
                 Request request = new Request.Builder()
@@ -483,7 +514,7 @@ public class EmbeddesFragment extends Fragment {
                 }
 
                 JSONArray finalMachines = machines;
-                getActivity().runOnUiThread(() -> {
+                ui(() -> {
                     int[] picked = {selectedIndex[0]};
                     new AlertDialog.Builder(getContext())
                             .setTitle("Link machine")
@@ -492,7 +523,7 @@ public class EmbeddesFragment extends Fragment {
                                 ExecutorService exec2 = Executors.newSingleThreadExecutor();
                                 exec2.execute(() -> {
                                     try {
-                                        SharedPreferences p2 = requireContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
+                                        SharedPreferences p2 = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
                                         JSONObject auth2 = new JSONObject(p2.getString("auth_json", "{}"));
 
                                         JSONObject body = new JSONObject();
@@ -521,13 +552,12 @@ public class EmbeddesFragment extends Fragment {
                                                 embedded.put("machine_id", m.getString("id"));
                                                 embedded.put("machine", m);
                                             }
-                                            if (getActivity() != null)
-                                                getActivity().runOnUiThread(() -> {
+                                            ui(() -> {
                                                     itemAdapter_.notifyItemChanged(embeddedPos);
                                                     Toast.makeText(getContext(), "Vinculado", Toast.LENGTH_SHORT).show();
                                                 });
                                         } else if (getActivity() != null) {
-                                            getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Erro: " + res.code(), Toast.LENGTH_SHORT).show());
+                                            ui(() -> Toast.makeText(getContext(), "Erro: " + res.code(), Toast.LENGTH_SHORT).show());
                                         }
                                     } catch (JSONException | IOException e) {
                                         e.printStackTrace();
@@ -545,10 +575,9 @@ public class EmbeddesFragment extends Fragment {
     }
 
     private void redirectToLogin() {
-        if (getActivity() == null) return;
-        getContext().getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
+        mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
                 .edit().remove("auth_json").apply();
-        getActivity().runOnUiThread(() -> {
+        ui(() -> {
             Intent intent = new Intent(getActivity(), LoginActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
