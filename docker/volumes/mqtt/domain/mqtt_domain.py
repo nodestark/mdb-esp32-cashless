@@ -210,26 +210,36 @@ def on_message(client, userdata, msg):
                 embedded = res.data[0]
 
                 fields = verify_signed_line(embedded["passkey"], line, f"{domain_id}/vend_fail")
-                if fields and len(fields) == 1:
-                    # "<price>,<item>[,<seq>]"
+                if not fields:
+                    return
+                if len(fields) == 1:
+                    # Legacy firmware: "<raw price>,<item>[,<seq>]:<ts>", unscaled MDB price.
                     parts = fields[0].split(",")
-                    if len(parts) in (2, 3):
-                        vf_price = int(parts[0])
-                        vf_item  = int(parts[1])
+                    vf_price = None
+                else:
+                    # "<price>:<item>[:<seq>]:<ts>", price in 1/100 units (same as vend_success).
+                    parts = fields
+                    vf_price = from_scale_factor(int(parts[0]), 1, 2)
+                if len(parts) not in (2, 3):
+                    print(f" [{domain_id}/vend_fail] rejected: malformed {line!r}")
+                    return
 
-                        payload = {"item_price": vf_price, "item_number": vf_item}
-                        if len(parts) == 3:
-                            payload["seq"] = int(parts[2])
-                            supabase.table("sales").update({"status": "failed"}) \
-                                .eq("seq", payload["seq"]).eq("embedded_id", embedded["id"]) \
-                                .eq("status", "pending").execute()
+                vf_item = int(parts[1])
+                payload = {"item_price": vf_price if vf_price is not None else int(parts[0]),
+                           "item_number": vf_item}
+                if len(parts) == 3:
+                    payload["seq"] = int(parts[2])
+                    # Record which item failed: the pending row has item_number NULL.
+                    supabase.table("sales").update({"status": "failed", "item_number": vf_item}) \
+                        .eq("seq", payload["seq"]).eq("embedded_id", embedded["id"]) \
+                        .eq("status", "pending").execute()
 
-                        supabase.table("metrics").insert([{
-                            "embedded_id": embedded["id"],
-                            "machine_id":  embedded["machine_id"],
-                            "name":        "vend_fail",
-                            "payload":     payload
-                        }]).execute()
+                supabase.table("metrics").insert([{
+                    "embedded_id": embedded["id"],
+                    "machine_id":  embedded["machine_id"],
+                    "name":        "vend_fail",
+                    "payload":     payload
+                }]).execute()
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 

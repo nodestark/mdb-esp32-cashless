@@ -476,11 +476,15 @@ void mdb_cashless_task(void *pvParameters) {
 				ble_encode_with_passkey(0x0c, item_price, item_number, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
 
+				// Same wire format as vend_success: "<price>:<item>[:<seq>]:<ts>", price in
+				// 1/100 units. (Was "<raw price>,<item>[,<seq>]:<ts>" with an unscaled price.)
+				uint32_t price_wire = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
+
                 char topic[64], msg[80], line[176];
                 if (session_seq)
-                    snprintf(msg, sizeof(msg), "%u,%u,%lu:%lld", item_price, item_number, (unsigned long) session_seq, (long long) time(NULL));
+                    snprintf(msg, sizeof(msg), "%lu:%u:%lu:%lld", (unsigned long) price_wire, item_number, (unsigned long) session_seq, (long long) time(NULL));
                 else
-                    snprintf(msg, sizeof(msg), "%u,%u:%lld", item_price, item_number, (long long) time(NULL));
+                    snprintf(msg, sizeof(msg), "%lu:%u:%lld", (unsigned long) price_wire, item_number, (long long) time(NULL));
                 rpc_sign_text(msg, line, sizeof(line));
                 snprintf(topic, sizeof(topic), "domain.vmflow.xyz/%s/vend_fail", my_subdomain);
                 esp_mqtt_client_enqueue(mqtt_client, topic, line, 0, 1, 0, 1);
