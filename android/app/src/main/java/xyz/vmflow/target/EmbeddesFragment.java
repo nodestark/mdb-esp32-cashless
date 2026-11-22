@@ -3,8 +3,6 @@ package xyz.vmflow.target;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -43,17 +41,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import io.reactivex.rxjava3.disposables.Disposable;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
-import xyz.vmflow.BuildConfig;
 import xyz.vmflow.R;
 
 public class EmbeddesFragment extends Fragment {
     private static final String TAG = "EmbeddesFragment";
-    private static final OkHttpClient HTTP_CLIENT_EMB = new OkHttpClient();
 
     private static final UUID WRITE_CHARACTERISTIC_UUID = UUID.fromString("c9af9c76-46de-11ed-b878-0242ac120002");
 
@@ -147,69 +140,32 @@ public class EmbeddesFragment extends Fragment {
 
                     ExecutorService executor = Executors.newSingleThreadExecutor();
                     executor.execute(() -> {
+                        try {
+                            JSONObject jsonObjectSend = new JSONObject();
+                            jsonObjectSend.put("amount", creditAmount);
+                            jsonObjectSend.put("subdomain", jsonEmbedded.getInt("subdomain"));
 
-                        boolean retry;
-                        int attempts = 0;
-                        do {
-                            retry = false;
-
-                            try {
-                                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-
-                                JSONObject jsonObjectSend= new JSONObject();
-                                jsonObjectSend.put("amount", creditAmount );
-                                jsonObjectSend.put("subdomain", jsonEmbedded.getInt("subdomain") );
-
-                                RequestBody requestBody = RequestBody.create( jsonObjectSend.toString(), MediaType.parse("application/json") );
-
-                                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
-
-                                Request request = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/functions/v1/send-credit")
-                                        .post(requestBody)
-                                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                                        .addHeader("Content-Type", "application/json")
-                                        .build();
-
-                                Response response = new OkHttpClient().newCall(request).execute();
-                                if(response.isSuccessful()){
-
-                                    Log.d(TAG, response.body().string());
+                            Request request = Api.request("/functions/v1/send-credit").post(Api.json(jsonObjectSend)).build();
+                            try (Response response = Api.client(mAppContext).newCall(request).execute()) {
+                                String body = response.body().string();
+                                if (response.isSuccessful()) {
+                                    Log.d(TAG, body);
                                     ui(() -> Toast.makeText(getContext(), "Success", Toast.LENGTH_SHORT).show());
-
-                                } else if (response.code() == 401) {
-
-                                    RequestBody requestBody_ = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
-
-                                    Request request_ = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
-                                            .post(requestBody_)
-                                            .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                                            .addHeader("Content-Type", "application/json")
-                                            .build();
-
-                                    Response response_ = new OkHttpClient().newCall(request_).execute();
-                                    if (response_.isSuccessful()) {
-
-                                        SharedPreferences.Editor editor = prefs.edit();
-                                        editor.putString("auth_json", response_.body().string());
-                                        editor.apply();
-
-                                        retry = ++attempts < 2; // refresh once, never loop
-                                    } else {
-                                        redirectToLogin();
-                                    }
+                                } else if (Api.isSessionExpired(mAppContext, response)) {
+                                    Api.redirectToLogin(getActivity());
                                 } else {
-                                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                                    String reason = Api.errorMessage(response, body);
+                                    ui(() -> Toast.makeText(getContext(), "Error: " + reason, Toast.LENGTH_LONG).show());
                                 }
-
-                            } catch (JSONException | IOException e) {
-                                e.printStackTrace();
                             }
-
-                        } while(retry);
-
-                        progressDialog.dismiss();
-                    } );
+                        } catch (JSONException | IOException e) {
+                            Log.e(TAG, "send-credit failed", e);
+                            ui(() -> Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show());
+                        } finally {
+                            ui(progressDialog::dismiss);
+                        }
+                    });
+                    executor.shutdown();
                 });
 
                 AlertDialog dialog = builder.create();
@@ -288,74 +244,34 @@ public class EmbeddesFragment extends Fragment {
     }
 
     private void fetchEmbeddedsData() {
+        try {
+            Request request = Api.request("/rest/v1/embedded?select=id,subdomain,status,machine_id,machine:machines(id,name)&order=subdomain").build();
+            try (Response response = Api.client(mAppContext).newCall(request).execute()) {
+                String body = response.body().string();
+                if (response.isSuccessful()) {
+                    JSONArray jsonArray = new JSONArray(body);
 
-        boolean retry;
-        int attempts = 0;
-        do {
-            retry = false; // controls whether the request needs to be retried
-
-            try {
-                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-
-                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
-
-                Request request = new Request.Builder()
-                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded?select=id,subdomain,status,machine_id,machine:machines(id,name)&order=subdomain")
-                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                        .addHeader("Content-Type", "application/json")
-                        .build();
-
-                Response response = HTTP_CLIENT_EMB.newCall(request).execute();
-                if(response.isSuccessful()){
-
-                    try {
-                        JSONArray jsonArray = new JSONArray(response.body().string());
-
-                        // Build off-thread, swap on the UI thread (background list mutation crashes RecyclerView).
-                        List<JSONObject> fresh = new ArrayList<>();
-                        for (int i = 0; i < jsonArray.length(); i++) {
-                            fresh.add(jsonArray.getJSONObject(i));
-                        }
-
-                        ui(() -> {
-                            mListEmbeddeds.clear();
-                            mListEmbeddeds.addAll(fresh);
-                            itemAdapter_.notifyDataSetChanged();
-                        });
-
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                    // Build off-thread, swap on the UI thread (background list mutation crashes RecyclerView).
+                    List<JSONObject> fresh = new ArrayList<>();
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        fresh.add(jsonArray.getJSONObject(i));
                     }
 
-                } else if (response.code() == 401) {
-
-                    RequestBody requestBody = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
-
-                    Request request_ = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
-                            .post(requestBody)
-                            .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                            .addHeader("Content-Type", "application/json")
-                            .build();
-
-                    Response response_ = new OkHttpClient().newCall(request_).execute();
-                    if (response_.isSuccessful()) {
-
-                        SharedPreferences.Editor editor = prefs.edit();
-                        editor.putString("auth_json", response_.body().string());
-                        editor.apply();
-
-                        retry = ++attempts < 2; // refresh once, never loop
-                    } else {
-                        redirectToLogin();
-                    }
-                } else ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
-
-            } catch (JSONException | IOException e) {
-                e.printStackTrace();
+                    ui(() -> {
+                        mListEmbeddeds.clear();
+                        mListEmbeddeds.addAll(fresh);
+                        itemAdapter_.notifyDataSetChanged();
+                    });
+                } else if (Api.isSessionExpired(mAppContext, response)) {
+                    Api.redirectToLogin(getActivity());
+                } else {
+                    String reason = Api.errorMessage(response, body);
+                    ui(() -> Toast.makeText(getContext(), "Error: " + reason, Toast.LENGTH_SHORT).show());
+                }
             }
-
-        } while(retry);
+        } catch (JSONException | IOException e) {
+            Log.e(TAG, "fetch embedded failed", e);
+        }
 
         ui(() -> mProgressBar.setVisibility(View.GONE) );
     }
@@ -367,132 +283,99 @@ public class EmbeddesFragment extends Fragment {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
+            try {
+                JSONObject jsonObject = new JSONObject();
+                jsonObject.put("mac_address_", rxBleDevice.getMacAddress());
 
-            boolean retry;
-            int attempts = 0;
-            do {
-                retry = false;
-
-                try {
-                    SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-
-                    JSONObject jsonObject= new JSONObject();
-                    jsonObject.put("mac_address_", rxBleDevice.getMacAddress());
-
-                    RequestBody requestBody = RequestBody.create( jsonObject.toString(), MediaType.parse("application/json") );
-
-                    JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
-
-                    Request request = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/rest/v1/rpc/register_embedded")
-                            .post(requestBody)
-                            .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                            .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                            .addHeader("Content-Type", "application/json")
-                            .build();
-
-                    Response response = new OkHttpClient().newCall(request).execute();
-                    if(response.isSuccessful()){
-
-                        JSONArray jsonArray = new JSONArray(response.body().string());
-                        JSONObject jsonNewEmbedded = jsonArray.getJSONObject(0);
-
-                        Disposable disposable = rxBleDevice.establishConnection(false)
-                                .flatMap(rxBleConnection -> {
-                                    Log.d(TAG, "BLE connected");
-
-                                    // --- Prepara payloads ---
-                                    byte[] payloadSubdomain = new byte[22];
-                                    {
-                                        byte[] arrAlias = jsonNewEmbedded.getString("subdomain").getBytes(StandardCharsets.UTF_8);
-                                        payloadSubdomain[0] = 0x00;
-                                        System.arraycopy(arrAlias, 0, payloadSubdomain, 1, arrAlias.length);
-                                        payloadSubdomain[1 + arrAlias.length] = 0x00;
-                                    }
-
-                                    byte[] payloadPasskey = new byte[22];
-                                    {
-                                        byte[] arrXorkey = jsonNewEmbedded.getString("passkey").getBytes(StandardCharsets.UTF_8);
-                                        payloadPasskey[0] = 0x01;
-                                        System.arraycopy(arrXorkey, 0, payloadPasskey, 1, arrXorkey.length);
-                                        payloadPasskey[1 + arrXorkey.length] = 0x00;
-                                    }
-
-                                    return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSubdomain)
-                                            .flatMap(bytes -> {
-                                                Log.d(TAG, "Write 1 OK: " + new String(bytes));
-                                                return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPasskey);
-                                            }).toObservable();
-                                })
-                                .subscribe(
-                                        bytes -> {
-                                            Log.d(TAG, "Write 2 OK: " + new String(bytes));
-                                        },
-                                        err -> {
-                                            Log.e(TAG, "BLE connection or write error", err);
-
-                                            ui(() ->
-                                                    Toast.makeText(getContext(), "BLE error", Toast.LENGTH_SHORT).show()
-                                            );
-                                        }, () -> {}
-                                );
-
-                        String newSubdomain = jsonNewEmbedded.optString("subdomain");
-                        ui(() -> {
-                            mListEmbeddeds.add(jsonNewEmbedded);
-                            itemAdapter_.notifyItemInserted(mListEmbeddeds.size() - 1);
-                            new AlertDialog.Builder(getContext())
-                                    .setTitle("Registered!")
-                                    .setMessage(newSubdomain)
-                                    .setPositiveButton("Ok", null)
-                                    .show();
-                        });
-
-                    } else if (response.code() == 401) {
-
-                        RequestBody requestBody_ = RequestBody.create( jsonAuth.toString(), MediaType.parse("application/json") );
-
-                        Request request_ = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
-                                .post(requestBody_)
-                                .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                                .addHeader("Content-Type", "application/json")
-                                .build();
-
-                        Response response_ = new OkHttpClient().newCall(request_).execute();
-                        if (response_.isSuccessful()) {
-
-                            SharedPreferences.Editor editor = prefs.edit();
-                            editor.putString("auth_json", response_.body().string());
-                            editor.apply();
-
-                            retry = ++attempts < 2; // refresh once, never loop
-                        } else {
-                            redirectToLogin();
-                        }
-                    } else {
-                        ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                // register_embedded is idempotent per MAC: retrying after a failed BLE write returns
+                // the same subdomain/passkey instead of creating a second device.
+                Request request = Api.request("/rest/v1/rpc/register_embedded").post(Api.json(jsonObject)).build();
+                JSONObject jsonNewEmbedded;
+                try (Response response = Api.client(mAppContext).newCall(request).execute()) {
+                    String body = response.body().string();
+                    if (Api.isSessionExpired(mAppContext, response)) {
+                        Api.redirectToLogin(getActivity());
+                        return;
                     }
-
-                } catch (JSONException | IOException e) {
-                    e.printStackTrace();
+                    if (!response.isSuccessful()) {
+                        String reason = Api.errorMessage(response, body);
+                        ui(() -> Toast.makeText(getContext(), "Error: " + reason, Toast.LENGTH_LONG).show());
+                        return;
+                    }
+                    jsonNewEmbedded = new JSONArray(body).getJSONObject(0);
                 }
-            } while(retry);
+
+                byte[] payloadSubdomain = framed((byte) 0x00, jsonNewEmbedded.getString("subdomain"));
+                byte[] payloadPasskey = framed((byte) 0x01, jsonNewEmbedded.getString("passkey"));
+                String newSubdomain = jsonNewEmbedded.optString("subdomain");
+
+                ui(() -> mProgressBar.setVisibility(View.VISIBLE));
+
+                // Only report success once the board has actually stored both values.
+                Disposable ignored = rxBleDevice.establishConnection(false)
+                        .retry(2) // safe here: both writes are idempotent (firmware keeps the first value)
+                        .flatMapSingle(rxBleConnection -> rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadSubdomain)
+                                .timeout(5, TimeUnit.SECONDS)
+                                .flatMap(bytes -> rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payloadPasskey)
+                                        .timeout(5, TimeUnit.SECONDS)))
+                        .firstOrError()
+                        .timeout(30, TimeUnit.SECONDS)
+                        .subscribe(
+                                bytes -> {
+                                    Log.d(TAG, "Provisioning written");
+                                    ui(() -> {
+                                        mProgressBar.setVisibility(View.GONE);
+                                        boolean known = false;
+                                        for (JSONObject e : mListEmbeddeds)
+                                            if (e.optString("id").equals(jsonNewEmbedded.optString("id"))) known = true;
+                                        if (!known) {
+                                            mListEmbeddeds.add(jsonNewEmbedded);
+                                            itemAdapter_.notifyItemInserted(mListEmbeddeds.size() - 1);
+                                        }
+                                        new AlertDialog.Builder(getContext())
+                                                .setTitle("Registered!")
+                                                .setMessage(newSubdomain)
+                                                .setPositiveButton("Ok", null)
+                                                .show();
+                                    });
+                                },
+                                err -> {
+                                    Log.e(TAG, "BLE connection or write error", err);
+                                    ui(() -> {
+                                        mProgressBar.setVisibility(View.GONE);
+                                        new AlertDialog.Builder(getContext())
+                                                .setTitle("Device not configured")
+                                                .setMessage("Device " + newSubdomain + " was registered, but writing its settings over Bluetooth failed. Keep the board close to the phone and tap + again.")
+                                                .setPositiveButton("Ok", null)
+                                                .show();
+                                    });
+                                });
+
+            } catch (JSONException | IOException e) {
+                Log.e(TAG, "register_embedded failed", e);
+                ui(() -> Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show());
+            }
         });
+        executor.shutdown();
+    }
+
+    // Fixed-size BLE frame: [cmd][utf-8 text][\0], 22 bytes (firmware strcpy's it).
+    private static byte[] framed(byte cmd, String text) {
+        byte[] arr = text.getBytes(StandardCharsets.UTF_8);
+        if (arr.length > 20) throw new IllegalArgumentException("BLE field too long");
+        byte[] out = new byte[22];
+        out[0] = cmd;
+        System.arraycopy(arr, 0, out, 1, arr.length);
+        return out;
     }
 
     private void showLinkMachineDialog(JSONObject embedded, int embeddedPos) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             try {
-                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
+                Request request = Api.request("/rest/v1/machines?select=id,name&order=name").build();
 
-                Request request = new Request.Builder()
-                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/machines?select=id,name&order=name")
-                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                        .build();
-
-                Response response = HTTP_CLIENT_EMB.newCall(request).execute();
+                Response response = Api.client(mAppContext).newCall(request).execute();
                 if (!response.isSuccessful() || getActivity() == null) return;
 
                 JSONArray machines = new JSONArray(response.body().string());
@@ -523,9 +406,6 @@ public class EmbeddesFragment extends Fragment {
                                 ExecutorService exec2 = Executors.newSingleThreadExecutor();
                                 exec2.execute(() -> {
                                     try {
-                                        SharedPreferences p2 = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-                                        JSONObject auth2 = new JSONObject(p2.getString("auth_json", "{}"));
-
                                         JSONObject body = new JSONObject();
                                         if (picked[0] == 0) {
                                             body.put("machine_id", JSONObject.NULL);
@@ -533,15 +413,11 @@ public class EmbeddesFragment extends Fragment {
                                             body.put("machine_id", finalMachines.getJSONObject(picked[0] - 1).getString("id"));
                                         }
 
-                                        Request req = new Request.Builder()
-                                                .url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded?id=eq." + embedded.getString("id"))
-                                                .patch(RequestBody.create(body.toString(), MediaType.parse("application/json")))
-                                                .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                                                .addHeader("Authorization", "Bearer " + auth2.getString("access_token"))
-                                                .addHeader("Content-Type", "application/json")
+                                        Request req = Api.request("/rest/v1/embedded?id=eq." + embedded.getString("id"))
+                                                .patch(Api.json(body))
                                                 .build();
 
-                                        Response res = HTTP_CLIENT_EMB.newCall(req).execute();
+                                        Response res = Api.client(mAppContext).newCall(req).execute();
                                         if (res.isSuccessful()) {
                                             // Update local object
                                             if (picked[0] == 0) {
@@ -571,16 +447,6 @@ public class EmbeddesFragment extends Fragment {
             } catch (JSONException | IOException e) {
                 e.printStackTrace();
             }
-        });
-    }
-
-    private void redirectToLogin() {
-        mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
-                .edit().remove("auth_json").apply();
-        ui(() -> {
-            Intent intent = new Intent(getActivity(), LoginActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
         });
     }
 

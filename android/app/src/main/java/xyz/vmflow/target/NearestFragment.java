@@ -2,12 +2,12 @@ package xyz.vmflow.target;
 
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -40,18 +40,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.Disposable;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
-import xyz.vmflow.BuildConfig;
 import xyz.vmflow.R;
 
 public class NearestFragment extends Fragment {
@@ -72,10 +68,21 @@ public class NearestFragment extends Fragment {
     private static final byte EVT_VEND_FAILURE    = 0x0c;
     private static final byte EVT_SESSION_COMPLETE = 0x0d;
 
+    // No product picked within this time → cancel. The firmware drops an idle session after 60 s,
+    // so this is only a fallback for when its SESSION COMPLETE never reaches the phone.
+    private static final long IDLE_TIMEOUT_MS = 65_000;
+    // After approval: dispensing can take a while, but the dialog must not hang forever.
+    private static final long VEND_TIMEOUT_MS = 120_000;
+    // How long the final message stays visible before the dialog closes.
+    private static final long CLOSE_DELAY_MS = 2_000;
+
     private final List<RxBleDevice> mListRxBleDevices = new ArrayList<>();
     private final BleDeviceAdapter bleDeviceAdapter = new BleDeviceAdapter();
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private View mProgressBar;
+    private RxBleClient mRxBleClient;
+    private Disposable mScanDisposable;
 
     // Application context: safe to use from background threads even after the fragment is detached
     // (requireContext()/getContext() there throw or return null when the user switches tabs).
@@ -94,8 +101,76 @@ public class NearestFragment extends Fragment {
         if (activity != null) activity.runOnUiThread(() -> { if (isAdded()) r.run(); });
     }
 
-    private Disposable bleConnectionDisposable;
-    private Disposable bleWifiDisposable;
+    /** One BLE credit session. Only one may be open at a time (a second tap is ignored). */
+    private final class BleSession {
+        final RxBleDevice device;
+        final AlertDialog dialog;
+        volatile RxBleConnection connection;   // set once the GATT link is up
+        volatile boolean ended;
+        // Result of the last vend; SESSION COMPLETE arrives ~1 ms after it and must not hide it.
+        volatile String outcome;
+        Disposable disposable;
+        final Runnable timeout = () -> cancel("Session timed out.");
+
+        BleSession(RxBleDevice device, AlertDialog dialog) {
+            this.device = device;
+            this.dialog = dialog;
+        }
+
+        void message(String text) {
+            ui(() -> { if (dialog.isShowing()) dialog.setMessage(text); });
+        }
+
+        void armTimeout(long ms) {
+            mMainHandler.removeCallbacks(timeout);
+            if (!ended) mMainHandler.postDelayed(timeout, ms);
+        }
+
+        /** Tell the machine to drop the session (best effort), then close the link. */
+        void cancel(String reason) {
+            if (ended) return;
+            RxBleConnection c = connection;
+            if (c == null) {
+                end(reason);
+                return;
+            }
+            message(reason);
+            // A cancel write that fails or hangs must still release the link.
+            Disposable ignored = c.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_CANCEL_SESSION})
+                    .timeout(3, TimeUnit.SECONDS)
+                    .subscribe((bytes, err) -> {
+                        if (err != null) Log.w(TAG, "Cancel write failed", err);
+                        end(reason);
+                    });
+        }
+
+        /** Close the link, keep {@code reason} on screen briefly, then dismiss and rescan. */
+        void end(@Nullable String reason) {
+            if (ended) return;
+            ended = true;
+            mMainHandler.removeCallbacks(timeout);
+            if (disposable != null) disposable.dispose();
+            connection = null;
+            if (reason != null) message(reason);
+            mMainHandler.postDelayed(() -> {
+                if (dialog.isShowing()) dialog.dismiss();
+                if (mSession == this) mSession = null;
+                ui(() -> {
+                    mProgressBar.setVisibility(View.VISIBLE);
+                    mListRxBleDevices.clear();
+                    bleDeviceAdapter.notifyDataSetChanged();
+                    fetchNearestData();
+                });
+            }, reason != null ? CLOSE_DELAY_MS : 0);
+        }
+    }
+
+    private volatile BleSession mSession;
+
+    /** Failure with a message that is safe to show to the user. */
+    private static final class PaymentException extends Exception {
+        PaymentException(String message) { super(message); }
+    }
 
     class BleDeviceViewHolder extends RecyclerView.ViewHolder {
 
@@ -112,8 +187,6 @@ public class NearestFragment extends Fragment {
 
     class BleDeviceAdapter extends RecyclerView.Adapter<BleDeviceViewHolder> {
 
-        private RxBleConnection mRxBleConnection;
-
         @Override
         public BleDeviceViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_nearest_layout, parent, false);
@@ -121,177 +194,13 @@ public class NearestFragment extends Fragment {
 
             view.setOnClickListener(v -> {
                 int pos = holder.getAdapterPosition();
-                if (pos != RecyclerView.NO_POSITION) {
-
-                    RxBleDevice device = mListRxBleDevices.get(pos);
-
-                    AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-                    // Forget any connection from a previous session; Cancel must not write to a stale one.
-                    mRxBleConnection = null;
-
-                    builder.setNegativeButton("Cancel", (cancelDialog, which) -> {
-
-                        if (mRxBleConnection == null) {
-                            // Still connecting: stop the attempt, otherwise the session would start
-                            // on the machine after the user already cancelled.
-                            if (bleConnectionDisposable != null) bleConnectionDisposable.dispose();
-                        } else {
-                            Disposable dis = mRxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_CANCEL_SESSION}).toObservable().subscribe(ignored -> {
-                            }, throwable -> {
-                            }, () -> {
-                                bleConnectionDisposable.dispose();
-                                mRxBleConnection = null;
-
-                                ui(() -> {
-                                    mProgressBar.setVisibility(View.VISIBLE);
-                                    mListRxBleDevices.clear();
-                                    bleDeviceAdapter.notifyDataSetChanged();
-                                });
-
-                                ExecutorService executor = Executors.newSingleThreadExecutor();
-                                executor.execute(NearestFragment.this::fetchNearestData);
-                                executor.shutdown();
-                            });
-                        }
-
-                    });
-
-                    builder.setTitle("Send Credit (BLE)");
-                    builder.setMessage("Connecting...");
-                    builder.setCancelable(false);
-
-                    AlertDialog dialog = builder.create();
-                    dialog.show();
-
-                    bleConnectionDisposable = device.establishConnection(false)
-                            .doOnDispose(() -> dialog.dismiss())
-                            .flatMap(rxBleConnection -> rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_BEGIN_SESSION}).toObservable()
-                                    .flatMap(initResult -> {
-                                        Log.d(TAG, "Session started");
-
-                                        ui(() -> dialog.setMessage("Please select a product on the machine."));
-
-                                        mRxBleConnection = rxBleConnection;
-
-                                        return rxBleConnection.setupNotification(WRITE_CHARACTERISTIC_UUID)
-                                                .flatMap(notificationObservable ->
-                                                        notificationObservable.flatMap(notification -> {
-
-                                                            Log.d(TAG, "Received: " + Integer.toHexString(notification[0]));
-
-                                                            if (notification[0] == EVT_SESSION_COMPLETE) {
-                                                                bleConnectionDisposable.dispose();
-                                                                mRxBleConnection = null;
-
-                                                                ui(() -> {
-                                                                    dialog.setMessage("Session finished.");
-                                                                    mProgressBar.setVisibility(View.VISIBLE);
-                                                                    mListRxBleDevices.clear();
-                                                                    bleDeviceAdapter.notifyDataSetChanged();
-                                                                });
-
-                                                                ExecutorService executor = Executors.newSingleThreadExecutor();
-                                                                executor.execute(NearestFragment.this::fetchNearestData);
-                                                                executor.shutdown();
-                                                            }
-
-                                                            if (notification[0] == EVT_VEND_FAILURE) {
-                                                                ui(() -> dialog.setMessage("Purchase failed. Please try again."));
-                                                            }
-
-                                                            if (notification[0] == EVT_VEND_SUCCESS) {
-                                                                ui(() -> dialog.setMessage("Product dispensed successfully!"));
-                                                            }
-
-                                                            if (notification[0] == EVT_VEND_REQUEST) {
-                                                                ui(() -> dialog.setMessage("Processing payment..."));
-
-                                                                boolean retry;
-                                                                int attempts = 0;
-                                                                do {
-                                                                    retry = false;
-
-                                                                    try {
-
-                                                                        LocationManager locationManager = (LocationManager) mAppContext.getSystemService(Context.LOCATION_SERVICE);
-                                                                        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-                                                                        SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-
-                                                                        JSONObject body = new JSONObject();
-                                                                        body.put("payload", Base64.encodeToString(notification, Base64.NO_WRAP));
-                                                                        body.put("subdomain", device.getName().split("\\.")[0]);
-
-                                                                        if (location != null) {
-                                                                            body.put("lat", location.getLatitude());
-                                                                            body.put("lng", location.getLongitude());
-                                                                        }
-
-                                                                        RequestBody requestBody = RequestBody.create(body.toString(), MediaType.parse("application/json"));
-
-                                                                        JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
-
-                                                                        Request request = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/functions/v1/request-credit")
-                                                                                .post(requestBody)
-                                                                                .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                                                                                .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                                                                                .addHeader("Content-Type", "application/json")
-                                                                                .build();
-
-                                                                        Response response = new OkHttpClient().newCall(request).execute();
-                                                                        if (response.isSuccessful()) {
-
-                                                                            JSONObject responseBody = new JSONObject(response.body().string());
-                                                                            byte[] payload = Base64.decode(responseBody.getString("payload"), Base64.NO_WRAP);
-
-                                                                            return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payload).toObservable();
-
-                                                                        } else if (response.code() == 401) {
-
-                                                                            RequestBody refreshRequestBody = RequestBody.create(jsonAuth.toString(), MediaType.parse("application/json"));
-
-                                                                            Request refreshRequest = new Request.Builder().url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
-                                                                                    .post(refreshRequestBody)
-                                                                                    .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                                                                                    .addHeader("Content-Type", "application/json")
-                                                                                    .build();
-
-                                                                            Response refreshResponse = new OkHttpClient().newCall(refreshRequest).execute();
-                                                                            if (refreshResponse.isSuccessful()) {
-
-                                                                                SharedPreferences.Editor editor = prefs.edit();
-                                                                                editor.putString("auth_json", refreshResponse.body().string());
-                                                                                editor.apply();
-
-                                                                                retry = ++attempts < 2; // refresh once, never loop
-                                                                            } else {
-                                                                                redirectToLogin();
-                                                                            }
-                                                                        }
-
-                                                                    } catch (JSONException | IOException | SecurityException e) {
-                                                                        Log.e(TAG, "Payment request error", e);
-                                                                    }
-
-                                                                } while (retry);
-
-                                                                ui(() -> dialog.setMessage("Payment failed."));
-
-                                                                return rxBleConnection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_CANCEL_SESSION}).toObservable();
-                                                            }
-                                                            return Observable.empty();
-                                                        })
-                                                );
-                                    })
-                            )
-                            .retry(2)
-                            .subscribe(
-                                    result -> Log.d(TAG, "Write/response completed"),
-                                    throwable -> Log.e(TAG, "BLE error", throwable),
-                                    () -> Log.d(TAG, "BLE stream complete")
-                            );
-
+                if (pos == RecyclerView.NO_POSITION) return;
+                if (mSession != null) {
+                    // Double tap / second machine: one session at a time, the first one would leak.
+                    Toast.makeText(getContext(), "A session is already open", Toast.LENGTH_SHORT).show();
+                    return;
                 }
+                startSession(mListRxBleDevices.get(pos));
             });
 
             holder.btnSetPassword.setOnClickListener(v -> {
@@ -407,32 +316,158 @@ public class NearestFragment extends Fragment {
         }
     }
 
+    private void startSession(RxBleDevice device) {
+        AlertDialog dialog = new AlertDialog.Builder(getContext())
+                .setTitle("Send Credit (BLE)")
+                .setMessage("Connecting...")
+                .setCancelable(false)
+                .setNegativeButton("Cancel", null)
+                .create();
+
+        BleSession s = new BleSession(device, dialog);
+        mSession = s;
+        dialog.show();
+        // Override the default handler so the dialog stays up while the cancel is being delivered.
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(b -> s.cancel("Cancelled."));
+        s.armTimeout(IDLE_TIMEOUT_MS);
+
+        s.disposable = device.establishConnection(false)
+                // Retry only the connect phase (GATT 133 on quick reconnects). Once the session has
+                // started, a retry would silently open a second session on the machine.
+                .retry(2, t -> s.connection == null && !s.ended)
+                .flatMap(connection -> connection.setupNotification(WRITE_CHARACTERISTIC_UUID)
+                        .flatMap(notifications -> connection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_BEGIN_SESSION})
+                                .toObservable()
+                                .flatMap(ignored -> {
+                                    Log.d(TAG, "Session started");
+                                    s.connection = connection;
+                                    s.message("Please select a product on the machine.");
+                                    return notifications;
+                                }))
+                        // concatMap: handle one event at a time, in order.
+                        .concatMap(notification -> onNotification(s, connection, notification)))
+                .subscribe(
+                        result -> Log.d(TAG, "Write completed"),
+                        throwable -> {
+                            Log.e(TAG, "BLE error", throwable);
+                            s.end(s.connection == null ? "Could not connect to the machine." : "Connection to the machine was lost.");
+                        },
+                        () -> Log.d(TAG, "BLE stream complete"));
+    }
+
+    private Observable<byte[]> onNotification(BleSession s, RxBleConnection connection, byte[] notification) {
+        if (notification.length == 0 || s.ended) return Observable.empty();
+        Log.d(TAG, "Received: " + Integer.toHexString(notification[0]));
+
+        switch (notification[0]) {
+            case EVT_SESSION_COMPLETE:
+                s.end(s.outcome != null ? s.outcome : "Session finished.");
+                return Observable.empty();
+
+            case EVT_VEND_FAILURE:
+                s.armTimeout(IDLE_TIMEOUT_MS);
+                s.outcome = "Purchase failed. Please try again.";
+                s.message(s.outcome);
+                return Observable.empty();
+
+            case EVT_VEND_SUCCESS:
+                s.armTimeout(IDLE_TIMEOUT_MS);
+                s.outcome = "Product dispensed successfully!";
+                s.message(s.outcome);
+                return Observable.empty();
+
+            case EVT_VEND_REQUEST:
+                s.armTimeout(VEND_TIMEOUT_MS);
+                s.outcome = null;
+                s.message("Processing payment...");
+                // Network on an IO thread: blocking here would stall the BLE callback thread.
+                return Single.fromCallable(() -> requestCredit(s.device, notification))
+                        .subscribeOn(Schedulers.io())
+                        .flatMapObservable(payload -> connection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, payload).toObservable())
+                        .onErrorResumeNext(e -> {
+                            String reason = e instanceof PaymentException ? e.getMessage() : "Payment failed.";
+                            Log.w(TAG, "Payment refused: " + reason, e);
+                            s.outcome = "Payment failed: " + reason;
+                            s.message(s.outcome);
+                            return connection.writeCharacteristic(WRITE_CHARACTERISTIC_UUID, new byte[]{CMD_CANCEL_SESSION}).toObservable();
+                        });
+
+            default:
+                return Observable.empty();
+        }
+    }
+
+    /** Calls request-credit and returns the signed approval payload for the machine. */
+    private byte[] requestCredit(RxBleDevice device, byte[] notification) throws PaymentException {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("payload", Base64.encodeToString(notification, Base64.NO_WRAP));
+            body.put("subdomain", device.getName().split("\\.")[0]);
+
+            Location location = lastLocation();
+            if (location != null) {
+                body.put("lat", location.getLatitude());
+                body.put("lng", location.getLongitude());
+            }
+
+            Request request = Api.request("/functions/v1/request-credit").post(Api.json(body)).build();
+            try (Response response = Api.client(mAppContext).newCall(request).execute()) {
+                String resBody = response.body().string();
+                if (response.isSuccessful()) {
+                    return Base64.decode(new JSONObject(resBody).getString("payload"), Base64.NO_WRAP);
+                }
+                if (Api.isSessionExpired(mAppContext, response)) {
+                    Api.redirectToLogin(getActivity());
+                    throw new PaymentException("session expired, please log in again");
+                }
+                throw new PaymentException(Api.errorMessage(response, resBody));
+            }
+        } catch (IOException e) {
+            throw new PaymentException("no internet connection");
+        } catch (JSONException | IllegalArgumentException e) {
+            throw new PaymentException("invalid server response");
+        }
+    }
+
+    /** Freshest fix from any enabled provider (GPS alone is usually null indoors). */
+    @Nullable
+    private Location lastLocation() {
+        try {
+            LocationManager lm = (LocationManager) mAppContext.getSystemService(Context.LOCATION_SERVICE);
+            if (lm == null) return null;
+            Location best = null;
+            for (String provider : lm.getProviders(true)) {
+                Location l = lm.getLastKnownLocation(provider);
+                if (l != null && (best == null || l.getTime() > best.getTime())) best = l;
+            }
+            return best;
+        } catch (SecurityException e) {
+            return null; // location permission not granted: send without coordinates
+        }
+    }
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
         mProgressBar = view.findViewById(R.id.progressBar);
+        mRxBleClient = RxBleClient.create(mAppContext);
 
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(bleDeviceAdapter);
 
         mSwipeRefreshLayout = view.findViewById(R.id.swipeRefresh);
-        mSwipeRefreshLayout.setOnRefreshListener(() -> {
-
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            executor.execute(this::fetchNearestData);
-            executor.shutdown();
-        });
+        mSwipeRefreshLayout.setOnRefreshListener(this::fetchNearestData);
     }
 
     private void fetchNearestData() {
-
-        RxBleClient rxBleClient = RxBleClient.create(mAppContext);
+        if (mRxBleClient == null) return;
+        if (mScanDisposable != null) mScanDisposable.dispose();
 
         // Collect off-thread, swap on the UI thread (background list mutation crashes RecyclerView).
         List<RxBleDevice> found = new ArrayList<>();
-        Disposable scanDisposable = rxBleClient.scanBleDevices(new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build())
+        mScanDisposable = mRxBleClient.scanBleDevices(new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build())
                 .take(3, TimeUnit.SECONDS)
                 .filter(scanResult -> scanResult.getBleDevice().getName() != null
                         && !scanResult.getBleDevice().getName().isEmpty()
@@ -450,22 +485,18 @@ public class NearestFragment extends Fragment {
                         mProgressBar.setVisibility(View.GONE);
                         Toast.makeText(getContext(), "Bluetooth scan failed. Check that Bluetooth is on.", Toast.LENGTH_LONG).show();
                     });
-                }, () -> {
+                }, () -> ui(() -> {
+                    mListRxBleDevices.clear();
+                    synchronized (found) { mListRxBleDevices.addAll(found); }
+                    bleDeviceAdapter.notifyDataSetChanged();
+                    mSwipeRefreshLayout.setRefreshing(false);
+                    mProgressBar.setVisibility(View.GONE);
 
-                    ui(() -> {
+                    if (mListRxBleDevices.isEmpty())
+                        Toast.makeText(getContext(), "No devices found nearby", Toast.LENGTH_LONG).show();
 
-                            mListRxBleDevices.clear();
-                            synchronized (found) { mListRxBleDevices.addAll(found); }
-                            bleDeviceAdapter.notifyDataSetChanged();
-                            mSwipeRefreshLayout.setRefreshing(false);
-                            mProgressBar.setVisibility(View.GONE);
-
-                            if (mListRxBleDevices.isEmpty())
-                                Toast.makeText(getContext(), "No devices found nearby", Toast.LENGTH_LONG).show();
-
-                            Log.d(TAG, "Scan complete");
-                        });
-                });
+                    Log.d(TAG, "Scan complete");
+                }));
     }
 
     @Override
@@ -473,32 +504,26 @@ public class NearestFragment extends Fragment {
         super.onStart();
 
         mProgressBar.setVisibility(View.VISIBLE);
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(this::fetchNearestData);
-        executor.shutdown();
+        fetchNearestData();
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (bleConnectionDisposable != null && !bleConnectionDisposable.isDisposed()) {
-            bleConnectionDisposable.dispose();
+        if (mScanDisposable != null) mScanDisposable.dispose();
+        BleSession s = mSession;
+        if (s != null) {
+            // Leaving the tab must not strand an open session on the machine: send CANCEL first.
+            if (s.dialog.isShowing()) s.dialog.dismiss();
+            s.cancel(null);
+            mSession = null;
         }
         if (bleWifiDisposable != null && !bleWifiDisposable.isDisposed()) {
             bleWifiDisposable.dispose();
         }
     }
 
-    private void redirectToLogin() {
-        mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
-                .edit().remove("auth_json").apply();
-        ui(() -> {
-            Intent intent = new Intent(getActivity(), LoginActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-        });
-    }
+    private Disposable bleWifiDisposable;
 
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_nearest, container, false);

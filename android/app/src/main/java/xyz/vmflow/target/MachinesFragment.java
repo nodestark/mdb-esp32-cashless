@@ -2,8 +2,6 @@ package xyz.vmflow.target;
 
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -35,17 +33,12 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
-import xyz.vmflow.BuildConfig;
 import xyz.vmflow.R;
 
 public class MachinesFragment extends Fragment {
 
-    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient();
     private static final String[] CATEGORIES = {"Snack", "Drink", "Frozen", "Candy", "Personal Care", "Other"};
 
     private final List<JSONObject> mListMachines = new ArrayList<>();
@@ -189,130 +182,98 @@ public class MachinesFragment extends Fragment {
     }
 
     private void createMachine(String name, String category, String location) {
-        boolean retry;
-        int attempts = 0;
-        do {
-            retry = false;
-            try {
-                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
+        try {
+            JSONObject body = new JSONObject();
+            body.put("name", name);
+            body.put("category", category);
+            if (!location.isEmpty()) body.put("location_name", location);
 
-                JSONObject body = new JSONObject();
-                body.put("name", name);
-                body.put("category", category);
-                if (!location.isEmpty()) body.put("location_name", location);
+            Request request = Api.request("/rest/v1/machines")
+                    .post(Api.json(body))
+                    .addHeader("Prefer", "return=representation")
+                    .build();
 
-                Request request = new Request.Builder()
-                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/machines")
-                        .post(RequestBody.create(body.toString(), MediaType.parse("application/json")))
-                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                        .addHeader("Content-Type", "application/json")
-                        .addHeader("Prefer", "return=representation")
-                        .build();
-
-                Response response = HTTP_CLIENT.newCall(request).execute();
-                if (response.isSuccessful()) {
-                    JSONArray arr = new JSONArray(response.body().string());
-                    JSONObject created = arr.getJSONObject(0);
-                    ui(() -> {
-                            mListMachines.add(created);
-                            itemAdapter_.notifyItemInserted(mListMachines.size() - 1);
-                            Toast.makeText(getContext(), "Machine created", Toast.LENGTH_SHORT).show();
-                        });
-                } else if (response.code() == 401) {
-                    retry = refreshToken(prefs, jsonAuth) && ++attempts < 2; // refresh once, never loop
-                } else {
-                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
-                }
-
-            } catch (JSONException | IOException e) {
-                e.printStackTrace();
+            Response response = Api.client(mAppContext).newCall(request).execute();
+            if (response.isSuccessful()) {
+                JSONArray arr = new JSONArray(response.body().string());
+                JSONObject created = arr.getJSONObject(0);
+                ui(() -> {
+                        mListMachines.add(created);
+                        itemAdapter_.notifyItemInserted(mListMachines.size() - 1);
+                        Toast.makeText(getContext(), "Machine created", Toast.LENGTH_SHORT).show();
+                    });
+            } else if (Api.isSessionExpired(mAppContext, response)) {
+                Api.redirectToLogin(getActivity());
+            } else {
+                String reason = Api.errorMessage(response, response.body().string());
+                ui(() -> Toast.makeText(getContext(), "Error: " + reason, Toast.LENGTH_SHORT).show());
             }
-        } while (retry);
+
+        } catch (JSONException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void updateMachine(String id, String name, String category, String location, JSONObject original) {
-        boolean retry;
-        int attempts = 0;
-        do {
-            retry = false;
-            try {
-                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
+        try {
+            JSONObject body = new JSONObject();
+            body.put("name", name);
+            body.put("category", category);
+            body.put("location_name", location.isEmpty() ? JSONObject.NULL : location);
 
-                JSONObject body = new JSONObject();
-                body.put("name", name);
-                body.put("category", category);
-                body.put("location_name", location.isEmpty() ? JSONObject.NULL : location);
+            Request request = Api.request("/rest/v1/machines?id=eq." + id)
+                    .patch(Api.json(body))
+                    .build();
 
-                Request request = new Request.Builder()
-                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/machines?id=eq." + id)
-                        .patch(RequestBody.create(body.toString(), MediaType.parse("application/json")))
-                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                        .addHeader("Content-Type", "application/json")
-                        .build();
-
-                Response response = HTTP_CLIENT.newCall(request).execute();
-                if (response.isSuccessful()) {
-                    original.put("name", name);
-                    original.put("category", category);
-                    original.put("location_name", location);
-                    ui(() -> {
-                        int pos = mListMachines.indexOf(original);
-                        if (pos >= 0) itemAdapter_.notifyItemChanged(pos);
-                        Toast.makeText(getContext(), "Saved", Toast.LENGTH_SHORT).show();
-                    });
-                } else if (response.code() == 401) {
-                    retry = refreshToken(prefs, jsonAuth) && ++attempts < 2; // refresh once, never loop
-                } else {
-                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
-                }
-
-            } catch (JSONException | IOException e) {
-                e.printStackTrace();
+            Response response = Api.client(mAppContext).newCall(request).execute();
+            if (response.isSuccessful()) {
+                original.put("name", name);
+                original.put("category", category);
+                original.put("location_name", location);
+                ui(() -> {
+                    int pos = mListMachines.indexOf(original);
+                    if (pos >= 0) itemAdapter_.notifyItemChanged(pos);
+                    Toast.makeText(getContext(), "Saved", Toast.LENGTH_SHORT).show();
+                });
+            } else if (Api.isSessionExpired(mAppContext, response)) {
+                Api.redirectToLogin(getActivity());
+            } else {
+                String reason = Api.errorMessage(response, response.body().string());
+                ui(() -> Toast.makeText(getContext(), "Error: " + reason, Toast.LENGTH_SHORT).show());
             }
-        } while (retry);
+
+        } catch (JSONException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void fetchMachinesData() {
-        boolean retry;
-        int attempts = 0;
-        do {
-            retry = false;
-            try {
-                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
+        try {
+            Request request = Api.request("/rest/v1/machines?select=id,name,category,location_name&order=name")
+                    .build();
 
-                Request request = new Request.Builder()
-                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/machines?select=id,name,category,location_name&order=name")
-                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                        .build();
-
-                Response response = HTTP_CLIENT.newCall(request).execute();
-                if (response.isSuccessful()) {
-                    JSONArray arr = new JSONArray(response.body().string());
-                    // Build off-thread, swap on the UI thread (background list mutation crashes RecyclerView).
-                    List<JSONObject> fresh = new ArrayList<>();
-                    for (int i = 0; i < arr.length(); i++)
-                        fresh.add(arr.getJSONObject(i));
-                    ui(() -> {
-                        mListMachines.clear();
-                        mListMachines.addAll(fresh);
-                        itemAdapter_.notifyDataSetChanged();
-                    });
-                } else if (response.code() == 401) {
-                    retry = refreshToken(prefs, jsonAuth) && ++attempts < 2; // refresh once, never loop
-                } else {
-                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
-                }
-
-            } catch (JSONException | IOException e) {
-                e.printStackTrace();
+            Response response = Api.client(mAppContext).newCall(request).execute();
+            if (response.isSuccessful()) {
+                JSONArray arr = new JSONArray(response.body().string());
+                // Build off-thread, swap on the UI thread (background list mutation crashes RecyclerView).
+                List<JSONObject> fresh = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++)
+                    fresh.add(arr.getJSONObject(i));
+                ui(() -> {
+                    mListMachines.clear();
+                    mListMachines.addAll(fresh);
+                    itemAdapter_.notifyDataSetChanged();
+                });
+            } else if (Api.isSessionExpired(mAppContext, response)) {
+                Api.redirectToLogin(getActivity());
+            } else {
+                String reason = Api.errorMessage(response, response.body().string());
+                ui(() -> Toast.makeText(getContext(), "Error: " + reason, Toast.LENGTH_SHORT).show());
             }
-        } while (retry);
+
+        } catch (JSONException | IOException e) {
+            e.printStackTrace();
+        }
 
         ui(() -> mProgressBar.setVisibility(View.GONE));
     }
@@ -325,38 +286,6 @@ public class MachinesFragment extends Fragment {
     private static String optField(JSONObject obj, String key) {
         String val = obj.optString(key, "");
         return val.equals("null") ? "" : val;
-    }
-
-    private boolean refreshToken(SharedPreferences prefs, JSONObject jsonAuth) {
-        try {
-            RequestBody body = RequestBody.create(jsonAuth.toString(), MediaType.parse("application/json"));
-            Request req = new Request.Builder()
-                    .url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
-                    .post(body)
-                    .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                    .addHeader("Content-Type", "application/json")
-                    .build();
-            Response res = HTTP_CLIENT.newCall(req).execute();
-            if (res.isSuccessful()) {
-                prefs.edit().putString("auth_json", res.body().string()).apply();
-                return true;
-            } else {
-                redirectToLogin();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    private void redirectToLogin() {
-        mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
-                .edit().remove("auth_json").apply();
-        ui(() -> {
-            Intent intent = new Intent(getActivity(), LoginActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-        });
     }
 
     @Override

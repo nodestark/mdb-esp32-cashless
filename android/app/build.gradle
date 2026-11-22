@@ -13,8 +13,8 @@ android {
         applicationId "xyz.vmflow.target"
         minSdk 24
         targetSdk 36
-        versionCode 12
-        versionName "v1.2.7"
+        versionCode 14
+        versionName "v1.2.8"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 

@@ -1,8 +1,6 @@
 package xyz.vmflow.target;
 
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -32,17 +30,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
-import xyz.vmflow.BuildConfig;
 import xyz.vmflow.R;
 
 public class SalesFragment extends Fragment {
 
-    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient();
 
     private final List<JSONObject> mListSales = new ArrayList<>();
     private final ItemAdapter_ itemAdapter_ = new ItemAdapter_();
@@ -168,10 +161,6 @@ public class SalesFragment extends Fragment {
     private void fetchMetrics() {
         if (!isAdded()) return;
         try {
-            SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-            JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
-            String bearer = "Bearer " + jsonAuth.getString("access_token");
-
             Calendar now = Calendar.getInstance();
 
             Calendar todayStart = (Calendar) now.clone();
@@ -181,22 +170,14 @@ public class SalesFragment extends Fragment {
             todayStart.set(Calendar.MILLISECOND, 0);
 
             // Sales today
-            Request reqToday = new Request.Builder()
-                    .url(BuildConfig.SUPABASE_URL + "/rest/v1/sales?select=item_price&created_at=gte." + isoTimestamp(todayStart))
-                    .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                    .addHeader("Authorization", bearer)
-                    .build();
+            Request reqToday = Api.request("/rest/v1/sales?select=item_price&created_at=gte." + isoTimestamp(todayStart)).build();
 
             // Machines online (embedded linked to a machine)
-            Request reqEmbedded = new Request.Builder()
-                    .url(BuildConfig.SUPABASE_URL + "/rest/v1/embedded?select=machine_id,status&machine_id=not.is.null")
-                    .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                    .addHeader("Authorization", bearer)
-                    .build();
+            Request reqEmbedded = Api.request("/rest/v1/embedded?select=machine_id,status&machine_id=not.is.null").build();
 
             ExecutorService pool = Executors.newFixedThreadPool(2);
-            Future<Double> futureToday = pool.submit(() -> sumItemPrices(HTTP_CLIENT.newCall(reqToday).execute()));
-            Future<int[]> futureMachines = pool.submit(() -> parseMachinesCounts(HTTP_CLIENT.newCall(reqEmbedded).execute()));
+            Future<Double> futureToday = pool.submit(() -> sumItemPrices(Api.client(mAppContext).newCall(reqToday).execute()));
+            Future<int[]> futureMachines = pool.submit(() -> parseMachinesCounts(Api.client(mAppContext).newCall(reqEmbedded).execute()));
             pool.shutdown();
 
             double salesToday = futureToday.get();
@@ -211,7 +192,7 @@ public class SalesFragment extends Fragment {
                 tvMachinesOnline.setText(onlineStr);
             });
 
-        } catch (JSONException | InterruptedException | java.util.concurrent.ExecutionException e) {
+        } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
             e.printStackTrace();
         }
     }
@@ -241,76 +222,36 @@ public class SalesFragment extends Fragment {
     private void fetchSalesData() {
         if (!isAdded()) return;
 
-        boolean retry;
-        int attempts = 0;
-        do {
-            retry = false;
-
-            try {
-                SharedPreferences prefs = mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE);
-
-                JSONObject jsonAuth = new JSONObject(prefs.getString("auth_json", "{}"));
-
-                Request request = new Request.Builder()
-                        .url(BuildConfig.SUPABASE_URL + "/rest/v1/sales?select=*,embedded(subdomain)&order=created_at.desc&limit=50")
-                        .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                        .addHeader("Authorization", "Bearer " + jsonAuth.getString("access_token"))
-                        .addHeader("Content-Type", "application/json")
-                        .build();
-
-                Response response = HTTP_CLIENT.newCall(request).execute();
+        try {
+            Request request = Api.request("/rest/v1/sales?select=*,embedded(subdomain)&order=created_at.desc&limit=50").build();
+            try (Response response = Api.client(mAppContext).newCall(request).execute()) {
                 String body = response.body().string();
 
                 if (response.isSuccessful()) {
-                    try {
-                        JSONArray jsonArray = new JSONArray(body);
+                    JSONArray jsonArray = new JSONArray(body);
 
-                        // Build off-thread, swap on the UI thread: mutating the adapter's list from a
-                        // background thread crashes RecyclerView ("Inconsistency detected").
-                        List<JSONObject> fresh = new ArrayList<>();
-                        for (int i = 0; i < jsonArray.length(); i++) {
-                            fresh.add(jsonArray.getJSONObject(i));
-                        }
-
-                        ui(() -> {
-                            mListSales.clear();
-                            mListSales.addAll(fresh);
-                            itemAdapter_.notifyDataSetChanged();
-                        });
-
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                    // Build off-thread, swap on the UI thread: mutating the adapter's list from a
+                    // background thread crashes RecyclerView ("Inconsistency detected").
+                    List<JSONObject> fresh = new ArrayList<>();
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        fresh.add(jsonArray.getJSONObject(i));
                     }
 
-                } else if (response.code() == 401) {
-
-                    RequestBody requestBody = RequestBody.create(jsonAuth.toString(), MediaType.parse("application/json"));
-
-                    Request request_ = new Request.Builder()
-                            .url(BuildConfig.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token")
-                            .post(requestBody)
-                            .addHeader("apikey", BuildConfig.SUPABASE_KEY)
-                            .addHeader("Content-Type", "application/json")
-                            .build();
-
-                    Response response_ = HTTP_CLIENT.newCall(request_).execute();
-                    if (response_.isSuccessful()) {
-                        SharedPreferences.Editor editor = prefs.edit();
-                        editor.putString("auth_json", response_.body().string());
-                        editor.apply();
-                        retry = ++attempts < 2; // one refresh only; a still-401 token must not loop forever
-                    } else {
-                        redirectToLogin();
-                    }
+                    ui(() -> {
+                        mListSales.clear();
+                        mListSales.addAll(fresh);
+                        itemAdapter_.notifyDataSetChanged();
+                    });
+                } else if (Api.isSessionExpired(mAppContext, response)) {
+                    Api.redirectToLogin(getActivity());
                 } else {
-                    ui(() -> Toast.makeText(getContext(), "Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                    String reason = Api.errorMessage(response, body);
+                    ui(() -> Toast.makeText(getContext(), "Error: " + reason, Toast.LENGTH_SHORT).show());
                 }
-
-            } catch (JSONException | IOException e) {
-                e.printStackTrace();
             }
-
-        } while (retry);
+        } catch (JSONException | IOException e) {
+            e.printStackTrace();
+        }
 
         ui(() -> mProgressBar.setVisibility(View.GONE));
     }
@@ -325,16 +266,6 @@ public class SalesFragment extends Fragment {
         executor.execute(() -> {
             fetchSalesData();
             fetchMetrics();
-        });
-    }
-
-    private void redirectToLogin() {
-        mAppContext.getSharedPreferences("target_prefs", Context.MODE_PRIVATE)
-                .edit().remove("auth_json").apply();
-        ui(() -> {
-            Intent intent = new Intent(getActivity(), LoginActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
         });
     }
 
