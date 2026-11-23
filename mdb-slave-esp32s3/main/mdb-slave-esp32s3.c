@@ -174,9 +174,16 @@ typedef struct {
 bool remote_credit_session = false;
 uint32_t session_seq = 0;
 
-// Highest remote-credit seq accepted (persisted in NVS): a replayed credit line
-// carries a seq <= this and is rejected even across reboots.
+// Vend request the VMC is waiting on (MDB scale), read by the BLE approval (0x03).
+volatile uint16_t pending_vend_price = 0;
+volatile uint16_t pending_vend_item = 0;
+
+// Highest credit seq accepted (MQTT credit line or BLE approval), RAM only: a
+// replayed message carries a seq <= this and is rejected. After a reboot (~40 s)
+// any captured MQTT credit is already past RPC_FRESHNESS_SEC; a BLE approval has
+// at most ~20 s of BLE_FRESHNESS_SEC left, and only next to the machine.
 uint32_t last_credit_seq = 0;
+
 
 uint16_t last_sale_price = 0;
 uint16_t last_sale_item = 0;
@@ -194,8 +201,8 @@ esp_mqtt_client_handle_t mqtt_client = NULL;
 static QueueHandle_t mdb_session_queue = NULL;
 static QueueHandle_t mdb_rx_queue;
 
-void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload);
-esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload);
+void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint32_t extra, uint8_t *payload);
+esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint32_t *extra, uint8_t *payload);
 
 static void IRAM_ATTR mdb_rx_falling_isr(void *arg) {
     gpio_intr_disable(PIN_MDB_RX);
@@ -406,6 +413,8 @@ void mdb_cashless_task(void *pvParameters) {
 
 				if (read_9(NULL) != checksum) continue;
 
+				pending_vend_price = item_price;
+				pending_vend_item  = item_number;
 				machine_state = VEND_STATE;
 
 				if(funds_available && (funds_available != 0xffff)){
@@ -418,7 +427,7 @@ void mdb_cashless_task(void *pvParameters) {
 				}
 
 				uint8_t payload[19];
-				ble_encode_with_passkey(0x0a, item_price, item_number, payload);
+				ble_encode_with_passkey(0x0a, item_price, item_number, 0, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
 
 				ESP_LOGI( TAG, "VEND_REQUEST");
@@ -442,7 +451,7 @@ void mdb_cashless_task(void *pvParameters) {
 				last_vend_success_time = time(NULL);
 
 				uint8_t payload[19];
-				ble_encode_with_passkey(0x0b, item_price, item_number, payload);
+				ble_encode_with_passkey(0x0b, item_price, item_number, 0, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
 
 				// One report per remote credit: further vends in the same session
@@ -473,7 +482,7 @@ void mdb_cashless_task(void *pvParameters) {
 				machine_state = IDLE_STATE;
 
 				uint8_t payload[19];
-				ble_encode_with_passkey(0x0c, item_price, item_number, payload);
+				ble_encode_with_passkey(0x0c, item_price, item_number, 0, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
 
 				// Same wire format as vend_success: "<price>:<item>[:<seq>]:<ts>", price in
@@ -499,7 +508,7 @@ void mdb_cashless_task(void *pvParameters) {
 				session_seq = 0;
 
 				uint8_t payload[19];
-				ble_encode_with_passkey(0x0d, item_price, item_number, payload);
+				ble_encode_with_passkey(0x0d, item_price, item_number, 0, payload);
 				ble_notify_send((char*) payload, sizeof(payload));
 
 				ESP_LOGI( TAG, "SESSION_COMPLETE");
@@ -614,9 +623,11 @@ void mdb_cashless_task(void *pvParameters) {
  *
  * BLE wire payload (phone app) — 19 bytes:
  *   [0] CMD | [1-4] PRICE u32 | [5-6] ITEM u16 | [7-10] TIME u32 |
- *   [11-14] reserved=0 | [15-18] HMAC-SHA256(passkey, bytes 0-14)[:4]
+ *   [11-14] EXTRA u32 | [15-18] HMAC-SHA256(passkey, bytes 0-14)[:4]
+ *   EXTRA: 0x03 approval = sales.seq (must be above last_credit_seq; price/item must
+ *   match the pending vend request); 0 otherwise.
  */
-esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint8_t *payload) {
+esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, uint32_t *extra, uint8_t *payload) {
 	unsigned char hmac[32];
 	calculate_hmac((const char*) payload, 15, hmac);
 
@@ -645,10 +656,13 @@ esp_err_t ble_decode_with_passkey(uint16_t *item_price, uint16_t *item_number, u
     if(item_number)
         *item_number = read_u16(&payload[5]);
 
+    if(extra)
+        *extra = read_u32(&payload[11]);
+
     return ESP_OK;
 }
 
-void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint8_t *payload) {
+void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_number, uint32_t extra, uint8_t *payload) {
     uint32_t item_price_32 = TO_SCALE_FACTOR( FROM_SCALE_FACTOR(item_price, CONFIG_MDB_SCALE_FACTOR, CONFIG_MDB_DECIMAL_PLACES), 1, 2);
 
 	time_t now = time(NULL);
@@ -658,7 +672,7 @@ void ble_encode_with_passkey(uint8_t cmd, uint16_t item_price, uint16_t item_num
 	write_u32(&payload[1], item_price_32);
 	write_u16(&payload[5], item_number);
 	write_u32(&payload[7], (uint32_t) now);
-	write_u32(&payload[11], 0);
+	write_u32(&payload[11], extra);
 
 	unsigned char hmac[32];
 	calculate_hmac((const char*) payload, 15, hmac);
@@ -751,12 +765,38 @@ void ble_event_handler(char *ble_payload) {
         mdb_credit_t credit = { .funds = 0xffff, .seq = 0 };
 		xQueueSend(mdb_session_queue, &credit, 0);
 		break;
-	case 0x03:
+	case 0x03: {
+        uint16_t ap_price, ap_item;
+        uint32_t ap_seq;
 
-        if(ble_decode_with_passkey(NULL, NULL, (uint8_t*) ble_payload) == ESP_OK){
-            vend_approved_todo = (machine_state == VEND_STATE) ? true : false;
+        esp_err_t err = ble_decode_with_passkey(&ap_price, &ap_item, &ap_seq, (uint8_t*) ble_payload);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "BLE approve rejected: %s", err == ESP_ERR_TIMEOUT ? "stale ts" : "bad HMAC");
+            break;
         }
+        if (machine_state != VEND_STATE) {
+            ESP_LOGW(TAG, "BLE approve rejected: no vend request pending");
+            break;
+        }
+        // Bound to the vend request it answers: an approval for a cheaper item
+        // cannot release this one.
+        if (ap_price != pending_vend_price || ap_item != pending_vend_item) {
+            ESP_LOGW(TAG, "BLE approve rejected: price/item %u/%u != request %u/%u", ap_price, ap_item, pending_vend_price, pending_vend_item);
+            break;
+        }
+        // Single use: each approval carries its own sales.seq.
+        if (ap_seq == 0 || ap_seq <= last_credit_seq) {
+            ESP_LOGW(TAG, "BLE approve rejected: replayed seq %lu (last %lu)", (unsigned long) ap_seq, (unsigned long) last_credit_seq);
+            break;
+        }
+        last_credit_seq = ap_seq;
+
+        // The vend result of a BLE sale is reported by the app, not over MQTT.
+        vend_approved_todo = true;
+
+        ESP_LOGI(TAG, "BLE approve: seq %lu", (unsigned long) ap_seq);
         break;
+    }
     case 0x04:
     	session_cancel_todo = (machine_state >= IDLE_STATE) ? true : false;
         break;
@@ -936,13 +976,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 				}
 				if (seq) {
 					last_credit_seq = seq;
-
-					nvs_handle_t handle;
-					if (nvs_open("vmflow", NVS_READWRITE, &handle) == ESP_OK) {
-						nvs_set_u32(handle, "last_seq", last_credit_seq);
-						nvs_commit(handle);
-						nvs_close(handle);
-					}
 				}
 
 				mdb_credit_t credit = {
@@ -1236,8 +1269,6 @@ void app_main(void) {
 
     nvs_handle_t handle;
 	if (nvs_open("vmflow", NVS_READONLY, &handle) == ESP_OK) {
-	    nvs_get_u32(handle, "last_seq", &last_credit_seq);
-
 	    size_t s_len = 0;
 	    if (nvs_get_str(handle, "passkey", NULL, &s_len) == ESP_OK) {
             nvs_get_str(handle, "passkey", my_passkey, &s_len);

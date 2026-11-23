@@ -52,8 +52,13 @@ All MQTT messages are signed: `"<cmd>[:<args>]:<ts>:<hmac_hex>"`, where `hmac = 
 
 ```
 [0] CMD | [1-4] PRICE u32 | [5-6] ITEM u16 | [7-10] TIME u32 |
-[11-14] reserved=0 | [15-18] HMAC-SHA256(passkey, bytes 0-14)[:4]
+[11-14] SEQ u32 | [15-18] HMAC-SHA256(passkey, bytes 0-14)[:4]
 ```
+
+The `0x03` approval from `request-credit` carries `sales.seq` in bytes 11-14 (0 in
+every other command). The firmware accepts it only if the HMAC is valid, the
+timestamp is within 60 s, a vend request is pending with the same price and item,
+and the seq is above the last accepted one (kept in RAM, shared with MQTT credits).
 
 Multi-byte fields are big-endian; see `read_u32`/`write_u32` in `main/mdb-slave-esp32s3.c`.
 

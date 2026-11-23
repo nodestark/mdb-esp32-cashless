@@ -147,15 +147,23 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    IF TG_OP = 'UPDATE' AND OLD.item_number IS NOT NULL THEN
-        RETURN NEW;
+    -- Map product/coil whenever the item becomes known (pending, failed or success).
+    IF TG_OP = 'INSERT' OR OLD.item_number IS DISTINCT FROM NEW.item_number THEN
+        SELECT product_id, alias
+        INTO NEW.product_id, NEW.coil_alias
+        FROM "public"."machine_coils"
+        WHERE machine_id = NEW.machine_id AND item_number = NEW.item_number
+        LIMIT 1;
     END IF;
 
-    SELECT product_id, alias
-    INTO NEW.product_id, NEW.coil_alias
-    FROM "public"."machine_coils"
-    WHERE machine_id = NEW.machine_id AND item_number = NEW.item_number
-    LIMIT 1;
+    -- Debit stock once, only when the sale is a dispensed product: a failed vend
+    -- (vend_fail records the item) or a still-pending BLE sale must not debit.
+    IF NEW.status IS DISTINCT FROM 'success' THEN
+        RETURN NEW;
+    END IF;
+    IF TG_OP = 'UPDATE' AND OLD.status = 'success' AND OLD.item_number IS NOT NULL THEN
+        RETURN NEW;
+    END IF;
 
     UPDATE public.machine_coils set current_stock = greatest(0, current_stock - 1)
     where machine_id = NEW.machine_id and item_number = NEW.item_number;
@@ -583,7 +591,7 @@ CREATE TRIGGER trg_debit_product_stock_on_coil_refill AFTER UPDATE OF current_st
 -- Name: sales trg_fill_sale_coil_data; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_fill_sale_coil_data BEFORE INSERT OR UPDATE OF item_number ON public.sales FOR EACH ROW EXECUTE FUNCTION public.fill_sale_coil_data();
+CREATE TRIGGER trg_fill_sale_coil_data BEFORE INSERT OR UPDATE OF item_number, status ON public.sales FOR EACH ROW EXECUTE FUNCTION public.fill_sale_coil_data();
 
 
 --
